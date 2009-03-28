@@ -2,13 +2,10 @@
 #include "framework.h"
 #include "clock.h"
 
-#include <FL/Fl.H>
-#include <FL/Fl_Gl_Window.H>
-#include <FL/Fl_Double_Window.H>
-#include <FL/Fl_Window.H>
-#include <FL/Fl_Pack.H>
-#include <FL/Fl_Button.H>
-#include <FL/gl.h>
+#include <gtk/gtk.h>
+#include <gtk/gtkgl.h>
+#include <GL/gl.h>
+
 #include <sstream>
 #include <string>
 #include <stdlib.h>
@@ -16,8 +13,6 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/timerfd.h>
-
-#define SAFE_DELETE(x)        do { if( x ) { delete x; x = 0; } } while( 0 )
 
 using namespace Iex;
 using namespace Imf;
@@ -55,6 +50,53 @@ static float gamma45Func( float input ) {
 
 static halfFunction<half> __gamma45( gamma45Func, half( -256.0f ), half( 256.0f ) );
 
+static void drawFrame( void *rgb, int width, int height ) {
+    glLoadIdentity();
+    glViewport( 0, 0, width, height );
+    glOrtho( 0, width, height, 0, -1, 1 );
+
+    glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
+    glClear( GL_COLOR_BUFFER_BIT );
+
+    glDrawPixels( width, height, GL_RGB, GL_UNSIGNED_BYTE, rgb );
+}
+
+typedef struct {
+    IFrameSource *_source;
+    int _timer;
+    GMutex *_frameReadMutex;
+    GCond *_frameReadCond;
+    int _lastDisplayedFrame, _nextToRenderFrame;
+    int _currentReadBuffer, _filled;
+    IPresentationClock *_clock;
+
+    int64_t _presentationTime[4];
+    Array2D<uint8_t[3]> _targets[4];
+    float _rate;
+} VideoWidgetInfo;
+
+static gboolean
+videoWidget_expose( GtkWidget *widget, GdkEventExpose *event, gpointer data ) {
+    GdkGLContext *glcontext = gtk_widget_get_gl_context( widget );
+    GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable( widget );
+
+    VideoWidgetInfo *info = (VideoWidgetInfo*) g_object_get_data( G_OBJECT(widget), "__info" );
+
+    if( !gdk_gl_drawable_gl_begin( gldrawable, glcontext ) )
+        return FALSE;
+
+    drawFrame( &info->_targets[info->_currentReadBuffer][0][0], 720, 480 );
+
+    if( gdk_gl_drawable_is_double_buffered( gldrawable ) )
+        gdk_gl_drawable_swap_buffers( gldrawable );
+    else
+        glFlush();
+
+    gdk_gl_drawable_gl_end( gldrawable );
+
+    return TRUE;
+}
+
 class Pulldown23RemovalFilter : public IFrameSource {
 public:
     Pulldown23RemovalFilter( IFrameSource *source, int offset, bool oddFirst );
@@ -67,7 +109,7 @@ private:
     bool _oddFirst;
 };
 
-class VideoWidget : public Fl_Gl_Window {
+/*class VideoWidget : public Fl_Gl_Window {
 public:
     VideoWidget( IPresentationClock *clock, int x, int y, int w, int h, const char *label = 0 );
     void draw() { do_draw(); }
@@ -78,156 +120,112 @@ public:
 
         _rate = rate;
         Fl::add_timeout( rate, _frameCallback, this );
-    }
+    }*/
 
-    ~VideoWidget() {
-    }
+int64_t
+getFrameTime( int frame ) {
+    return (int64_t) frame * INT64_C(1000000000) * INT64_C(1001) / INT64_C(24000);
+}
 
-private:
-    IFrameSource *_source;
-    int _timer;
-    pthread_mutex_t _frameReadMutex;
-    pthread_cond_t _frameReadCond;
-    int _lastDisplayedFrame, _nextToRenderFrame;
-    int _currentReadBuffer, _filled;
-    IPresentationClock *_clock;
+gpointer PlaybackThread( gpointer data ) {
+    VideoWidgetInfo *info = (VideoWidgetInfo *) data;
 
-    int64_t _presentationTime[4];
-    Array2D<uint8_t[3]> _targets[4];
-    void do_draw();
-    float _rate;
-
-    static void *_playbackThread( void *p ) {
-        return ((VideoWidget *) p)->PlaybackThread();
-    }
-
-    int64_t getFrameTime( int frame ) {
-        return (int64_t) frame * INT64_C(1000000000) * INT64_C(1001) / INT64_C(24000);
-    }
-
-    void *PlaybackThread() {
 //        AVFileReader reader( "SMPTE test pattern.avi" );
-        AVFileReader reader( "/home/james/Videos/Okra - 79b,100.avi" );
-        Pulldown23RemovalFilter filter( &reader, 0, false );
-        Array2D<Rgba> array( 480, 720 );
-        int64_t frameDuration = getFrameTime( 1 ) - getFrameTime( 0 );
-        int buffer = 0;
+    AVFileReader reader( "/home/james/Videos/Okra - 79b,100.avi" );
+    Pulldown23RemovalFilter filter( &reader, 0, false );
+    Array2D<Rgba> array( 480, 720 );
+//    int64_t frameDuration = getFrameTime( 1 ) - getFrameTime( 0 );
+    int buffer = 0;
 
-        for( ;; ) {
-            int64_t startTime = _clock->getPresentationTime();
-            pthread_mutex_lock( &_frameReadMutex );
+    for( ;; ) {
+        int64_t startTime = info->_clock->getPresentationTime();
+        g_mutex_lock( info->_frameReadMutex );
 
-            while( _filled == 3 )
-                pthread_cond_wait( &_frameReadCond, &_frameReadMutex );
+        while( info->_filled == 3 )
+            g_cond_wait( info->_frameReadCond, info->_frameReadMutex );
 
-            pthread_mutex_unlock( &_frameReadMutex );
+        g_mutex_unlock( info->_frameReadMutex );
 
-            //printf( "Start rendering %d into %d...\n", _nextToRenderFrame, buffer );
+        //printf( "Start rendering %d into %d...\n", _nextToRenderFrame, buffer );
 
-            filter.GetFrame( _nextToRenderFrame, array );
+        filter.GetFrame( info->_nextToRenderFrame, array );
 
-            // Convert the results to floating-point
-            for( int y = 0; y < 480; y++ ) {
-                for( int x = 0; x < 720; x++ ) {
+        // Convert the results to floating-point
+        for( int y = 0; y < 480; y++ ) {
+            for( int x = 0; x < 720; x++ ) {
 /*                    _video->target[479 - y][x][0] = clamppowf( array[y][x].r, 0.45f );
-                    _video->target[479 - y][x][1] = clamppowf( array[y][x].g, 0.45f );
-                    _video->target[479 - y][x][2] = clamppowf( array[y][x].b, 0.45f );*/
-                    _targets[buffer][479 - y][x][0] = (uint8_t) __gamma45( array[y][x].r );
-                    _targets[buffer][479 - y][x][1] = (uint8_t) __gamma45( array[y][x].g );
-                    _targets[buffer][479 - y][x][2] = (uint8_t) __gamma45( array[y][x].b );
-                }
+                _video->target[479 - y][x][1] = clamppowf( array[y][x].g, 0.45f );
+                _video->target[479 - y][x][2] = clamppowf( array[y][x].b, 0.45f );*/
+                info->_targets[buffer][479 - y][x][0] = (uint8_t) __gamma45( array[y][x].r );
+                info->_targets[buffer][479 - y][x][1] = (uint8_t) __gamma45( array[y][x].g );
+                info->_targets[buffer][479 - y][x][2] = (uint8_t) __gamma45( array[y][x].b );
             }
+        }
 
-            //usleep( 100000 );
+        //usleep( 100000 );
 
-            _presentationTime[buffer] = getFrameTime( _nextToRenderFrame );
-            int64_t endTime = _clock->getPresentationTime();
+        info->_presentationTime[buffer] = getFrameTime( info->_nextToRenderFrame );
+        int64_t endTime = info->_clock->getPresentationTime();
 
-            pthread_mutex_lock( &_frameReadMutex );
-            _filled++;
-            pthread_mutex_unlock( &_frameReadMutex );
+        g_mutex_lock( info->_frameReadMutex );
+        info->_filled++;
+        g_mutex_unlock( info->_frameReadMutex );
 
-            int64_t lastDuration = endTime - startTime;
+        int64_t lastDuration = endTime - startTime;
 
-            //printf( "Rendered frame %d into %d in %f presentation seconds...\n", _nextToRenderFrame, buffer,
-            //    ((double) endTime - (double) startTime) / 1000000000.0 );
-            //printf( "Presentation time %ld\n", _presentationTime[buffer] );
+        //printf( "Rendered frame %d into %d in %f presentation seconds...\n", _nextToRenderFrame, buffer,
+        //    ((double) endTime - (double) startTime) / 1000000000.0 );
+        //printf( "Presentation time %ld\n", _presentationTime[buffer] );
 
-            if( lastDuration > INT64_C(0) ) {
-                while( getFrameTime( ++_nextToRenderFrame ) < endTime + lastDuration );
-            }
-            else if( lastDuration < INT64_C(0) ) {
-                while( getFrameTime( --_nextToRenderFrame ) > endTime + lastDuration );
-            }
+        if( lastDuration > INT64_C(0) ) {
+            while( getFrameTime( ++info->_nextToRenderFrame ) < endTime + lastDuration );
+        }
+        else if( lastDuration < INT64_C(0) ) {
+            while( getFrameTime( --info->_nextToRenderFrame ) > endTime + lastDuration );
+        }
 
-            buffer = (buffer + 1) & 3;
+        buffer = (buffer + 1) & 3;
 
 /*            std::stringstream filename;
-            filename << "rgba" << i++ << ".exr";
+        filename << "rgba" << i++ << ".exr";
 
-            Header header( 720, 480, 40.0f / 33.0f );
+        Header header( 720, 480, 40.0f / 33.0f );
 
-            RgbaOutputFile file( filename.str().c_str(), header, WRITE_RGBA );
-            file.setFrameBuffer( &array[0][0], 1, 720 );
-            file.writePixels( 480 );
+        RgbaOutputFile file( filename.str().c_str(), header, WRITE_RGBA );
+        file.setFrameBuffer( &array[0][0], 1, 720 );
+        file.writePixels( 480 );
 
-            puts( filename.str().c_str() );*/
-        }
-
-        return NULL;
+        puts( filename.str().c_str() );*/
     }
 
-    void Frame() {
-        if( _filled != 0 ) {
-            _currentReadBuffer = (_currentReadBuffer + 1) & 3;
-
-            redraw();
-
-            //printf( "Painted %ld from %d...\n", _presentationTime[_currentReadBuffer], _currentReadBuffer );
-
-            pthread_mutex_lock( &_frameReadMutex );
-
-            _filled--;
-
-            pthread_cond_signal( &_frameReadCond );
-            pthread_mutex_unlock( &_frameReadMutex );
-        }
-
-        Fl::repeat_timeout( _rate, _frameCallback, this );
-    }
-
-    static void _frameCallback( void *ptr ) {
-        ((VideoWidget*) ptr)->Frame();
-    }
-};
-
-
-VideoWidget::VideoWidget( IPresentationClock *clock, int x, int y, int w, int h, const char *label )
-    : Fl_Gl_Window( x, y, w, h, label ), _nextToRenderFrame( 5000 ), _currentReadBuffer( 3 ), _filled( 0 ), _clock( clock ) {
-
-    pthread_mutex_init( &_frameReadMutex, NULL );
-    pthread_cond_init( &_frameReadCond, NULL );
-
-    _targets[0].resizeErase( h, w );
-    _targets[1].resizeErase( h, w );
-    _targets[2].resizeErase( h, w );
-    _targets[3].resizeErase( h, w );
+    return NULL;
 }
 
-void VideoWidget::do_draw() {
-//    printf( "Drawing\n" );
+gboolean
+playSingleFrame( gpointer data ) {
+    GtkWidget *widget = (GtkWidget*) data;
+    VideoWidgetInfo *info = (VideoWidgetInfo*) g_object_get_data( G_OBJECT(widget), "__info" );
 
-//    if( !valid() ) {
-        glLoadIdentity();
-        glViewport( 0, 0, w(), h() );
-        glOrtho( 0, w(), h(), 0, -1, 1 );
-    //}
+    if( info->_filled != 0 ) {
+        info->_currentReadBuffer = (info->_currentReadBuffer + 1) & 3;
 
-    glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
-    glClear( GL_COLOR_BUFFER_BIT );
+        gdk_window_invalidate_rect( widget->window, &widget->allocation, FALSE );
+        gdk_window_process_updates( widget->window, FALSE );
 
-    glDrawPixels( 720, 480, GL_RGB, GL_UNSIGNED_BYTE, &_targets[_currentReadBuffer][0][0] );
+        //printf( "Painted %ld from %d...\n", _presentationTime[_currentReadBuffer], _currentReadBuffer );
+
+        g_mutex_lock( info->_frameReadMutex );
+
+        info->_filled--;
+
+        g_cond_signal( info->_frameReadCond );
+        g_mutex_unlock( info->_frameReadMutex );
+    }
+
+    g_timeout_add( 1000u * 1001u / 24000u, playSingleFrame, data );
+    return FALSE;
 }
+
 
 /*
     <source name='scene7'>
@@ -261,48 +259,6 @@ void VideoWidget::do_draw() {
     </timeline>
 */
 
-
-class MainWindow : public Fl_Window {
-public:
-    MainWindow( int width, int height ) : Fl_Window( width, height ) {
-        _transportControls = new Fl_Pack( 0, 0, 600, 30 );
-        _transportControls->type( Fl_Pack::HORIZONTAL );
-        _playButton = new Fl_Button( 0, 0, 50, 30, "@>" );
-        _playButton->callback( _playCallback, this );
-        _pauseButton = new Fl_Button( 0, 0, 50, 30, "@||" );
-        _pauseButton->callback( _pauseCallback, this );
-        _transportControls->end();
-
-        _video = new VideoWidget( &_clock, 0, 50, 720, 480 );
-        end();
-
-        _video->play( 1.0f / 24.0f );
-        _clock.set( -1, 1, 5000LL * 1000000000LL * 1001LL / 24000LL );
-    }
-
-protected:
-
-private:
-    Fl_Pack *_transportControls;
-    Fl_Button *_playButton, *_pauseButton;
-    SystemPresentationClock _clock;
-    VideoWidget *_video;
-
-    void PlayCallback( Fl_Widget *widget ) {
-    }
-
-    void PauseCallback( Fl_Widget *widget ) {
-    }
-
-    static void _playCallback( Fl_Widget *widget, void *data ) {
-        ((MainWindow *) data)->PlayCallback( widget );
-    }
-
-    static void _pauseCallback( Fl_Widget *widget, void *data ) {
-        ((MainWindow *) data)->PauseCallback( widget );
-    }
-};
-
 int
 main( int argc, char *argv[] ) {
     struct timespec res;
@@ -310,10 +266,34 @@ main( int argc, char *argv[] ) {
 
     printf( "Clock resolution: %ld seconds, %ld nanoseconds\n", res.tv_sec, res.tv_nsec );
 
-    Fl::gl_visual( FL_RGB );
-    Fl::lock();
+//    Fl::gl_visual( FL_RGB );
+//    Fl::lock();
 
-//    Fl::add_idle( updateCallback, NULL );
+    gtk_init( &argc, &argv );
+    gtk_gl_init( &argc, &argv );
+
+    if( !g_thread_supported() )
+        g_thread_init( NULL );
+
+    GdkGLConfig *glconfig;
+
+    glconfig = gdk_gl_config_new_by_mode ( (GdkGLConfigMode) (GDK_GL_MODE_RGB    |
+                                        GDK_GL_MODE_DEPTH  |
+                                        GDK_GL_MODE_DOUBLE));
+    if (glconfig == NULL)
+    {
+        g_print ("*** Cannot find the double-buffered visual.\n");
+        g_print ("*** Trying single-buffered visual.\n");
+
+        /* Try single-buffered visual */
+        glconfig = gdk_gl_config_new_by_mode ((GdkGLConfigMode) (GDK_GL_MODE_RGB   |
+                                        GDK_GL_MODE_DEPTH));
+        if (glconfig == NULL)
+        {
+            g_print ("*** No appropriate OpenGL-capable visual found.\n");
+            exit (1);
+        }
+    }
 
 /*    AVFileReader reader( "/home/james/Desktop/Demo2.avi" );
     Array2D<Rgba> array( 480, 720 );
@@ -332,11 +312,47 @@ main( int argc, char *argv[] ) {
         puts( filename.str().c_str() );
     }*/
 
+    GtkWidget *window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
+    gtk_window_set_title( GTK_WINDOW(window), "boogidy boogidy" );
 
-    MainWindow window( 800, 600 );
-    window.show( argc, argv );
+    GtkWidget *drawingArea = gtk_drawing_area_new();
+    gtk_widget_set_size_request( drawingArea, 720, 480 );
 
-    return Fl::run();
+    gtk_widget_set_gl_capability( drawingArea,
+                                glconfig,
+                                NULL,
+                                TRUE,
+                                GDK_GL_RGBA_TYPE );
+
+    int h = 480, w = 720;
+
+    SystemPresentationClock clock;
+    clock.set( -1, 1, 5000LL * 1000000000LL * 1001LL / 24000LL );
+
+    VideoWidgetInfo info;
+    info._clock = &clock;
+    info._frameReadMutex = g_mutex_new();
+    info._frameReadCond = g_cond_new();
+    info._nextToRenderFrame = 5000;
+    info._currentReadBuffer = 3;
+    info._filled = 0;
+    info._targets[0].resizeErase( h, w );
+    info._targets[1].resizeErase( h, w );
+    info._targets[2].resizeErase( h, w );
+    info._targets[3].resizeErase( h, w );
+
+    g_object_set_data( G_OBJECT(drawingArea), "__info", &info );
+    g_signal_connect( G_OBJECT(drawingArea), "expose_event", G_CALLBACK(videoWidget_expose), NULL);
+
+    gtk_container_add( GTK_CONTAINER(window), drawingArea );
+    gtk_widget_show( drawingArea );
+
+    gtk_widget_show( window );
+
+    g_timeout_add( 0, playSingleFrame, drawingArea );
+    g_thread_create( PlaybackThread, &info, FALSE, NULL );
+
+    gtk_main();
 }
 
 
