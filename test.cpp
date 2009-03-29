@@ -78,6 +78,7 @@ typedef struct {
     IPresentationClock *_clock;
 
     int64_t _presentationTime[4];
+    int64_t nextPresentationTime[4];
     Array2D<uint8_t[3]> _targets[4];
     float _rate;
 } VideoWidgetInfo;
@@ -174,6 +175,8 @@ gpointer PlaybackThread( gpointer data ) {
         else if( lastDuration < INT64_C(0) ) {
             while( getFrameTime( &info->frameRate, --info->_nextToRenderFrame ) > endTime + lastDuration );
         }
+
+        info->nextPresentationTime[writeBuffer] = getFrameTime( &info->frameRate, info->_nextToRenderFrame );
         g_mutex_unlock( info->_frameReadMutex );
 
 /*            std::stringstream filename;
@@ -211,9 +214,22 @@ playSingleFrame( gpointer data ) {
             g_mutex_lock( info->_frameReadMutex );
 
             info->filled--;
+            int64_t nextPresentationTime = info->nextPresentationTime[info->readBuffer];
 
             g_cond_signal( info->_frameReadCond );
             g_mutex_unlock( info->_frameReadMutex );
+
+            int speedNum, speedDenom;
+            info->_clock->getSpeed( &speedNum, &speedDenom );
+
+            int timeout = (nextPresentationTime - info->_clock->getPresentationTime()) * abs(speedDenom) / (abs(speedNum) * 1000000);
+            //printf( "timeout %d\n", timeout );
+
+            if( timeout < 0 )
+                timeout = 0;
+
+            info->_timeoutSourceID = g_timeout_add( timeout, playSingleFrame, data );
+            return FALSE;
         }
     }
 
