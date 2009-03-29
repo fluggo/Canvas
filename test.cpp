@@ -128,8 +128,7 @@ gpointer PlaybackThread( gpointer data ) {
     for( ;; ) {
         int64_t startTime = info->_clock->getPresentationTime();
         g_mutex_lock( info->_frameReadMutex );
-        int speedNum, speedDenom;
-        info->_clock->getSpeed( &speedNum, &speedDenom );
+        Rational speed = info->_clock->getSpeed();
 
         if( info->filled < 0 )
             info->filled = 0;
@@ -167,16 +166,14 @@ gpointer PlaybackThread( gpointer data ) {
 
         g_mutex_lock( info->_frameReadMutex );
         if( info->filled < 0 ) {
-            int newSpeedNum, newSpeedDenom;
-            info->_clock->getSpeed( &newSpeedNum, &newSpeedDenom );
+            Rational newSpeed = info->_clock->getSpeed();
 
-            lastDuration = lastDuration * newSpeedNum * speedDenom / (speedNum * newSpeedDenom);
-            speedNum = newSpeedNum;
-            speedDenom = newSpeedDenom;
+            lastDuration = lastDuration * newSpeed.n * speed.d / (speed.n * newSpeed.d);
+            speed = newSpeed;
 
-            if( speedNum > 0 )
+            if( speed.n > 0 )
                 info->_nextToRenderFrame -= 4;
-            else if( speedNum < 0 )
+            else if( speed.n < 0 )
                 info->_nextToRenderFrame += 4;
         }
 
@@ -185,10 +182,10 @@ gpointer PlaybackThread( gpointer data ) {
         if( lastDuration < INT64_C(0) )
             lastDuration *= INT64_C(-1);
 
-        if( speedNum > 0 ) {
+        if( speed.n > 0 ) {
             while( getFrameTime( &info->frameRate, ++info->_nextToRenderFrame ) < endTime + lastDuration );
         }
-        else if( speedNum < 0 ) {
+        else if( speed.n < 0 ) {
             while( getFrameTime( &info->frameRate, --info->_nextToRenderFrame ) > endTime - lastDuration );
         }
 
@@ -235,10 +232,9 @@ playSingleFrame( gpointer data ) {
             g_cond_signal( info->_frameReadCond );
             g_mutex_unlock( info->_frameReadMutex );
 
-            int speedNum, speedDenom;
-            info->_clock->getSpeed( &speedNum, &speedDenom );
+            Rational speed = info->_clock->getSpeed();
 
-            int timeout = (nextPresentationTime - info->_clock->getPresentationTime()) * speedDenom / (speedNum * 1000000);
+            int timeout = (nextPresentationTime - info->_clock->getPresentationTime()) * speed.d / (speed.n * 1000000);
             //printf( "timeout %d\n", timeout );
 
             if( timeout < 0 )
@@ -249,11 +245,10 @@ playSingleFrame( gpointer data ) {
         }
     }
 
-    int speedNum, speedDenom;
-    info->_clock->getSpeed( &speedNum, &speedDenom );
+    Rational speed = info->_clock->getSpeed();
 
     info->_timeoutSourceID = g_timeout_add(
-        (1000 * info->frameRate.d * abs(speedDenom)) / (info->frameRate.n * abs(speedNum)),
+        (1000 * info->frameRate.d * speed.d) / (info->frameRate.n * abs(speed.n)),
         playSingleFrame, data );
     return FALSE;
 }
@@ -267,31 +262,25 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
         info->_timeoutSourceID = 0;
     }
 
-    int speedNum, speedDenom;
-    info->_clock->getSpeed( &speedNum, &speedDenom );
-
+    Rational speed = info->_clock->getSpeed();
 
     switch( event->keyval ) {
         case GDK_l:
-            if( speedNum < 1 ) {
-                speedNum = 1;
-                speedDenom = 1;
-            }
+            if( speed.n < 1 )
+                speed = Rational( 1, 1 );
             else
-                speedNum *= 2;
+                speed.n *= 2;
             break;
 
         case GDK_j:
-            if( speedNum > -1 ) {
-                speedNum = -1;
-                speedDenom = 1;
-            }
+            if( speed.n > -1 )
+                speed = Rational( -1, 1 );
             else
-                speedNum *= 2;
+                speed.n *= 2;
             break;
     }
 
-    ((SystemPresentationClock*) info->_clock)->play( speedNum, speedDenom );
+    ((SystemPresentationClock*) info->_clock)->play( speed );
 
     g_mutex_lock( info->_frameReadMutex );
     info->filled = -1;
@@ -396,7 +385,7 @@ main( int argc, char *argv[] ) {
     int h = 480, w = 720;
 
     SystemPresentationClock clock;
-    clock.set( 16, 1, 5000LL * 1000000000LL * 1001LL / 24000LL );
+    clock.set( Rational( 1, 1 ), 5000LL * 1000000000LL * 1001LL / 24000LL );
 
     VideoWidgetInfo info;
     info._clock = &clock;
