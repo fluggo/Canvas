@@ -199,7 +199,7 @@ playSingleFrame( gpointer data ) {
     if( info->filled > 0 ) {
         g_mutex_lock( info->_frameReadMutex );
         int filled = info->filled;
-        int readBuffer = (info->readBuffer = (info->readBuffer + 1) & 3);
+        info->readBuffer = (info->readBuffer + 1) & 3;
         g_mutex_unlock( info->_frameReadMutex );
 
         if( filled != 0 ) {
