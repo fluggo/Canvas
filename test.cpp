@@ -141,6 +141,8 @@ gpointer PlaybackThread( gpointer data ) {
     for( ;; ) {
         int64_t startTime = info->_clock->getPresentationTime();
         g_mutex_lock( info->_frameReadMutex );
+        if( info->filled == -1 )
+            info->filled = 0;
 
         while( info->filled == 3 )
             g_cond_wait( info->_frameReadCond, info->_frameReadMutex );
@@ -149,7 +151,7 @@ gpointer PlaybackThread( gpointer data ) {
         int writeBuffer = (info->writeBuffer = (info->writeBuffer + 1) & 3);
         g_mutex_unlock( info->_frameReadMutex );
 
-        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
+//        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
 
         filter.GetFrame( nextFrame, array );
 
@@ -174,7 +176,7 @@ gpointer PlaybackThread( gpointer data ) {
 
         //printf( "Rendered frame %d into %d in %f presentation seconds...\n", _nextToRenderFrame, buffer,
         //    ((double) endTime - (double) startTime) / 1000000000.0 );
-        //printf( "Presentation time %ld\n", _presentationTime[buffer] );
+        //printf( "Presentation time %ld\n", info->_presentationTime[writeBuffer] );
 
         g_mutex_lock( info->_frameReadMutex );
         info->filled++;
@@ -207,7 +209,7 @@ playSingleFrame( gpointer data ) {
     GtkWidget *widget = (GtkWidget*) data;
     VideoWidgetInfo *info = (VideoWidgetInfo*) g_object_get_data( G_OBJECT(widget), "__info" );
 
-    if( info->filled != 0 ) {
+    if( info->filled > 0 ) {
         g_mutex_lock( info->_frameReadMutex );
         int filled = info->filled;
         int readBuffer = (info->readBuffer = (info->readBuffer + 1) & 3);
@@ -217,7 +219,7 @@ playSingleFrame( gpointer data ) {
             gdk_window_invalidate_rect( widget->window, &widget->allocation, FALSE );
             gdk_window_process_updates( widget->window, FALSE );
 
-            printf( "Painted %ld from %d...\n", info->_presentationTime[readBuffer], readBuffer );
+            //printf( "Painted %ld from %d...\n", info->_presentationTime[readBuffer], readBuffer );
 
             g_mutex_lock( info->_frameReadMutex );
 
@@ -271,7 +273,7 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
     ((SystemPresentationClock*) info->_clock)->play( speedNum, speedDenom );
 
     g_mutex_lock( info->_frameReadMutex );
-    info->filled = 0;
+    info->filled = -1;
     info->readBuffer = 3;
     info->writeBuffer = 3;
     g_cond_signal( info->_frameReadCond );
@@ -391,7 +393,7 @@ main( int argc, char *argv[] ) {
     info._nextToRenderFrame = 5000;
     info._frameRateNum = 24000;
     info._frameRateDenom = 1001;
-    info.filled = 0;
+    info.filled = -1;
     info.readBuffer = 3;
     info.writeBuffer = 3;
     info._targets[0].resizeErase( h, w );
