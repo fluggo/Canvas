@@ -130,11 +130,11 @@ gpointer PlaybackThread( gpointer data ) {
         g_mutex_lock( info->_frameReadMutex );
         Rational speed = info->_clock->getSpeed();
 
-        if( info->filled < 0 )
-            info->filled = 0;
-
         while( info->filled == 3 )
             g_cond_wait( info->_frameReadCond, info->_frameReadMutex );
+
+        if( info->filled < 0 )
+            info->filled = 0;
 
         int nextFrame = info->_nextToRenderFrame;
         int writeBuffer = (info->writeBuffer = (info->writeBuffer + 1) & 3);
@@ -168,7 +168,11 @@ gpointer PlaybackThread( gpointer data ) {
         if( info->filled < 0 ) {
             Rational newSpeed = info->_clock->getSpeed();
 
-            lastDuration = lastDuration * newSpeed.n * speed.d / (speed.n * newSpeed.d);
+            if( speed.n * newSpeed.d != 0 )
+                lastDuration = lastDuration * newSpeed.n * speed.d / (speed.n * newSpeed.d);
+            else
+                lastDuration = 0;
+
             speed = newSpeed;
 
             if( speed.n > 0 )
@@ -272,6 +276,10 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
                 speed.n *= 2;
             break;
 
+        case GDK_k:
+            speed = Rational( 0, 1 );
+            break;
+
         case GDK_j:
             if( speed.n > -1 )
                 speed = Rational( -1, 1 );
@@ -282,13 +290,22 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
 
     ((SystemPresentationClock*) info->_clock)->play( speed );
 
-    g_mutex_lock( info->_frameReadMutex );
-    info->filled = -1;
-    info->readBuffer = info->writeBuffer;
-    g_cond_signal( info->_frameReadCond );
-    g_mutex_unlock( info->_frameReadMutex );
+    if( speed.n == 0 ) {
+        // Just stop the production thread
+        g_mutex_lock( info->_frameReadMutex );
+        info->filled = 3;
+        g_mutex_unlock( info->_frameReadMutex );
+    }
+    else {
+        // Fire up the production and playback threads from scratch
+        g_mutex_lock( info->_frameReadMutex );
+        info->filled = -1;
+        info->readBuffer = info->writeBuffer;
+        g_cond_signal( info->_frameReadCond );
+        g_mutex_unlock( info->_frameReadMutex );
 
-    playSingleFrame( (GtkWidget*) userData );
+        playSingleFrame( (GtkWidget*) userData );
+    }
 
     return TRUE;
 }
