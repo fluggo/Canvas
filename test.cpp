@@ -111,19 +111,6 @@ private:
     bool _oddFirst;
 };
 
-/*class VideoWidget : public Fl_Gl_Window {
-public:
-    VideoWidget( IPresentationClock *clock, int x, int y, int w, int h, const char *label = 0 );
-    void draw() { do_draw(); }
-
-    void play( float rate ) {
-        pthread_t thread;
-        pthread_create( &thread, NULL, _playbackThread, this );
-
-        _rate = rate;
-        Fl::add_timeout( rate, _frameCallback, this );
-    }*/
-
 int64_t
 getFrameTime( int frame ) {
     return (int64_t) frame * INT64_C(1000000000) * INT64_C(1001) / INT64_C(24000);
@@ -132,11 +119,9 @@ getFrameTime( int frame ) {
 gpointer PlaybackThread( gpointer data ) {
     VideoWidgetInfo *info = (VideoWidgetInfo *) data;
 
-//        AVFileReader reader( "SMPTE test pattern.avi" );
     AVFileReader reader( "/home/james/Videos/Okra - 79b,100.avi" );
     Pulldown23RemovalFilter filter( &reader, 0, false );
     Array2D<Rgba> array( 480, 720 );
-//    int64_t frameDuration = getFrameTime( 1 ) - getFrameTime( 0 );
 
     for( ;; ) {
         int64_t startTime = info->_clock->getPresentationTime();
@@ -158,9 +143,6 @@ gpointer PlaybackThread( gpointer data ) {
         // Convert the results to floating-point
         for( int y = 0; y < 480; y++ ) {
             for( int x = 0; x < 720; x++ ) {
-/*                    _video->target[479 - y][x][0] = clamppowf( array[y][x].r, 0.45f );
-                _video->target[479 - y][x][1] = clamppowf( array[y][x].g, 0.45f );
-                _video->target[479 - y][x][2] = clamppowf( array[y][x].b, 0.45f );*/
                 info->_targets[writeBuffer][479 - y][x][0] = (uint8_t) __gamma45( array[y][x].r );
                 info->_targets[writeBuffer][479 - y][x][1] = (uint8_t) __gamma45( array[y][x].g );
                 info->_targets[writeBuffer][479 - y][x][2] = (uint8_t) __gamma45( array[y][x].b );
@@ -241,9 +223,7 @@ playSingleFrame( gpointer data ) {
 
 gboolean
 keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
-    puts( "Handling keypress" );
     VideoWidgetInfo *info = (VideoWidgetInfo*) g_object_get_data( G_OBJECT((GtkWidget*) userData), "__info" );
-//    VideoWidgetInfo *info = (VideoWidgetInfo*) g_object_get_data( G_OBJECT(widget), "__info" );
 
     if( info->_timeoutSourceID != 0 ) {
         g_source_remove( info->_timeoutSourceID );
@@ -318,14 +298,6 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
 
 int
 main( int argc, char *argv[] ) {
-    struct timespec res;
-    clock_getres( CLOCK_MONOTONIC, &res );
-
-    printf( "Clock resolution: %ld seconds, %ld nanoseconds\n", res.tv_sec, res.tv_nsec );
-
-//    Fl::gl_visual( FL_RGB );
-//    Fl::lock();
-
     gtk_init( &argc, &argv );
     gtk_gl_init( &argc, &argv );
 
@@ -409,7 +381,6 @@ main( int argc, char *argv[] ) {
     gtk_widget_show( drawingArea );
 
     gtk_widget_show( window );
-//    gdk_window_set_events( drawingArea->window, (GdkEventMask) (GDK_KEY_PRESS_MASK | gdk_window_get_events( drawingArea->window )) );
 
     g_timeout_add( 0, playSingleFrame, drawingArea );
     g_thread_create( PlaybackThread, &info, FALSE, NULL );
