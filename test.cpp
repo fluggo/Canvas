@@ -67,8 +67,9 @@ typedef struct {
     GMutex *_frameReadMutex;
     GCond *_frameReadCond;
     int _lastDisplayedFrame, _nextToRenderFrame;
-    int _currentReadBuffer, _filled;
+    int readBuffer, writeBuffer, filled;
     int _frameRateNum, _frameRateDenom;
+    guint _timeoutSourceID;
     IPresentationClock *_clock;
 
     int64_t _presentationTime[4];
@@ -86,7 +87,7 @@ videoWidget_expose( GtkWidget *widget, GdkEventExpose *event, gpointer data ) {
     if( !gdk_gl_drawable_gl_begin( gldrawable, glcontext ) )
         return FALSE;
 
-    drawFrame( &info->_targets[info->_currentReadBuffer][0][0], 720, 480 );
+    drawFrame( &info->_targets[info->readBuffer][0][0], 720, 480 );
 
     if( gdk_gl_drawable_is_double_buffered( gldrawable ) )
         gdk_gl_drawable_swap_buffers( gldrawable );
@@ -136,20 +137,21 @@ gpointer PlaybackThread( gpointer data ) {
     Pulldown23RemovalFilter filter( &reader, 0, false );
     Array2D<Rgba> array( 480, 720 );
 //    int64_t frameDuration = getFrameTime( 1 ) - getFrameTime( 0 );
-    int buffer = 0;
 
     for( ;; ) {
         int64_t startTime = info->_clock->getPresentationTime();
         g_mutex_lock( info->_frameReadMutex );
 
-        while( info->_filled == 3 )
+        while( info->filled == 3 )
             g_cond_wait( info->_frameReadCond, info->_frameReadMutex );
 
+        int nextFrame = info->_nextToRenderFrame;
+        int writeBuffer = (info->writeBuffer = (info->writeBuffer + 1) & 3);
         g_mutex_unlock( info->_frameReadMutex );
 
-        //printf( "Start rendering %d into %d...\n", _nextToRenderFrame, buffer );
+        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
 
-        filter.GetFrame( info->_nextToRenderFrame, array );
+        filter.GetFrame( nextFrame, array );
 
         // Convert the results to floating-point
         for( int y = 0; y < 480; y++ ) {
@@ -157,20 +159,16 @@ gpointer PlaybackThread( gpointer data ) {
 /*                    _video->target[479 - y][x][0] = clamppowf( array[y][x].r, 0.45f );
                 _video->target[479 - y][x][1] = clamppowf( array[y][x].g, 0.45f );
                 _video->target[479 - y][x][2] = clamppowf( array[y][x].b, 0.45f );*/
-                info->_targets[buffer][479 - y][x][0] = (uint8_t) __gamma45( array[y][x].r );
-                info->_targets[buffer][479 - y][x][1] = (uint8_t) __gamma45( array[y][x].g );
-                info->_targets[buffer][479 - y][x][2] = (uint8_t) __gamma45( array[y][x].b );
+                info->_targets[writeBuffer][479 - y][x][0] = (uint8_t) __gamma45( array[y][x].r );
+                info->_targets[writeBuffer][479 - y][x][1] = (uint8_t) __gamma45( array[y][x].g );
+                info->_targets[writeBuffer][479 - y][x][2] = (uint8_t) __gamma45( array[y][x].b );
             }
         }
 
         //usleep( 100000 );
 
-        info->_presentationTime[buffer] = getFrameTime( info->_nextToRenderFrame );
+        info->_presentationTime[writeBuffer] = getFrameTime( nextFrame );
         int64_t endTime = info->_clock->getPresentationTime();
-
-        g_mutex_lock( info->_frameReadMutex );
-        info->_filled++;
-        g_mutex_unlock( info->_frameReadMutex );
 
         int64_t lastDuration = endTime - startTime;
 
@@ -178,14 +176,16 @@ gpointer PlaybackThread( gpointer data ) {
         //    ((double) endTime - (double) startTime) / 1000000000.0 );
         //printf( "Presentation time %ld\n", _presentationTime[buffer] );
 
+        g_mutex_lock( info->_frameReadMutex );
+        info->filled++;
+
         if( lastDuration > INT64_C(0) ) {
             while( getFrameTime( ++info->_nextToRenderFrame ) < endTime + lastDuration );
         }
         else if( lastDuration < INT64_C(0) ) {
             while( getFrameTime( --info->_nextToRenderFrame ) > endTime + lastDuration );
         }
-
-        buffer = (buffer + 1) & 3;
+        g_mutex_unlock( info->_frameReadMutex );
 
 /*            std::stringstream filename;
         filename << "rgba" << i++ << ".exr";
@@ -207,30 +207,80 @@ playSingleFrame( gpointer data ) {
     GtkWidget *widget = (GtkWidget*) data;
     VideoWidgetInfo *info = (VideoWidgetInfo*) g_object_get_data( G_OBJECT(widget), "__info" );
 
-    if( info->_filled != 0 ) {
-        info->_currentReadBuffer = (info->_currentReadBuffer + 1) & 3;
-
-        gdk_window_invalidate_rect( widget->window, &widget->allocation, FALSE );
-        gdk_window_process_updates( widget->window, FALSE );
-
-        //printf( "Painted %ld from %d...\n", _presentationTime[_currentReadBuffer], _currentReadBuffer );
-
+    if( info->filled != 0 ) {
         g_mutex_lock( info->_frameReadMutex );
-
-        info->_filled--;
-
-        g_cond_signal( info->_frameReadCond );
+        int filled = info->filled;
+        int readBuffer = (info->readBuffer = (info->readBuffer + 1) & 3);
         g_mutex_unlock( info->_frameReadMutex );
+
+        if( filled != 0 ) {
+            gdk_window_invalidate_rect( widget->window, &widget->allocation, FALSE );
+            gdk_window_process_updates( widget->window, FALSE );
+
+            printf( "Painted %ld from %d...\n", info->_presentationTime[readBuffer], readBuffer );
+
+            g_mutex_lock( info->_frameReadMutex );
+
+            info->filled--;
+
+            g_cond_signal( info->_frameReadCond );
+            g_mutex_unlock( info->_frameReadMutex );
+        }
     }
 
     int speedNum, speedDenom;
     info->_clock->getSpeed( &speedNum, &speedDenom );
 
-    g_timeout_add( (1000 * info->_frameRateDenom * abs(speedDenom)) / (info->_frameRateNum * abs(speedNum)),
+    info->_timeoutSourceID = g_timeout_add(
+        (1000 * info->_frameRateDenom * abs(speedDenom)) / (info->_frameRateNum * abs(speedNum)),
         playSingleFrame, data );
     return FALSE;
 }
 
+gboolean
+keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
+    puts( "Handling keypress" );
+    VideoWidgetInfo *info = (VideoWidgetInfo*) g_object_get_data( G_OBJECT((GtkWidget*) userData), "__info" );
+//    VideoWidgetInfo *info = (VideoWidgetInfo*) g_object_get_data( G_OBJECT(widget), "__info" );
+
+    if( info->_timeoutSourceID != 0 ) {
+        g_source_remove( info->_timeoutSourceID );
+        info->_timeoutSourceID = 0;
+    }
+
+    int speedNum, speedDenom;
+    info->_clock->getSpeed( &speedNum, &speedDenom );
+
+
+    switch( gdk_keyval_to_unicode( event->keyval ) ) {
+        case (guint32) 'l':
+            if( speedDenom != 1 )
+                speedDenom >>= 1;
+            else
+                speedNum <<= 1;
+            break;
+
+        case (guint32) 'j':
+            if( speedNum != 1 )
+                speedNum >>= 1;
+            else
+                speedDenom <<= 1;
+            break;
+    }
+
+    ((SystemPresentationClock*) info->_clock)->play( speedNum, speedDenom );
+
+    g_mutex_lock( info->_frameReadMutex );
+    info->filled = 0;
+    info->readBuffer = 3;
+    info->writeBuffer = 3;
+    g_cond_signal( info->_frameReadCond );
+    g_mutex_unlock( info->_frameReadMutex );
+
+    playSingleFrame( (GtkWidget*) userData );
+
+    return TRUE;
+}
 
 /*
     <source name='scene7'>
@@ -339,22 +389,25 @@ main( int argc, char *argv[] ) {
     info._frameReadMutex = g_mutex_new();
     info._frameReadCond = g_cond_new();
     info._nextToRenderFrame = 5000;
-    info._currentReadBuffer = 3;
     info._frameRateNum = 24000;
     info._frameRateDenom = 1001;
-    info._filled = 0;
+    info.filled = 0;
+    info.readBuffer = 3;
+    info.writeBuffer = 3;
     info._targets[0].resizeErase( h, w );
     info._targets[1].resizeErase( h, w );
     info._targets[2].resizeErase( h, w );
     info._targets[3].resizeErase( h, w );
 
     g_object_set_data( G_OBJECT(drawingArea), "__info", &info );
-    g_signal_connect( G_OBJECT(drawingArea), "expose_event", G_CALLBACK(videoWidget_expose), NULL);
+    g_signal_connect( G_OBJECT(drawingArea), "expose_event", G_CALLBACK(videoWidget_expose), NULL );
+    g_signal_connect( G_OBJECT(window), "key-press-event", G_CALLBACK(keyPressHandler), drawingArea );
 
     gtk_container_add( GTK_CONTAINER(window), drawingArea );
     gtk_widget_show( drawingArea );
 
     gtk_widget_show( window );
+//    gdk_window_set_events( drawingArea->window, (GdkEventMask) (GDK_KEY_PRESS_MASK | gdk_window_get_events( drawingArea->window )) );
 
     g_timeout_add( 0, playSingleFrame, drawingArea );
     g_thread_create( PlaybackThread, &info, FALSE, NULL );
