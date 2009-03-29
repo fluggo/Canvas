@@ -132,6 +132,9 @@ gpointer PlaybackThread( gpointer data ) {
     for( ;; ) {
         int64_t startTime = info->_clock->getPresentationTime();
         g_mutex_lock( info->_frameReadMutex );
+        int speedNum, speedDenom;
+        info->_clock->getSpeed( &speedNum, &speedDenom );
+
         if( info->filled == -1 )
             info->filled = 0;
 
@@ -167,6 +170,13 @@ gpointer PlaybackThread( gpointer data ) {
         //printf( "Presentation time %ld\n", info->_presentationTime[writeBuffer] );
 
         g_mutex_lock( info->_frameReadMutex );
+        if( info->filled == -1 ) {
+            int newSpeedNum, newSpeedDenom;
+            info->_clock->getSpeed( &newSpeedNum, &newSpeedDenom );
+
+            lastDuration = lastDuration * newSpeedNum * speedDenom / (speedNum * newSpeedDenom);
+        }
+
         info->filled++;
 
         if( lastDuration > INT64_C(0) ) {
