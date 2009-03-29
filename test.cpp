@@ -4,6 +4,7 @@
 
 #include <gtk/gtk.h>
 #include <gtk/gtkgl.h>
+#include <gdk/gdkkeysyms.h>
 #include <GL/gl.h>
 
 #include <sstream>
@@ -62,18 +63,13 @@ static void drawFrame( void *rgb, int width, int height ) {
 }
 
 typedef struct {
-    int num;
-    int denom;
-} rate;
-
-typedef struct {
     IFrameSource *_source;
     int _timer;
     GMutex *_frameReadMutex;
     GCond *_frameReadCond;
     int _lastDisplayedFrame, _nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
-    rate frameRate;
+    Rational frameRate;
     guint _timeoutSourceID;
     IPresentationClock *_clock;
 
@@ -118,8 +114,8 @@ private:
 };
 
 int64_t
-getFrameTime( rate *frameRate, int frame ) {
-    return (int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->denom) / (int64_t)(frameRate->num);
+getFrameTime( Rational *frameRate, int frame ) {
+    return (int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d) / (int64_t)(frameRate->n);
 }
 
 gpointer PlaybackThread( gpointer data ) {
@@ -135,7 +131,7 @@ gpointer PlaybackThread( gpointer data ) {
         int speedNum, speedDenom;
         info->_clock->getSpeed( &speedNum, &speedDenom );
 
-        if( info->filled == -1 )
+        if( info->filled < 0 )
             info->filled = 0;
 
         while( info->filled == 3 )
@@ -170,20 +166,30 @@ gpointer PlaybackThread( gpointer data ) {
         //printf( "Presentation time %ld\n", info->_presentationTime[writeBuffer] );
 
         g_mutex_lock( info->_frameReadMutex );
-        if( info->filled == -1 ) {
+        if( info->filled < 0 ) {
             int newSpeedNum, newSpeedDenom;
             info->_clock->getSpeed( &newSpeedNum, &newSpeedDenom );
 
             lastDuration = lastDuration * newSpeedNum * speedDenom / (speedNum * newSpeedDenom);
+            speedNum = newSpeedNum;
+            speedDenom = newSpeedDenom;
+
+            if( speedNum > 0 )
+                info->_nextToRenderFrame -= 4;
+            else if( speedNum < 0 )
+                info->_nextToRenderFrame += 4;
         }
 
         info->filled++;
 
-        if( lastDuration > INT64_C(0) ) {
+        if( lastDuration < INT64_C(0) )
+            lastDuration *= INT64_C(-1);
+
+        if( speedNum > 0 ) {
             while( getFrameTime( &info->frameRate, ++info->_nextToRenderFrame ) < endTime + lastDuration );
         }
-        else if( lastDuration < INT64_C(0) ) {
-            while( getFrameTime( &info->frameRate, --info->_nextToRenderFrame ) > endTime + lastDuration );
+        else if( speedNum < 0 ) {
+            while( getFrameTime( &info->frameRate, --info->_nextToRenderFrame ) > endTime - lastDuration );
         }
 
         info->nextPresentationTime[writeBuffer] = getFrameTime( &info->frameRate, info->_nextToRenderFrame );
@@ -213,18 +219,18 @@ playSingleFrame( gpointer data ) {
         g_mutex_lock( info->_frameReadMutex );
         int filled = info->filled;
         info->readBuffer = (info->readBuffer + 1) & 3;
+        int64_t nextPresentationTime = info->nextPresentationTime[info->readBuffer];
         g_mutex_unlock( info->_frameReadMutex );
 
         if( filled != 0 ) {
             gdk_window_invalidate_rect( widget->window, &widget->allocation, FALSE );
             gdk_window_process_updates( widget->window, FALSE );
 
-            //printf( "Painted %ld from %d...\n", info->_presentationTime[readBuffer], readBuffer );
+            //printf( "Painted %ld from %d...\n", info->_presentationTime[info->readBuffer], info->readBuffer );
 
             g_mutex_lock( info->_frameReadMutex );
 
             info->filled--;
-            int64_t nextPresentationTime = info->nextPresentationTime[info->readBuffer];
 
             g_cond_signal( info->_frameReadCond );
             g_mutex_unlock( info->_frameReadMutex );
@@ -232,7 +238,7 @@ playSingleFrame( gpointer data ) {
             int speedNum, speedDenom;
             info->_clock->getSpeed( &speedNum, &speedDenom );
 
-            int timeout = (nextPresentationTime - info->_clock->getPresentationTime()) * abs(speedDenom) / (abs(speedNum) * 1000000);
+            int timeout = (nextPresentationTime - info->_clock->getPresentationTime()) * speedDenom / (speedNum * 1000000);
             //printf( "timeout %d\n", timeout );
 
             if( timeout < 0 )
@@ -247,7 +253,7 @@ playSingleFrame( gpointer data ) {
     info->_clock->getSpeed( &speedNum, &speedDenom );
 
     info->_timeoutSourceID = g_timeout_add(
-        (1000 * info->frameRate.denom * abs(speedDenom)) / (info->frameRate.num * abs(speedNum)),
+        (1000 * info->frameRate.d * abs(speedDenom)) / (info->frameRate.n * abs(speedNum)),
         playSingleFrame, data );
     return FALSE;
 }
@@ -265,19 +271,23 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
     info->_clock->getSpeed( &speedNum, &speedDenom );
 
 
-    switch( gdk_keyval_to_unicode( event->keyval ) ) {
-        case (guint32) 'l':
-            if( speedDenom != 1 )
-                speedDenom >>= 1;
+    switch( event->keyval ) {
+        case GDK_l:
+            if( speedNum < 1 ) {
+                speedNum = 1;
+                speedDenom = 1;
+            }
             else
-                speedNum <<= 1;
+                speedNum *= 2;
             break;
 
-        case (guint32) 'j':
-            if( speedNum != 1 )
-                speedNum >>= 1;
+        case GDK_j:
+            if( speedNum > -1 ) {
+                speedNum = -1;
+                speedDenom = 1;
+            }
             else
-                speedDenom <<= 1;
+                speedNum *= 2;
             break;
     }
 
@@ -285,8 +295,7 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
 
     g_mutex_lock( info->_frameReadMutex );
     info->filled = -1;
-    info->readBuffer = 3;
-    info->writeBuffer = 3;
+    info->readBuffer = info->writeBuffer;
     g_cond_signal( info->_frameReadCond );
     g_mutex_unlock( info->_frameReadMutex );
 
@@ -394,8 +403,7 @@ main( int argc, char *argv[] ) {
     info._frameReadMutex = g_mutex_new();
     info._frameReadCond = g_cond_new();
     info._nextToRenderFrame = 5000;
-    info.frameRate.num = 24000;
-    info.frameRate.denom = 1001;
+    info.frameRate = Rational( 24000, 1001 );
     info.filled = -1;
     info.readBuffer = 3;
     info.writeBuffer = 3;

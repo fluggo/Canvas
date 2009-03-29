@@ -13,6 +13,7 @@ extern "C" {
 #include <ImathFun.h>
 #include <ImfRgbaFile.h>
 #include <ImfHeader.h>
+#include <ImfRational.h>
 #include <ImfArray.h>
 #include <halfFunction.h>
 
