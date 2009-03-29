@@ -62,13 +62,18 @@ static void drawFrame( void *rgb, int width, int height ) {
 }
 
 typedef struct {
+    int num;
+    int denom;
+} rate;
+
+typedef struct {
     IFrameSource *_source;
     int _timer;
     GMutex *_frameReadMutex;
     GCond *_frameReadCond;
     int _lastDisplayedFrame, _nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
-    int _frameRateNum, _frameRateDenom;
+    rate frameRate;
     guint _timeoutSourceID;
     IPresentationClock *_clock;
 
@@ -112,8 +117,8 @@ private:
 };
 
 int64_t
-getFrameTime( int frame ) {
-    return (int64_t) frame * INT64_C(1000000000) * INT64_C(1001) / INT64_C(24000);
+getFrameTime( rate *frameRate, int frame ) {
+    return (int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->denom) / (int64_t)(frameRate->num);
 }
 
 gpointer PlaybackThread( gpointer data ) {
@@ -151,7 +156,7 @@ gpointer PlaybackThread( gpointer data ) {
 
         //usleep( 100000 );
 
-        info->_presentationTime[writeBuffer] = getFrameTime( nextFrame );
+        info->_presentationTime[writeBuffer] = getFrameTime( &info->frameRate, nextFrame );
         int64_t endTime = info->_clock->getPresentationTime();
 
         int64_t lastDuration = endTime - startTime;
@@ -164,10 +169,10 @@ gpointer PlaybackThread( gpointer data ) {
         info->filled++;
 
         if( lastDuration > INT64_C(0) ) {
-            while( getFrameTime( ++info->_nextToRenderFrame ) < endTime + lastDuration );
+            while( getFrameTime( &info->frameRate, ++info->_nextToRenderFrame ) < endTime + lastDuration );
         }
         else if( lastDuration < INT64_C(0) ) {
-            while( getFrameTime( --info->_nextToRenderFrame ) > endTime + lastDuration );
+            while( getFrameTime( &info->frameRate, --info->_nextToRenderFrame ) > endTime + lastDuration );
         }
         g_mutex_unlock( info->_frameReadMutex );
 
@@ -216,7 +221,7 @@ playSingleFrame( gpointer data ) {
     info->_clock->getSpeed( &speedNum, &speedDenom );
 
     info->_timeoutSourceID = g_timeout_add(
-        (1000 * info->_frameRateDenom * abs(speedDenom)) / (info->_frameRateNum * abs(speedNum)),
+        (1000 * info->frameRate.denom * abs(speedDenom)) / (info->frameRate.num * abs(speedNum)),
         playSingleFrame, data );
     return FALSE;
 }
@@ -363,8 +368,8 @@ main( int argc, char *argv[] ) {
     info._frameReadMutex = g_mutex_new();
     info._frameReadCond = g_cond_new();
     info._nextToRenderFrame = 5000;
-    info._frameRateNum = 24000;
-    info._frameRateDenom = 1001;
+    info.frameRate.num = 24000;
+    info.frameRate.denom = 1001;
     info.filled = -1;
     info.readBuffer = 3;
     info.writeBuffer = 3;
