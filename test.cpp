@@ -77,6 +77,7 @@ typedef struct {
     int64_t nextPresentationTime[4];
     Array2D<uint8_t[3]> _targets[4];
     float _rate;
+    bool quit;
 } VideoWidgetInfo;
 
 static gboolean
@@ -130,8 +131,11 @@ gpointer PlaybackThread( gpointer data ) {
         g_mutex_lock( info->_frameReadMutex );
         Rational speed = info->_clock->getSpeed();
 
-        while( info->filled == 3 )
+        while( info->filled == 3 && !info->quit )
             g_cond_wait( info->_frameReadCond, info->_frameReadMutex );
+
+        if( info->quit )
+            return NULL;
 
         if( info->filled < 0 )
             info->filled = 0;
@@ -421,6 +425,7 @@ main( int argc, char *argv[] ) {
     g_object_set_data( G_OBJECT(drawingArea), "__info", &info );
     g_signal_connect( G_OBJECT(drawingArea), "expose_event", G_CALLBACK(videoWidget_expose), NULL );
     g_signal_connect( G_OBJECT(window), "key-press-event", G_CALLBACK(keyPressHandler), drawingArea );
+    g_signal_connect( G_OBJECT(window), "delete_event", G_CALLBACK(gtk_main_quit), NULL );
 
     gtk_container_add( GTK_CONTAINER(window), drawingArea );
     gtk_widget_show( drawingArea );
@@ -428,9 +433,17 @@ main( int argc, char *argv[] ) {
     gtk_widget_show( window );
 
     g_timeout_add( 0, playSingleFrame, drawingArea );
-    g_thread_create( PlaybackThread, &info, FALSE, NULL );
+    GThread *thread = g_thread_create( PlaybackThread, &info, TRUE, NULL );
 
     gtk_main();
+
+    // Stop the render thread
+    g_mutex_lock( info._frameReadMutex );
+    info.quit = true;
+    g_cond_signal( info._frameReadCond );
+    g_mutex_unlock( info._frameReadMutex );
+
+    g_thread_join( thread );
 }
 
 
