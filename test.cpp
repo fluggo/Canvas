@@ -68,6 +68,7 @@ typedef struct {
     GCond *_frameReadCond;
     int _lastDisplayedFrame, _nextToRenderFrame;
     int _currentReadBuffer, _filled;
+    int _frameRateNum, _frameRateDenom;
     IPresentationClock *_clock;
 
     int64_t _presentationTime[4];
@@ -222,7 +223,11 @@ playSingleFrame( gpointer data ) {
         g_mutex_unlock( info->_frameReadMutex );
     }
 
-    g_timeout_add( 1000u * 1001u / 24000u, playSingleFrame, data );
+    int speedNum, speedDenom;
+    info->_clock->getSpeed( &speedNum, &speedDenom );
+
+    g_timeout_add( (1000 * info->_frameRateDenom * abs(speedDenom)) / (info->_frameRateNum * abs(speedNum)),
+        playSingleFrame, data );
     return FALSE;
 }
 
@@ -327,7 +332,7 @@ main( int argc, char *argv[] ) {
     int h = 480, w = 720;
 
     SystemPresentationClock clock;
-    clock.set( -1, 1, 5000LL * 1000000000LL * 1001LL / 24000LL );
+    clock.set( 16, 1, 5000LL * 1000000000LL * 1001LL / 24000LL );
 
     VideoWidgetInfo info;
     info._clock = &clock;
@@ -335,6 +340,8 @@ main( int argc, char *argv[] ) {
     info._frameReadCond = g_cond_new();
     info._nextToRenderFrame = 5000;
     info._currentReadBuffer = 3;
+    info._frameRateNum = 24000;
+    info._frameRateDenom = 1001;
     info._filled = 0;
     info._targets[0].resizeErase( h, w );
     info._targets[1].resizeErase( h, w );
