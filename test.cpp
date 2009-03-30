@@ -72,6 +72,7 @@ typedef struct {
     Rational frameRate;
     guint _timeoutSourceID;
     IPresentationClock *_clock;
+    int firstFrame, lastFrame;
 
     int64_t _presentationTime[4];
     int64_t nextPresentationTime[4];
@@ -131,7 +132,7 @@ gpointer PlaybackThread( gpointer data ) {
         g_mutex_lock( info->_frameReadMutex );
         Rational speed = info->_clock->getSpeed();
 
-        while( info->filled == 3 && !info->quit )
+        while( !info->quit && info->filled == 3 )
             g_cond_wait( info->_frameReadCond, info->_frameReadMutex );
 
         if( info->quit )
@@ -145,6 +146,11 @@ gpointer PlaybackThread( gpointer data ) {
         g_mutex_unlock( info->_frameReadMutex );
 
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
+
+        if( nextFrame > info->lastFrame )
+            nextFrame = info->lastFrame;
+        else if( nextFrame < info->firstFrame )
+            nextFrame = info->firstFrame;
 
         filter.GetFrame( nextFrame, array );
 
@@ -417,6 +423,9 @@ main( int argc, char *argv[] ) {
     info.filled = -1;
     info.readBuffer = 3;
     info.writeBuffer = 3;
+    info.firstFrame = 0;
+    info.lastFrame = 6000;
+    info.quit = false;
     info._targets[0].resizeErase( h, w );
     info._targets[1].resizeErase( h, w );
     info._targets[2].resizeErase( h, w );
