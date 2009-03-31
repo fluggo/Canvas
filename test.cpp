@@ -51,13 +51,16 @@ static float gamma45Func( float input ) {
 
 static halfFunction<half> __gamma45( gamma45Func, half( -256.0f ), half( 256.0f ) );
 
-static void drawFrame( void *rgb, int width, int height ) {
+static void drawFrame( void *rgb, int width, int height, float pixelAspectRatio ) {
     glLoadIdentity();
     glViewport( 0, 0, width, height );
     glOrtho( 0, width, height, 0, -1, 1 );
 
     glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
+
+    glRasterPos2i( 0, height );
+    glPixelZoom( pixelAspectRatio, 1.0f );
 
     glDrawPixels( width, height, GL_RGB, GL_UNSIGNED_BYTE, rgb );
 }
@@ -73,6 +76,7 @@ typedef struct {
     guint _timeoutSourceID;
     IPresentationClock *_clock;
     int firstFrame, lastFrame;
+    float pixelAspectRatio;
 
     int64_t _presentationTime[4];
     int64_t nextPresentationTime[4];
@@ -91,7 +95,7 @@ videoWidget_expose( GtkWidget *widget, GdkEventExpose *event, gpointer data ) {
     if( !gdk_gl_drawable_gl_begin( gldrawable, glcontext ) )
         return FALSE;
 
-    drawFrame( &info->_targets[info->readBuffer][0][0], 720, 480 );
+    drawFrame( &info->_targets[info->readBuffer][0][0], 720, 480, info->pixelAspectRatio );
 
     if( gdk_gl_drawable_is_double_buffered( gldrawable ) )
         gdk_gl_drawable_swap_buffers( gldrawable );
@@ -425,6 +429,7 @@ main( int argc, char *argv[] ) {
     info.writeBuffer = 3;
     info.firstFrame = 0;
     info.lastFrame = 6000;
+    info.pixelAspectRatio = 40.0f / 33.0f;
     info.quit = false;
     info._targets[0].resizeErase( h, w );
     info._targets[1].resizeErase( h, w );
