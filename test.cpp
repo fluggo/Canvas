@@ -204,16 +204,14 @@ gpointer PlaybackThread( gpointer data ) {
         g_mutex_lock( info->_frameReadMutex );
         Rational speed = info->_clock->getSpeed();
 
-        while( !info->quit && info->filled == 3 )
+        while( !info->quit && info->filled > 2 )
             g_cond_wait( info->_frameReadCond, info->_frameReadMutex );
 
         if( info->quit )
             return NULL;
 
-        if( info->filled < 0 ) {
+        if( info->filled < 0 )
             startTime = info->_clock->getPresentationTime();
-            info->filled = 0;
-        }
 
         int nextFrame = info->_nextToRenderFrame;
         int writeBuffer = (info->writeBuffer = (info->writeBuffer + 1) & 3);
@@ -263,6 +261,11 @@ gpointer PlaybackThread( gpointer data ) {
                 info->_nextToRenderFrame -= 4;
             else if( speed.n < 0 )
                 info->_nextToRenderFrame += 4;
+
+            info->filled = -1;
+
+            // Write where the reader will read next
+            info->writeBuffer = info->readBuffer;
         }
 
         info->filled++;
@@ -383,8 +386,7 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
     else {
         // Fire up the production and playback threads from scratch
         g_mutex_lock( info->_frameReadMutex );
-        info->filled = -1;
-        info->readBuffer = info->writeBuffer;
+        info->filled = -2;
         g_cond_signal( info->_frameReadCond );
         g_mutex_unlock( info->_frameReadMutex );
 
