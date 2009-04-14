@@ -1,10 +1,10 @@
 debug = ARGUMENTS.get('debug', 0)
 
 
-env = Environment(LIBS=['rt'])
+env = Environment(LIBS=['rt', 'GLEW'])
 
 if int(debug):
-	env['CCFLAGS'] = '-Wall -ggdb3'
+	env['CCFLAGS'] = '-Wall -ggdb3 -DMESA_DEBUG -DDEBUG'
 else:
 	env['CCFLAGS'] = '-Wall -O3 -mtune=native -march=native'
 

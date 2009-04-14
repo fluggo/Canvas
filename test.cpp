@@ -5,6 +5,7 @@
 #include <gtk/gtk.h>
 #include <gtk/gtkgl.h>
 #include <gdk/gdkkeysyms.h>
+#include <GL/glew.h>
 #include <GL/gl.h>
 
 #include <sstream>
@@ -51,7 +52,34 @@ static float gamma45Func( float input ) {
 
 static halfFunction<half> __gamma45( gamma45Func, half( -256.0f ), half( 256.0f ) );
 
+static void checkGLError() {
+    int error = glGetError();
+
+    switch( error ) {
+        case GL_NO_ERROR:
+            return;
+
+        case GL_INVALID_OPERATION:
+            puts( "Invalid operation" );
+            return;
+
+        case GL_INVALID_VALUE:
+            puts( "Invalid value" );
+            return;
+
+        case GL_INVALID_ENUM:
+            puts( "Invalid enum" );
+            return;
+
+        default:
+            puts( "Other GL error" );
+            return;
+    }
+}
+
 static void drawFrame( void *rgb, int width, int height, float pixelAspectRatio ) {
+    width = (int)(width * pixelAspectRatio);
+
     glLoadIdentity();
     glViewport( 0, 0, width, height );
     glOrtho( 0, width, height, 0, -1, 1 );
@@ -59,10 +87,43 @@ static void drawFrame( void *rgb, int width, int height, float pixelAspectRatio 
     glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
 
+#if 1
+    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 720, 480,
+        0, GL_RGB, GL_UNSIGNED_BYTE, rgb );
+    checkGLError();
+
+    glEnable( GL_TEXTURE_2D );
+
+    glBegin( GL_QUADS );
+    glTexCoord2f( 0, 1 );
+    glVertex2i( 0, 0 );
+    glTexCoord2f( 1, 1 );
+    glVertex2i( width, 0 );
+    glTexCoord2f( 1, 0 );
+    glVertex2i( width, height );
+    glTexCoord2f( 0, 0 );
+    glVertex2i( 0, height );
+    glEnd();
+
+    glDisable( GL_TEXTURE_2D );
+#else
     glRasterPos2i( 0, height );
     glPixelZoom( pixelAspectRatio, 1.0f );
 
+    if( GLEW_ARB_multisample ) {
+        int w;
+        glGetIntegerv( GL_SAMPLE_BUFFERS_ARB, &w );
+        printf( "%d\n", w );
+        glEnable( GL_MULTISAMPLE_ARB );
+    }
+
     glDrawPixels( width, height, GL_RGB, GL_UNSIGNED_BYTE, rgb );
+#endif
 }
 
 typedef struct {
@@ -94,6 +155,13 @@ videoWidget_expose( GtkWidget *widget, GdkEventExpose *event, gpointer data ) {
 
     if( !gdk_gl_drawable_gl_begin( gldrawable, glcontext ) )
         return FALSE;
+
+    static bool __glewInit = false;
+
+    if( !__glewInit ) {
+        glewInit();
+        __glewInit = true;
+    }
 
     drawFrame( &info->_targets[info->readBuffer][0][0], 720, 480, info->pixelAspectRatio );
 
@@ -142,8 +210,10 @@ gpointer PlaybackThread( gpointer data ) {
         if( info->quit )
             return NULL;
 
-        if( info->filled < 0 )
+        if( info->filled < 0 ) {
+            startTime = info->_clock->getPresentationTime();
             info->filled = 0;
+        }
 
         int nextFrame = info->_nextToRenderFrame;
         int writeBuffer = (info->writeBuffer = (info->writeBuffer + 1) & 3);
