@@ -41,4 +41,16 @@ private:
 
 };
 
+class Pulldown23RemovalFilter : public IFrameSource {
+public:
+    Pulldown23RemovalFilter( IFrameSource *source, int offset, bool oddFirst );
+
+    virtual void GetFrame( int64_t frame, Imf::Array2D<Imf::Rgba> &array );
+
+private:
+    IFrameSource *_source;
+    int _offset;
+    bool _oddFirst;
+};
+
 
