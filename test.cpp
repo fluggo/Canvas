@@ -77,55 +77,6 @@ static void checkGLError() {
     }
 }
 
-static void drawFrame( void *rgb, int width, int height, float pixelAspectRatio ) {
-    width = (int)(width * pixelAspectRatio);
-
-    glLoadIdentity();
-    glViewport( 0, 0, width, height );
-    glOrtho( 0, width, height, 0, -1, 1 );
-
-    glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
-    glClear( GL_COLOR_BUFFER_BIT );
-
-#if 1
-    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 720, 480,
-        0, GL_RGB, GL_UNSIGNED_BYTE, rgb );
-    checkGLError();
-
-    glEnable( GL_TEXTURE_2D );
-
-    glBegin( GL_QUADS );
-    glTexCoord2f( 0, 1 );
-    glVertex2i( 0, 0 );
-    glTexCoord2f( 1, 1 );
-    glVertex2i( width, 0 );
-    glTexCoord2f( 1, 0 );
-    glVertex2i( width, height );
-    glTexCoord2f( 0, 0 );
-    glVertex2i( 0, height );
-    glEnd();
-
-    glDisable( GL_TEXTURE_2D );
-#else
-    glRasterPos2i( 0, height );
-    glPixelZoom( pixelAspectRatio, 1.0f );
-
-    if( GLEW_ARB_multisample ) {
-        int w;
-        glGetIntegerv( GL_SAMPLE_BUFFERS_ARB, &w );
-        printf( "%d\n", w );
-        glEnable( GL_MULTISAMPLE_ARB );
-    }
-
-    glDrawPixels( width, height, GL_RGB, GL_UNSIGNED_BYTE, rgb );
-#endif
-}
-
 class VideoWidget {
 public:
     VideoWidget( IPresentationClock *clock );
@@ -177,6 +128,7 @@ private:
     }
 
     static gboolean exposeCallback( GtkWidget *widget, GdkEventExpose *event, gpointer data ) {
+        return ((VideoWidget*) data)->expose();
     }
 };
 
@@ -195,7 +147,39 @@ VideoWidget::expose() {
         __glewInit = true;
     }
 
-    drawFrame( &_targets[_readBuffer][0][0], 720, 480, _pixelAspectRatio );
+    int width = (int)(720 * _pixelAspectRatio);
+    int height = 480;
+
+    glLoadIdentity();
+    glViewport( 0, 0, width, height );
+    glOrtho( 0, width, height, 0, -1, 1 );
+
+    glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
+    glClear( GL_COLOR_BUFFER_BIT );
+
+    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 720, 480,
+        0, GL_RGB, GL_UNSIGNED_BYTE, &_targets[_readBuffer][0][0] );
+    checkGLError();
+
+    glEnable( GL_TEXTURE_2D );
+
+    glBegin( GL_QUADS );
+    glTexCoord2f( 0, 1 );
+    glVertex2i( 0, 0 );
+    glTexCoord2f( 1, 1 );
+    glVertex2i( width, 0 );
+    glTexCoord2f( 1, 0 );
+    glVertex2i( width, height );
+    glTexCoord2f( 0, 0 );
+    glVertex2i( 0, height );
+    glEnd();
+
+    glDisable( GL_TEXTURE_2D );
 
     if( gdk_gl_drawable_is_double_buffered( gldrawable ) )
         gdk_gl_drawable_swap_buffers( gldrawable );
@@ -404,7 +388,7 @@ VideoWidget::VideoWidget( IPresentationClock *clock ) {
     _targets[3].resizeErase( 480, 720 );
 
     g_object_set_data( G_OBJECT(_drawingArea), "__info", this );
-    g_signal_connect( G_OBJECT(_drawingArea), "expose_event", G_CALLBACK(exposeCallback), NULL );
+    g_signal_connect( G_OBJECT(_drawingArea), "expose_event", G_CALLBACK(exposeCallback), this );
 
     g_timeout_add( 0, playSingleFrameCallback, this );
     _renderThread = g_thread_create( playbackThreadCallback, this, TRUE, NULL );
