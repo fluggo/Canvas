@@ -1,4 +1,5 @@
 
+#include <Python.h>
 #include "framework.h"
 #include "clock.h"
 
@@ -77,6 +78,40 @@ static void checkGLError() {
     }
 }
 
+typedef struct {
+    PyObject_HEAD
+
+    GdkGLConfig *glConfig;
+    GtkWidget *drawingArea;
+    PyObject *frameSource;
+    int timer;
+    GMutex *frameReadMutex;
+    GCond *frameReadCond;
+    int lastDisplayedFrame, nextToRenderFrame;
+    int readBuffer, writeBuffer, filled;
+    Rational frameRate;
+    guint timeoutSourceID;
+    PyObject *pyclock;
+    IPresentationClock *clock;
+    int firstFrame, lastFrame;
+    float pixelAspectRatio;
+
+    int64_t presentationTime[4];
+    int64_t nextPresentationTime[4];
+    Array2D<uint8_t[3]> targets[4];
+    float rate;
+    bool quit;
+    GThread *renderThread;
+} py_obj_VideoWidget;
+
+static PyTypeObject py_type_VideoWidget = {
+    PyObject_HEAD_INIT(NULL)
+    0,            // ob_size
+    "fluggo.video.VideoWidget",    // tp_name
+    sizeof(py_obj_VideoWidget)    // tp_basicsize
+};
+
+
 class VideoWidget {
 public:
     VideoWidget( IPresentationClock *clock );
@@ -94,6 +129,7 @@ public:
     void play();
 
 private:
+
     GdkGLConfig *_glConfig;
     GtkWidget *_drawingArea;
     IFrameSource *_source;
@@ -132,10 +168,10 @@ private:
     }
 };
 
-gboolean
-VideoWidget::expose() {
-    GdkGLContext *glcontext = gtk_widget_get_gl_context( _drawingArea );
-    GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable( _drawingArea );
+static gboolean
+expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
+    GdkGLContext *glcontext = gtk_widget_get_gl_context( self->drawingArea );
+    GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable( self->drawingArea );
 
     if( !gdk_gl_drawable_gl_begin( gldrawable, glcontext ) )
         return FALSE;
@@ -147,7 +183,7 @@ VideoWidget::expose() {
         __glewInit = true;
     }
 
-    int width = (int)(720 * _pixelAspectRatio);
+    int width = (int)(720 * self->pixelAspectRatio);
     int height = 480;
 
     glLoadIdentity();
@@ -163,7 +199,7 @@ VideoWidget::expose() {
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
     glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 720, 480,
-        0, GL_RGB, GL_UNSIGNED_BYTE, &_targets[_readBuffer][0][0] );
+        0, GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer][0][0] );
     checkGLError();
 
     glEnable( GL_TEXTURE_2D );
@@ -197,51 +233,51 @@ getFrameTime( Rational *frameRate, int frame ) {
 }
 
 gpointer
-VideoWidget::playbackThread() {
+playbackThread( py_obj_VideoWidget *self ) {
     AVFileReader reader( "/home/james/Videos/Okra - 79b,100.avi" );
     Pulldown23RemovalFilter filter( &reader, 0, false );
     Array2D<Rgba> array( 480, 720 );
 
     for( ;; ) {
-        int64_t startTime = _clock->getPresentationTime();
-        g_mutex_lock( _frameReadMutex );
-        Rational speed = _clock->getSpeed();
+        int64_t startTime = self->clock->getPresentationTime();
+        g_mutex_lock( self->frameReadMutex );
+        Rational speed = self->clock->getSpeed();
 
-        while( !_quit && _filled > 2 )
-            g_cond_wait( _frameReadCond, _frameReadMutex );
+        while( !self->quit && self->filled > 2 )
+            g_cond_wait( self->frameReadCond, self->frameReadMutex );
 
-        if( _quit )
+        if( self->quit )
             return NULL;
 
-        if( _filled < 0 )
-            startTime = _clock->getPresentationTime();
+        if( self->filled < 0 )
+            startTime = self->clock->getPresentationTime();
 
-        int nextFrame = _nextToRenderFrame;
-        int writeBuffer = (_writeBuffer = (_writeBuffer + 1) & 3);
-        g_mutex_unlock( _frameReadMutex );
+        int nextFrame = self->nextToRenderFrame;
+        int writeBuffer = (self->writeBuffer = (self->writeBuffer + 1) & 3);
+        g_mutex_unlock( self->frameReadMutex );
 
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
 
-        if( nextFrame > _lastFrame )
-            nextFrame = _lastFrame;
-        else if( nextFrame < _firstFrame )
-            nextFrame = _firstFrame;
+        if( nextFrame > self->lastFrame )
+            nextFrame = self->lastFrame;
+        else if( nextFrame < self->firstFrame )
+            nextFrame = self->firstFrame;
 
         filter.GetFrame( nextFrame, array );
 
         // Convert the results to floating-point
         for( int y = 0; y < 480; y++ ) {
             for( int x = 0; x < 720; x++ ) {
-                _targets[writeBuffer][479 - y][x][0] = (uint8_t) __gamma45( array[y][x].r );
-                _targets[writeBuffer][479 - y][x][1] = (uint8_t) __gamma45( array[y][x].g );
-                _targets[writeBuffer][479 - y][x][2] = (uint8_t) __gamma45( array[y][x].b );
+                self->targets[writeBuffer][479 - y][x][0] = (uint8_t) __gamma45( array[y][x].r );
+                self->targets[writeBuffer][479 - y][x][1] = (uint8_t) __gamma45( array[y][x].g );
+                self->targets[writeBuffer][479 - y][x][2] = (uint8_t) __gamma45( array[y][x].b );
             }
         }
 
         //usleep( 100000 );
 
-        _presentationTime[writeBuffer] = getFrameTime( &_frameRate, nextFrame );
-        int64_t endTime = _clock->getPresentationTime();
+        self->presentationTime[writeBuffer] = getFrameTime( &self->frameRate, nextFrame );
+        int64_t endTime = self->clock->getPresentationTime();
 
         int64_t lastDuration = endTime - startTime;
 
@@ -249,9 +285,9 @@ VideoWidget::playbackThread() {
         //    ((double) endTime - (double) startTime) / 1000000000.0 );
         //printf( "Presentation time %ld\n", info->_presentationTime[writeBuffer] );
 
-        g_mutex_lock( _frameReadMutex );
-        if( _filled < 0 ) {
-            Rational newSpeed = _clock->getSpeed();
+        g_mutex_lock( self->frameReadMutex );
+        if( self->filled < 0 ) {
+            Rational newSpeed = self->clock->getSpeed();
 
             if( speed.n * newSpeed.d != 0 )
                 lastDuration = lastDuration * newSpeed.n * speed.d / (speed.n * newSpeed.d);
@@ -261,30 +297,30 @@ VideoWidget::playbackThread() {
             speed = newSpeed;
 
             if( speed.n > 0 )
-                _nextToRenderFrame -= 4;
+                self->nextToRenderFrame -= 4;
             else if( speed.n < 0 )
-                _nextToRenderFrame += 4;
+                self->nextToRenderFrame += 4;
 
-            _filled = -1;
+            self->filled = -1;
 
             // Write where the reader will read next
-            _writeBuffer = _readBuffer;
+            self->writeBuffer = self->readBuffer;
         }
 
-        _filled++;
+        self->filled++;
 
         if( lastDuration < INT64_C(0) )
             lastDuration *= INT64_C(-1);
 
         if( speed.n > 0 ) {
-            while( getFrameTime( &_frameRate, ++_nextToRenderFrame ) < endTime + lastDuration );
+            while( getFrameTime( &self->frameRate, ++self->nextToRenderFrame ) < endTime + lastDuration );
         }
         else if( speed.n < 0 ) {
-            while( getFrameTime( &_frameRate, --_nextToRenderFrame ) > endTime - lastDuration );
+            while( getFrameTime( &self->frameRate, --self->nextToRenderFrame ) > endTime - lastDuration );
         }
 
-        _nextPresentationTime[writeBuffer] = getFrameTime( &_frameRate, _nextToRenderFrame );
-        g_mutex_unlock( _frameReadMutex );
+        self->nextPresentationTime[writeBuffer] = getFrameTime( &self->frameRate, self->nextToRenderFrame );
+        g_mutex_unlock( self->frameReadMutex );
 
 /*            std::stringstream filename;
         filename << "rgba" << i++ << ".exr";
@@ -301,136 +337,200 @@ VideoWidget::playbackThread() {
     return NULL;
 }
 
-gboolean
-VideoWidget::playSingleFrame() {
-    if( _filled > 0 ) {
-        g_mutex_lock( _frameReadMutex );
-        int filled = _filled;
-        _readBuffer = (_readBuffer + 1) & 3;
-        int64_t nextPresentationTime = _nextPresentationTime[_readBuffer];
-        g_mutex_unlock( _frameReadMutex );
+static gboolean
+playSingleFrame( py_obj_VideoWidget *self ) {
+    if( self->filled > 0 ) {
+        g_mutex_lock( self->frameReadMutex );
+        int filled = self->filled;
+        self->readBuffer = (self->readBuffer + 1) & 3;
+        int64_t nextPresentationTime = self->nextPresentationTime[self->readBuffer];
+        g_mutex_unlock( self->frameReadMutex );
 
         if( filled != 0 ) {
-            gdk_window_invalidate_rect( _drawingArea->window, &_drawingArea->allocation, FALSE );
-            gdk_window_process_updates( _drawingArea->window, FALSE );
+            gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
+            gdk_window_process_updates( self->drawingArea->window, FALSE );
 
             //printf( "Painted %ld from %d...\n", info->_presentationTime[info->readBuffer], info->readBuffer );
 
-            g_mutex_lock( _frameReadMutex );
+            g_mutex_lock( self->frameReadMutex );
 
-            _filled--;
+            self->filled--;
 
-            g_cond_signal( _frameReadCond );
-            g_mutex_unlock( _frameReadMutex );
+            g_cond_signal( self->frameReadCond );
+            g_mutex_unlock( self->frameReadMutex );
 
-            Rational speed = _clock->getSpeed();
+            Rational speed = self->clock->getSpeed();
 
-            int timeout = (nextPresentationTime - _clock->getPresentationTime()) * speed.d / (speed.n * 1000000);
+            int timeout = (nextPresentationTime - self->clock->getPresentationTime()) * speed.d / (speed.n * 1000000);
             //printf( "timeout %d\n", timeout );
 
             if( timeout < 0 )
                 timeout = 0;
 
-            _timeoutSourceID = g_timeout_add( timeout, playSingleFrameCallback, this );
+            self->timeoutSourceID = g_timeout_add( timeout, (GSourceFunc) playSingleFrame, self );
             return FALSE;
         }
     }
 
-    Rational speed = _clock->getSpeed();
+    Rational speed = self->clock->getSpeed();
 
-    _timeoutSourceID = g_timeout_add(
-        (1000 * _frameRate.d * speed.d) / (_frameRate.n * abs(speed.n)),
-        playSingleFrameCallback, this );
+    self->timeoutSourceID = g_timeout_add(
+        (1000 * self->frameRate.d * speed.d) / (self->frameRate.n * abs(speed.n)),
+        (GSourceFunc) playSingleFrame, self );
     return FALSE;
 }
 
-VideoWidget::VideoWidget( IPresentationClock *clock ) {
-    _glConfig = gdk_gl_config_new_by_mode ( (GdkGLConfigMode) (GDK_GL_MODE_RGB    |
+static int
+VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
+    PyObject *pyclock;
+
+    if( !PyArg_ParseTuple( args, "O", &pyclock ) )
+        return -1;
+
+    PyObject *pycclock;
+
+    if( (pycclock = PyObject_GetAttrString( pyclock, "_obj" )) == NULL )
+        return -1;
+
+    if( !PyCObject_Check( pycclock ) ) {
+        PyErr_SetString( PyExc_Exception, "Given clock object doesn't have a _obj attribute with the clock implementation." );
+        return -1;
+    }
+
+    Py_CLEAR( self->pyclock );
+    Py_INCREF( pycclock );
+
+    self->pyclock = pycclock;
+    self->clock = (IPresentationClock*) PyCObject_AsVoidPtr( pycclock );
+
+    Py_CLEAR( self->frameSource );
+
+    self->glConfig = gdk_gl_config_new_by_mode ( (GdkGLConfigMode) (GDK_GL_MODE_RGB    |
                                         GDK_GL_MODE_DEPTH  |
                                         GDK_GL_MODE_DOUBLE));
-    if( _glConfig == NULL )    {
+    if( self->glConfig == NULL )    {
         g_print( "*** Cannot find the double-buffered visual.\n" );
         g_print( "*** Trying single-buffered visual.\n" );
 
         /* Try single-buffered visual */
-        _glConfig = gdk_gl_config_new_by_mode ((GdkGLConfigMode) (GDK_GL_MODE_RGB   |
+        self->glConfig = gdk_gl_config_new_by_mode ((GdkGLConfigMode) (GDK_GL_MODE_RGB   |
                                         GDK_GL_MODE_DEPTH));
-        if( _glConfig == NULL ) {
+        if( self->glConfig == NULL ) {
             g_print( "*** No appropriate OpenGL-capable visual found.\n" );
             exit( 1 );
         }
     }
 
-    _drawingArea = gtk_drawing_area_new();
-    gtk_widget_set_size_request( _drawingArea, 720, 480 );
+    self->drawingArea = gtk_drawing_area_new();
+    gtk_widget_set_size_request( self->drawingArea, 720, 480 );
 
-    gtk_widget_set_gl_capability( _drawingArea,
-                                _glConfig,
+    gtk_widget_set_gl_capability( self->drawingArea,
+                                self->glConfig,
                                 NULL,
                                 TRUE,
                                 GDK_GL_RGBA_TYPE );
 
-    _clock = clock;
-    _frameReadMutex = g_mutex_new();
-    _frameReadCond = g_cond_new();
-    _nextToRenderFrame = 5000;
-    _frameRate = Rational( 24000, 1001 );
-    _filled = -1;
-    _readBuffer = 3;
-    _writeBuffer = 3;
-    _firstFrame = 0;
-    _lastFrame = 6000;
-    _pixelAspectRatio = 40.0f / 33.0f;
-    _quit = false;
-    _targets[0].resizeErase( 480, 720 );
-    _targets[1].resizeErase( 480, 720 );
-    _targets[2].resizeErase( 480, 720 );
-    _targets[3].resizeErase( 480, 720 );
+    self->frameReadMutex = g_mutex_new();
+    self->frameReadCond = g_cond_new();
+    self->nextToRenderFrame = 5000;
+    self->frameRate = Rational( 24000, 1001 );
+    self->filled = -1;
+    self->readBuffer = 3;
+    self->writeBuffer = 3;
+    self->firstFrame = 0;
+    self->lastFrame = 6000;
+    self->pixelAspectRatio = 40.0f / 33.0f;
+    self->quit = false;
+    self->targets[0].resizeErase( 480, 720 );
+    self->targets[1].resizeErase( 480, 720 );
+    self->targets[2].resizeErase( 480, 720 );
+    self->targets[3].resizeErase( 480, 720 );
 
-    g_object_set_data( G_OBJECT(_drawingArea), "__info", this );
-    g_signal_connect( G_OBJECT(_drawingArea), "expose_event", G_CALLBACK(exposeCallback), this );
+    g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );
 
-    g_timeout_add( 0, playSingleFrameCallback, this );
-    _renderThread = g_thread_create( playbackThreadCallback, this, TRUE, NULL );
+    g_timeout_add( 0, (GSourceFunc) playSingleFrame, self );
+    self->renderThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
+
+    return 0;
 }
 
-VideoWidget::~VideoWidget() {
+static void
+VideoWidget_dealloc( py_obj_VideoWidget *self ) {
     // Stop the render thread
-    g_mutex_lock( _frameReadMutex );
-    _quit = true;
-    g_cond_signal( _frameReadCond );
-    g_mutex_unlock( _frameReadMutex );
+    g_mutex_lock( self->frameReadMutex );
+    self->quit = true;
+    g_cond_signal( self->frameReadCond );
+    g_mutex_unlock( self->frameReadMutex );
 
-    g_thread_join( _renderThread );
+    g_thread_join( self->renderThread );
+
+    Py_CLEAR( self->pyclock );
+    Py_CLEAR( self->frameSource );
+
+    self->ob_type->tp_free( (PyObject*) self );
 }
 
-void
-VideoWidget::stop() {
-    if( _timeoutSourceID != 0 ) {
-        g_source_remove( _timeoutSourceID );
-        _timeoutSourceID = 0;
+static PyObject *
+VideoWidget_stop( py_obj_VideoWidget *self ) {
+    if( self->timeoutSourceID != 0 ) {
+        g_source_remove( self->timeoutSourceID );
+        self->timeoutSourceID = 0;
     }
 
     // Just stop the production thread
-    g_mutex_lock( _frameReadMutex );
-    _filled = 3;
-    g_mutex_unlock( _frameReadMutex );
+    g_mutex_lock( self->frameReadMutex );
+    self->filled = 3;
+    g_mutex_unlock( self->frameReadMutex );
+
+    Py_RETURN_NONE;
 }
 
-void
-VideoWidget::play() {
-    if( _timeoutSourceID != 0 ) {
-        g_source_remove( _timeoutSourceID );
-        _timeoutSourceID = 0;
+static PyObject *
+VideoWidget_play( py_obj_VideoWidget *self ) {
+    if( self->timeoutSourceID != 0 ) {
+        g_source_remove( self->timeoutSourceID );
+        self->timeoutSourceID = 0;
     }
 
     // Fire up the production and playback threads from scratch
-    g_mutex_lock( _frameReadMutex );
-    _filled = -2;
-    g_cond_signal( _frameReadCond );
-    g_mutex_unlock( _frameReadMutex );
+    g_mutex_lock( self->frameReadMutex );
+    self->filled = -2;
+    g_cond_signal( self->frameReadCond );
+    g_mutex_unlock( self->frameReadMutex );
 
-    playSingleFrame();
+    playSingleFrame( self );
+
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef module_methods[] = {
+    { NULL }
+};
+
+static PyMethodDef VideoWidget_methods[] = {
+    { "play", (PyCFunction) VideoWidget_play, METH_NOARGS,
+        "Signals that the widget should start processing frames or process a speed change." },
+    { "stop", (PyCFunction) VideoWidget_stop, METH_NOARGS,
+        "Signals the widget to stop processing frames." },
+    { NULL }
+};
+
+PyMODINIT_FUNC
+initvideo() {
+    py_type_VideoWidget.tp_flags = Py_TPFLAGS_DEFAULT;
+    py_type_VideoWidget.tp_new = PyType_GenericNew;
+    py_type_VideoWidget.tp_dealloc = (destructor) VideoWidget_dealloc;
+    py_type_VideoWidget.tp_init = (initproc) VideoWidget_init;
+    py_type_VideoWidget.tp_methods = VideoWidget_methods;
+
+    if( PyType_Ready( &py_type_VideoWidget ) < 0 )
+        return;
+
+    PyObject *m = Py_InitModule3( "video", module_methods,
+        "The Fluggo Video library for Python." );
+
+    Py_INCREF( &py_type_VideoWidget );
+    PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_VideoWidget );
 }
 
 gboolean
@@ -501,6 +601,7 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
     </timeline>
 */
 
+#if 0
 int
 main( int argc, char *argv[] ) {
     gtk_init( &argc, &argv );
@@ -545,6 +646,6 @@ main( int argc, char *argv[] ) {
 
     gtk_main();
 }
-
+#endif
 
 

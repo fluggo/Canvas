@@ -1,7 +1,8 @@
+import distutils.sysconfig
+
 debug = ARGUMENTS.get('debug', 0)
-
-
-env = Environment(LIBS=['rt', 'GLEW'])
+env = Environment(LIBS=['rt', 'GLEW'], CPPPATH=[distutils.sysconfig.get_python_inc()],
+	SHLIBPREFIX='')
 
 if int(debug):
 	env['CCFLAGS'] = '-Wall -ggdb3 -DMESA_DEBUG -DDEBUG'
@@ -10,4 +11,5 @@ else:
 
 env.ParseConfig('pkg-config --libs --cflags libavformat OpenEXR libswscale gtk+-2.0 gl gtkglext-1.0 gthread-2.0')
 
-env.Program('test', ['test.cpp', 'AVFileReader.cpp', 'Pulldown23RemovalFilter.cpp', 'clock.cpp'])
+env.SharedLibrary('fluggo/video.so',
+	['test.cpp', 'AVFileReader.cpp', 'Pulldown23RemovalFilter.cpp', 'clock.cpp'])
