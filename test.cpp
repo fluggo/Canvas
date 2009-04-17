@@ -83,6 +83,7 @@ typedef struct {
 
     GdkGLConfig *glConfig;
     GtkWidget *drawingArea;
+    PyObject *drawingAreaObj;
     PyObject *frameSource;
     int timer;
     GMutex *frameReadMutex;
@@ -347,6 +348,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->clock = (IPresentationClock*) PyCObject_AsVoidPtr( pycclock );
 
     Py_CLEAR( self->frameSource );
+    Py_CLEAR( self->drawingAreaObj );
 
     self->glConfig = gdk_gl_config_new_by_mode ( (GdkGLConfigMode) (GDK_GL_MODE_RGB    |
                                         GDK_GL_MODE_DEPTH  |
@@ -372,6 +374,8 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
                                 NULL,
                                 TRUE,
                                 GDK_GL_RGBA_TYPE );
+
+    self->drawingAreaObj = PyCObject_FromVoidPtr( self->drawingArea, NULL );
 
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
@@ -446,15 +450,23 @@ VideoWidget_play( py_obj_VideoWidget *self ) {
     Py_RETURN_NONE;
 }
 
-static PyMethodDef module_methods[] = {
-    { NULL }
-};
+static PyObject *
+VideoWidget_widgetObj( py_obj_VideoWidget *self ) {
+    Py_INCREF( self->drawingAreaObj );
+    return self->drawingAreaObj;
+}
 
 static PyMethodDef VideoWidget_methods[] = {
     { "play", (PyCFunction) VideoWidget_play, METH_NOARGS,
         "Signals that the widget should start processing frames or process a speed change." },
     { "stop", (PyCFunction) VideoWidget_stop, METH_NOARGS,
         "Signals the widget to stop processing frames." },
+    { "widgetObj", (PyCFunction) VideoWidget_widgetObj, METH_NOARGS,
+        "Temporary. Returns the CObject for the drawing widget." },
+    { NULL }
+};
+
+static PyMethodDef module_methods[] = {
     { NULL }
 };
 
