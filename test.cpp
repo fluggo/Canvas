@@ -111,63 +111,6 @@ static PyTypeObject py_type_VideoWidget = {
     sizeof(py_obj_VideoWidget)    // tp_basicsize
 };
 
-
-class VideoWidget {
-public:
-    VideoWidget( IPresentationClock *clock );
-    ~VideoWidget();
-
-    GtkWidget *getWidget() {
-        return _drawingArea;
-    }
-
-    IPresentationClock *getClock() {
-        return _clock;
-    }
-
-    void stop();
-    void play();
-
-private:
-
-    GdkGLConfig *_glConfig;
-    GtkWidget *_drawingArea;
-    IFrameSource *_source;
-    int _timer;
-    GMutex *_frameReadMutex;
-    GCond *_frameReadCond;
-    int _lastDisplayedFrame, _nextToRenderFrame;
-    int _readBuffer, _writeBuffer, _filled;
-    Rational _frameRate;
-    guint _timeoutSourceID;
-    IPresentationClock *_clock;
-    int _firstFrame, _lastFrame;
-    float _pixelAspectRatio;
-
-    int64_t _presentationTime[4];
-    int64_t _nextPresentationTime[4];
-    Array2D<uint8_t[3]> _targets[4];
-    float _rate;
-    bool _quit;
-    GThread *_renderThread;
-
-    gboolean expose();
-    gboolean playSingleFrame();
-    gpointer playbackThread();
-
-    static gpointer playbackThreadCallback( gpointer data ) {
-        return ((VideoWidget*) data)->playbackThread();
-    }
-
-    static gboolean playSingleFrameCallback( gpointer data ) {
-        return ((VideoWidget*) data)->playSingleFrame();
-    }
-
-    static gboolean exposeCallback( GtkWidget *widget, GdkEventExpose *event, gpointer data ) {
-        return ((VideoWidget*) data)->expose();
-    }
-};
-
 static gboolean
 expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     GdkGLContext *glcontext = gtk_widget_get_gl_context( self->drawingArea );
@@ -533,6 +476,7 @@ initvideo() {
     PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_VideoWidget );
 }
 
+#if 0
 gboolean
 keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
     VideoWidget *video = (VideoWidget*) g_object_get_data( G_OBJECT((GtkWidget*) userData), "__info" );
@@ -568,6 +512,7 @@ keyPressHandler( GtkWidget *widget, GdkEventKey *event, gpointer userData ) {
 
     return TRUE;
 }
+#endif
 
 /*
     <source name='scene7'>
