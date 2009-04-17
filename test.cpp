@@ -413,6 +413,7 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
 
     Py_CLEAR( self->pyclock );
     Py_CLEAR( self->frameSource );
+    Py_CLEAR( self->drawingAreaObj );
 
     self->ob_type->tp_free( (PyObject*) self );
 }
