@@ -1,5 +1,8 @@
 
+#include <pygobject.h>
+#include <pygtk/pygtk.h>
 #include <Python.h>
+#include <structmember.h>
 #include "framework.h"
 #include "clock.h"
 
@@ -19,7 +22,6 @@
 
 using namespace Iex;
 using namespace Imf;
-
 
 //static float gamma22Func( float input ) {
 //    return powf( input, 2.2 );
@@ -104,6 +106,11 @@ typedef struct {
     bool quit;
     GThread *renderThread;
 } py_obj_VideoWidget;
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *innerObj;
+} py_obj_SystemPresentationClock;
 
 static PyTypeObject py_type_VideoWidget = {
     PyObject_HEAD_INIT(NULL)
@@ -375,7 +382,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
                                 TRUE,
                                 GDK_GL_RGBA_TYPE );
 
-    self->drawingAreaObj = PyCObject_FromVoidPtr( self->drawingArea, NULL );
+    self->drawingAreaObj = pygobject_new( (GObject*) self->drawingArea );
 
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
@@ -462,8 +469,96 @@ static PyMethodDef VideoWidget_methods[] = {
         "Signals that the widget should start processing frames or process a speed change." },
     { "stop", (PyCFunction) VideoWidget_stop, METH_NOARGS,
         "Signals the widget to stop processing frames." },
-    { "widgetObj", (PyCFunction) VideoWidget_widgetObj, METH_NOARGS,
-        "Temporary. Returns the CObject for the drawing widget." },
+    { "drawingArea", (PyCFunction) VideoWidget_widgetObj, METH_NOARGS,
+        "Returns the drawing area used for video output." },
+    { NULL }
+};
+
+/***************** SystemPresentationClock *********/
+static PyTypeObject py_type_SystemPresentationClock = {
+    PyObject_HEAD_INIT(NULL)
+    0,            // ob_size
+    "fluggo.video.SystemPresentationClock",    // tp_name
+    sizeof(py_obj_SystemPresentationClock)    // tp_basicsize
+};
+
+void
+clock_destr( void *data ) {
+    delete (SystemPresentationClock*)(IPresentationClock*) data;
+}
+
+static int
+SystemPresentationClock_init( py_obj_SystemPresentationClock *self, PyObject *args, PyObject *kwds ) {
+    Py_CLEAR( self->innerObj );
+    self->innerObj = PyCObject_FromVoidPtr( (IPresentationClock*) new SystemPresentationClock(), clock_destr );
+
+    return 0;
+}
+
+static void
+SystemPresentationClock_dealloc( py_obj_SystemPresentationClock *self ) {
+    Py_CLEAR( self->innerObj );
+    self->ob_type->tp_free( (PyObject*) self );
+}
+
+static PyObject *
+SystemPresentationClock_play( py_obj_SystemPresentationClock *self, PyObject *args ) {
+    int n, d;
+
+    if( !PyArg_ParseTuple( args, "(ii)", &n, &d ) )
+        return NULL;
+
+    if( d == 0 ) {
+        PyErr_SetString( PyExc_Exception, "Can't have a denominator is zero." );
+        return NULL;
+    }
+
+    if( d < 0 ) {
+        n *= -1;
+        d *= -1;
+    }
+
+    SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
+    clock->play( Rational( n, (unsigned int) d ) );
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+SystemPresentationClock_set( py_obj_SystemPresentationClock *self, PyObject *args ) {
+    int n, d;
+    int64_t time;
+
+    if( !PyArg_ParseTuple( args, "(ii)L", &n, &d, &time ) )
+        return NULL;
+
+    if( d == 0 ) {
+        PyErr_SetString( PyExc_Exception, "Can't have a denominator is zero." );
+        return NULL;
+    }
+
+    if( d < 0 ) {
+        n *= -1;
+        d *= -1;
+    }
+
+    SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
+    clock->set( Rational( n, (unsigned int) d ), time );
+
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef SystemPresentationClock_methods[] = {
+    { "play", (PyCFunction) SystemPresentationClock_play, METH_VARARGS,
+        "Starts the clock at the current spot." },
+    { "set", (PyCFunction) SystemPresentationClock_set, METH_VARARGS,
+        "Sets the speed and current time." },
+    { NULL }
+};
+
+static PyMemberDef SystemPresentationClock_members[] = {
+    { "_obj", T_OBJECT, offsetof(py_obj_SystemPresentationClock, innerObj),
+        READONLY, "Internal clock interface." },
     { NULL }
 };
 
@@ -473,6 +568,10 @@ static PyMethodDef module_methods[] = {
 
 PyMODINIT_FUNC
 initvideo() {
+    int argc = 1;
+    char *arg = "dummy";
+    char **argv = &arg;
+
     py_type_VideoWidget.tp_flags = Py_TPFLAGS_DEFAULT;
     py_type_VideoWidget.tp_new = PyType_GenericNew;
     py_type_VideoWidget.tp_dealloc = (destructor) VideoWidget_dealloc;
@@ -482,11 +581,31 @@ initvideo() {
     if( PyType_Ready( &py_type_VideoWidget ) < 0 )
         return;
 
+    py_type_SystemPresentationClock.tp_flags = Py_TPFLAGS_DEFAULT;
+    py_type_SystemPresentationClock.tp_new = PyType_GenericNew;
+    py_type_SystemPresentationClock.tp_dealloc = (destructor) SystemPresentationClock_dealloc;
+    py_type_SystemPresentationClock.tp_init = (initproc) SystemPresentationClock_init;
+    py_type_SystemPresentationClock.tp_methods = SystemPresentationClock_methods;
+    py_type_SystemPresentationClock.tp_members = SystemPresentationClock_members;
+
+    if( PyType_Ready( &py_type_SystemPresentationClock ) < 0 )
+        return;
+
     PyObject *m = Py_InitModule3( "video", module_methods,
         "The Fluggo Video library for Python." );
 
+    Py_INCREF( &py_type_SystemPresentationClock );
+    PyModule_AddObject( m, "SystemPresentationClock", (PyObject *) &py_type_SystemPresentationClock );
+
     Py_INCREF( &py_type_VideoWidget );
     PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_VideoWidget );
+
+    init_pygobject();
+    init_pygtk();
+    gtk_gl_init( &argc, &argv );
+
+    if( !g_thread_supported() )
+        g_thread_init( NULL );
 }
 
 #if 0
