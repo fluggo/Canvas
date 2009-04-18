@@ -98,6 +98,8 @@ typedef struct {
     IPresentationClock *clock;
     int firstFrame, lastFrame;
     float pixelAspectRatio;
+    GLuint textureId;
+    float texCoordX, texCoordY;
 
     int64_t presentationTime[4];
     int64_t nextPresentationTime[4];
@@ -134,8 +136,48 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
         __glewInit = true;
     }
 
-    int width = (int)(720 * self->pixelAspectRatio);
-    int height = 480;
+    int frameWidth = 720, frameHeight = 480;
+
+    int width = (int)(frameWidth * self->pixelAspectRatio);
+    int height = frameHeight;
+
+    if( self->textureId == -1 ) {
+        glGenTextures( 1, &self->textureId );
+        glBindTexture( GL_TEXTURE_2D, self->textureId );
+
+        if( GLEW_ARB_texture_non_power_of_two ) {
+            glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+            glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, frameWidth, frameHeight,
+                0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
+
+            self->texCoordX = 1.0f;
+            self->texCoordY = 1.0f;
+        }
+        else {
+            int texW = 1, texH = 1;
+
+            while( texW < frameWidth )
+                texW <<= 1;
+
+            while( texH < frameHeight )
+                texH <<= 1;
+
+            glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+            glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, texW, texH,
+                0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
+
+            self->texCoordX = (float) frameWidth / (float) texW;
+            self->texCoordY = (float) frameHeight / (float) texH;
+        }
+    }
 
     glLoadIdentity();
     glViewport( 0, 0, width, height );
@@ -144,23 +186,19 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
 
-    glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 720, 480,
-        0, GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer][0][0] );
+    glBindTexture( GL_TEXTURE_2D, self->textureId );
+    glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight,
+        GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer][0][0] );
     checkGLError();
 
     glEnable( GL_TEXTURE_2D );
 
     glBegin( GL_QUADS );
-    glTexCoord2f( 0, 1 );
+    glTexCoord2f( 0, self->texCoordY );
     glVertex2i( 0, 0 );
-    glTexCoord2f( 1, 1 );
+    glTexCoord2f( self->texCoordX, self->texCoordY );
     glVertex2i( width, 0 );
-    glTexCoord2f( 1, 0 );
+    glTexCoord2f( self->texCoordX, 0 );
     glVertex2i( width, height );
     glTexCoord2f( 0, 0 );
     glVertex2i( 0, height );
@@ -395,6 +433,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->lastFrame = 6000;
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
+    self->textureId = -1;
     self->targets[0].resizeErase( 480, 720 );
     self->targets[1].resizeErase( 480, 720 );
     self->targets[2].resizeErase( 480, 720 );
