@@ -82,6 +82,19 @@ static void checkGLError() {
 
 typedef struct {
     PyObject_HEAD
+    int32_t n;
+    uint32_t d;
+} py_obj_Rational;
+
+static PyTypeObject py_type_Rational = {
+    PyObject_HEAD_INIT(NULL)
+    0,            // ob_size
+    "fluggo.video.Rational",    // tp_name
+    sizeof(py_obj_Rational)    // tp_basicsize
+};
+
+typedef struct {
+    PyObject_HEAD
 
     GdkGLConfig *glConfig;
     GtkWidget *drawingArea;
@@ -92,7 +105,7 @@ typedef struct {
     GCond *frameReadCond;
     int lastDisplayedFrame, nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
-    Rational frameRate;
+    py_obj_Rational *frameRate;
     guint timeoutSourceID;
     PyObject *pyclock;
     IPresentationClock *clock;
@@ -105,14 +118,9 @@ typedef struct {
     int64_t nextPresentationTime[4];
     Array2D<uint8_t[3]> targets[4];
     float rate;
-    bool quit;
+    bool quit, textureAllocated;
     GThread *renderThread;
 } py_obj_VideoWidget;
-
-typedef struct {
-    PyObject_HEAD
-    PyObject *innerObj;
-} py_obj_SystemPresentationClock;
 
 static PyTypeObject py_type_VideoWidget = {
     PyObject_HEAD_INIT(NULL)
@@ -120,6 +128,11 @@ static PyTypeObject py_type_VideoWidget = {
     "fluggo.video.VideoWidget",    // tp_name
     sizeof(py_obj_VideoWidget)    // tp_basicsize
 };
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *innerObj;
+} py_obj_SystemPresentationClock;
 
 static gboolean
 expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
@@ -141,7 +154,7 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     int width = (int)(frameWidth * self->pixelAspectRatio);
     int height = frameHeight;
 
-    if( self->textureId == -1 ) {
+    if( !self->textureAllocated ) {
         glGenTextures( 1, &self->textureId );
         glBindTexture( GL_TEXTURE_2D, self->textureId );
 
@@ -177,6 +190,8 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
             self->texCoordX = (float) frameWidth / (float) texW;
             self->texCoordY = (float) frameHeight / (float) texH;
         }
+
+        self->textureAllocated = true;
     }
 
     glLoadIdentity();
@@ -217,7 +232,7 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
 }
 
 int64_t
-getFrameTime( Rational *frameRate, int frame ) {
+getFrameTime( py_obj_Rational *frameRate, int frame ) {
     return (int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d) / (int64_t)(frameRate->n);
 }
 
@@ -265,7 +280,7 @@ playbackThread( py_obj_VideoWidget *self ) {
 
         //usleep( 100000 );
 
-        self->presentationTime[writeBuffer] = getFrameTime( &self->frameRate, nextFrame );
+        self->presentationTime[writeBuffer] = getFrameTime( self->frameRate, nextFrame );
         int64_t endTime = self->clock->getPresentationTime();
 
         int64_t lastDuration = endTime - startTime;
@@ -302,13 +317,13 @@ playbackThread( py_obj_VideoWidget *self ) {
             lastDuration *= INT64_C(-1);
 
         if( speed.n > 0 ) {
-            while( getFrameTime( &self->frameRate, ++self->nextToRenderFrame ) < endTime + lastDuration );
+            while( getFrameTime( self->frameRate, ++self->nextToRenderFrame ) < endTime + lastDuration );
         }
         else if( speed.n < 0 ) {
-            while( getFrameTime( &self->frameRate, --self->nextToRenderFrame ) > endTime - lastDuration );
+            while( getFrameTime( self->frameRate, --self->nextToRenderFrame ) > endTime - lastDuration );
         }
 
-        self->nextPresentationTime[writeBuffer] = getFrameTime( &self->frameRate, self->nextToRenderFrame );
+        self->nextPresentationTime[writeBuffer] = getFrameTime( self->frameRate, self->nextToRenderFrame );
         g_mutex_unlock( self->frameReadMutex );
 
 /*            std::stringstream filename;
@@ -364,7 +379,7 @@ playSingleFrame( py_obj_VideoWidget *self ) {
     Rational speed = self->clock->getSpeed();
 
     self->timeoutSourceID = g_timeout_add(
-        (1000 * self->frameRate.d * speed.d) / (self->frameRate.n * abs(speed.n)),
+        (1000 * self->frameRate->d * speed.d) / (self->frameRate->n * abs(speed.n)),
         (GSourceFunc) playSingleFrame, self );
     return FALSE;
 }
@@ -393,6 +408,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->clock = (IPresentationClock*) PyCObject_AsVoidPtr( pycclock );
 
     Py_CLEAR( self->frameSource );
+    Py_CLEAR( self->frameRate );
     Py_CLEAR( self->drawingAreaObj );
 
     self->glConfig = gdk_gl_config_new_by_mode ( (GdkGLConfigMode) (GDK_GL_MODE_RGB    |
@@ -422,10 +438,13 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 
     self->drawingAreaObj = pygobject_new( (GObject*) self->drawingArea );
 
+    PyObject *tuple = Py_BuildValue( "iI", 24000, 1001u );
+    self->frameRate = (py_obj_Rational*) PyObject_CallObject( (PyObject*) &py_type_Rational, tuple );
+    Py_CLEAR( tuple );
+
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
     self->nextToRenderFrame = 5000;
-    self->frameRate = Rational( 24000, 1001 );
     self->filled = -1;
     self->readBuffer = 3;
     self->writeBuffer = 3;
@@ -438,6 +457,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->targets[1].resizeErase( 480, 720 );
     self->targets[2].resizeErase( 480, 720 );
     self->targets[3].resizeErase( 480, 720 );
+    self->textureAllocated = false;
 
     g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );
 
@@ -460,7 +480,9 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
     Py_CLEAR( self->pyclock );
     Py_CLEAR( self->frameSource );
     Py_CLEAR( self->drawingAreaObj );
+    Py_CLEAR( self->frameRate );
 
+    gtk_widget_destroy( GTK_WIDGET(self->drawingArea) );
     self->ob_type->tp_free( (PyObject*) self );
 }
 
@@ -601,6 +623,23 @@ static PyMemberDef SystemPresentationClock_members[] = {
     { NULL }
 };
 
+/************* Rational ********/
+static int
+Rational_init( py_obj_Rational *self, PyObject *args, PyObject *kwds ) {
+    if( !PyArg_ParseTuple( args, "iI", &self->n, &self->d ) )
+        return -1;
+
+    return 0;
+}
+
+static PyMemberDef Rational_members[] = {
+    { "n", T_LONG, offsetof(py_obj_Rational, n),
+        0, "Numerator." },
+    { "d", T_ULONG, offsetof(py_obj_Rational, d),
+        0, "Denominator." },
+    { NULL }
+};
+
 static PyMethodDef module_methods[] = {
     { NULL }
 };
@@ -610,6 +649,14 @@ initvideo() {
     int argc = 1;
     char *arg = "dummy";
     char **argv = &arg;
+
+    py_type_Rational.tp_flags = Py_TPFLAGS_DEFAULT;
+    py_type_Rational.tp_new = PyType_GenericNew;
+    py_type_Rational.tp_init = (initproc) Rational_init;
+    py_type_Rational.tp_members = Rational_members;
+
+    if( PyType_Ready( &py_type_Rational ) < 0 )
+        return;
 
     py_type_VideoWidget.tp_flags = Py_TPFLAGS_DEFAULT;
     py_type_VideoWidget.tp_new = PyType_GenericNew;
