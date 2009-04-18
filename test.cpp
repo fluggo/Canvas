@@ -113,6 +113,7 @@ typedef struct {
     float pixelAspectRatio;
     GLuint textureId;
     float texCoordX, texCoordY;
+    int frameWidth, frameHeight;
 
     int64_t presentationTime[4];
     int64_t nextPresentationTime[4];
@@ -149,10 +150,8 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
         __glewInit = true;
     }
 
-    int frameWidth = 720, frameHeight = 480;
-
-    int width = (int)(frameWidth * self->pixelAspectRatio);
-    int height = frameHeight;
+    int width = (int)(self->frameWidth * self->pixelAspectRatio);
+    int height = self->frameHeight;
 
     if( !self->textureAllocated ) {
         glGenTextures( 1, &self->textureId );
@@ -164,7 +163,7 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
             glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
             glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
             glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-            glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, frameWidth, frameHeight,
+            glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, self->frameWidth, self->frameHeight,
                 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
 
             self->texCoordX = 1.0f;
@@ -173,10 +172,10 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
         else {
             int texW = 1, texH = 1;
 
-            while( texW < frameWidth )
+            while( texW < self->frameWidth )
                 texW <<= 1;
 
-            while( texH < frameHeight )
+            while( texH < self->frameHeight )
                 texH <<= 1;
 
             glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
@@ -187,8 +186,8 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
             glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, texW, texH,
                 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
 
-            self->texCoordX = (float) frameWidth / (float) texW;
-            self->texCoordY = (float) frameHeight / (float) texH;
+            self->texCoordX = (float) self->frameWidth / (float) texW;
+            self->texCoordY = (float) self->frameHeight / (float) texH;
         }
 
         self->textureAllocated = true;
@@ -202,7 +201,7 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     glClear( GL_COLOR_BUFFER_BIT );
 
     glBindTexture( GL_TEXTURE_2D, self->textureId );
-    glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, frameWidth, frameHeight,
+    glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, self->frameWidth, self->frameHeight,
         GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer][0][0] );
     checkGLError();
 
@@ -240,7 +239,7 @@ gpointer
 playbackThread( py_obj_VideoWidget *self ) {
     AVFileReader reader( "/home/james/Videos/Okra - 79b,100.avi" );
     Pulldown23RemovalFilter filter( &reader, 0, false );
-    Array2D<Rgba> array( 480, 720 );
+    Array2D<Rgba> array( self->frameHeight, self->frameWidth );
 
     for( ;; ) {
         int64_t startTime = self->clock->getPresentationTime();
@@ -270,11 +269,11 @@ playbackThread( py_obj_VideoWidget *self ) {
         filter.GetFrame( nextFrame, array );
 
         // Convert the results to floating-point
-        for( int y = 0; y < 480; y++ ) {
-            for( int x = 0; x < 720; x++ ) {
-                self->targets[writeBuffer][479 - y][x][0] = (uint8_t) __gamma45( array[y][x].r );
-                self->targets[writeBuffer][479 - y][x][1] = (uint8_t) __gamma45( array[y][x].g );
-                self->targets[writeBuffer][479 - y][x][2] = (uint8_t) __gamma45( array[y][x].b );
+        for( int y = 0; y < self->frameHeight; y++ ) {
+            for( int x = 0; x < self->frameWidth; x++ ) {
+                self->targets[writeBuffer][self->frameHeight - y - 1][x][0] = (uint8_t) __gamma45( array[y][x].r );
+                self->targets[writeBuffer][self->frameHeight - y - 1][x][1] = (uint8_t) __gamma45( array[y][x].g );
+                self->targets[writeBuffer][self->frameHeight - y - 1][x][2] = (uint8_t) __gamma45( array[y][x].b );
             }
         }
 
@@ -427,8 +426,11 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
         }
     }
 
+    self->frameWidth = 720;
+    self->frameHeight = 480;
+
     self->drawingArea = gtk_drawing_area_new();
-    gtk_widget_set_size_request( self->drawingArea, 720, 480 );
+    gtk_widget_set_size_request( self->drawingArea, self->frameWidth, self->frameHeight );
 
     gtk_widget_set_gl_capability( self->drawingArea,
                                 self->glConfig,
@@ -453,10 +455,10 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
     self->textureId = -1;
-    self->targets[0].resizeErase( 480, 720 );
-    self->targets[1].resizeErase( 480, 720 );
-    self->targets[2].resizeErase( 480, 720 );
-    self->targets[3].resizeErase( 480, 720 );
+    self->targets[0].resizeErase( self->frameHeight, self->frameWidth );
+    self->targets[1].resizeErase( self->frameHeight, self->frameWidth );
+    self->targets[2].resizeErase( self->frameHeight, self->frameWidth );
+    self->targets[3].resizeErase( self->frameHeight, self->frameWidth );
     self->textureAllocated = false;
 
     g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );
