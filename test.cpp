@@ -150,8 +150,23 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
         __glewInit = true;
     }
 
-    int width = (int)(self->frameWidth * self->pixelAspectRatio);
-    int height = self->frameHeight;
+    // Set ourselves up with the correct aspect ratio for the space
+    float width = self->frameWidth * self->pixelAspectRatio;
+    float height = self->frameHeight;
+
+    if( width > widget->allocation.width ) {
+        height *= widget->allocation.width / width;
+        width = widget->allocation.width;
+    }
+
+    if( height > widget->allocation.height ) {
+        width *= widget->allocation.height / height;
+        height = widget->allocation.height;
+    }
+
+    // Center
+    float x = widget->allocation.width * 0.5f - width * 0.5f;
+    float y = widget->allocation.height * 0.5f - height * 0.5f;
 
     if( !self->textureAllocated ) {
         glGenTextures( 1, &self->textureId );
@@ -194,10 +209,10 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     }
 
     glLoadIdentity();
-    glViewport( 0, 0, width, height );
-    glOrtho( 0, width, height, 0, -1, 1 );
+    glViewport( 0, 0, widget->allocation.width, widget->allocation.height );
+    glOrtho( 0, widget->allocation.width, widget->allocation.height, 0, -1, 1 );
 
-    glClearColor( 0.0f, 1.0f, 0.0f, 1.0f );
+    glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
 
     glBindTexture( GL_TEXTURE_2D, self->textureId );
@@ -209,13 +224,13 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
 
     glBegin( GL_QUADS );
     glTexCoord2f( 0, self->texCoordY );
-    glVertex2i( 0, 0 );
+    glVertex2f( x, y );
     glTexCoord2f( self->texCoordX, self->texCoordY );
-    glVertex2i( width, 0 );
+    glVertex2f( x + width, y );
     glTexCoord2f( self->texCoordX, 0 );
-    glVertex2i( width, height );
+    glVertex2f( x + width, y + height );
     glTexCoord2f( 0, 0 );
-    glVertex2i( 0, height );
+    glVertex2f( x, y + height );
     glEnd();
 
     glDisable( GL_TEXTURE_2D );
