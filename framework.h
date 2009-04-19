@@ -1,4 +1,5 @@
 
+#include <Python.h>
 
 extern "C" {
 #include <avformat.h>
@@ -16,6 +17,28 @@ extern "C" {
 #include <ImfRational.h>
 #include <ImfArray.h>
 #include <halfFunction.h>
+
+#define NOEXPORT __attribute__((visibility("hidden")))
+
+typedef struct {
+    Imf::Rgba *base;
+    Imath::Box2i originalDataWindow;
+    Imath::Box2i currentDataWindow;
+    int stride;
+} VideoFrame;
+
+typedef void (*video_getFrameFunc)( PyObject *self, int64_t frameIndex, VideoFrame *frame );
+
+typedef struct {
+    int flags;            // Reserved, should be zero
+    video_getFrameFunc getFrame;
+} VideoFrameSourceFuncs;
+
+typedef struct {
+    PyObject *source;
+    PyObject *csource;
+    VideoFrameSourceFuncs *funcs;
+} VideoSourceHolder;
 
 class IFrameSource {
 public:

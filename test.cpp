@@ -93,15 +93,46 @@ static PyTypeObject py_type_Rational = {
     sizeof(py_obj_Rational)    // tp_basicsize
 };
 
+int takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
+    Py_CLEAR( holder->source );
+    Py_CLEAR( holder->csource );
+    holder->funcs = NULL;
+
+    if( source == NULL || source == Py_None )
+        return 0;
+
+    Py_INCREF( source );
+    holder->source = source;
+    holder->csource = PyObject_GetAttrString( source, "_videoFrameSourceFuncs" );
+
+    if( holder->csource == NULL ) {
+        Py_CLEAR( holder->source );
+        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _videoFrameSourceFuncs attribute." );
+        return -1;
+    }
+
+    holder->funcs = (VideoFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
+
+    return 0;
+}
+
+typedef struct {
+    PyObject_HEAD
+
+    VideoSourceHolder source;
+    int offset;
+    bool oddFirst;
+} py_obj_Pulldown23RemovalFilter;
+
 typedef struct {
     PyObject_HEAD
 
     GdkGLConfig *glConfig;
     GtkWidget *drawingArea;
     PyObject *drawingAreaObj;
-    PyObject *frameSource;
+    VideoSourceHolder frameSource;
     int timer;
-    GMutex *frameReadMutex;
+    GMutex *frameReadMutex, *frameRenderMutex;
     GCond *frameReadCond;
     int lastDisplayedFrame, nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
@@ -252,11 +283,16 @@ getFrameTime( py_obj_Rational *frameRate, int frame ) {
 
 gpointer
 playbackThread( py_obj_VideoWidget *self ) {
-    AVFileReader reader( "/home/james/Videos/Okra - 79b,100.avi" );
-    Pulldown23RemovalFilter filter( &reader, 0, false );
     Array2D<Rgba> array( self->frameHeight, self->frameWidth );
+    VideoFrame frame;
+
+    frame.base = &array[0][0];
+    frame.stride = &array[1][0] - frame.base;
 
     for( ;; ) {
+        frame.originalDataWindow = Imath::Box2i( Imath::V2i( 0, 0 ), Imath::V2i( 719, 479 ) );
+        frame.currentDataWindow = frame.originalDataWindow;
+
         int64_t startTime = self->clock->getPresentationTime();
         g_mutex_lock( self->frameReadMutex );
         Rational speed = self->clock->getSpeed();
@@ -281,7 +317,7 @@ playbackThread( py_obj_VideoWidget *self ) {
         else if( nextFrame < self->firstFrame )
             nextFrame = self->firstFrame;
 
-        filter.GetFrame( nextFrame, array );
+        self->frameSource.funcs->getFrame( self->frameSource.source, nextFrame, &frame );
 
         // Convert the results to floating-point
         for( int y = 0; y < self->frameHeight; y++ ) {
@@ -401,8 +437,9 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 static int
 VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     PyObject *pyclock;
+    PyObject *frameSource;
 
-    if( !PyArg_ParseTuple( args, "O", &pyclock ) )
+    if( !PyArg_ParseTuple( args, "OO", &pyclock, &frameSource ) )
         return -1;
 
     PyObject *pycclock;
@@ -421,9 +458,11 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->pyclock = pycclock;
     self->clock = (IPresentationClock*) PyCObject_AsVoidPtr( pycclock );
 
-    Py_CLEAR( self->frameSource );
     Py_CLEAR( self->frameRate );
     Py_CLEAR( self->drawingAreaObj );
+
+    if( takeVideoSource( frameSource, &self->frameSource ) < 0 )
+        return -1;
 
     self->glConfig = gdk_gl_config_new_by_mode ( (GdkGLConfigMode) (GDK_GL_MODE_RGB    |
                                         GDK_GL_MODE_DEPTH  |
@@ -461,6 +500,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
+    self->frameRenderMutex = g_mutex_new();
     self->nextToRenderFrame = 5000;
     self->filled = -1;
     self->readBuffer = 3;
@@ -487,15 +527,20 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 static void
 VideoWidget_dealloc( py_obj_VideoWidget *self ) {
     // Stop the render thread
-    g_mutex_lock( self->frameReadMutex );
-    self->quit = true;
-    g_cond_signal( self->frameReadCond );
-    g_mutex_unlock( self->frameReadMutex );
+    if( self->frameReadMutex != NULL ) {
+        g_mutex_lock( self->frameReadMutex );
+        self->quit = true;
+        g_cond_signal( self->frameReadCond );
+        g_mutex_unlock( self->frameReadMutex );
+    }
 
-    g_thread_join( self->renderThread );
+    if( self->renderThread != NULL ) {
+        g_thread_join( self->renderThread );
+    }
 
     Py_CLEAR( self->pyclock );
-    Py_CLEAR( self->frameSource );
+    Py_CLEAR( self->frameSource.source );
+    Py_CLEAR( self->frameSource.csource );
     Py_CLEAR( self->drawingAreaObj );
     Py_CLEAR( self->frameRate );
 
@@ -661,6 +706,8 @@ static PyMethodDef module_methods[] = {
     { NULL }
 };
 
+    void init_AVFileReader( PyObject *module );
+
 PyMODINIT_FUNC
 initvideo() {
     int argc = 1;
@@ -702,6 +749,8 @@ initvideo() {
 
     Py_INCREF( &py_type_VideoWidget );
     PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_VideoWidget );
+
+    init_AVFileReader( m );
 
     init_pygobject();
     init_pygtk();
