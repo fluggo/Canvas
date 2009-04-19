@@ -40,6 +40,8 @@ typedef struct {
     VideoFrameSourceFuncs *funcs;
 } VideoSourceHolder;
 
+NOEXPORT int takeVideoSource( PyObject *source, VideoSourceHolder *holder );
+
 class IFrameSource {
 public:
     virtual void GetFrame( int64_t frame, Imf::Array2D<Imf::Rgba> &array ) = 0;

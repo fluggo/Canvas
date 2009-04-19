@@ -39,8 +39,6 @@ AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
     self->rgbBuffer = NULL;
     self->scaler = NULL;
 
-    // TODO: Ensure all objects are killed on failure (should be accomplished in dealloc)
-
     if( !PyArg_ParseTuple( args, "s", &filename ) )
         return -1;
 
@@ -286,7 +284,8 @@ AVFileReader_getFuncs( py_obj_AVFileReader */*self*/, void */*closure*/ ) {
 }
 
 static PyGetSetDef AVFileReader_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) AVFileReader_getFuncs, NULL, "Video frame source C API." }
+    { "_videoFrameSourceFuncs", (getter) AVFileReader_getFuncs, NULL, "Video frame source C API." },
+    { NULL }
 };
 
 void init_AVFileReader( PyObject *module ) {

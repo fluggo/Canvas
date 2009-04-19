@@ -534,9 +534,8 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
         g_mutex_unlock( self->frameReadMutex );
     }
 
-    if( self->renderThread != NULL ) {
+    if( self->renderThread != NULL )
         g_thread_join( self->renderThread );
-    }
 
     Py_CLEAR( self->pyclock );
     Py_CLEAR( self->frameSource.source );
@@ -544,7 +543,9 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
     Py_CLEAR( self->drawingAreaObj );
     Py_CLEAR( self->frameRate );
 
-    gtk_widget_destroy( GTK_WIDGET(self->drawingArea) );
+    if( self->drawingArea != NULL )
+        gtk_widget_destroy( GTK_WIDGET(self->drawingArea) );
+
     self->ob_type->tp_free( (PyObject*) self );
 }
 
@@ -706,7 +707,8 @@ static PyMethodDef module_methods[] = {
     { NULL }
 };
 
-    void init_AVFileReader( PyObject *module );
+void init_AVFileReader( PyObject *module );
+void init_Pulldown23RemovalFilter( PyObject *module );
 
 PyMODINIT_FUNC
 initvideo() {
@@ -751,6 +753,7 @@ initvideo() {
     PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_VideoWidget );
 
     init_AVFileReader( m );
+    init_Pulldown23RemovalFilter( m );
 
     init_pygobject();
     init_pygtk();
