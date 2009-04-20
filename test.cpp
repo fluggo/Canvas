@@ -119,14 +119,6 @@ int takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
 typedef struct {
     PyObject_HEAD
 
-    VideoSourceHolder source;
-    int offset;
-    bool oddFirst;
-} py_obj_Pulldown23RemovalFilter;
-
-typedef struct {
-    PyObject_HEAD
-
     GdkGLConfig *glConfig;
     GtkWidget *drawingArea;
     PyObject *drawingAreaObj;
