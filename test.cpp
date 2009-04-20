@@ -12,14 +12,6 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 
-#include <sstream>
-#include <string>
-#include <stdlib.h>
-#include <semaphore.h>
-#include <unistd.h>
-#include <time.h>
-#include <sys/timerfd.h>
-
 using namespace Iex;
 using namespace Imf;
 
@@ -123,10 +115,9 @@ typedef struct {
     GtkWidget *drawingArea;
     PyObject *drawingAreaObj;
     VideoSourceHolder frameSource;
-    int timer;
     GMutex *frameReadMutex, *frameRenderMutex;
     GCond *frameReadCond;
-    int lastDisplayedFrame, nextToRenderFrame;
+    int nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
     py_obj_Rational *frameRate;
     guint timeoutSourceID;
