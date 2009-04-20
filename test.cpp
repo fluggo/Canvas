@@ -376,6 +376,9 @@ playbackThread( py_obj_VideoWidget *self ) {
 
 static gboolean
 playSingleFrame( py_obj_VideoWidget *self ) {
+    if( self->quit )
+        return FALSE;
+
     if( self->filled > 0 ) {
         g_mutex_lock( self->frameReadMutex );
         int filled = self->filled;
@@ -501,7 +504,6 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 
     g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );
 
-    g_timeout_add( 0, (GSourceFunc) playSingleFrame, self );
     self->renderThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
 
     return 0;
@@ -516,6 +518,8 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
         g_cond_signal( self->frameReadCond );
         g_mutex_unlock( self->frameReadMutex );
     }
+    else
+        self->quit = true;
 
     if( self->renderThread != NULL )
         g_thread_join( self->renderThread );
