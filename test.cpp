@@ -262,12 +262,12 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
 
 int64_t
 getFrameTime( py_obj_Rational *frameRate, int frame ) {
-    return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n);
+    return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);
 }
 
 int
 getTimeFrame( py_obj_Rational *frameRate, int64_t time ) {
-    return ((time + INT64_C(1)) * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
+    return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 
 PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
