@@ -264,6 +264,31 @@ getFrameTime( py_obj_Rational *frameRate, int frame ) {
     return (int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d) / (int64_t)(frameRate->n);
 }
 
+int
+getTimeFrame( py_obj_Rational *frameRate, int64_t time ) {
+    return time * (int64_t)(frameRate->n) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
+}
+
+PyObject *py_getFrameTime( PyObject *args ) {
+    py_obj_Rational frameRate;
+    int frame;
+
+    if( !PyArg_ParseTuple( args, "(iI)i", &frameRate.n, &frameRate.d, &frame ) )
+        return NULL;
+
+    return Py_BuildValue( "L", getFrameTime( &frameRate, frame ) );
+}
+
+PyObject *py_getTimeFrame( PyObject *args ) {
+    py_obj_Rational frameRate;
+    int64_t time;
+
+    if( !PyArg_ParseTuple( args, "(iI)L", &frameRate.n, &frameRate.d, &time ) )
+        return NULL;
+
+    return Py_BuildValue( "i", getTimeFrame( &frameRate, time ) );
+}
+
 gpointer
 playbackThread( py_obj_VideoWidget *self ) {
     Array2D<Rgba> array( self->frameHeight, self->frameWidth );
@@ -487,7 +512,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
     self->frameRenderMutex = g_mutex_new();
-    self->nextToRenderFrame = 5000;
+    self->nextToRenderFrame = 0;
     self->filled = -1;
     self->readBuffer = 3;
     self->writeBuffer = 3;
@@ -691,6 +716,10 @@ static PyMemberDef Rational_members[] = {
 };
 
 static PyMethodDef module_methods[] = {
+    { "getFrameTime", (PyCFunction) py_getFrameTime, METH_VARARGS,
+        "getFrameTime((n,d), frame): Gets the time, in nanoseconds, of a frame at the given frame rate n/d." },
+    { "getTimeFrame", (PyCFunction) py_getTimeFrame, METH_VARARGS,
+        "getTimeFrame((n,d), time): Gets the frame containing the given time in nanoseconds at the frame rate n/d." },
     { NULL }
 };
 
