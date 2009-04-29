@@ -1,4 +1,5 @@
 
+import glib
 import gtk
 import gtk.glade
 from fluggo.video import *
@@ -47,7 +48,9 @@ class MainWindow(object):
         self.videoWidget = self.glade.get_widget('videoWidget').myobj
         self.videoWidget.stop()
         self.frameRate = Rational(24000, 1001)
-        self.glade.get_widget('frameScale').set_range(0, 5000)
+        self.frameScale = self.glade.get_widget('frameScale')
+        self.frameScale.set_range(0, 5000)
+        glib.timeout_add(100, self.updateCurrentFrame)
 
     def on_playButton_clicked(self, *args):
         clock.play((1, 1))
@@ -63,6 +66,7 @@ class MainWindow(object):
 
     def on_pauseButton_clicked(self, *args):
         clock.play((0, 1))
+        self.updateCurrentFrame()
         self.videoWidget.stop()
 
     def on_frameScale_value_changed(self, control):
@@ -72,6 +76,11 @@ class MainWindow(object):
 
         clock.seek(time)
         self.videoWidget.stop()
+
+    def updateCurrentFrame(self):
+        frame = getTimeFrame(self.frameRate, clock.getPresentationTime())
+        self.frameScale.set_value(frame)
+        return True
 
     def on_window1_destroy(self, *args):
         gtk.main_quit()

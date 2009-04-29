@@ -433,7 +433,6 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 
         if( filled != 0 || self->drawOneFrame ) {
             gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
-            gdk_window_process_updates( self->drawingArea->window, FALSE );
 
             //printf( "Painted %ld from %d...\n", self->presentationTime[self->readBuffer], self->readBuffer );
 
@@ -457,7 +456,8 @@ playSingleFrame( py_obj_VideoWidget *self ) {
                 if( timeout < 0 )
                     timeout = 0;
 
-                self->timeoutSourceID = g_timeout_add( timeout, (GSourceFunc) playSingleFrame, self );
+                self->timeoutSourceID = g_timeout_add_full(
+                    G_PRIORITY_HIGH, timeout, (GSourceFunc) playSingleFrame, self, NULL );
             }
 
             return FALSE;
@@ -466,9 +466,9 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 
     Rational speed = self->clock->getSpeed();
 
-    self->timeoutSourceID = g_timeout_add(
+    self->timeoutSourceID = g_timeout_add_full( G_PRIORITY_HIGH,
         (1000 * self->frameRate->d * speed.d) / (self->frameRate->n * abs(speed.n)),
-        (GSourceFunc) playSingleFrame, self );
+        (GSourceFunc) playSingleFrame, self, NULL );
     return FALSE;
 }
 
@@ -730,6 +730,12 @@ SystemPresentationClock_seek( py_obj_SystemPresentationClock *self, PyObject *ar
     Py_RETURN_NONE;
 }
 
+static PyObject *
+SystemPresentationClock_getPresentationTime( py_obj_SystemPresentationClock *self, PyObject *args ) {
+    SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
+    return Py_BuildValue( "L", clock->getPresentationTime() );
+}
+
 static PyMethodDef SystemPresentationClock_methods[] = {
     { "play", (PyCFunction) SystemPresentationClock_play, METH_VARARGS,
         "Starts the clock at the current spot." },
@@ -737,6 +743,8 @@ static PyMethodDef SystemPresentationClock_methods[] = {
         "Sets the speed and current time." },
     { "seek", (PyCFunction) SystemPresentationClock_seek, METH_VARARGS,
         "Sets the current time." },
+    { "getPresentationTime", (PyCFunction) SystemPresentationClock_getPresentationTime, METH_VARARGS,
+        "Gets the current presentation time in nanoseconds." },
     { NULL }
 };
 
