@@ -45,6 +45,9 @@ class MainWindow(object):
         self.glade = gtk.glade.XML('player.glade')
         self.glade.signal_autoconnect(self)
         self.videoWidget = self.glade.get_widget('videoWidget').myobj
+        self.videoWidget.stop()
+        self.frameRate = Rational(24000, 1001)
+        self.glade.get_widget('frameScale').set_range(0, 5000)
 
     def on_playButton_clicked(self, *args):
         clock.play((1, 1))
@@ -60,6 +63,14 @@ class MainWindow(object):
 
     def on_pauseButton_clicked(self, *args):
         clock.play((0, 1))
+        self.videoWidget.stop()
+
+    def on_frameScale_value_changed(self, control):
+        frame = int(control.get_value())
+        time = getFrameTime(self.frameRate, frame)
+        #print frame, time
+
+        clock.seek(time)
         self.videoWidget.stop()
 
     def on_window1_destroy(self, *args):
