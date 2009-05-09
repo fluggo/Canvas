@@ -75,19 +75,6 @@ static void checkGLError() {
     }
 }
 
-typedef struct {
-    PyObject_HEAD
-    int32_t n;
-    uint32_t d;
-} py_obj_Rational;
-
-static PyTypeObject py_type_Rational = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.video.Rational",    // tp_name
-    sizeof(py_obj_Rational)    // tp_basicsize
-};
-
 int takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
@@ -122,7 +109,7 @@ typedef struct {
     GCond *frameReadCond;
     int nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
-    py_obj_Rational *frameRate;
+    Rational frameRate;
     guint timeoutSourceID;
     PyObject *pyclock;
     IPresentationClock *clock;
@@ -264,33 +251,70 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
 }
 
 int64_t
-getFrameTime( py_obj_Rational *frameRate, int frame ) {
+getFrameTime( Rational *frameRate, int frame ) {
     return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);
 }
 
 int
-getTimeFrame( py_obj_Rational *frameRate, int64_t time ) {
+getTimeFrame( Rational *frameRate, int64_t time ) {
     return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 
+bool parseRational( PyObject *in, Rational *out ) {
+    PyObject *numerator = PyObject_GetAttrString( in, "numerator" );
+
+    if( numerator == NULL )
+        return false;
+
+    long n = PyInt_AsLong( numerator );
+    Py_DECREF(numerator);
+
+    if( n == -1 && PyErr_Occurred() != NULL )
+        return false;
+
+    PyObject *denominator = PyObject_GetAttrString( in, "denominator" );
+
+    if( denominator == NULL )
+        return false;
+
+    long d = PyInt_AsLong( denominator );
+    Py_DECREF(denominator);
+
+    if( d == -1 && PyErr_Occurred() != NULL )
+        return false;
+
+    out->n = (int) n;
+    out->d = (unsigned int) d;
+
+    return true;
+}
+
 PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
-    py_obj_Rational *frameRate;
+    PyObject *frameRateObj;
+    Rational frameRate;
     int frame;
 
-    if( !PyArg_ParseTuple( args, "O!i", &py_type_Rational, &frameRate, &frame ) )
+    if( !PyArg_ParseTuple( args, "Oi", &frameRateObj, &frame ) )
         return NULL;
 
-    return Py_BuildValue( "L", getFrameTime( frameRate, frame ) );
+    if( !parseRational( frameRateObj, &frameRate ) )
+        return NULL;
+
+    return Py_BuildValue( "L", getFrameTime( &frameRate, frame ) );
 }
 
 PyObject *py_getTimeFrame( PyObject *self, PyObject *args ) {
-    py_obj_Rational *frameRate;
+    PyObject *frameRateObj;
+    Rational frameRate;
     int64_t time;
 
-    if( !PyArg_ParseTuple( args, "O!L", &py_type_Rational, &frameRate, &time ) )
+    if( !PyArg_ParseTuple( args, "OL", &frameRateObj, &time ) )
         return NULL;
 
-    return Py_BuildValue( "i", getTimeFrame( frameRate, time ) );
+    if( !parseRational( frameRateObj, &frameRate ) )
+        return NULL;
+
+    return Py_BuildValue( "i", getTimeFrame( &frameRate, time ) );
 }
 
 static gboolean playSingleFrame( py_obj_VideoWidget *self );
@@ -348,7 +372,7 @@ playbackThread( py_obj_VideoWidget *self ) {
 
         //usleep( 100000 );
 
-        self->presentationTime[writeBuffer] = getFrameTime( self->frameRate, nextFrame );
+        self->presentationTime[writeBuffer] = getFrameTime( &self->frameRate, nextFrame );
         int64_t endTime = self->clock->getPresentationTime();
 
         int64_t lastDuration = endTime - startTime;
@@ -394,15 +418,15 @@ playbackThread( py_obj_VideoWidget *self ) {
                 lastDuration *= INT64_C(-1);
 
             if( speed.n > 0 ) {
-                while( getFrameTime( self->frameRate, ++self->nextToRenderFrame ) < endTime + lastDuration );
+                while( getFrameTime( &self->frameRate, ++self->nextToRenderFrame ) < endTime + lastDuration );
             }
             else if( speed.n < 0 ) {
-                while( getFrameTime( self->frameRate, --self->nextToRenderFrame ) > endTime - lastDuration );
+                while( getFrameTime( &self->frameRate, --self->nextToRenderFrame ) > endTime - lastDuration );
             }
 
             //printf( "nextFrame: %d, lastDuration: %ld, endTime: %ld\n", self->nextToRenderFrame, lastDuration, endTime );
 
-            self->nextPresentationTime[writeBuffer] = getFrameTime( self->frameRate, self->nextToRenderFrame );
+            self->nextPresentationTime[writeBuffer] = getFrameTime( &self->frameRate, self->nextToRenderFrame );
         }
 
         g_mutex_unlock( self->frameReadMutex );
@@ -478,7 +502,7 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 
     if( speed.n != 0 ) {
         self->timeoutSourceID = g_timeout_add_full( G_PRIORITY_DEFAULT,
-            (1000 * self->frameRate->d * speed.d) / (self->frameRate->n * abs(speed.n)),
+            (1000 * self->frameRate.d * speed.d) / (self->frameRate.n * abs(speed.n)),
             (GSourceFunc) playSingleFrame, self, NULL );
     }
 
@@ -509,7 +533,6 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->pyclock = pycclock;
     self->clock = (IPresentationClock*) PyCObject_AsVoidPtr( pycclock );
 
-    Py_CLEAR( self->frameRate );
     Py_CLEAR( self->drawingAreaObj );
 
     if( takeVideoSource( frameSource, &self->frameSource ) < 0 )
@@ -545,9 +568,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 
     self->drawingAreaObj = pygobject_new( (GObject*) self->drawingArea );
 
-    PyObject *tuple = Py_BuildValue( "iI", 24000, 1001u );
-    self->frameRate = (py_obj_Rational*) PyObject_CallObject( (PyObject*) &py_type_Rational, tuple );
-    Py_CLEAR( tuple );
+    self->frameRate = Rational( 24000, 1001u );
 
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
@@ -593,7 +614,6 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
     Py_CLEAR( self->frameSource.source );
     Py_CLEAR( self->frameSource.csource );
     Py_CLEAR( self->drawingAreaObj );
-    Py_CLEAR( self->frameRate );
 
     if( self->drawingArea != NULL )
         gtk_widget_destroy( GTK_WIDGET(self->drawingArea) );
@@ -615,7 +635,7 @@ VideoWidget_stop( py_obj_VideoWidget *self ) {
     int64_t stopTime = self->clock->getPresentationTime();
 
     self->renderOneFrame = true;
-    self->nextToRenderFrame = getTimeFrame( self->frameRate, stopTime );
+    self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
     g_cond_signal( self->frameReadCond );
     g_mutex_unlock( self->frameReadMutex );
 
@@ -632,7 +652,7 @@ VideoWidget_play( py_obj_VideoWidget *self ) {
     // Fire up the production and playback threads from scratch
     g_mutex_lock( self->frameReadMutex );
     int64_t stopTime = self->clock->getPresentationTime();
-    self->nextToRenderFrame = getTimeFrame( self->frameRate, stopTime );
+    self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
     self->filled = -2;
     g_cond_signal( self->frameReadCond );
     g_mutex_unlock( self->frameReadMutex );
@@ -769,23 +789,6 @@ static PyMemberDef SystemPresentationClock_members[] = {
     { NULL }
 };
 
-/************* Rational ********/
-static int
-Rational_init( py_obj_Rational *self, PyObject *args, PyObject *kwds ) {
-    if( !PyArg_ParseTuple( args, "iI", &self->n, &self->d ) )
-        return -1;
-
-    return 0;
-}
-
-static PyMemberDef Rational_members[] = {
-    { "n", T_LONG, offsetof(py_obj_Rational, n),
-        0, "Numerator." },
-    { "d", T_ULONG, offsetof(py_obj_Rational, d),
-        0, "Denominator." },
-    { NULL }
-};
-
 static PyMethodDef module_methods[] = {
     { "getFrameTime", (PyCFunction) py_getFrameTime, METH_VARARGS,
         "getFrameTime(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
@@ -802,14 +805,6 @@ initvideo() {
     int argc = 1;
     char *arg = "dummy";
     char **argv = &arg;
-
-    py_type_Rational.tp_flags = Py_TPFLAGS_DEFAULT;
-    py_type_Rational.tp_new = PyType_GenericNew;
-    py_type_Rational.tp_init = (initproc) Rational_init;
-    py_type_Rational.tp_members = Rational_members;
-
-    if( PyType_Ready( &py_type_Rational ) < 0 )
-        return;
 
     py_type_VideoWidget.tp_flags = Py_TPFLAGS_DEFAULT;
     py_type_VideoWidget.tp_new = PyType_GenericNew;
@@ -832,9 +827,6 @@ initvideo() {
 
     PyObject *m = Py_InitModule3( "video", module_methods,
         "The Fluggo Video library for Python." );
-
-    Py_INCREF( (PyObject *) &py_type_Rational );
-    PyModule_AddObject( m, "Rational", (PyObject *) &py_type_Rational );
 
     Py_INCREF( (PyObject *) &py_type_SystemPresentationClock );
     PyModule_AddObject( m, "SystemPresentationClock", (PyObject *) &py_type_SystemPresentationClock );

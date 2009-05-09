@@ -1,8 +1,9 @@
-
+from __future__ import unicode_literals
 import glib
 import gtk
 import gtk.glade
 from fluggo.video import *
+from fractions import Fraction
 
 clock = SystemPresentationClock()
 
@@ -47,7 +48,7 @@ class MainWindow(object):
         self.glade.signal_autoconnect(self)
         self.videoWidget = self.glade.get_widget('videoWidget').myobj
         self.videoWidget.stop()
-        self.frameRate = Rational(24000, 1001)
+        self.frameRate = Fraction(24000, 1001)
         self.frameScale = self.glade.get_widget('frameScale')
         self.frameScale.set_range(0, 5000)
         self.playing = False
