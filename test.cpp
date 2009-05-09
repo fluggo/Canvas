@@ -463,7 +463,7 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 
         if( filled != 0 || self->drawOneFrame ) {
             gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
-            gdk_window_process_updates( self->drawingArea->window, FALSE );
+            //gdk_window_process_updates( self->drawingArea->window, FALSE );
 
             //printf( "Painted %d from %d...\n", getTimeFrame(self->frameRate, self->presentationTime[self->readBuffer]), self->readBuffer );
 
