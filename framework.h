@@ -22,7 +22,7 @@ extern "C" {
 
 typedef struct {
     Imf::Rgba *base;
-    Imath::Box2i originalDataWindow;
+    Imath::Box2i fullDataWindow;
     Imath::Box2i currentDataWindow;
     int stride;
 } VideoFrame;

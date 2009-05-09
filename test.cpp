@@ -16,6 +16,7 @@
 #include <GL/gl.h>
 
 using namespace Iex;
+using namespace Imath;
 using namespace Imf;
 
 //static float gamma22Func( float input ) {
@@ -45,7 +46,7 @@ inline float clampf( float x ) {
 }
 
 static float gamma45Func( float input ) {
-    return Imath::clamp( powf( input, 0.45f ) * 255.0f, 0.0f, 255.0f );
+    return clamp( powf( input, 0.45f ) * 255.0f, 0.0f, 255.0f );
 }
 
 static halfFunction<half> __gamma45( gamma45Func, half( -256.0f ), half( 256.0f ) );
@@ -99,6 +100,12 @@ int takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
 }
 
 typedef struct {
+    int64_t time, nextTime;
+    Array2D<uint8_t[3]> frameData;
+    Box2i fullDataWindow, currentDataWindow;
+} FrameTarget;
+
+typedef struct {
     PyObject_HEAD
 
     GdkGLConfig *glConfig;
@@ -113,16 +120,14 @@ typedef struct {
     guint timeoutSourceID;
     PyObject *pyclock;
     IPresentationClock *clock;
+    Box2i displayWindow;
     int firstFrame, lastFrame;
     float pixelAspectRatio;
     GLuint textureId;
     float texCoordX, texCoordY;
-    int frameWidth, frameHeight;
     bool renderOneFrame, drawOneFrame;
 
-    int64_t presentationTime[4];
-    int64_t nextPresentationTime[4];
-    Array2D<uint8_t[3]> targets[4];
+    FrameTarget targets[4];
     float rate;
     bool quit, textureAllocated;
     GThread *renderThread;
@@ -156,8 +161,10 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     }
 
     // Set ourselves up with the correct aspect ratio for the space
-    float width = self->frameWidth * self->pixelAspectRatio;
-    float height = self->frameHeight;
+    V2i frameSize = self->displayWindow.size() + V2i(1,1);
+
+    float width = frameSize.x * self->pixelAspectRatio;
+    float height = frameSize.y;
 
     if( width > widget->allocation.width ) {
         height *= widget->allocation.width / width;
@@ -183,7 +190,7 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
             glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
             glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
             glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-            glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, self->frameWidth, self->frameHeight,
+            glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, frameSize.x, frameSize.y,
                 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
 
             self->texCoordX = 1.0f;
@@ -192,10 +199,10 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
         else {
             int texW = 1, texH = 1;
 
-            while( texW < self->frameWidth )
+            while( texW < frameSize.x )
                 texW <<= 1;
 
-            while( texH < self->frameHeight )
+            while( texH < frameSize.y )
                 texH <<= 1;
 
             glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
@@ -206,8 +213,8 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
             glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, texW, texH,
                 0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
 
-            self->texCoordX = (float) self->frameWidth / (float) texW;
-            self->texCoordY = (float) self->frameHeight / (float) texH;
+            self->texCoordX = (float) frameSize.x / (float) texW;
+            self->texCoordY = (float) frameSize.y / (float) texH;
         }
 
         self->textureAllocated = true;
@@ -221,8 +228,8 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     glClear( GL_COLOR_BUFFER_BIT );
 
     glBindTexture( GL_TEXTURE_2D, self->textureId );
-    glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, self->frameWidth, self->frameHeight,
-        GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer][0][0] );
+    glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, frameSize.x, frameSize.y,
+        GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer].frameData[0][0] );
     checkGLError();
 
     glEnable( GL_TEXTURE_2D );
@@ -321,15 +328,16 @@ static gboolean playSingleFrame( py_obj_VideoWidget *self );
 
 gpointer
 playbackThread( py_obj_VideoWidget *self ) {
-    Array2D<Rgba> array( self->frameHeight, self->frameWidth );
+    V2i frameSize = self->displayWindow.size() + V2i(1,1);
+    Array2D<Rgba> array( frameSize.y, frameSize.x );
     VideoFrame frame;
 
     frame.base = &array[0][0];
     frame.stride = &array[1][0] - frame.base;
 
     for( ;; ) {
-        frame.originalDataWindow = Imath::Box2i( Imath::V2i( 0, 0 ), Imath::V2i( 719, 479 ) );
-        frame.currentDataWindow = frame.originalDataWindow;
+        frame.fullDataWindow = self->displayWindow;
+        frame.currentDataWindow = frame.fullDataWindow;
 
         int64_t startTime = self->clock->getPresentationTime();
         g_mutex_lock( self->frameReadMutex );
@@ -362,17 +370,17 @@ playbackThread( py_obj_VideoWidget *self ) {
         self->frameSource.funcs->getFrame( self->frameSource.source, nextFrame, &frame );
 
         // Convert the results to floating-point
-        for( int y = 0; y < self->frameHeight; y++ ) {
-            for( int x = 0; x < self->frameWidth; x++ ) {
-                self->targets[writeBuffer][self->frameHeight - y - 1][x][0] = (uint8_t) __gamma45( array[y][x].r );
-                self->targets[writeBuffer][self->frameHeight - y - 1][x][1] = (uint8_t) __gamma45( array[y][x].g );
-                self->targets[writeBuffer][self->frameHeight - y - 1][x][2] = (uint8_t) __gamma45( array[y][x].b );
+        for( int y = 0; y < frameSize.y; y++ ) {
+            for( int x = 0; x < frameSize.x; x++ ) {
+                self->targets[writeBuffer].frameData[frameSize.y - y - 1][x][0] = (uint8_t) __gamma45( array[y][x].r );
+                self->targets[writeBuffer].frameData[frameSize.y - y - 1][x][1] = (uint8_t) __gamma45( array[y][x].g );
+                self->targets[writeBuffer].frameData[frameSize.y - y - 1][x][2] = (uint8_t) __gamma45( array[y][x].b );
             }
         }
 
         //usleep( 100000 );
 
-        self->presentationTime[writeBuffer] = getFrameTime( &self->frameRate, nextFrame );
+        self->targets[writeBuffer].time = getFrameTime( &self->frameRate, nextFrame );
         int64_t endTime = self->clock->getPresentationTime();
 
         int64_t lastDuration = endTime - startTime;
@@ -426,7 +434,7 @@ playbackThread( py_obj_VideoWidget *self ) {
 
             //printf( "nextFrame: %d, lastDuration: %ld, endTime: %ld\n", self->nextToRenderFrame, lastDuration, endTime );
 
-            self->nextPresentationTime[writeBuffer] = getFrameTime( &self->frameRate, self->nextToRenderFrame );
+            self->targets[writeBuffer].nextTime = getFrameTime( &self->frameRate, self->nextToRenderFrame );
         }
 
         g_mutex_unlock( self->frameReadMutex );
@@ -458,7 +466,7 @@ playSingleFrame( py_obj_VideoWidget *self ) {
         if( !self->drawOneFrame )
             self->readBuffer = (self->readBuffer + 1) & 3;
 
-        int64_t nextPresentationTime = self->nextPresentationTime[self->readBuffer];
+        int64_t nextPresentationTime = self->targets[self->readBuffer].nextTime;
         g_mutex_unlock( self->frameReadMutex );
 
         if( filled != 0 || self->drawOneFrame ) {
@@ -554,11 +562,11 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
         }
     }
 
-    self->frameWidth = 720;
-    self->frameHeight = 480;
+    self->displayWindow = Box2i( V2i(0, 0), V2i(719, 479) );
+    V2i frameSize = self->displayWindow.size() + V2i(1,1);
 
     self->drawingArea = gtk_drawing_area_new();
-    gtk_widget_set_size_request( self->drawingArea, self->frameWidth, self->frameHeight );
+    gtk_widget_set_size_request( self->drawingArea, frameSize.x, frameSize.y );
 
     gtk_widget_set_gl_capability( self->drawingArea,
                                 self->glConfig,
@@ -582,10 +590,10 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
     self->textureId = -1;
-    self->targets[0].resizeErase( self->frameHeight, self->frameWidth );
-    self->targets[1].resizeErase( self->frameHeight, self->frameWidth );
-    self->targets[2].resizeErase( self->frameHeight, self->frameWidth );
-    self->targets[3].resizeErase( self->frameHeight, self->frameWidth );
+    self->targets[0].frameData.resizeErase( frameSize.y, frameSize.x );
+    self->targets[1].frameData.resizeErase( frameSize.y, frameSize.x );
+    self->targets[2].frameData.resizeErase( frameSize.y, frameSize.x );
+    self->targets[3].frameData.resizeErase( frameSize.y, frameSize.x );
     self->textureAllocated = false;
 
     g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );

@@ -68,7 +68,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int64_t 
 
         VideoFrame tempFrame;
         tempFrame.base = &temp[0][0];
-        tempFrame.originalDataWindow = frame->currentDataWindow;
+        tempFrame.fullDataWindow = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
         tempFrame.stride = &temp[1][0] - tempFrame.base;
 
@@ -119,7 +119,7 @@ void init_Pulldown23RemovalFilter( PyObject *module ) {
     if( PyType_Ready( &py_type_Pulldown23RemovalFilter ) < 0 )
         return;
 
-    Py_INCREF( &py_type_Pulldown23RemovalFilter );
+    Py_INCREF( (PyObject*) &py_type_Pulldown23RemovalFilter );
     PyModule_AddObject( module, "Pulldown23RemovalFilter", (PyObject *) &py_type_Pulldown23RemovalFilter );
 
     pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
