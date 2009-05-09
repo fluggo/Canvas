@@ -50,36 +50,52 @@ class MainWindow(object):
         self.frameRate = Rational(24000, 1001)
         self.frameScale = self.glade.get_widget('frameScale')
         self.frameScale.set_range(0, 5000)
+        self.playing = False
+        self.updating = False
         glib.timeout_add(100, self.updateCurrentFrame)
 
     def on_playButton_clicked(self, *args):
         clock.play((1, 1))
         self.videoWidget.play()
+        self.playing = True
 
     def on_rewindButton_clicked(self, *args):
         clock.play((-2, 1))
         self.videoWidget.play()
+        self.playing = True
 
     def on_forwardButton_clicked(self, *args):
         clock.play((2, 1))
         self.videoWidget.play()
+        self.playing = True
 
     def on_pauseButton_clicked(self, *args):
         clock.play((0, 1))
         self.updateCurrentFrame()
         self.videoWidget.stop()
+        self.playing = False
 
     def on_frameScale_value_changed(self, control):
+        if self.updating:
+            return
+
         frame = int(control.get_value())
         time = getFrameTime(self.frameRate, frame)
         #print frame, time
 
         clock.seek(time)
-        self.videoWidget.stop()
+
+        if self.playing:
+            self.videoWidget.play()
+            pass
+        else:
+            self.videoWidget.stop()
 
     def updateCurrentFrame(self):
+        self.updating = True
         frame = getTimeFrame(self.frameRate, clock.getPresentationTime())
         self.frameScale.set_value(frame)
+        self.updating = False
         return True
 
     def on_window1_destroy(self, *args):

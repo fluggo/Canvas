@@ -1,4 +1,7 @@
 
+#define __STDC_CONSTANT_MACROS
+#include <stdint.h>
+
 #include <pygobject.h>
 #include <pygtk/pygtk.h>
 #include <Python.h>
@@ -350,8 +353,8 @@ playbackThread( py_obj_VideoWidget *self ) {
 
         int64_t lastDuration = endTime - startTime;
 
-        //printf( "Rendered frame %d into %d in %f presentation seconds...\n", self->nextToRenderFrame, writeBuffer,
-        //    ((double) endTime - (double) startTime) / 1000000000.0 );
+        //printf( "Rendered frame %d into %d in %f presentation seconds (at %ld)...\n", self->nextToRenderFrame, writeBuffer,
+        //    ((double) endTime - (double) startTime) / 1000000000.0, endTime );
         //printf( "Presentation time %ld\n", info->_presentationTime[writeBuffer] );
 
         g_mutex_lock( self->frameReadMutex );
@@ -371,6 +374,7 @@ playbackThread( py_obj_VideoWidget *self ) {
                 self->nextToRenderFrame += 4;
 
             self->filled = -1;
+            lastDuration = INT64_C(0);
 
             // Write where the reader will read next
             self->writeBuffer = self->readBuffer;
@@ -395,6 +399,8 @@ playbackThread( py_obj_VideoWidget *self ) {
             else if( speed.n < 0 ) {
                 while( getFrameTime( self->frameRate, --self->nextToRenderFrame ) > endTime - lastDuration );
             }
+
+            //printf( "nextFrame: %d, lastDuration: %ld, endTime: %ld\n", self->nextToRenderFrame, lastDuration, endTime );
 
             self->nextPresentationTime[writeBuffer] = getFrameTime( self->frameRate, self->nextToRenderFrame );
         }
@@ -433,8 +439,9 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 
         if( filled != 0 || self->drawOneFrame ) {
             gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
+            gdk_window_process_updates( self->drawingArea->window, FALSE );
 
-            //printf( "Painted %ld from %d...\n", self->presentationTime[self->readBuffer], self->readBuffer );
+            //printf( "Painted %d from %d...\n", getTimeFrame(self->frameRate, self->presentationTime[self->readBuffer]), self->readBuffer );
 
             if( self->drawOneFrame ) {
                 // We're done here, go back to sleep
@@ -450,14 +457,17 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 
                 Rational speed = self->clock->getSpeed();
 
-                int timeout = (nextPresentationTime - self->clock->getPresentationTime()) * speed.d / (speed.n * 1000000);
-                //printf( "timeout %d\n", timeout );
+                if( speed.n != 0 ) {
+                    //printf( "nextPresent: %ld, current: %ld, baseTime: %ld, seekTime: %ld\n", nextPresentationTime, self->clock->getPresentationTime(), ((SystemPresentationClock*)self->clock)->_baseTime, ((SystemPresentationClock*) self->clock)->_seekTime );
 
-                if( timeout < 0 )
-                    timeout = 0;
+                    int timeout = ((nextPresentationTime - self->clock->getPresentationTime()) * speed.d) / (speed.n * 1000000);
 
-                self->timeoutSourceID = g_timeout_add_full(
-                    G_PRIORITY_HIGH, timeout, (GSourceFunc) playSingleFrame, self, NULL );
+                    if( timeout < 0 )
+                        timeout = 0;
+
+                    self->timeoutSourceID = g_timeout_add_full(
+                        G_PRIORITY_DEFAULT, timeout, (GSourceFunc) playSingleFrame, self, NULL );
+                }
             }
 
             return FALSE;
@@ -466,9 +476,12 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 
     Rational speed = self->clock->getSpeed();
 
-    self->timeoutSourceID = g_timeout_add_full( G_PRIORITY_HIGH,
-        (1000 * self->frameRate->d * speed.d) / (self->frameRate->n * abs(speed.n)),
-        (GSourceFunc) playSingleFrame, self, NULL );
+    if( speed.n != 0 ) {
+        self->timeoutSourceID = g_timeout_add_full( G_PRIORITY_DEFAULT,
+            (1000 * self->frameRate->d * speed.d) / (self->frameRate->n * abs(speed.n)),
+            (GSourceFunc) playSingleFrame, self, NULL );
+    }
+
     return FALSE;
 }
 
@@ -618,6 +631,8 @@ VideoWidget_play( py_obj_VideoWidget *self ) {
 
     // Fire up the production and playback threads from scratch
     g_mutex_lock( self->frameReadMutex );
+    int64_t stopTime = self->clock->getPresentationTime();
+    self->nextToRenderFrame = getTimeFrame( self->frameRate, stopTime );
     self->filled = -2;
     g_cond_signal( self->frameReadCond );
     g_mutex_unlock( self->frameReadMutex );
@@ -818,13 +833,13 @@ initvideo() {
     PyObject *m = Py_InitModule3( "video", module_methods,
         "The Fluggo Video library for Python." );
 
-    Py_INCREF( &py_type_Rational );
+    Py_INCREF( (PyObject *) &py_type_Rational );
     PyModule_AddObject( m, "Rational", (PyObject *) &py_type_Rational );
 
-    Py_INCREF( &py_type_SystemPresentationClock );
+    Py_INCREF( (PyObject *) &py_type_SystemPresentationClock );
     PyModule_AddObject( m, "SystemPresentationClock", (PyObject *) &py_type_SystemPresentationClock );
 
-    Py_INCREF( &py_type_VideoWidget );
+    Py_INCREF( (PyObject *) &py_type_VideoWidget );
     PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_VideoWidget );
 
     init_AVFileReader( m );

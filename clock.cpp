@@ -1,6 +1,7 @@
 
 #define __STDC_CONSTANT_MACROS
 
+#include <gtk/gtk.h>
 #include "clock.h"
 #include <time.h>
 
@@ -14,22 +15,29 @@ static int64_t gettime() {
 }
 
 SystemPresentationClock::SystemPresentationClock() : _seekTime( INT64_C(0) ), _speed() {
+    _mutex = g_mutex_new();
     _baseTime = gettime();
 }
 
 int64_t SystemPresentationClock::getPresentationTime() {
+    g_mutex_lock( _mutex );
     int64_t elapsed = (gettime() - _baseTime) * _speed.n;
+    int64_t seekTime = _seekTime;
+    unsigned int d = _speed.d;
+    g_mutex_unlock( _mutex );
 
-    if( _speed.d == 1 )
-        return elapsed + _seekTime;
+    if( d == 1 )
+        return elapsed + seekTime;
     else
-        return elapsed / _speed.d + _seekTime;
+        return elapsed / d + seekTime;
 }
 
 void SystemPresentationClock::set( Rational speed, int64_t seekTime ) {
+    g_mutex_lock( _mutex );
     _baseTime = gettime();
     _seekTime = seekTime;
     _speed = speed;
+    g_mutex_unlock( _mutex );
 }
 
 Rational SystemPresentationClock::getSpeed() {

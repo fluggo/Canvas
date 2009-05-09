@@ -19,7 +19,8 @@ public:
     void play( Imf::Rational speed = Imf::Rational( 1, 1 ) );
     void seek( int64_t time );
 
-private:
+public:
+    GMutex *_mutex;
     int64_t _seekTime, _baseTime;
     Imf::Rational _speed;
 };
