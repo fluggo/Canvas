@@ -605,7 +605,6 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     V2i frameSize = self->displayWindow.size() + V2i(1,1);
 
     self->drawingArea = gtk_drawing_area_new();
-    gtk_widget_set_size_request( self->drawingArea, (int)((float) frameSize.x * 40.0f / 33.0f), frameSize.y );
 
     gtk_widget_set_gl_capability( self->drawingArea,
                                 self->glConfig,

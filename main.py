@@ -48,6 +48,7 @@ class MainWindow(object):
         self.glade.signal_autoconnect(self)
         self.videoWidget = self.glade.get_widget('videoWidget').myobj
         self.videoWidget.stop()
+        self.videoWidget.drawingArea().set_size_request(320, 240)
         self.frameRate = Fraction(24000, 1001)
         self.frameScale = self.glade.get_widget('frameScale')
         self.frameScale.set_range(0, 5000)
