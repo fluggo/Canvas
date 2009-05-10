@@ -328,19 +328,15 @@ static gboolean playSingleFrame( py_obj_VideoWidget *self );
 
 gpointer
 playbackThread( py_obj_VideoWidget *self ) {
-    V2i frameSize = self->displayWindow.size() + V2i(1,1);
-    Array2D<Rgba> array( frameSize.y, frameSize.x );
-    VideoFrame frame;
+    RgbaFrame frame;
 
-    frame.base = &array[0][0];
-    frame.stride = &array[1][0] - frame.base;
+    frame.fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
 
     for( ;; ) {
-        frame.fullDataWindow = self->displayWindow;
-        frame.currentDataWindow = frame.fullDataWindow;
-
         int64_t startTime = self->clock->getPresentationTime();
+
         g_mutex_lock( self->frameReadMutex );
+        V2i frameSize = self->displayWindow.size() + V2i(1,1);
         Rational speed = self->clock->getSpeed();
 
         while( !self->quit && !self->renderOneFrame && self->filled > 2 )
@@ -349,32 +345,67 @@ playbackThread( py_obj_VideoWidget *self ) {
         if( self->quit )
             return NULL;
 
+        // If restarting, reset the clock; who knows how long we've been waiting?
         if( self->filled < 0 )
             startTime = self->clock->getPresentationTime();
 
+        // Pull out the next frame
         int nextFrame = self->nextToRenderFrame;
 
+        // Set up the proper write buffer
         if( !self->renderOneFrame )
             self->writeBuffer = (self->writeBuffer + 1) & 3;
 
         int writeBuffer = self->writeBuffer;
+
+        FrameTarget& target = self->targets[writeBuffer];
+
+        // If the frame is the wrong size, reallocate it now
+        if( target.fullDataWindow.isEmpty() ||
+            self->displayWindow.size() != target.fullDataWindow.size() ) {
+
+            target.frameData.resizeErase( frameSize.y, frameSize.x );
+        }
+
+        // If our target array is the wrong size, reallocate it now
+        if( frame.fullDataWindow.isEmpty() ||
+            self->displayWindow.size() != frame.fullDataWindow.size() ) {
+
+            frame.frameData.resizeErase( frameSize.y, frameSize.x );
+        }
+
+        // The frame could shift without changing size, so we set this here just in case
+        target.fullDataWindow = self->displayWindow;
+        frame.fullDataWindow = self->displayWindow;
+
         g_mutex_unlock( self->frameReadMutex );
 
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
 
+        // Clip to the set first/last frames
         if( nextFrame > self->lastFrame )
             nextFrame = self->lastFrame;
         else if( nextFrame < self->firstFrame )
             nextFrame = self->firstFrame;
 
+        // Pull the frame data from the chain
+        frame.currentDataWindow = target.fullDataWindow;
         self->frameSource.funcs->getFrame( self->frameSource.source, nextFrame, &frame );
+        target.currentDataWindow = frame.currentDataWindow;
 
         // Convert the results to floating-point
-        for( int y = 0; y < frameSize.y; y++ ) {
-            for( int x = 0; x < frameSize.x; x++ ) {
-                self->targets[writeBuffer].frameData[frameSize.y - y - 1][x][0] = (uint8_t) __gamma45( array[y][x].r );
-                self->targets[writeBuffer].frameData[frameSize.y - y - 1][x][1] = (uint8_t) __gamma45( array[y][x].g );
-                self->targets[writeBuffer].frameData[frameSize.y - y - 1][x][2] = (uint8_t) __gamma45( array[y][x].b );
+        for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
+            for( int x = frame.currentDataWindow.min.x; x <= frame.currentDataWindow.max.x; x++ ) {
+                uint8_t *targetData = target.frameData
+                    [y - target.fullDataWindow.min.y]
+                    [x - target.fullDataWindow.min.x];
+                Rgba *sourceData = &frame.frameData
+                    [y - frame.fullDataWindow.min.y]
+                    [x - frame.fullDataWindow.min.x];
+
+                targetData[0] = (uint8_t) __gamma45( sourceData->r );
+                targetData[1] = (uint8_t) __gamma45( sourceData->g );
+                targetData[2] = (uint8_t) __gamma45( sourceData->b );
             }
         }
 
@@ -566,7 +597,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     V2i frameSize = self->displayWindow.size() + V2i(1,1);
 
     self->drawingArea = gtk_drawing_area_new();
-    gtk_widget_set_size_request( self->drawingArea, frameSize.x, frameSize.y );
+    gtk_widget_set_size_request( self->drawingArea, (int)((float) frameSize.x * 40.0f / 33.0f), frameSize.y );
 
     gtk_widget_set_gl_capability( self->drawingArea,
                                 self->glConfig,
@@ -590,10 +621,10 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
     self->textureId = -1;
-    self->targets[0].frameData.resizeErase( frameSize.y, frameSize.x );
-    self->targets[1].frameData.resizeErase( frameSize.y, frameSize.x );
-    self->targets[2].frameData.resizeErase( frameSize.y, frameSize.x );
-    self->targets[3].frameData.resizeErase( frameSize.y, frameSize.x );
+    self->targets[0].fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+    self->targets[1].fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+    self->targets[2].fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+    self->targets[3].fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
     self->textureAllocated = false;
 
     g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );

@@ -29,7 +29,7 @@ Pulldown23RemovalFilter_init( py_obj_Pulldown23RemovalFilter *self, PyObject *ar
 }
 
 static void
-Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int64_t frameIndex, VideoFrame *frame ) {
+Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int64_t frameIndex, RgbaFrame *frame ) {
     // Cadence offsets:
 
     // 0 AA BB BC CD DD (0->0, 1->1, 3->4), (2->2b3a)
@@ -64,18 +64,15 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int64_t 
         int height = frame->currentDataWindow.max.y - frame->currentDataWindow.min.y + 1;
         int width = frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1;
 
-        Array2D<Rgba> temp( height, width );
-
-        VideoFrame tempFrame;
-        tempFrame.base = &temp[0][0];
+        RgbaFrame tempFrame;
+        tempFrame.frameData.resizeErase( height, width );
         tempFrame.fullDataWindow = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
-        tempFrame.stride = &temp[1][0] - tempFrame.base;
 
         self->source.funcs->getFrame( self->source.source, baseFrame + 3, &tempFrame );
 
         for( int i = (self->oddFirst ? 0 : 1); i < height; i += 2 )
-            memcpy( frame->base + i, tempFrame.base + i, width * sizeof(Rgba) );
+            memcpy( &frame->frameData[i][0], &tempFrame.frameData[i][0], width * sizeof(Rgba) );
     }
 }
 

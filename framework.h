@@ -21,13 +21,12 @@ extern "C" {
 #define NOEXPORT __attribute__((visibility("hidden")))
 
 typedef struct {
-    Imf::Rgba *base;
+    Imf::Array2D<Imf::Rgba> frameData;
     Imath::Box2i fullDataWindow;
     Imath::Box2i currentDataWindow;
-    int stride;
-} VideoFrame;
+} RgbaFrame;
 
-typedef void (*video_getFrameFunc)( PyObject *self, int64_t frameIndex, VideoFrame *frame );
+typedef void (*video_getFrameFunc)( PyObject *self, int64_t frameIndex, RgbaFrame *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero

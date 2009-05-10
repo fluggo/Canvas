@@ -2,6 +2,7 @@
 #include "framework.h"
 
 using namespace Iex;
+using namespace Imath;
 using namespace Imf;
 
 static PyObject *pysourceFuncs;
@@ -171,7 +172,7 @@ AVFileReader_dealloc( py_obj_AVFileReader *self ) {
 }
 
 static void
-AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, VideoFrame *frame ) {
+AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame *frame ) {
     frameIndex = frameIndex % self->context->streams[self->firstVideoStream]->duration;
 
     if( frameIndex < 0 )
@@ -220,8 +221,17 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, VideoFrame
         uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
         half a = 1.0f;
         const float __unbyte = 1.0f / 255.0f;
+        Box2i coordWindow = Box2i(
+            frame->currentDataWindow.min - frame->fullDataWindow.min,
+            V2i(
+                std::min(frame->currentDataWindow.max.x - frame->fullDataWindow.min.x,
+                    self->codecContext->width - 1),
+                std::min(frame->currentDataWindow.max.y - frame->fullDataWindow.min.y,
+                    self->codecContext->height - 1)
+            )
+        );
 
-        for( int row = 0; row < self->codecContext->height; row++ ) {
+        for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
 #if DO_SCALE
             for( int x = 0; x < self->codecContext->width; x++ ) {
                 float y = yplane[x] - 16.0f, cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
@@ -235,7 +245,7 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, VideoFrame
                 frame->base[row * frame->stride + x].a = a;
             }
 #else
-            for( int x = 0; x < self->codecContext->width / 4; x++ ) {
+            for( int x = coordWindow.min.x / 4; x <= coordWindow.max.x / 4; x++ ) {
                 float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
 
                 float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
@@ -243,15 +253,20 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, VideoFrame
                 float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
 
                 for( int i = 0; i < 4; i++ ) {
-                    float y = yplane[x * 4 + i];
+                    int px = x * 4 + i;
 
-                    frame->base[row * frame->stride + x * 4 + i].r =
+                    if( px < coordWindow.min.x || px > coordWindow.max.x )
+                        continue;
+
+                    float y = yplane[x * 4 + i] - 16.0f;
+
+                    frame->frameData[coordWindow.max.y - row][x * 4 + i].r =
                         __gamma22( (y * self->colorMatrix[0][0] + ccr) * __unbyte );
-                    frame->base[row * frame->stride + x * 4 + i].g =
+                    frame->frameData[coordWindow.max.y - row][x * 4 + i].g =
                         __gamma22( (y * self->colorMatrix[1][0] + ccg) * __unbyte );
-                    frame->base[row * frame->stride + x * 4 + i].b =
+                    frame->frameData[coordWindow.max.y - row][x * 4 + i].b =
                         __gamma22( (y * self->colorMatrix[2][0] + ccb) * __unbyte );
-                    frame->base[row * frame->stride + x].a = a;
+                    frame->frameData[coordWindow.max.y - row][x * 4 + i].a = a;
                 }
             }
 #endif
