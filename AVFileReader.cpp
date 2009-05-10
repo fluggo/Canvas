@@ -279,6 +279,7 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
             }
         }
         else {
+            frame->currentDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
         }
 
         av_free_packet( &packet );
