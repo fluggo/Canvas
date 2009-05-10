@@ -260,13 +260,13 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
 
                     float y = yplane[x * 4 + i] - 16.0f;
 
-                    frame->frameData[coordWindow.max.y - row][x * 4 + i].r =
+                    frame->frameData[row][x * 4 + i].r =
                         __gamma22( (y * self->colorMatrix[0][0] + ccr) * __unbyte );
-                    frame->frameData[coordWindow.max.y - row][x * 4 + i].g =
+                    frame->frameData[row][x * 4 + i].g =
                         __gamma22( (y * self->colorMatrix[1][0] + ccg) * __unbyte );
-                    frame->frameData[coordWindow.max.y - row][x * 4 + i].b =
+                    frame->frameData[row][x * 4 + i].b =
                         __gamma22( (y * self->colorMatrix[2][0] + ccb) * __unbyte );
-                    frame->frameData[coordWindow.max.y - row][x * 4 + i].a = a;
+                    frame->frameData[row][x * 4 + i].a = a;
                 }
             }
 #endif

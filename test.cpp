@@ -235,13 +235,13 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     glEnable( GL_TEXTURE_2D );
 
     glBegin( GL_QUADS );
-    glTexCoord2f( 0, self->texCoordY );
-    glVertex2f( x, y );
-    glTexCoord2f( self->texCoordX, self->texCoordY );
-    glVertex2f( x + width, y );
-    glTexCoord2f( self->texCoordX, 0 );
-    glVertex2f( x + width, y + height );
     glTexCoord2f( 0, 0 );
+    glVertex2f( x, y );
+    glTexCoord2f( self->texCoordX, 0 );
+    glVertex2f( x + width, y );
+    glTexCoord2f( self->texCoordX, self->texCoordY );
+    glVertex2f( x + width, y + height );
+    glTexCoord2f( 0, self->texCoordY );
     glVertex2f( x, y + height );
     glEnd();
 
