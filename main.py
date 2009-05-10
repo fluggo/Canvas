@@ -27,6 +27,7 @@ clock = SystemPresentationClock()
 
 def createVideoWidget():
     av = AVFileReader('/home/james/Videos/Okra - 79b,100.avi')
+    #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
     size = av.size()
     widget = VideoWidget(clock,
         Pulldown23RemovalFilter( av, 0, False ) )

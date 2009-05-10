@@ -39,5 +39,5 @@ typedef struct {
     VideoFrameSourceFuncs *funcs;
 } VideoSourceHolder;
 
-NOEXPORT int takeVideoSource( PyObject *source, VideoSourceHolder *holder );
+NOEXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
 

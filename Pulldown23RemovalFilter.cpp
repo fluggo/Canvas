@@ -22,7 +22,7 @@ Pulldown23RemovalFilter_init( py_obj_Pulldown23RemovalFilter *self, PyObject *ar
 
     self->oddFirst = (bool) PyObject_IsTrue( oddFirst );
 
-    if( takeVideoSource( source, &self->source ) < 0 )
+    if( !takeVideoSource( source, &self->source ) )
         return -1;
 
     return 0;

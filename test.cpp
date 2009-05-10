@@ -76,13 +76,13 @@ static void checkGLError() {
     }
 }
 
-int takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
+bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
     holder->funcs = NULL;
 
     if( source == NULL || source == Py_None )
-        return 0;
+        return true;
 
     Py_INCREF( source );
     holder->source = source;
@@ -91,12 +91,12 @@ int takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     if( holder->csource == NULL ) {
         Py_CLEAR( holder->source );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _videoFrameSourceFuncs attribute." );
-        return -1;
+        return false;
     }
 
     holder->funcs = (VideoFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
 
-    return 0;
+    return true;
 }
 
 typedef struct {
@@ -559,9 +559,9 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 static int
 VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     PyObject *pyclock;
-    PyObject *frameSource;
+    PyObject *frameSource = NULL;
 
-    if( !PyArg_ParseTuple( args, "OO", &pyclock, &frameSource ) )
+    if( !PyArg_ParseTuple( args, "O|O", &pyclock, &frameSource ) )
         return -1;
 
     PyObject *pycclock;
@@ -582,7 +582,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 
     Py_CLEAR( self->drawingAreaObj );
 
-    if( takeVideoSource( frameSource, &self->frameSource ) < 0 )
+    if( !takeVideoSource( frameSource, &self->frameSource ) )
         return -1;
 
     self->glConfig = gdk_gl_config_new_by_mode ( (GdkGLConfigMode) (GDK_GL_MODE_RGB    |
