@@ -218,62 +218,67 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
 #endif
 
         // Now convert to halfs
-        uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
-        half a = 1.0f;
-        const float __unbyte = 1.0f / 255.0f;
+        frame->currentDataWindow.min.x = std::max( 0, frame->currentDataWindow.min.x );
+        frame->currentDataWindow.min.y = std::max( 0, frame->currentDataWindow.min.y );
+        frame->currentDataWindow.max.x = std::min( self->codecContext->width - 1, frame->currentDataWindow.max.x );
+        frame->currentDataWindow.max.y = std::min( self->codecContext->height - 1, frame->currentDataWindow.max.y );
+
         Box2i coordWindow = Box2i(
             frame->currentDataWindow.min - frame->fullDataWindow.min,
-            V2i(
-                std::min(frame->currentDataWindow.max.x - frame->fullDataWindow.min.x,
-                    self->codecContext->width - 1),
-                std::min(frame->currentDataWindow.max.y - frame->fullDataWindow.min.y,
-                    self->codecContext->height - 1)
-            )
+            frame->currentDataWindow.max - frame->fullDataWindow.min
         );
 
-        for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
-#if DO_SCALE
-            for( int x = 0; x < self->codecContext->width; x++ ) {
-                float y = yplane[x] - 16.0f, cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
+        if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
+            uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
+            half a = 1.0f;
+            const float __unbyte = 1.0f / 255.0f;
 
-                frame->base[row * frame->stride + x].r = __gamma22( y * self->colorMatrix[0][0] + cb * self->colorMatrix[0][1] +
-                    cr * self->colorMatrix[0][2] );
-                frame->base[row * frame->stride + x].g = __gamma22( y * self->colorMatrix[1][0] + cb * self->colorMatrix[1][1] +
-                    cr * self->colorMatrix[1][2] );
-                frame->base[row * frame->stride + x].b = __gamma22( y * self->colorMatrix[2][0] + cb * self->colorMatrix[2][1] +
-                    cr * self->colorMatrix[2][2] );
-                frame->base[row * frame->stride + x].a = a;
-            }
-#else
-            for( int x = coordWindow.min.x / 4; x <= coordWindow.max.x / 4; x++ ) {
-                float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
+            for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
+    #if DO_SCALE
+                for( int x = 0; x < self->codecContext->width; x++ ) {
+                    float y = yplane[x] - 16.0f, cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
 
-                float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
-                float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
-                float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
-
-                for( int i = 0; i < 4; i++ ) {
-                    int px = x * 4 + i;
-
-                    if( px < coordWindow.min.x || px > coordWindow.max.x )
-                        continue;
-
-                    float y = yplane[x * 4 + i] - 16.0f;
-
-                    frame->frameData[row][x * 4 + i].r =
-                        __gamma22( (y * self->colorMatrix[0][0] + ccr) * __unbyte );
-                    frame->frameData[row][x * 4 + i].g =
-                        __gamma22( (y * self->colorMatrix[1][0] + ccg) * __unbyte );
-                    frame->frameData[row][x * 4 + i].b =
-                        __gamma22( (y * self->colorMatrix[2][0] + ccb) * __unbyte );
-                    frame->frameData[row][x * 4 + i].a = a;
+                    frame->base[row * frame->stride + x].r = __gamma22( y * self->colorMatrix[0][0] + cb * self->colorMatrix[0][1] +
+                        cr * self->colorMatrix[0][2] );
+                    frame->base[row * frame->stride + x].g = __gamma22( y * self->colorMatrix[1][0] + cb * self->colorMatrix[1][1] +
+                        cr * self->colorMatrix[1][2] );
+                    frame->base[row * frame->stride + x].b = __gamma22( y * self->colorMatrix[2][0] + cb * self->colorMatrix[2][1] +
+                        cr * self->colorMatrix[2][2] );
+                    frame->base[row * frame->stride + x].a = a;
                 }
-            }
-#endif
+    #else
+                for( int x = coordWindow.min.x / 4; x <= coordWindow.max.x / 4; x++ ) {
+                    float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
 
-            yplane += avFrame->linesize[0];
-            cbplane += avFrame->linesize[1];
-            crplane += avFrame->linesize[2];
+                    float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
+                    float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
+                    float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
+
+                    for( int i = 0; i < 4; i++ ) {
+                        int px = x * 4 + i;
+
+                        if( px < coordWindow.min.x || px > coordWindow.max.x )
+                            continue;
+
+                        float y = yplane[x * 4 + i] - 16.0f;
+
+                        frame->frameData[row][x * 4 + i].r =
+                            __gamma22( (y * self->colorMatrix[0][0] + ccr) * __unbyte );
+                        frame->frameData[row][x * 4 + i].g =
+                            __gamma22( (y * self->colorMatrix[1][0] + ccg) * __unbyte );
+                        frame->frameData[row][x * 4 + i].b =
+                            __gamma22( (y * self->colorMatrix[2][0] + ccb) * __unbyte );
+                        frame->frameData[row][x * 4 + i].a = a;
+                    }
+                }
+    #endif
+
+                yplane += avFrame->linesize[0];
+                cbplane += avFrame->linesize[1];
+                crplane += avFrame->linesize[2];
+            }
+        }
+        else {
         }
 
         av_free_packet( &packet );
