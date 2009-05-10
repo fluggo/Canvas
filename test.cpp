@@ -268,6 +268,14 @@ getTimeFrame( Rational *frameRate, int64_t time ) {
 }
 
 bool parseRational( PyObject *in, Rational *out ) {
+    // Accept integers as rationals
+    if( PyInt_Check( in ) ) {
+        out->n = PyInt_AsLong( in );
+        out->d = 1;
+
+        return true;
+    }
+
     PyObject *numerator = PyObject_GetAttrString( in, "numerator" );
 
     if( numerator == NULL )
@@ -746,47 +754,35 @@ SystemPresentationClock_dealloc( py_obj_SystemPresentationClock *self ) {
 
 static PyObject *
 SystemPresentationClock_play( py_obj_SystemPresentationClock *self, PyObject *args ) {
-    int n, d;
+    PyObject *rateObj;
+    Rational rate;
 
-    if( !PyArg_ParseTuple( args, "(ii)", &n, &d ) )
+    if( !PyArg_ParseTuple( args, "O", &rateObj ) )
         return NULL;
 
-    if( d == 0 ) {
-        PyErr_SetString( PyExc_Exception, "Can't have a denominator of zero." );
+    if( !parseRational( rateObj, &rate ) )
         return NULL;
-    }
-
-    if( d < 0 ) {
-        n *= -1;
-        d *= -1;
-    }
 
     SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
-    clock->play( Rational( n, (unsigned int) d ) );
+    clock->play( rate );
 
     Py_RETURN_NONE;
 }
 
 static PyObject *
 SystemPresentationClock_set( py_obj_SystemPresentationClock *self, PyObject *args ) {
-    int n, d;
+    PyObject *rateObj;
+    Rational rate;
     int64_t time;
 
-    if( !PyArg_ParseTuple( args, "(ii)L", &n, &d, &time ) )
+    if( !PyArg_ParseTuple( args, "OL", &rateObj, &time ) )
         return NULL;
 
-    if( d == 0 ) {
-        PyErr_SetString( PyExc_Exception, "Can't have a denominator is zero." );
+    if( !parseRational( rateObj, &rate ) )
         return NULL;
-    }
-
-    if( d < 0 ) {
-        n *= -1;
-        d *= -1;
-    }
 
     SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
-    clock->set( Rational( n, (unsigned int) d ), time );
+    clock->set( rate, time );
 
     Py_RETURN_NONE;
 }
@@ -832,7 +828,7 @@ static PyMethodDef module_methods[] = {
     { "getFrameTime", (PyCFunction) py_getFrameTime, METH_VARARGS,
         "getFrameTime(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
     { "getTimeFrame", (PyCFunction) py_getTimeFrame, METH_VARARGS,
-        "getTimeFrame(rate, time): Gets the frame containing the given time in nanoseconds at the given Rational frame rate." },
+        "getTimeFrame(rate, time): Gets the frame containing the given time in nanoseconds at the given Fraction frame rate." },
     { NULL }
 };
 

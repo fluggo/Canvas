@@ -56,22 +56,22 @@ class MainWindow(object):
         glib.timeout_add(100, self.updateCurrentFrame)
 
     def on_playButton_clicked(self, *args):
-        clock.play((1, 1))
+        clock.play(1)
         self.videoWidget.play()
         self.playing = True
 
     def on_rewindButton_clicked(self, *args):
-        clock.play((-2, 1))
+        clock.play(-2)
         self.videoWidget.play()
         self.playing = True
 
     def on_forwardButton_clicked(self, *args):
-        clock.play((2, 1))
+        clock.play(2)
         self.videoWidget.play()
         self.playing = True
 
     def on_pauseButton_clicked(self, *args):
-        clock.play((0, 1))
+        clock.play(0)
         self.updateCurrentFrame()
         self.videoWidget.stop()
         self.playing = False
