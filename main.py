@@ -26,11 +26,13 @@ clock = SystemPresentationClock()
 #window.show()
 
 def createVideoWidget():
+    av = AVFileReader('/home/james/Videos/Okra - 79b,100.avi')
+    size = av.size()
     widget = VideoWidget(clock,
-        Pulldown23RemovalFilter(
-        AVFileReader('/home/james/Videos/Okra - 79b,100.avi'), 0, False ) )
+        Pulldown23RemovalFilter( av, 0, False ) )
 
     widget.drawingArea().show()
+    widget.setDisplayWindow( (0, 0, size[0] - 1, size[1] - 1) )
 
     # Temporary hack to keep the container object around
     widget.drawingArea().myobj = widget

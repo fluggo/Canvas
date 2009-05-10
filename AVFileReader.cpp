@@ -303,12 +303,24 @@ static PyGetSetDef AVFileReader_getsetters[] = {
     { NULL }
 };
 
+static PyObject *
+AVFileReader_size( py_obj_AVFileReader *self ) {
+    return Py_BuildValue( "(ii)", self->codecContext->width, self->codecContext->height );
+}
+
+static PyMethodDef AVFileReader_methods[] = {
+    { "size", (PyCFunction) AVFileReader_size, METH_NOARGS,
+        "Gets the frame size for this video." },
+    { NULL }
+};
+
 void init_AVFileReader( PyObject *module ) {
     py_type_AVFileReader.tp_flags = Py_TPFLAGS_DEFAULT;
     py_type_AVFileReader.tp_new = PyType_GenericNew;
     py_type_AVFileReader.tp_dealloc = (destructor) AVFileReader_dealloc;
     py_type_AVFileReader.tp_init = (initproc) AVFileReader_init;
     py_type_AVFileReader.tp_getset = AVFileReader_getsetters;
+    py_type_AVFileReader.tp_methods = AVFileReader_methods;
 
     if( PyType_Ready( &py_type_AVFileReader ) < 0 )
         return;

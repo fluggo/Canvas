@@ -344,9 +344,6 @@ playbackThread( py_obj_VideoWidget *self ) {
         int64_t startTime = self->clock->getPresentationTime();
 
         g_mutex_lock( self->frameReadMutex );
-        V2i frameSize = self->displayWindow.size() + V2i(1,1);
-        Rational speed = self->clock->getSpeed();
-
         while( !self->quit && !self->renderOneFrame && self->filled > 2 )
             g_cond_wait( self->frameReadCond, self->frameReadMutex );
 
@@ -356,6 +353,9 @@ playbackThread( py_obj_VideoWidget *self ) {
         // If restarting, reset the clock; who knows how long we've been waiting?
         if( self->filled < 0 )
             startTime = self->clock->getPresentationTime();
+
+        V2i frameSize = self->displayWindow.size() + V2i(1,1);
+        Rational speed = self->clock->getSpeed();
 
         // Pull out the next frame
         int nextFrame = self->nextToRenderFrame;
@@ -601,7 +601,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
         }
     }
 
-    self->displayWindow = Box2i( V2i(0, 0), V2i(719, 479) );
+    self->displayWindow = Box2i( V2i(0, 0), V2i(319, 239) );
     V2i frameSize = self->displayWindow.size() + V2i(1,1);
 
     self->drawingArea = gtk_drawing_area_new();
@@ -714,6 +714,25 @@ VideoWidget_widgetObj( py_obj_VideoWidget *self ) {
     return self->drawingAreaObj;
 }
 
+static PyObject *
+VideoWidget_setDisplayWindow( py_obj_VideoWidget *self, PyObject *args ) {
+    Box2i window;
+
+    if( !PyArg_ParseTuple( args, "(iiii)", &window.min.x, &window.min.y, &window.max.x, &window.max.y ) )
+        return NULL;
+
+    if( window.isEmpty() ) {
+        PyErr_SetString( PyExc_Exception, "An empty window was passed to setDisplayWindow." );
+        return NULL;
+    }
+
+    g_mutex_lock( self->frameReadMutex );
+    self->displayWindow = window;
+    g_mutex_unlock( self->frameReadMutex );
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef VideoWidget_methods[] = {
     { "play", (PyCFunction) VideoWidget_play, METH_NOARGS,
         "Signals that the widget should start processing frames or process a speed change." },
@@ -721,6 +740,8 @@ static PyMethodDef VideoWidget_methods[] = {
         "Signals the widget to stop processing frames." },
     { "drawingArea", (PyCFunction) VideoWidget_widgetObj, METH_NOARGS,
         "Returns the drawing area used for video output." },
+    { "setDisplayWindow", (PyCFunction) VideoWidget_setDisplayWindow, METH_VARARGS,
+        "Sets the display window using a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
     { NULL }
 };
 
