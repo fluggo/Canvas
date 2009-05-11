@@ -723,6 +723,12 @@ VideoWidget_widgetObj( py_obj_VideoWidget *self ) {
 }
 
 static PyObject *
+VideoWidget_getDisplayWindow( py_obj_VideoWidget *self ) {
+    return Py_BuildValue( "(iiii)", self->displayWindow.min.x, self->displayWindow.min.y,
+        self->displayWindow.max.x, self->displayWindow.max.y );
+}
+
+static PyObject *
 VideoWidget_setDisplayWindow( py_obj_VideoWidget *self, PyObject *args ) {
     Box2i window;
 
@@ -741,6 +747,32 @@ VideoWidget_setDisplayWindow( py_obj_VideoWidget *self, PyObject *args ) {
     Py_RETURN_NONE;
 }
 
+static PyObject *
+VideoWidget_getSource( py_obj_VideoWidget *self ) {
+    if( self->frameSource.source == NULL )
+        Py_RETURN_NONE;
+
+    Py_INCREF(self->frameSource.source);
+    return self->frameSource.source;
+}
+
+static PyObject *
+VideoWidget_setSource( py_obj_VideoWidget *self, PyObject *args, void */*closure*/ ) {
+    PyObject *source;
+
+    if( !PyArg_ParseTuple( args, "O", &source ) )
+        return NULL;
+
+    g_mutex_lock( self->frameReadMutex );
+    bool result = takeVideoSource( source, &self->frameSource );
+    g_mutex_unlock( self->frameReadMutex );
+
+    if( !result )
+        return NULL;
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef VideoWidget_methods[] = {
     { "play", (PyCFunction) VideoWidget_play, METH_NOARGS,
         "Signals that the widget should start processing frames or process a speed change." },
@@ -748,8 +780,14 @@ static PyMethodDef VideoWidget_methods[] = {
         "Signals the widget to stop processing frames." },
     { "drawingArea", (PyCFunction) VideoWidget_widgetObj, METH_NOARGS,
         "Returns the drawing area used for video output." },
+    { "displayWindow", (PyCFunction) VideoWidget_getDisplayWindow, METH_NOARGS,
+        "Gets the display window as a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
+    { "source", (PyCFunction) VideoWidget_getSource, METH_NOARGS,
+        "Gets the video source." },
     { "setDisplayWindow", (PyCFunction) VideoWidget_setDisplayWindow, METH_VARARGS,
         "Sets the display window using a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
+    { "setSource", (PyCFunction) VideoWidget_setSource, METH_VARARGS,
+        "Sets the video source." },
     { NULL }
 };
 

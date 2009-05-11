@@ -26,14 +26,9 @@ clock = SystemPresentationClock()
 #window.show()
 
 def createVideoWidget():
-    av = AVFileReader('/home/james/Videos/Okra - 79b,100.avi')
     #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
-    size = av.size()
-    widget = VideoWidget(clock,
-        Pulldown23RemovalFilter( av, 0, False ) )
-
+    widget = VideoWidget(clock)
     widget.drawingArea().show()
-    widget.setDisplayWindow( (0, 0, size[0] - 1, size[1] - 1) )
 
     # Temporary hack to keep the container object around
     widget.drawingArea().myobj = widget
@@ -58,6 +53,12 @@ class MainWindow(object):
         self.playing = False
         self.updating = False
         glib.timeout_add(100, self.updateCurrentFrame)
+
+        av = AVFileReader('/home/james/Videos/Okra - 79b,100.avi')
+        size = av.size()
+        self.videoWidget.setDisplayWindow((0, 0, size[0] - 1, size[1] - 1))
+        self.videoWidget.setSource(Pulldown23RemovalFilter(av, 0, False))
+        self.videoWidget.stop()
 
     def on_playButton_clicked(self, *args):
         clock.play(1)
