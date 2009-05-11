@@ -1,6 +1,7 @@
 
 #include "framework.h"
 
+using namespace Imath;
 using namespace Imf;
 
 static PyObject *pysourceFuncs;
@@ -30,6 +31,12 @@ Pulldown23RemovalFilter_init( py_obj_Pulldown23RemovalFilter *self, PyObject *ar
 
 static void
 Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int64_t frameIndex, RgbaFrame *frame ) {
+    if( self->source.source == NULL ) {
+        // No result
+        frame->currentDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+        return;
+    }
+
     // Cadence offsets:
 
     // 0 AA BB BC CD DD (0->0, 1->1, 3->4), (2->2b3a)

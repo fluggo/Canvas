@@ -386,19 +386,27 @@ playbackThread( py_obj_VideoWidget *self ) {
         target.fullDataWindow = self->displayWindow;
         frame.fullDataWindow = self->displayWindow;
 
-        g_mutex_unlock( self->frameReadMutex );
-
-//        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
-
         // Clip to the set first/last frames
         if( nextFrame > self->lastFrame )
             nextFrame = self->lastFrame;
         else if( nextFrame < self->firstFrame )
             nextFrame = self->firstFrame;
 
+        g_mutex_unlock( self->frameReadMutex );
+
+//        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
+
         // Pull the frame data from the chain
         frame.currentDataWindow = target.fullDataWindow;
-        self->frameSource.funcs->getFrame( self->frameSource.source, nextFrame, &frame );
+
+        if( self->frameSource.source != NULL ) {
+            self->frameSource.funcs->getFrame( self->frameSource.source, nextFrame, &frame );
+        }
+        else {
+            // No result
+            frame.currentDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+        }
+
         target.currentDataWindow = frame.currentDataWindow;
 
         // Convert the results to floating-point
@@ -624,7 +632,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->readBuffer = 3;
     self->writeBuffer = 3;
     self->firstFrame = 0;
-    self->lastFrame = 6000;
+    self->lastFrame = INT_MAX;
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
     self->textureId = -1;

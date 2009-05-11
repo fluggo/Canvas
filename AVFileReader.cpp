@@ -173,10 +173,11 @@ AVFileReader_dealloc( py_obj_AVFileReader *self ) {
 
 static void
 AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame *frame ) {
-    frameIndex = frameIndex % self->context->streams[self->firstVideoStream]->duration;
-
-    if( frameIndex < 0 )
-        frameIndex += self->context->streams[self->firstVideoStream]->duration;
+    if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
+        // No result
+        frame->currentDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+        return;
+    }
 
     if( av_seek_frame( self->context, self->firstVideoStream, frameIndex % self->context->streams[self->firstVideoStream]->duration,
             AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD ) < 0 )
