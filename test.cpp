@@ -392,6 +392,8 @@ playbackThread( py_obj_VideoWidget *self ) {
         else if( nextFrame < self->firstFrame )
             nextFrame = self->firstFrame;
 
+        VideoFrameSourceFuncs *funcs = self->frameSource.funcs;
+
         g_mutex_unlock( self->frameReadMutex );
 
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
@@ -399,8 +401,8 @@ playbackThread( py_obj_VideoWidget *self ) {
         // Pull the frame data from the chain
         frame.currentDataWindow = target.fullDataWindow;
 
-        if( self->frameSource.source != NULL ) {
-            self->frameSource.funcs->getFrame( self->frameSource.source, nextFrame, &frame );
+        if( funcs != NULL ) {
+            funcs->getFrame( self->frameSource.source, nextFrame, &frame );
         }
         else {
             // No result
