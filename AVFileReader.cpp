@@ -1,4 +1,6 @@
 
+#define __STDC_CONSTANT_MACROS
+#include <stdint.h>
 #include "framework.h"
 
 using namespace Iex;
@@ -18,6 +20,8 @@ typedef struct {
     uint8_t *rgbBuffer;
     float colorMatrix[3][3];
     struct SwsContext *scaler;
+    bool allKeyframes;
+    int currentVideoFrame;
 } py_obj_AVFileReader;
 
 static float gamma22ExpandFunc( float input ) {
@@ -133,6 +137,13 @@ AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
         return -1;
     }
 
+    self->currentVideoFrame = 0;
+
+    // Use MLT's keyframe conditions
+    self->allKeyframes = !(strcmp( self->codecContext->codec->name, "mjpeg" ) &&
+      strcmp( self->codecContext->codec->name, "rawvideo" ) &&
+      strcmp( self->codecContext->codec->name, "dvvideo" ));
+
     return 0;
 }
 
@@ -179,32 +190,72 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
         return;
     }
 
-    if( av_seek_frame( self->context, self->firstVideoStream, frameIndex,
-            AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD ) < 0 )
-        printf( "Could not seek to frame %d.\n", frame );
+    //printf( "Requested %ld\n", frameIndex );
 
-    avcodec_flush_buffers( self->codecContext );
+    AVRational *timeBase = &self->context->streams[self->firstVideoStream]->time_base;
+    AVRational *frameRate = &self->context->streams[self->firstVideoStream]->r_frame_rate;
+    int64_t frameDuration = (timeBase->den * frameRate->den) / (timeBase->num * frameRate->num);
+    int64_t timestamp = frameIndex * (timeBase->den * frameRate->den) / (timeBase->num * frameRate->num) + frameDuration / 2;
+    //printf( "frameRate: %d/%d\n", frameRate->num, frameRate->den );
+    //printf( "frameDuration: %ld\n", frameDuration );
+
+//    if( (uint64_t) self->context->start_time != AV_NOPTS_VALUE )
+//        timestamp += self->context->start_time;
+
+    if( self->allKeyframes ) {
+        if( av_seek_frame( self->context, self->firstVideoStream, frameIndex,
+                AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD ) < 0 )
+            printf( "Could not seek to frame %ld.\n", frameIndex );
+
+        self->currentVideoFrame = frameIndex;
+    }
+    else {
+        // Only bother seeking if we're way off (or it's behind us)
+        if( frameIndex < self->currentVideoFrame || (frameIndex - self->currentVideoFrame) >= 15 ) {
+
+            //printf( "Seeking back to %ld...\n", timestamp );
+            av_seek_frame( self->context, self->firstVideoStream, timestamp - frameDuration * 6, AVSEEK_FLAG_BACKWARD );
+        }
+
+        self->currentVideoFrame = frameIndex;
+    }
+
+    //avcodec_flush_buffers( self->codecContext );
 
     for( ;; ) {
         AVPacket packet;
 
+        av_init_packet( &packet );
+
+        //printf( "Reading frame\n" );
         if( av_read_frame( self->context, &packet ) < 0 )
             printf( "Could not read the frame.\n" );
 
         if( packet.stream_index != self->firstVideoStream ) {
+            //printf( "Not the right stream\n" );
             av_free_packet( &packet );
             continue;
         }
 
         int gotPicture;
 
+        //printf( "Decoding video\n" );
         avcodec_decode_video( self->codecContext, self->inputFrame, &gotPicture,
             packet.data, packet.size );
 
         if( !gotPicture ) {
+            //printf( "Didn't get a picture\n" );
             av_free_packet( &packet );
             continue;
         }
+
+        if( (packet.dts + frameDuration) < timestamp ) {
+            //printf( "Too early (%ld vs %ld)\n", packet.dts, timestamp );
+            av_free_packet( &packet );
+            continue;
+        }
+
+        //printf( "We'll take that\n" );
 
         AVFrame *avFrame = self->rgbFrame;
 
@@ -367,7 +418,7 @@ void init_AVFileReader( PyObject *module ) {
     if( PyType_Ready( &py_type_AVFileReader ) < 0 )
         return;
 
-    Py_INCREF( &py_type_AVFileReader );
+    Py_INCREF( (PyObject*) &py_type_AVFileReader );
     PyModule_AddObject( module, "AVFileReader", (PyObject *) &py_type_AVFileReader );
 
     pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
