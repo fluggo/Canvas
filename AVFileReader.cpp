@@ -179,9 +179,9 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
         return;
     }
 
-    if( av_seek_frame( self->context, self->firstVideoStream, frameIndex % self->context->streams[self->firstVideoStream]->duration,
+    if( av_seek_frame( self->context, self->firstVideoStream, frameIndex,
             AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD ) < 0 )
-        THROW( Iex::BaseExc, "Could not seek to frame " << frame << "." );
+        printf( "Could not seek to frame %d.\n", frame );
 
     avcodec_flush_buffers( self->codecContext );
 
@@ -189,7 +189,7 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
         AVPacket packet;
 
         if( av_read_frame( self->context, &packet ) < 0 )
-            THROW( Iex::BaseExc, "Could not read the frame." );
+            printf( "Could not read the frame.\n" );
 
         if( packet.stream_index != self->firstVideoStream ) {
             av_free_packet( &packet );
@@ -228,6 +228,8 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
             frame->currentDataWindow.min - frame->fullDataWindow.min,
             frame->currentDataWindow.max - frame->fullDataWindow.min
         );
+
+        //printf( "pix_fmt: %d\n", self->codecContext->pix_fmt );
 
         if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
             uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
@@ -275,6 +277,39 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
     #endif
 
                 yplane += avFrame->linesize[0];
+                cbplane += avFrame->linesize[1];
+                crplane += avFrame->linesize[2];
+            }
+        }
+        else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
+            uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
+            half a = 1.0f;
+            const float __unbyte = 1.0f / 255.0f;
+
+            for( int y = coordWindow.min.y / 2; y <= coordWindow.max.y / 2; y++ ) {
+                for( int x = coordWindow.min.x / 2; x <= coordWindow.max.x / 2; x++ ) {
+                    float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
+
+                    float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
+                    float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
+                    float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
+
+                    for( int py = y * 2; py <= y * 2 + 1; py++ ) { for( int px = x * 2; px <= x * 2 + 1; px++ ) {
+                        if( px < coordWindow.min.x || px > coordWindow.max.x || py < coordWindow.min.y || py > coordWindow.max.y )
+                            continue;
+
+                        float cy = yplane[avFrame->linesize[0] * py + px] - 16.0f;
+
+                        frame->frameData[py][px].r =
+                            __gamma22( (cy * self->colorMatrix[0][0] + ccr) * __unbyte );
+                        frame->frameData[py][px].g =
+                            __gamma22( (cy * self->colorMatrix[1][0] + ccg) * __unbyte );
+                        frame->frameData[py][px].b =
+                            __gamma22( (cy * self->colorMatrix[2][0] + ccb) * __unbyte );
+                        frame->frameData[py][px].a = a;
+                    } }
+                }
+
                 cbplane += avFrame->linesize[1];
                 crplane += avFrame->linesize[2];
             }

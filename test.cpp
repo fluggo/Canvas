@@ -906,7 +906,7 @@ void init_Pulldown23RemovalFilter( PyObject *module );
 PyMODINIT_FUNC
 initvideo() {
     int argc = 1;
-    char *arg = "dummy";
+    char *arg = strdup( "dummy" );
     char **argv = &arg;
 
     py_type_VideoWidget.tp_flags = Py_TPFLAGS_DEFAULT;
