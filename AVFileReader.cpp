@@ -144,6 +144,23 @@ AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
       strcmp( self->codecContext->codec->name, "rawvideo" ) &&
       strcmp( self->codecContext->codec->name, "dvvideo" ));
 
+    if( !self->allKeyframes ) {
+        // Prime the pump for MPEG so we get frame accuracy (otherwise we seem to start a few frames in)
+        AVPacket packet;
+        int gotPicture;
+
+        av_init_packet( &packet );
+        av_read_frame( self->context, &packet );
+
+        if( packet.stream_index == self->firstVideoStream ) {
+            avcodec_decode_video( self->codecContext, self->inputFrame, &gotPicture,
+                packet.data, packet.size );
+        }
+
+        av_free_packet( &packet );
+        av_seek_frame( self->context, self->firstVideoStream, 0, AVSEEK_FLAG_BACKWARD );
+    }
+
     return 0;
 }
 
@@ -190,7 +207,7 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
         return;
     }
 
-    //printf( "Requested %ld\n", frameIndex );
+    printf( "Requested %ld\n", frameIndex );
 
     AVRational *timeBase = &self->context->streams[self->firstVideoStream]->time_base;
     AVRational *frameRate = &self->context->streams[self->firstVideoStream]->r_frame_rate;
@@ -214,7 +231,7 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
         if( frameIndex < self->currentVideoFrame || (frameIndex - self->currentVideoFrame) >= 15 ) {
 
             //printf( "Seeking back to %ld...\n", timestamp );
-            int seekStamp = timestamp - frameDuration * 6;
+            int seekStamp = timestamp - frameDuration * 3;
 
             if( seekStamp < 0 )
                 seekStamp = 0;
@@ -224,8 +241,6 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
 
         self->currentVideoFrame = frameIndex;
     }
-
-    //avcodec_flush_buffers( self->codecContext );
 
     for( ;; ) {
         AVPacket packet;
