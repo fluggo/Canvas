@@ -20,7 +20,7 @@ typedef struct {
     uint8_t *rgbBuffer;
     float colorMatrix[3][3];
     struct SwsContext *scaler;
-    bool allKeyframes;
+    bool allKeyframes, interlaced;
     int currentVideoFrame;
 } py_obj_AVFileReader;
 
@@ -34,6 +34,7 @@ static int
 AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
     int error;
     char *filename;
+    PyObject *interlaced;
 
     // Zero all pointers (so we know later what needs deleting)
     self->context = NULL;
@@ -43,9 +44,15 @@ AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
     self->rgbFrame = NULL;
     self->rgbBuffer = NULL;
     self->scaler = NULL;
+    self->interlaced = true;
 
-    if( !PyArg_ParseTuple( args, "s", &filename ) )
+    static char *kwlist[] = { "filename", "interlaced", NULL };
+
+    if( !PyArg_ParseTupleAndKeywords( args, kwds, "s|O", kwlist, &filename, &interlaced ) )
         return -1;
+
+    if( interlaced != NULL )
+        self->interlaced = (bool) PyObject_IsTrue( interlaced );
 
     av_register_all();
 
@@ -214,7 +221,12 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
         if( frameIndex < self->currentVideoFrame || (frameIndex - self->currentVideoFrame) >= 15 ) {
 
             //printf( "Seeking back to %ld...\n", timestamp );
-            av_seek_frame( self->context, self->firstVideoStream, timestamp - frameDuration * 6, AVSEEK_FLAG_BACKWARD );
+            int seekStamp = timestamp - frameDuration * 6;
+
+            if( seekStamp < 0 )
+                seekStamp = 0;
+
+            av_seek_frame( self->context, self->firstVideoStream, seekStamp, AVSEEK_FLAG_BACKWARD );
         }
 
         self->currentVideoFrame = frameIndex;
@@ -336,33 +348,48 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
             uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
             half a = 1.0f;
             const float __unbyte = 1.0f / 255.0f;
+            int pyi = self->interlaced ? 2 : 1;
 
-            for( int y = coordWindow.min.y / 2; y <= coordWindow.max.y / 2; y++ ) {
-                for( int x = coordWindow.min.x / 2; x <= coordWindow.max.x / 2; x++ ) {
-                    float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
+            // 4:2:0 interlaced:
+            // 0 -> 0, 2; 2 -> 4, 6; 4 -> 8, 10
+            // 1 -> 1, 3; 3 -> 5, 7; 5 -> 9, 11
+
+            // 4:2:0 progressive:
+            // 0 -> 0, 1; 1 -> 2, 3; 2 -> 4, 5
+
+            for( int sy = coordWindow.min.y / 2; sy <= coordWindow.max.y / 2; sy++ ) {
+                int py = sy * 2;
+
+                if( self->interlaced && (sy & 1) == 1 )
+                    py--;
+
+                for( int sx = coordWindow.min.x / 2; sx <= coordWindow.max.x / 2; sx++ ) {
+                    float cb = cbplane[sy * avFrame->linesize[1] + sx] - 128.0f, cr = crplane[sy * avFrame->linesize[2] + sx] - 128.0f;
 
                     float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
                     float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
                     float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
 
-                    for( int py = y * 2; py <= y * 2 + 1; py++ ) { for( int px = x * 2; px <= x * 2 + 1; px++ ) {
-                        if( px < coordWindow.min.x || px > coordWindow.max.x || py < coordWindow.min.y || py > coordWindow.max.y )
+                    for( int i = 0; i < 2; i++ ) {
+                        if( py < coordWindow.min.y || py > coordWindow.max.y )
                             continue;
 
-                        float cy = yplane[avFrame->linesize[0] * py + px] - 16.0f;
+                        for( int px = sx * 2; px <= sx * 2 + 1; px++ ) {
+                            if( px < coordWindow.min.x || px > coordWindow.max.x )
+                                continue;
 
-                        frame->frameData[py][px].r =
-                            __gamma22( (cy * self->colorMatrix[0][0] + ccr) * __unbyte );
-                        frame->frameData[py][px].g =
-                            __gamma22( (cy * self->colorMatrix[1][0] + ccg) * __unbyte );
-                        frame->frameData[py][px].b =
-                            __gamma22( (cy * self->colorMatrix[2][0] + ccb) * __unbyte );
-                        frame->frameData[py][px].a = a;
-                    } }
+                            float cy = yplane[avFrame->linesize[0] * (py + pyi * i) + px] - 16.0f;
+
+                            frame->frameData[py + pyi * i][px].r =
+                                __gamma22( (cy * self->colorMatrix[0][0] + ccr) * __unbyte );
+                            frame->frameData[py + pyi * i][px].g =
+                                __gamma22( (cy * self->colorMatrix[1][0] + ccg) * __unbyte );
+                            frame->frameData[py + pyi * i][px].b =
+                                __gamma22( (cy * self->colorMatrix[2][0] + ccb) * __unbyte );
+                            frame->frameData[py + pyi * i][px].a = a;
+                        }
+                    }
                 }
-
-                cbplane += avFrame->linesize[1];
-                crplane += avFrame->linesize[2];
             }
         }
         else {
