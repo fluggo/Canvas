@@ -20,7 +20,7 @@ typedef struct {
     uint8_t *rgbBuffer;
     float colorMatrix[3][3];
     struct SwsContext *scaler;
-    bool allKeyframes, interlaced;
+    bool allKeyframes;
     int currentVideoFrame;
 } py_obj_AVFileReader;
 
@@ -34,7 +34,6 @@ static int
 AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
     int error;
     char *filename;
-    PyObject *interlaced;
 
     // Zero all pointers (so we know later what needs deleting)
     self->context = NULL;
@@ -44,15 +43,9 @@ AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
     self->rgbFrame = NULL;
     self->rgbBuffer = NULL;
     self->scaler = NULL;
-    self->interlaced = true;
 
-    static char *kwlist[] = { "filename", "interlaced", NULL };
-
-    if( !PyArg_ParseTupleAndKeywords( args, kwds, "s|O", kwlist, &filename, &interlaced ) )
+    if( !PyArg_ParseTuple( args, "s", &filename ) )
         return -1;
-
-    if( interlaced != NULL )
-        self->interlaced = (bool) PyObject_IsTrue( interlaced );
 
     av_register_all();
 
@@ -348,7 +341,7 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
             uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
             half a = 1.0f;
             const float __unbyte = 1.0f / 255.0f;
-            int pyi = self->interlaced ? 2 : 1;
+            int pyi = avFrame->interlaced_frame ? 2 : 1;
 
             // 4:2:0 interlaced:
             // 0 -> 0, 2; 2 -> 4, 6; 4 -> 8, 10
@@ -360,7 +353,7 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
             for( int sy = coordWindow.min.y / 2; sy <= coordWindow.max.y / 2; sy++ ) {
                 int py = sy * 2;
 
-                if( self->interlaced && (sy & 1) == 1 )
+                if( avFrame->interlaced_frame && (sy & 1) == 1 )
                     py--;
 
                 for( int sx = coordWindow.min.x / 2; sx <= coordWindow.max.x / 2; sx++ ) {
