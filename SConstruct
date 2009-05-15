@@ -1,11 +1,14 @@
 import distutils.sysconfig
 
 debug = ARGUMENTS.get('debug', 0)
+profile = ARGUMENTS.get('profile', 0)
 env = Environment(LIBS=['rt', 'GLEW'], CPPPATH=[distutils.sysconfig.get_python_inc()],
 	SHLIBPREFIX='')
 
 if int(debug):
 	env['CCFLAGS'] = '-Wall -ggdb3 -DMESA_DEBUG -DDEBUG'
+elif int(profile):
+	env['CCFLAGS'] = '-Wall -g'
 else:
 	env['CCFLAGS'] = '-Wall -O3 -mtune=native -march=native'
 
