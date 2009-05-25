@@ -4,10 +4,10 @@
 
 #include <Python.h>
 
-#include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
-#include "half.h"
+#define __STDC_CONSTANT_MACROS
+#include <stdint.h>
 #include <stdbool.h>
+#include "half.h"
 
 #include <memory.h>
 #include <errno.h>
@@ -55,6 +55,9 @@ static inline int max( int a, int b ) {
     return a > b ? a : b;
 }
 
+NOEXPORT bool parseRational( PyObject *in, rational *out );
+
+/************* Video *******/
 typedef struct {
     half r, g, b, a;
 } rgba;
@@ -80,7 +83,29 @@ typedef struct {
 } VideoSourceHolder;
 
 NOEXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
-NOEXPORT bool parseRational( PyObject *in, rational *out );
+
+/************* Audio *******/
+
+typedef struct {
+    float *frameData;
+    int channelCount;
+    int64_t minSample, maxSample;
+} AudioFrame;
+
+typedef void (*audio_getFrameFunc)( PyObject *self, AudioFrame *frame );
+
+typedef struct {
+    int flags;            // Reserved, should be zero
+    audio_getFrameFunc getFrame;
+} AudioFrameSourceFuncs;
+
+typedef struct {
+    PyObject *source;
+    PyObject *csource;
+    AudioFrameSourceFuncs *funcs;
+} AudioSourceHolder;
+
+NOEXPORT bool takeAudioSource( PyObject *source, AudioSourceHolder *holder );
 
 #endif
 

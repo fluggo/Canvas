@@ -1,6 +1,4 @@
 
-#define __STDC_CONSTANT_MACROS
-
 #include "clock.h"
 #include <time.h>
 #include <gtk/gtk.h>
