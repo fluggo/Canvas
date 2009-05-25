@@ -1,9 +1,6 @@
 
 #include "framework.h"
 
-using namespace Imath;
-using namespace Imf;
-
 static PyObject *pysourceFuncs;
 
 typedef struct {
@@ -33,7 +30,7 @@ static void
 Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int64_t frameIndex, RgbaFrame *frame ) {
     if( self->source.source == NULL ) {
         // No result
-        frame->currentDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+        box2i_setEmpty( &frame->currentDataWindow );
         return;
     }
 
@@ -71,15 +68,19 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int64_t 
         int height = frame->currentDataWindow.max.y - frame->currentDataWindow.min.y + 1;
         int width = frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1;
 
+        // TODO: Cache this temp frame between calls
         RgbaFrame tempFrame;
-        tempFrame.frameData.resizeErase( height, width );
+        tempFrame.frameData = malloc( sizeof(rgba) * height * width );
+        tempFrame.stride = width;
         tempFrame.fullDataWindow = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
 
         self->source.funcs->getFrame( self->source.source, baseFrame + 3, &tempFrame );
 
         for( int i = (self->oddFirst ? 0 : 1); i < height; i += 2 )
-            memcpy( &frame->frameData[i][0], &tempFrame.frameData[i][0], width * sizeof(Rgba) );
+            memcpy( &frame->frameData[i * frame->stride], &tempFrame.frameData[i * frame->stride], width * sizeof(rgba) );
+
+        free( tempFrame.frameData );
     }
 }
 
@@ -91,20 +92,13 @@ Pulldown23RemovalFilter_dealloc( py_obj_Pulldown23RemovalFilter *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-static PyTypeObject py_type_Pulldown23RemovalFilter = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.video.Pulldown23RemovalFilter",    // tp_name
-    sizeof(py_obj_Pulldown23RemovalFilter)    // tp_basicsize
-};
-
 static VideoFrameSourceFuncs sourceFuncs = {
     0,
     (video_getFrameFunc) Pulldown23RemovalFilter_getFrame
 };
 
 static PyObject *
-Pulldown23RemovalFilter_getFuncs( py_obj_Pulldown23RemovalFilter */*self*/, void */*closure*/ ) {
+Pulldown23RemovalFilter_getFuncs( py_obj_Pulldown23RemovalFilter *self, void *closure ) {
     return pysourceFuncs;
 }
 
@@ -113,13 +107,19 @@ static PyGetSetDef Pulldown23RemovalFilter_getsetters[] = {
     { NULL }
 };
 
-void init_Pulldown23RemovalFilter( PyObject *module ) {
-    py_type_Pulldown23RemovalFilter.tp_flags = Py_TPFLAGS_DEFAULT;
-    py_type_Pulldown23RemovalFilter.tp_new = PyType_GenericNew;
-    py_type_Pulldown23RemovalFilter.tp_dealloc = (destructor) Pulldown23RemovalFilter_dealloc;
-    py_type_Pulldown23RemovalFilter.tp_init = (initproc) Pulldown23RemovalFilter_init;
-    py_type_Pulldown23RemovalFilter.tp_getset = Pulldown23RemovalFilter_getsetters;
+static PyTypeObject py_type_Pulldown23RemovalFilter = {
+    PyObject_HEAD_INIT(NULL)
+    0,            // ob_size
+    "fluggo.video.Pulldown23RemovalFilter",    // tp_name
+    sizeof(py_obj_Pulldown23RemovalFilter),    // tp_basicsize
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) Pulldown23RemovalFilter_dealloc,
+    .tp_init = (initproc) Pulldown23RemovalFilter_init,
+    .tp_getset = Pulldown23RemovalFilter_getsetters
+};
 
+void init_Pulldown23RemovalFilter( PyObject *module ) {
     if( PyType_Ready( &py_type_Pulldown23RemovalFilter ) < 0 )
         return;
 

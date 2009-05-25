@@ -1,27 +1,19 @@
 
-#include <stdint.h>
-#include <ImfRational.h>
+#include "framework.h"
 
-class IPresentationClock {
-public:
-    virtual int64_t getPresentationTime() = 0;
-    virtual Imf::Rational getSpeed() = 0;
-};
+typedef int64_t (*clock_getPresentationTimeFunc)( PyObject *self );
+typedef void (*clock_getSpeedFunc)( PyObject *self, rational *result );
 
-class SystemPresentationClock : public IPresentationClock {
-public:
-    SystemPresentationClock();
+typedef struct {
+    clock_getPresentationTimeFunc getPresentationTime;
+    clock_getSpeedFunc getSpeed;
+} PresentationClockFuncs;
 
-    virtual int64_t getPresentationTime();
+typedef struct {
+    PyObject *source;
+    PyObject *csource;
+    PresentationClockFuncs *funcs;
+} PresentationClockHolder;
 
-    void set( Imf::Rational speed, int64_t seekTime );
-    virtual Imf::Rational getSpeed();
-    void play( Imf::Rational speed = Imf::Rational( 1, 1 ) );
-    void seek( int64_t time );
-
-public:
-    GMutex *_mutex;
-    int64_t _seekTime, _baseTime;
-    Imf::Rational _speed;
-};
+NOEXPORT bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
 

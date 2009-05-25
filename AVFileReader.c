@@ -3,10 +3,6 @@
 #include <stdint.h>
 #include "framework.h"
 
-using namespace Iex;
-using namespace Imath;
-using namespace Imf;
-
 static PyObject *pysourceFuncs;
 
 typedef struct {
@@ -24,11 +20,13 @@ typedef struct {
     int currentVideoFrame;
 } py_obj_AVFileReader;
 
-static float gamma22ExpandFunc( float input ) {
+/*static float gamma22ExpandFunc( float input ) {
     return powf( input, 2.2f );
-}
+}*/
 
-static halfFunction<half> __gamma22( gamma22ExpandFunc, half( -2.0f ), half( 2.0f ) );
+static half gamma22[65536];
+
+/*static halfFunction<half> __gamma22( gamma22ExpandFunc, half( -2.0f ), half( 2.0f ) );*/
 
 static int
 AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
@@ -59,7 +57,7 @@ AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
         return -1;
     }
 
-    for( uint i = 0; i < self->context->nb_streams; i++ ) {
+    for( int i = 0; i < self->context->nb_streams; i++ ) {
         if( self->context->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO ) {
             self->firstVideoStream = i;
             break;
@@ -203,11 +201,11 @@ static void
 AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame *frame ) {
     if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
         // No result
-        frame->currentDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+        box2i_setEmpty( &frame->currentDataWindow );
         return;
     }
 
-    printf( "Requested %ld\n", frameIndex );
+    //printf( "Requested %ld\n", frameIndex );
 
     AVRational *timeBase = &self->context->streams[self->firstVideoStream]->time_base;
     AVRational *frameRate = &self->context->streams[self->firstVideoStream]->r_frame_rate;
@@ -290,15 +288,15 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
 #endif
 
         // Now convert to halfs
-        frame->currentDataWindow.min.x = std::max( 0, frame->currentDataWindow.min.x );
-        frame->currentDataWindow.min.y = std::max( 0, frame->currentDataWindow.min.y );
-        frame->currentDataWindow.max.x = std::min( self->codecContext->width - 1, frame->currentDataWindow.max.x );
-        frame->currentDataWindow.max.y = std::min( self->codecContext->height - 1, frame->currentDataWindow.max.y );
+        frame->currentDataWindow.min.x = max( 0, frame->currentDataWindow.min.x );
+        frame->currentDataWindow.min.y = max( 0, frame->currentDataWindow.min.y );
+        frame->currentDataWindow.max.x = min( self->codecContext->width - 1, frame->currentDataWindow.max.x );
+        frame->currentDataWindow.max.y = min( self->codecContext->height - 1, frame->currentDataWindow.max.y );
 
-        Box2i coordWindow = Box2i(
-            frame->currentDataWindow.min - frame->fullDataWindow.min,
-            frame->currentDataWindow.max - frame->fullDataWindow.min
-        );
+        box2i coordWindow = {
+            { frame->currentDataWindow.min.x - frame->fullDataWindow.min.x, frame->currentDataWindow.min.y - frame->fullDataWindow.min.y },
+            { frame->currentDataWindow.max.x - frame->fullDataWindow.min.x, frame->currentDataWindow.max.y - frame->fullDataWindow.min.y }
+        };
 
         //printf( "pix_fmt: %d\n", self->codecContext->pix_fmt );
 
@@ -336,13 +334,13 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
 
                         float y = yplane[x * 4 + i] - 16.0f;
 
-                        frame->frameData[row][x * 4 + i].r =
-                            __gamma22( (y * self->colorMatrix[0][0] + ccr) * __unbyte );
-                        frame->frameData[row][x * 4 + i].g =
-                            __gamma22( (y * self->colorMatrix[1][0] + ccg) * __unbyte );
-                        frame->frameData[row][x * 4 + i].b =
-                            __gamma22( (y * self->colorMatrix[2][0] + ccb) * __unbyte );
-                        frame->frameData[row][x * 4 + i].a = a;
+                        frame->frameData[row * frame->stride + x * 4 + i].r =
+                            gamma22[f2h( (y * self->colorMatrix[0][0] + ccr) * __unbyte )];
+                        frame->frameData[row * frame->stride + x * 4 + i].g =
+                            gamma22[f2h( (y * self->colorMatrix[1][0] + ccg) * __unbyte )];
+                        frame->frameData[row * frame->stride + x * 4 + i].b =
+                            gamma22[f2h( (y * self->colorMatrix[2][0] + ccb) * __unbyte )];
+                        frame->frameData[row * frame->stride + x * 4 + i].a = a;
                     }
                 }
     #endif
@@ -353,9 +351,10 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
             }
         }
         else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
-            uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
-            half a = 1.0f;
-            const float __unbyte = 1.0f / 255.0f;
+            uint8_t *restrict yplane = avFrame->data[0], *restrict cbplane = avFrame->data[1], *restrict crplane = avFrame->data[2];
+            rgba *restrict frameData = frame->frameData;
+
+            half a = f2h( 1.0f );
             int pyi = avFrame->interlaced_frame ? 2 : 1;
 
             // 4:2:0 interlaced:
@@ -365,20 +364,24 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
             // 4:2:0 progressive:
             // 0 -> 0, 1; 1 -> 2, 3; 2 -> 4, 5
 
+            const int minsx = coordWindow.min.x >> 1, maxsx = coordWindow.max.x >> 1;
+
             for( int sy = coordWindow.min.y / 2; sy <= coordWindow.max.y / 2; sy++ ) {
                 int py = sy * 2;
 
                 if( avFrame->interlaced_frame && (sy & 1) == 1 )
                     py--;
 
-                for( int sx = coordWindow.min.x / 2; sx <= coordWindow.max.x / 2; sx++ ) {
-                    float cb = cbplane[sy * avFrame->linesize[1] + sx] - 128.0f, cr = crplane[sy * avFrame->linesize[2] + sx] - 128.0f;
+                for( int i = 0; i < 2; i++ ) {
+                    uint8_t *restrict cbx = cbplane + minsx, *restrict crx = crplane + minsx;
 
-                    float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
-                    float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
-                    float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
+                    for( int sx = minsx; sx <= maxsx; sx++ ) {
+                        float cb = *cbx++ - 128.0f, cr = *crx++ - 128.0f;
 
-                    for( int i = 0; i < 2; i++ ) {
+                        float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
+                        float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
+                        float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
+
                         if( py < coordWindow.min.y || py > coordWindow.max.y )
                             continue;
 
@@ -388,20 +391,23 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
 
                             float cy = yplane[avFrame->linesize[0] * (py + pyi * i) + px] - 16.0f;
 
-                            frame->frameData[py + pyi * i][px].r =
-                                __gamma22( (cy * self->colorMatrix[0][0] + ccr) * __unbyte );
-                            frame->frameData[py + pyi * i][px].g =
-                                __gamma22( (cy * self->colorMatrix[1][0] + ccg) * __unbyte );
-                            frame->frameData[py + pyi * i][px].b =
-                                __gamma22( (cy * self->colorMatrix[2][0] + ccb) * __unbyte );
-                            frame->frameData[py + pyi * i][px].a = a;
+                            frameData[(py + pyi * i) * frame->stride + px].r =
+                                gamma22[f2h((cy * self->colorMatrix[0][0] + ccr))];
+                            frameData[(py + pyi * i) * frame->stride + px].g =
+                                gamma22[f2h((cy * self->colorMatrix[1][0] + ccg))];
+                            frameData[(py + pyi * i) * frame->stride + px].b =
+                                gamma22[f2h((cy * self->colorMatrix[2][0] + ccb))];
+                            frameData[(py + pyi * i) * frame->stride + px].a = a;
                         }
                     }
                 }
+
+                cbplane += avFrame->linesize[1];
+                crplane += avFrame->linesize[2];
             }
         }
         else {
-            frame->currentDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+            box2i_setEmpty( &frame->currentDataWindow );
         }
 
         av_free_packet( &packet );
@@ -409,20 +415,13 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
     }
 }
 
-static PyTypeObject py_type_AVFileReader = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.video.AVFileReader",    // tp_name
-    sizeof(py_obj_AVFileReader)    // tp_basicsize
-};
-
 static VideoFrameSourceFuncs sourceFuncs = {
     0,
     (video_getFrameFunc) AVFileReader_getFrame
 };
 
 static PyObject *
-AVFileReader_getFuncs( py_obj_AVFileReader */*self*/, void */*closure*/ ) {
+AVFileReader_getFuncs( py_obj_AVFileReader *self, void *closure ) {
     return pysourceFuncs;
 }
 
@@ -442,18 +441,30 @@ static PyMethodDef AVFileReader_methods[] = {
     { NULL }
 };
 
+static PyTypeObject py_type_AVFileReader = {
+    PyObject_HEAD_INIT(NULL)
+    0,            // ob_size
+    "fluggo.video.AVFileReader",    // tp_name
+    sizeof(py_obj_AVFileReader),    // tp_basicsize
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AVFileReader_dealloc,
+    .tp_init = (initproc) AVFileReader_init,
+    .tp_getset = AVFileReader_getsetters,
+    .tp_methods = AVFileReader_methods
+};
+
 void init_AVFileReader( PyObject *module ) {
-    py_type_AVFileReader.tp_flags = Py_TPFLAGS_DEFAULT;
-    py_type_AVFileReader.tp_new = PyType_GenericNew;
-    py_type_AVFileReader.tp_dealloc = (destructor) AVFileReader_dealloc;
-    py_type_AVFileReader.tp_init = (initproc) AVFileReader_init;
-    py_type_AVFileReader.tp_getset = AVFileReader_getsetters;
-    py_type_AVFileReader.tp_methods = AVFileReader_methods;
+    const float __unbyte = 1.0f / 255.0f;
+
+    for( int i = 0; i < 65536; i++ ) {
+        gamma22[i] = f2h( powf( h2f( (half) i ) * __unbyte, 2.2f ) );
+    }
 
     if( PyType_Ready( &py_type_AVFileReader ) < 0 )
         return;
 
-    Py_INCREF( (PyObject*) &py_type_AVFileReader );
+    Py_INCREF( &py_type_AVFileReader );
     PyModule_AddObject( module, "AVFileReader", (PyObject *) &py_type_AVFileReader );
 
     pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );

@@ -15,23 +15,7 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 
-using namespace Iex;
-using namespace Imath;
-using namespace Imf;
-
-//static float gamma22Func( float input ) {
-//    return powf( input, 2.2 );
-//}
-
-// (16 / 255) ^ 2.2
-const float __gamma22Base = 0.002262953f;
-
-// (235 / 255) ^ 2.2 - __gamma22Base
-const float __gamma22Extent = 0.835527791f - __gamma22Base;
-const float __gamma22Fixer = 1.0f / __gamma22Extent;
-const float __gammaCutoff = 21.0f / 255.0f;
-
-inline float clamppowf( float x, float y ) {
+static inline float clamppowf( float x, float y ) {
     if( x < 0.0f )
         return 0.0f;
 
@@ -41,15 +25,15 @@ inline float clamppowf( float x, float y ) {
     return powf( x, y );
 }
 
-inline float clampf( float x ) {
-    return (x < 0.0f) ? 0.0f : ((x > 1.0f) ? 1.0f : x);
+static inline float clampf( float x, float min, float max ) {
+    return (x < min) ? min : ((x > max) ? max : x);
 }
 
-static float gamma45Func( float input ) {
-    return clamp( powf( input, 0.45f ) * 255.0f, 0.0f, 255.0f );
+static inline float gamma45Func( float input ) {
+    return clampf( powf( input, 0.45f ) * 255.0f, 0.0f, 255.0f );
 }
 
-static halfFunction<half> __gamma45( gamma45Func, half( -256.0f ), half( 256.0f ) );
+static uint8_t gamma45[65536];
 
 static void checkGLError() {
     int error = glGetError();
@@ -100,9 +84,14 @@ bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
 }
 
 typedef struct {
+    uint8_t r, g, b;
+} rgb8;
+
+typedef struct {
     int64_t time, nextTime;
-    Array2D<uint8_t[3]> frameData;
-    Box2i fullDataWindow, currentDataWindow;
+    rgb8 *frameData;
+    int stride;
+    box2i fullDataWindow, currentDataWindow;
 } FrameTarget;
 
 typedef struct {
@@ -112,15 +101,15 @@ typedef struct {
     GtkWidget *drawingArea;
     PyObject *drawingAreaObj;
     VideoSourceHolder frameSource;
+    PresentationClockHolder clock;
     GMutex *frameReadMutex, *frameRenderMutex;
     GCond *frameReadCond;
     int nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
-    Rational frameRate;
+    rational frameRate;
     guint timeoutSourceID;
     PyObject *pyclock;
-    IPresentationClock *clock;
-    Box2i displayWindow;
+    box2i displayWindow;
     int firstFrame, lastFrame;
     float pixelAspectRatio;
     GLuint textureId;
@@ -132,13 +121,6 @@ typedef struct {
     bool quit, textureAllocated;
     GThread *renderThread;
 } py_obj_VideoWidget;
-
-static PyTypeObject py_type_VideoWidget = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.video.VideoWidget",    // tp_name
-    sizeof(py_obj_VideoWidget)    // tp_basicsize
-};
 
 typedef struct {
     PyObject_HEAD
@@ -161,7 +143,8 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     }
 
     // Set ourselves up with the correct aspect ratio for the space
-    V2i frameSize = self->displayWindow.size() + V2i(1,1);
+    v2i frameSize;
+    box2i_getSize( &self->displayWindow, &frameSize );
 
     float width = frameSize.x * self->pixelAspectRatio;
     float height = frameSize.y;
@@ -229,7 +212,7 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
 
     glBindTexture( GL_TEXTURE_2D, self->textureId );
     glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, frameSize.x, frameSize.y,
-        GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer].frameData[0][0] );
+        GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer].frameData[0] );
     checkGLError();
 
     glEnable( GL_TEXTURE_2D );
@@ -258,16 +241,16 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
 }
 
 int64_t
-getFrameTime( Rational *frameRate, int frame ) {
+getFrameTime( rational *frameRate, int frame ) {
     return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);
 }
 
 int
-getTimeFrame( Rational *frameRate, int64_t time ) {
+getTimeFrame( rational *frameRate, int64_t time ) {
     return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 
-bool parseRational( PyObject *in, Rational *out ) {
+bool parseRational( PyObject *in, rational *out ) {
     // Accept integers as rationals
     if( PyInt_Check( in ) ) {
         out->n = PyInt_AsLong( in );
@@ -306,7 +289,7 @@ bool parseRational( PyObject *in, Rational *out ) {
 
 PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
     PyObject *frameRateObj;
-    Rational frameRate;
+    rational frameRate;
     int frame;
 
     if( !PyArg_ParseTuple( args, "Oi", &frameRateObj, &frame ) )
@@ -320,7 +303,7 @@ PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
 
 PyObject *py_getTimeFrame( PyObject *self, PyObject *args ) {
     PyObject *frameRateObj;
-    Rational frameRate;
+    rational frameRate;
     int64_t time;
 
     if( !PyArg_ParseTuple( args, "OL", &frameRateObj, &time ) )
@@ -334,14 +317,23 @@ PyObject *py_getTimeFrame( PyObject *self, PyObject *args ) {
 
 static gboolean playSingleFrame( py_obj_VideoWidget *self );
 
+static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
+    v2i size1, size2;
+
+    box2i_getSize( box1, &size1 );
+    box2i_getSize( box2, &size2 );
+
+    return size1.x == size2.x && size1.y == size2.y;
+}
+
 gpointer
 playbackThread( py_obj_VideoWidget *self ) {
     RgbaFrame frame;
 
-    frame.fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+    box2i_setEmpty( &frame.fullDataWindow );
 
     for( ;; ) {
-        int64_t startTime = self->clock->getPresentationTime();
+        int64_t startTime = self->clock.funcs->getPresentationTime( self->clock.source );
 
         g_mutex_lock( self->frameReadMutex );
         while( !self->quit && !self->renderOneFrame && self->filled > 2 )
@@ -352,10 +344,13 @@ playbackThread( py_obj_VideoWidget *self ) {
 
         // If restarting, reset the clock; who knows how long we've been waiting?
         if( self->filled < 0 )
-            startTime = self->clock->getPresentationTime();
+            startTime = self->clock.funcs->getPresentationTime( self->clock.source );
 
-        V2i frameSize = self->displayWindow.size() + V2i(1,1);
-        Rational speed = self->clock->getSpeed();
+        v2i frameSize;
+        rational speed;
+
+        box2i_getSize( &self->displayWindow, &frameSize );
+        self->clock.funcs->getSpeed( self->clock.source, &speed );
 
         // Pull out the next frame
         int nextFrame = self->nextToRenderFrame;
@@ -366,24 +361,31 @@ playbackThread( py_obj_VideoWidget *self ) {
 
         int writeBuffer = self->writeBuffer;
 
-        FrameTarget& target = self->targets[writeBuffer];
+        FrameTarget *target = &self->targets[writeBuffer];
 
         // If the frame is the wrong size, reallocate it now
-        if( target.fullDataWindow.isEmpty() ||
-            self->displayWindow.size() != target.fullDataWindow.size() ) {
+        if( box2i_isEmpty( &target->fullDataWindow ) ||
+            !box2i_equalSize( &self->displayWindow, &target->fullDataWindow ) ) {
 
-            target.frameData.resizeErase( frameSize.y, frameSize.x );
+            if( target->frameData ) {
+                free( target->frameData );
+                target->frameData = NULL;
+            }
+
+            target->frameData = malloc( frameSize.y * frameSize.x * sizeof(rgba) );
+            target->stride = frameSize.x;
         }
 
         // If our target array is the wrong size, reallocate it now
-        if( frame.fullDataWindow.isEmpty() ||
-            self->displayWindow.size() != frame.fullDataWindow.size() ) {
+        if( box2i_isEmpty( &frame.fullDataWindow ) ||
+            !box2i_equalSize( &self->displayWindow, &frame.fullDataWindow ) ) {
 
-            frame.frameData.resizeErase( frameSize.y, frameSize.x );
+            frame.frameData = malloc( frameSize.y * frameSize.x * sizeof(rgba) );
+            frame.stride = frameSize.x;
         }
 
         // The frame could shift without changing size, so we set this here just in case
-        target.fullDataWindow = self->displayWindow;
+        target->fullDataWindow = self->displayWindow;
         frame.fullDataWindow = self->displayWindow;
 
         // Clip to the set first/last frames
@@ -399,38 +401,36 @@ playbackThread( py_obj_VideoWidget *self ) {
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
 
         // Pull the frame data from the chain
-        frame.currentDataWindow = target.fullDataWindow;
+        frame.currentDataWindow = target->fullDataWindow;
 
         if( funcs != NULL ) {
             funcs->getFrame( self->frameSource.source, nextFrame, &frame );
         }
         else {
             // No result
-            frame.currentDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+            box2i_setEmpty( &frame.currentDataWindow );
         }
 
-        target.currentDataWindow = frame.currentDataWindow;
+        target->currentDataWindow = frame.currentDataWindow;
 
         // Convert the results to floating-point
         for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
             for( int x = frame.currentDataWindow.min.x; x <= frame.currentDataWindow.max.x; x++ ) {
-                uint8_t *targetData = target.frameData
-                    [y - target.fullDataWindow.min.y]
-                    [x - target.fullDataWindow.min.x];
-                Rgba *sourceData = &frame.frameData
-                    [y - frame.fullDataWindow.min.y]
-                    [x - frame.fullDataWindow.min.x];
+                rgb8 *targetData = &target->frameData
+                    [(y - target->fullDataWindow.min.y) * target->stride + x - target->fullDataWindow.min.x];
+                rgba *sourceData = &frame.frameData
+                    [(y - frame.fullDataWindow.min.y) * frame.stride + x - frame.fullDataWindow.min.x];
 
-                targetData[0] = (uint8_t) __gamma45( sourceData->r );
-                targetData[1] = (uint8_t) __gamma45( sourceData->g );
-                targetData[2] = (uint8_t) __gamma45( sourceData->b );
+                targetData->r = gamma45[sourceData->r];
+                targetData->g = gamma45[sourceData->g];
+                targetData->b = gamma45[sourceData->b];
             }
         }
 
         //usleep( 100000 );
 
         self->targets[writeBuffer].time = getFrameTime( &self->frameRate, nextFrame );
-        int64_t endTime = self->clock->getPresentationTime();
+        int64_t endTime = self->clock.funcs->getPresentationTime( self->clock.source );
 
         int64_t lastDuration = endTime - startTime;
 
@@ -440,7 +440,8 @@ playbackThread( py_obj_VideoWidget *self ) {
 
         g_mutex_lock( self->frameReadMutex );
         if( self->filled < 0 ) {
-            Rational newSpeed = self->clock->getSpeed();
+            rational newSpeed;
+            self->clock.funcs->getSpeed( self->clock.source, &newSpeed );
 
             if( speed.n * newSpeed.d != 0 )
                 lastDuration = lastDuration * newSpeed.n * speed.d / (speed.n * newSpeed.d);
@@ -483,7 +484,7 @@ playbackThread( py_obj_VideoWidget *self ) {
 
             //printf( "nextFrame: %d, lastDuration: %ld, endTime: %ld\n", self->nextToRenderFrame, lastDuration, endTime );
 
-            self->targets[writeBuffer].nextTime = getFrameTime( &self->frameRate, self->nextToRenderFrame );
+            target->nextTime = getFrameTime( &self->frameRate, self->nextToRenderFrame );
         }
 
         g_mutex_unlock( self->frameReadMutex );
@@ -536,12 +537,13 @@ playSingleFrame( py_obj_VideoWidget *self ) {
                 g_cond_signal( self->frameReadCond );
                 g_mutex_unlock( self->frameReadMutex );
 
-                Rational speed = self->clock->getSpeed();
+                rational speed;
+                self->clock.funcs->getSpeed( self->clock.source, &speed );
 
                 if( speed.n != 0 ) {
                     //printf( "nextPresent: %ld, current: %ld, baseTime: %ld, seekTime: %ld\n", nextPresentationTime, self->clock->getPresentationTime(), ((SystemPresentationClock*)self->clock)->_baseTime, ((SystemPresentationClock*) self->clock)->_seekTime );
 
-                    int timeout = ((nextPresentationTime - self->clock->getPresentationTime()) * speed.d) / (speed.n * 1000000);
+                    int timeout = ((nextPresentationTime - self->clock.funcs->getPresentationTime( self->clock.source )) * speed.d) / (speed.n * 1000000);
 
                     if( timeout < 0 )
                         timeout = 0;
@@ -555,7 +557,8 @@ playSingleFrame( py_obj_VideoWidget *self ) {
         }
     }
 
-    Rational speed = self->clock->getSpeed();
+    rational speed;
+    self->clock.funcs->getSpeed( self->clock.source, &speed );
 
     if( speed.n != 0 ) {
         self->timeoutSourceID = g_timeout_add_full( G_PRIORITY_DEFAULT,
@@ -574,23 +577,10 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     if( !PyArg_ParseTuple( args, "O|O", &pyclock, &frameSource ) )
         return -1;
 
-    PyObject *pycclock;
-
-    if( (pycclock = PyObject_GetAttrString( pyclock, "_obj" )) == NULL )
-        return -1;
-
-    if( !PyCObject_Check( pycclock ) ) {
-        PyErr_SetString( PyExc_Exception, "Given clock object doesn't have a _obj attribute with the clock implementation." );
-        return -1;
-    }
-
-    Py_CLEAR( self->pyclock );
-    Py_INCREF( pycclock );
-
-    self->pyclock = pycclock;
-    self->clock = (IPresentationClock*) PyCObject_AsVoidPtr( pycclock );
-
     Py_CLEAR( self->drawingAreaObj );
+
+    if( !takePresentationClock( pyclock, &self->clock ) )
+        return -1;
 
     if( !takeVideoSource( frameSource, &self->frameSource ) )
         return -1;
@@ -611,8 +601,10 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
         }
     }
 
-    self->displayWindow = Box2i( V2i(0, 0), V2i(319, 239) );
-    V2i frameSize = self->displayWindow.size() + V2i(1,1);
+    box2i_set( &self->displayWindow, 0, 0, 319, 239 );
+
+    v2i frameSize;
+    box2i_getSize( &self->displayWindow, &frameSize );
 
     self->drawingArea = gtk_drawing_area_new();
 
@@ -624,7 +616,8 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 
     self->drawingAreaObj = pygobject_new( (GObject*) self->drawingArea );
 
-    self->frameRate = Rational( 24000, 1001u );
+    self->frameRate.n = 24000;
+    self->frameRate.d = 1001u;
 
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
@@ -638,10 +631,10 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
     self->textureId = -1;
-    self->targets[0].fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
-    self->targets[1].fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
-    self->targets[2].fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
-    self->targets[3].fullDataWindow = Box2i( V2i(0, 0), V2i(-1, -1) );
+    box2i_setEmpty( &self->targets[0].fullDataWindow );
+    box2i_setEmpty( &self->targets[1].fullDataWindow );
+     box2i_setEmpty( &self->targets[2].fullDataWindow );
+    box2i_setEmpty( &self->targets[3].fullDataWindow );
     self->textureAllocated = false;
 
     g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );
@@ -666,7 +659,8 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
     if( self->renderThread != NULL )
         g_thread_join( self->renderThread );
 
-    Py_CLEAR( self->pyclock );
+    Py_CLEAR( self->clock.source );
+    Py_CLEAR( self->clock.csource );
     Py_CLEAR( self->frameSource.source );
     Py_CLEAR( self->frameSource.csource );
     Py_CLEAR( self->drawingAreaObj );
@@ -688,7 +682,7 @@ VideoWidget_stop( py_obj_VideoWidget *self ) {
     g_mutex_lock( self->frameReadMutex );
     self->filled = 3;
 
-    int64_t stopTime = self->clock->getPresentationTime();
+    int64_t stopTime = self->clock.funcs->getPresentationTime( self->clock.source );
 
     self->renderOneFrame = true;
     self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
@@ -707,7 +701,7 @@ VideoWidget_play( py_obj_VideoWidget *self ) {
 
     // Fire up the production and playback threads from scratch
     g_mutex_lock( self->frameReadMutex );
-    int64_t stopTime = self->clock->getPresentationTime();
+    int64_t stopTime = self->clock.funcs->getPresentationTime( self->clock.source );
     self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
     self->filled = -2;
     g_cond_signal( self->frameReadCond );
@@ -732,12 +726,12 @@ VideoWidget_getDisplayWindow( py_obj_VideoWidget *self ) {
 
 static PyObject *
 VideoWidget_setDisplayWindow( py_obj_VideoWidget *self, PyObject *args ) {
-    Box2i window;
+    box2i window;
 
     if( !PyArg_ParseTuple( args, "(iiii)", &window.min.x, &window.min.y, &window.max.x, &window.max.y ) )
         return NULL;
 
-    if( window.isEmpty() ) {
+    if( box2i_isEmpty( &window ) ) {
         PyErr_SetString( PyExc_Exception, "An empty window was passed to setDisplayWindow." );
         return NULL;
     }
@@ -759,7 +753,7 @@ VideoWidget_getSource( py_obj_VideoWidget *self ) {
 }
 
 static PyObject *
-VideoWidget_setSource( py_obj_VideoWidget *self, PyObject *args, void */*closure*/ ) {
+VideoWidget_setSource( py_obj_VideoWidget *self, PyObject *args, void *closure ) {
     PyObject *source;
 
     if( !PyArg_ParseTuple( args, "O", &source ) )
@@ -793,103 +787,16 @@ static PyMethodDef VideoWidget_methods[] = {
     { NULL }
 };
 
-/***************** SystemPresentationClock *********/
-static PyTypeObject py_type_SystemPresentationClock = {
+static PyTypeObject py_type_VideoWidget = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.SystemPresentationClock",    // tp_name
-    sizeof(py_obj_SystemPresentationClock)    // tp_basicsize
-};
-
-void
-clock_destr( void *data ) {
-    delete (SystemPresentationClock*)(IPresentationClock*) data;
-}
-
-static int
-SystemPresentationClock_init( py_obj_SystemPresentationClock *self, PyObject *args, PyObject *kwds ) {
-    Py_CLEAR( self->innerObj );
-    self->innerObj = PyCObject_FromVoidPtr( (IPresentationClock*) new SystemPresentationClock(), clock_destr );
-
-    return 0;
-}
-
-static void
-SystemPresentationClock_dealloc( py_obj_SystemPresentationClock *self ) {
-    Py_CLEAR( self->innerObj );
-    self->ob_type->tp_free( (PyObject*) self );
-}
-
-static PyObject *
-SystemPresentationClock_play( py_obj_SystemPresentationClock *self, PyObject *args ) {
-    PyObject *rateObj;
-    Rational rate;
-
-    if( !PyArg_ParseTuple( args, "O", &rateObj ) )
-        return NULL;
-
-    if( !parseRational( rateObj, &rate ) )
-        return NULL;
-
-    SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
-    clock->play( rate );
-
-    Py_RETURN_NONE;
-}
-
-static PyObject *
-SystemPresentationClock_set( py_obj_SystemPresentationClock *self, PyObject *args ) {
-    PyObject *rateObj;
-    Rational rate;
-    int64_t time;
-
-    if( !PyArg_ParseTuple( args, "OL", &rateObj, &time ) )
-        return NULL;
-
-    if( !parseRational( rateObj, &rate ) )
-        return NULL;
-
-    SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
-    clock->set( rate, time );
-
-    Py_RETURN_NONE;
-}
-
-static PyObject *
-SystemPresentationClock_seek( py_obj_SystemPresentationClock *self, PyObject *args ) {
-    int64_t time;
-
-    if( !PyArg_ParseTuple( args, "L", &time ) )
-        return NULL;
-
-    SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
-    clock->seek( time );
-
-    Py_RETURN_NONE;
-}
-
-static PyObject *
-SystemPresentationClock_getPresentationTime( py_obj_SystemPresentationClock *self, PyObject *args ) {
-    SystemPresentationClock *clock = (SystemPresentationClock*)(IPresentationClock*) PyCObject_AsVoidPtr( self->innerObj );
-    return Py_BuildValue( "L", clock->getPresentationTime() );
-}
-
-static PyMethodDef SystemPresentationClock_methods[] = {
-    { "play", (PyCFunction) SystemPresentationClock_play, METH_VARARGS,
-        "Starts the clock at the current spot." },
-    { "set", (PyCFunction) SystemPresentationClock_set, METH_VARARGS,
-        "Sets the speed and current time." },
-    { "seek", (PyCFunction) SystemPresentationClock_seek, METH_VARARGS,
-        "Sets the current time." },
-    { "getPresentationTime", (PyCFunction) SystemPresentationClock_getPresentationTime, METH_VARARGS,
-        "Gets the current presentation time in nanoseconds." },
-    { NULL }
-};
-
-static PyMemberDef SystemPresentationClock_members[] = {
-    { "_obj", T_OBJECT, offsetof(py_obj_SystemPresentationClock, innerObj),
-        READONLY, "Internal clock interface." },
-    { NULL }
+    "fluggo.video.VideoWidget",    // tp_name
+    sizeof(py_obj_VideoWidget),    // tp_basicsize
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) VideoWidget_dealloc,
+    .tp_init = (initproc) VideoWidget_init,
+    .tp_methods = VideoWidget_methods
 };
 
 static PyMethodDef module_methods[] = {
@@ -902,43 +809,31 @@ static PyMethodDef module_methods[] = {
 
 void init_AVFileReader( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
+void init_SystemPresentationClock( PyObject *module );
 
 PyMODINIT_FUNC
 initvideo() {
     int argc = 1;
-    char *arg = strdup( "dummy" );
+    char *arg = "dummy";
     char **argv = &arg;
 
-    py_type_VideoWidget.tp_flags = Py_TPFLAGS_DEFAULT;
-    py_type_VideoWidget.tp_new = PyType_GenericNew;
-    py_type_VideoWidget.tp_dealloc = (destructor) VideoWidget_dealloc;
-    py_type_VideoWidget.tp_init = (initproc) VideoWidget_init;
-    py_type_VideoWidget.tp_methods = VideoWidget_methods;
-
     if( PyType_Ready( &py_type_VideoWidget ) < 0 )
-        return;
-
-    py_type_SystemPresentationClock.tp_flags = Py_TPFLAGS_DEFAULT;
-    py_type_SystemPresentationClock.tp_new = PyType_GenericNew;
-    py_type_SystemPresentationClock.tp_dealloc = (destructor) SystemPresentationClock_dealloc;
-    py_type_SystemPresentationClock.tp_init = (initproc) SystemPresentationClock_init;
-    py_type_SystemPresentationClock.tp_methods = SystemPresentationClock_methods;
-    py_type_SystemPresentationClock.tp_members = SystemPresentationClock_members;
-
-    if( PyType_Ready( &py_type_SystemPresentationClock ) < 0 )
         return;
 
     PyObject *m = Py_InitModule3( "video", module_methods,
         "The Fluggo Video library for Python." );
 
-    Py_INCREF( (PyObject *) &py_type_SystemPresentationClock );
-    PyModule_AddObject( m, "SystemPresentationClock", (PyObject *) &py_type_SystemPresentationClock );
-
-    Py_INCREF( (PyObject *) &py_type_VideoWidget );
+    Py_INCREF( &py_type_VideoWidget );
     PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_VideoWidget );
 
     init_AVFileReader( m );
     init_Pulldown23RemovalFilter( m );
+    init_SystemPresentationClock( m );
+
+    // Fill in the 0.45 gamma table
+    for( int i = 0; i < 65536; i++ ) {
+        gamma45[i] = (uint8_t) gamma45Func( h2f( (half) i ) );
+    }
 
     init_pygobject();
     init_pygtk();

@@ -1,29 +1,69 @@
 
+#if !defined(fluggo_framework)
+#define fluggo_framework
+
 #include <Python.h>
 
-extern "C" {
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
-}
+#include "half.h"
+#include <stdbool.h>
 
-#include <memory>
+#include <memory.h>
 #include <errno.h>
-
-#include <Iex.h>
-#include <ImathMath.h>
-#include <ImathFun.h>
-#include <ImfRgbaFile.h>
-#include <ImfHeader.h>
-#include <ImfRational.h>
-#include <ImfArray.h>
-#include <halfFunction.h>
 
 #define NOEXPORT __attribute__((visibility("hidden")))
 
 typedef struct {
-    Imf::Array2D<Imf::Rgba> frameData;
-    Imath::Box2i fullDataWindow;
-    Imath::Box2i currentDataWindow;
+    int n;
+    unsigned int d;
+} rational;
+
+typedef struct {
+    int x, y;
+} v2i;
+
+typedef struct {
+    v2i min, max;
+} box2i;
+
+static inline void box2i_set( box2i *box, int minX, int minY, int maxX, int maxY ) {
+    box->min.x = minX;
+    box->min.y = minY;
+    box->max.x = maxX;
+    box->max.y = maxY;
+}
+
+static inline void box2i_setEmpty( box2i *box ) {
+    box2i_set( box, 0, 0, -1, -1 );
+}
+
+static inline bool box2i_isEmpty( box2i *box ) {
+    return box->max.x < box->min.x || box->max.y < box->min.y;
+}
+
+static inline void box2i_getSize( box2i *box, v2i *result ) {
+    result->x = (box->max.x < box->min.x) ? 0 : (box->max.x - box->min.x + 1);
+    result->y = (box->max.y < box->min.y) ? 0 : (box->max.y - box->min.y + 1);
+}
+
+static inline int min( int a, int b ) {
+    return a < b ? a : b;
+}
+
+static inline int max( int a, int b ) {
+    return a > b ? a : b;
+}
+
+typedef struct {
+    half r, g, b, a;
+} rgba;
+
+typedef struct {
+    rgba *frameData;
+    box2i fullDataWindow;
+    box2i currentDataWindow;
+    int stride;
 } RgbaFrame;
 
 typedef void (*video_getFrameFunc)( PyObject *self, int64_t frameIndex, RgbaFrame *frame );
@@ -40,4 +80,7 @@ typedef struct {
 } VideoSourceHolder;
 
 NOEXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
+NOEXPORT bool parseRational( PyObject *in, rational *out );
+
+#endif
 
