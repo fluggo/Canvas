@@ -3,8 +3,6 @@
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 
-static PyObject *pysourceFuncs;
-
 typedef struct {
     PyObject_HEAD
 
@@ -18,7 +16,7 @@ typedef struct {
     struct SwsContext *scaler;
     bool allKeyframes;
     int currentVideoFrame;
-} py_obj_AVFileReader;
+} py_obj_AVVideoReader;
 
 /*static float gamma22ExpandFunc( float input ) {
     return powf( input, 2.2f );
@@ -29,7 +27,7 @@ static half gamma22[65536];
 /*static halfFunction<half> __gamma22( gamma22ExpandFunc, half( -2.0f ), half( 2.0f ) );*/
 
 static int
-AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
+AVVideoReader_init( py_obj_AVVideoReader *self, PyObject *args, PyObject *kwds ) {
     int error;
     char *filename;
 
@@ -163,7 +161,7 @@ AVFileReader_init( py_obj_AVFileReader *self, PyObject *args, PyObject *kwds ) {
 }
 
 static void
-AVFileReader_dealloc( py_obj_AVFileReader *self ) {
+AVVideoReader_dealloc( py_obj_AVVideoReader *self ) {
     if( self->scaler != NULL ) {
         sws_freeContext( self->scaler );
         self->scaler = NULL;
@@ -198,7 +196,7 @@ AVFileReader_dealloc( py_obj_AVFileReader *self ) {
 }
 
 static void
-AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame *frame ) {
+AVVideoReader_getFrame( py_obj_AVVideoReader *self, int64_t frameIndex, RgbaFrame *frame ) {
     if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -415,59 +413,61 @@ AVFileReader_getFrame( py_obj_AVFileReader *self, int64_t frameIndex, RgbaFrame 
     }
 }
 
-static VideoFrameSourceFuncs sourceFuncs = {
+static VideoFrameSourceFuncs videoSourceFuncs = {
     0,
-    (video_getFrameFunc) AVFileReader_getFrame
+    (video_getFrameFunc) AVVideoReader_getFrame
 };
 
+static PyObject *pyVideoSourceFuncs;
+
 static PyObject *
-AVFileReader_getFuncs( py_obj_AVFileReader *self, void *closure ) {
-    return pysourceFuncs;
+AVVideoReader_getFuncs( py_obj_AVVideoReader *self, void *closure ) {
+    return pyVideoSourceFuncs;
 }
 
-static PyGetSetDef AVFileReader_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) AVFileReader_getFuncs, NULL, "Video frame source C API." },
+static PyGetSetDef AVVideoReader_getsetters[] = {
+    { "_videoFrameSourceFuncs", (getter) AVVideoReader_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 
 static PyObject *
-AVFileReader_size( py_obj_AVFileReader *self ) {
+AVVideoReader_size( py_obj_AVVideoReader *self ) {
     return Py_BuildValue( "(ii)", self->codecContext->width, self->codecContext->height );
 }
 
-static PyMethodDef AVFileReader_methods[] = {
-    { "size", (PyCFunction) AVFileReader_size, METH_NOARGS,
+static PyMethodDef AVVideoReader_methods[] = {
+    { "size", (PyCFunction) AVVideoReader_size, METH_NOARGS,
         "Gets the frame size for this video." },
     { NULL }
 };
 
-static PyTypeObject py_type_AVFileReader = {
+static PyTypeObject py_type_AVVideoReader = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.AVFileReader",    // tp_name
-    sizeof(py_obj_AVFileReader),    // tp_basicsize
+    "fluggo.video.AVVideoReader",    // tp_name
+    sizeof(py_obj_AVVideoReader),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) AVFileReader_dealloc,
-    .tp_init = (initproc) AVFileReader_init,
-    .tp_getset = AVFileReader_getsetters,
-    .tp_methods = AVFileReader_methods
+    .tp_dealloc = (destructor) AVVideoReader_dealloc,
+    .tp_init = (initproc) AVVideoReader_init,
+    .tp_getset = AVVideoReader_getsetters,
+    .tp_methods = AVVideoReader_methods
 };
 
-void init_AVFileReader( PyObject *module ) {
+NOEXPORT void init_AVFileReader( PyObject *module ) {
     const float __unbyte = 1.0f / 255.0f;
 
     for( int i = 0; i < 65536; i++ ) {
         gamma22[i] = f2h( powf( h2f( (half) i ) * __unbyte, 2.2f ) );
     }
 
-    if( PyType_Ready( &py_type_AVFileReader ) < 0 )
+    if( PyType_Ready( &py_type_AVVideoReader ) < 0 )
         return;
 
-    Py_INCREF( &py_type_AVFileReader );
-    PyModule_AddObject( module, "AVFileReader", (PyObject *) &py_type_AVFileReader );
+    Py_INCREF( &py_type_AVVideoReader );
+    PyModule_AddObject( module, "AVVideoReader", (PyObject *) &py_type_AVVideoReader );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pyVideoSourceFuncs = PyCObject_FromVoidPtr( &videoSourceFuncs, NULL );
 }
 
 

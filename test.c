@@ -326,7 +326,7 @@ static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
     return size1.x == size2.x && size1.y == size2.y;
 }
 
-gpointer
+static gpointer
 playbackThread( py_obj_VideoWidget *self ) {
     RgbaFrame frame;
 
@@ -810,6 +810,7 @@ static PyMethodDef module_methods[] = {
 void init_AVFileReader( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
+void init_AlsaPlayer( PyObject *module );
 
 PyMODINIT_FUNC
 initvideo() {
@@ -829,6 +830,7 @@ initvideo() {
     init_AVFileReader( m );
     init_Pulldown23RemovalFilter( m );
     init_SystemPresentationClock( m );
+    init_AlsaPlayer( m );
 
     // Fill in the 0.45 gamma table
     for( int i = 0; i < 65536; i++ ) {

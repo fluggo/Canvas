@@ -54,7 +54,7 @@ class MainWindow(object):
         glib.timeout_add(100, self.updateCurrentFrame)
 
         #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
-        av = AVFileReader('/home/james/Videos/demux003.m2v')
+        av = AVVideoReader('/home/james/Videos/demux003.m2v')
         #av = AVFileReader('/home/james/Videos/Okra - 79b,100.avi')
         size = av.size()
         self.videoWidget.setDisplayWindow((0, 0, size[0] - 1, size[1] - 1))
