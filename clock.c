@@ -139,11 +139,21 @@ SystemPresentationClock_seek( py_obj_SystemPresentationClock *self, PyObject *ar
     Py_RETURN_NONE;
 }
 
+static PyObject *
+SystemPresentationClock_stop( py_obj_SystemPresentationClock *self ) {
+    rational rate = { 0, 1 };
+    _set( self, _getPresentationTime( self ), &rate );
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef SystemPresentationClock_methods[] = {
     { "play", (PyCFunction) SystemPresentationClock_play, METH_VARARGS,
         "Starts the clock at the current spot." },
     { "set", (PyCFunction) SystemPresentationClock_set, METH_VARARGS,
         "Sets the speed and current time." },
+    { "stop", (PyCFunction) SystemPresentationClock_stop, METH_NOARGS,
+        "Stops the clock." },
     { "seek", (PyCFunction) SystemPresentationClock_seek, METH_VARARGS,
         "Sets the current time." },
     { "getPresentationTime", (PyCFunction) SystemPresentationClock_getPresentationTime, METH_NOARGS,

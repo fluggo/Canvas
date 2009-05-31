@@ -40,43 +40,19 @@ typedef struct {
     GMutex *mutex;
     GCond *cond;
     bool quit, stop;
-    rational rate;
+    rational rate, playSpeed;
 } py_obj_AlsaPlayer;
 
 static gpointer
 playbackThread( py_obj_AlsaPlayer *self ) {
-    int fdCount, error;
-    struct pollfd *fds;
-    snd_pcm_status_t *status;
-
-    fdCount = snd_pcm_poll_descriptors_count( self->pcmDevice );
-
-    if( fdCount <= 0 ) {
-        printf( "Invalid poll descriptors count\n" );
-        return NULL;
-    }
-
-    fds = malloc( sizeof(struct pollfd) * fdCount );
-
-    if( fds == NULL ) {
-        printf( "Out of memory in AlsaPlayer\n" );
-        return NULL;
-    }
-
-    snd_pcm_status_malloc( &status );
-
-    if( (error = snd_pcm_poll_descriptors( self->pcmDevice, fds, fdCount )) < 0 ) {
-        printf( "Unable to obtain poll descriptors for playback: %s\n", snd_strerror( error ) );
-        free( fds );
-        return NULL;
-    }
+    int error;
+    snd_pcm_uframes_t hwBufferSize, hwPeriodSize;
 
     const int bufferSize = 1024, channelCount = 2;
     float *data = malloc( bufferSize * channelCount * sizeof(float) );
 
     if( data == NULL ) {
         printf( "Out of memory in AlsaPlayer allocating output buffer\n" );
-        free( fds );
         return NULL;
     }
 
@@ -85,14 +61,6 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
         if( self->stop )
             snd_pcm_drop( self->pcmDevice );
-
-        // Set the base time for time calculations
-        snd_pcm_status( self->pcmDevice, status );
-        snd_htimestamp_t tstamp;
-
-        snd_pcm_status_get_trigger_htstamp( status, &tstamp );
-
-        self->baseTime = (int64_t) tstamp.tv_sec * INT64_C(1000000000) + (int64_t) tstamp.tv_nsec;
 
         while( !self->quit && self->stop )
             g_cond_wait( self->cond, self->mutex );
@@ -110,6 +78,8 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         int nextSample = self->nextSample;
         self->nextSample += bufferSize;
 
+        snd_pcm_get_params( self->pcmDevice, &hwBufferSize, &hwPeriodSize );
+
         g_mutex_unlock( self->mutex );
 
         AudioFrame frame;
@@ -121,14 +91,45 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         frame.currentMaxSample = frame.fullMaxSample;
 
         self->audioSource.funcs->getFrame( self->audioSource.source, &frame );
-        snd_pcm_writei( self->pcmDevice, data, bufferSize );
+
+        float *ptr = data;
+        int count = bufferSize;
+
+        while( count > 0 ) {
+            g_mutex_lock( self->mutex );
+
+            // Reset the clock so that it stays in sync
+            snd_htimestamp_t tstamp;
+            snd_pcm_uframes_t avail;
+            snd_pcm_htimestamp( self->pcmDevice, &avail, &tstamp );
+
+            self->baseTime = (int64_t) tstamp.tv_sec * INT64_C(1000000000) + (int64_t) tstamp.tv_nsec;
+            self->seekTime = getFrameTime( &self->rate, nextSample - (hwBufferSize - avail) );
+
+            g_mutex_unlock( self->mutex );
+
+            error = snd_pcm_writei( self->pcmDevice, data, bufferSize );
+
+            if( error == -EAGAIN )
+                continue;
+
+            if( error == -EPIPE ) {
+                // Underrun!
+                printf( "Underrun\n" );
+
+                self->seekTime = getFrameTime( &self->rate, self->nextSample );
+
+                snd_pcm_prepare( self->pcmDevice );
+                continue;
+            }
+
+            ptr += error * frame.channelCount;
+            count -= error;
+        }
     }
 
     snd_pcm_drop( self->pcmDevice );
-    snd_pcm_status_free( status );
-
     free( data );
-    free( fds );
 
     return NULL;
 }
@@ -241,27 +242,73 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-static int64_t
-_getPresentationTime( py_obj_AlsaPlayer *self ) {
-    if( self->stop )
-        return self->seekTime;
-
+static int64_t _pcmTime( py_obj_AlsaPlayer *self ) {
     snd_pcm_uframes_t avail;
     snd_htimestamp_t tstamp;
 
     snd_pcm_htimestamp( self->pcmDevice, &avail, &tstamp );
 
-    int64_t pcmTime = (int64_t) tstamp.tv_sec * INT64_C(1000000000) + (int64_t) tstamp.tv_nsec;
+    return (int64_t) tstamp.tv_sec * INT64_C(1000000000) + (int64_t) tstamp.tv_nsec;
+}
 
-    return (pcmTime - self->baseTime) + self->seekTime;
+static int64_t
+_getPresentationTime_nolock( py_obj_AlsaPlayer *self ) {
+    if( self->stop )
+        return self->seekTime;
+
+    int64_t elapsed = (_pcmTime( self ) - self->baseTime) * self->playSpeed.n;
+    int64_t seekTime = self->seekTime;
+    unsigned int d = self->playSpeed.d;
+
+    if( d == 1 )
+        return elapsed + seekTime;
+    else
+        return elapsed / d + seekTime;
+}
+
+static int64_t
+_getPresentationTime( py_obj_AlsaPlayer *self ) {
+    g_mutex_lock( self->mutex );
+    int64_t result = _getPresentationTime_nolock( self );
+    g_mutex_unlock( self->mutex );
+
+    return result;
 }
 
 static void
 _getSpeed( py_obj_AlsaPlayer *self, rational *result ) {
     g_mutex_lock( self->mutex );
-    result->n = self->stop ? 0 : 1;
-    result->d = 1;
+    *result = self->playSpeed;
     g_mutex_unlock( self->mutex );
+}
+
+static void
+_set( py_obj_AlsaPlayer *self, int64_t seekTime, rational *speed ) {
+    g_mutex_lock( self->mutex );
+    self->baseTime = _pcmTime( self );
+    printf( "%lld\n", self->baseTime );
+    self->seekTime = seekTime;
+    self->playSpeed = *speed;
+    self->nextSample = getTimeFrame( &self->rate, self->seekTime );
+    self->seekTime = getFrameTime( &self->rate, self->nextSample );
+    g_mutex_unlock( self->mutex );
+}
+
+static PyObject *
+AlsaPlayer_set( py_obj_AlsaPlayer *self, PyObject *args ) {
+    PyObject *rateObj;
+    rational rate;
+    int64_t time;
+
+    if( !PyArg_ParseTuple( args, "OL", &rateObj, &time ) )
+        return NULL;
+
+    if( !parseRational( rateObj, &rate ) )
+        return NULL;
+
+    _set( self, time, &rate );
+
+    Py_RETURN_NONE;
 }
 
 static PresentationClockFuncs sourceFuncs = {
@@ -289,8 +336,10 @@ AlsaPlayer_getPresentationTime( py_obj_AlsaPlayer *self ) {
 static PyObject *
 AlsaPlayer_stop( py_obj_AlsaPlayer *self ) {
     g_mutex_lock( self->mutex );
-    self->seekTime = _getPresentationTime( self );
+    self->seekTime = _getPresentationTime_nolock( self );
     self->stop = true;
+    self->playSpeed.n = 0;
+    self->playSpeed.d = 1;
 
     self->nextSample = getTimeFrame( &self->rate, self->seekTime );
     self->seekTime = getFrameTime( &self->rate, self->nextSample );
@@ -301,31 +350,46 @@ AlsaPlayer_stop( py_obj_AlsaPlayer *self ) {
 }
 
 static PyObject *
-AlsaPlayer_play( py_obj_AlsaPlayer *self ) {
+AlsaPlayer_play( py_obj_AlsaPlayer *self, PyObject *args ) {
+    PyObject *rateObj;
+    rational rate;
+
+    if( !PyArg_ParseTuple( args, "O", &rateObj ) )
+        return NULL;
+
+    if( !parseRational( rateObj, &rate ) )
+        return NULL;
+
     g_mutex_lock( self->mutex );
     self->stop = false;
 
-    // The playback thread will grab the correct base time; we'll go ahead
-    // and set an approximate value here
-    snd_pcm_uframes_t avail;
-    snd_htimestamp_t tstamp;
-    int error;
-
-    if( (error = snd_pcm_htimestamp( self->pcmDevice, &avail, &tstamp )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Failed to obtain current device time: %s", snd_strerror( error ) );
-        return NULL;
-    }
-
-    self->baseTime = (int64_t) tstamp.tv_sec * INT64_C(1000000000) + (int64_t) tstamp.tv_nsec;
+    self->baseTime = _pcmTime( self );
+    self->playSpeed = rate;
     g_cond_signal( self->cond );
     g_mutex_unlock( self->mutex );
 
     Py_RETURN_NONE;
 }
 
+static PyObject *
+AlsaPlayer_seek( py_obj_AlsaPlayer *self, PyObject *args ) {
+    int64_t time;
+
+    if( !PyArg_ParseTuple( args, "L", &time ) )
+        return NULL;
+
+    _set( self, time, &self->playSpeed );
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef AlsaPlayer_methods[] = {
-    { "play", (PyCFunction) AlsaPlayer_play, METH_NOARGS,
-        "Plays audio from the source." },
+    { "set", (PyCFunction) AlsaPlayer_set, METH_VARARGS,
+        "Sets the speed and current time." },
+    { "seek", (PyCFunction) AlsaPlayer_seek, METH_VARARGS,
+        "Sets the current time." },
+    { "play", (PyCFunction) AlsaPlayer_play, METH_VARARGS,
+        "Plays audio from the source starting at the current spot." },
     { "stop", (PyCFunction) AlsaPlayer_stop, METH_NOARGS,
         "Stops playing audio from the source." },
     { "getPresentationTime", (PyCFunction) AlsaPlayer_getPresentationTime, METH_NOARGS,

@@ -5,9 +5,10 @@ import gtk.glade
 from fluggo.video import *
 from fractions import Fraction
 
-clock = SystemPresentationClock()
+#clock = SystemPresentationClock()
 audio = AVAudioReader('/home/james/Videos/Okra - 79b,100.avi')
 player = AlsaPlayer(audio)
+clock = player
 
 #window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 #window.set_title('boogidy boogidy')
@@ -67,25 +68,26 @@ class MainWindow(object):
 
     def on_playButton_clicked(self, *args):
         clock.play(1)
-        player.play()
+        #player.play()
         self.videoWidget.play()
         self.playing = True
 
     def on_rewindButton_clicked(self, *args):
         clock.play(-2)
-        player.play()
+        #player.play()
         self.videoWidget.play()
         self.playing = True
 
     def on_forwardButton_clicked(self, *args):
         clock.play(2)
-        player.play()
+        #player.play()
         self.videoWidget.play()
         self.playing = True
 
     def on_pauseButton_clicked(self, *args):
-        clock.play(0)
-        player.stop()
+        #clock.play(0)
+        clock.stop()
+        #player.stop()
         self.updateCurrentFrame()
         self.videoWidget.stop()
         self.playing = False

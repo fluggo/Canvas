@@ -548,7 +548,8 @@ AVAudioReader_init( py_obj_AVAudioReader *self, PyObject *args, PyObject *kwds )
         av_seek_frame( self->context, self->firstVideoStream, 0, AVSEEK_FLAG_BACKWARD );
     }*/
 
-    self->lastPacketStart = -1;
+    self->lastPacketStart = 0;
+    self->lastPacketDuration = 0;
 
     return 0;
 }
@@ -598,7 +599,7 @@ AVAudioReader_getFrame( py_obj_AVAudioReader *self, AudioFrame *frame ) {
     }
     else {*/
         // Only bother seeking if we're way off (or it's behind us)
-        if( self->lastPacketStart != -1 && (frame->fullMinSample < self->lastPacketStart || (frame->fullMinSample - self->lastPacketStart) >= (frame->fullMaxSample - frame->fullMinSample) * 20) ) {
+        if( self->lastPacketStart != -1 && (frame->fullMinSample < self->lastPacketStart || (frame->fullMinSample - self->lastPacketStart) >= (frame->fullMaxSample - frame->fullMinSample) * 4) ) {
 
             printf( "min: %d, lastPacket: %d\n", frame->fullMinSample, self->lastPacketStart );
             printf( "Seeking back to %ld...\n", timestamp );
@@ -647,7 +648,7 @@ AVAudioReader_getFrame( py_obj_AVAudioReader *self, AudioFrame *frame ) {
         }
 
         if( (packet.dts + packet.duration) < timestamp ) {
-            printf( "Too early (%ld + %d vs %ld)\n", packet.dts, packet.duration, timestamp );
+            //printf( "Too early (%lld + %d vs %lld)\n", packet.dts, packet.duration, timestamp );
             av_free_packet( &packet );
             continue;
         }
@@ -698,7 +699,7 @@ AVAudioReader_getFrame( py_obj_AVAudioReader *self, AudioFrame *frame ) {
         av_free_packet( &packet );
 
         if( frame->currentMaxSample == frame->fullMaxSample ) {
-            printf( "Enough: (%d, %d) vs (%d, %d)\n", frame->currentMinSample, frame->currentMaxSample, frame->fullMinSample, frame->fullMaxSample );
+//            printf( "Enough: (%d, %d) vs (%d, %d)\n", frame->currentMinSample, frame->currentMaxSample, frame->fullMinSample, frame->fullMaxSample );
             return;
         }
         else {
