@@ -71,23 +71,31 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         return NULL;
     }
 
-    const float sampleDiff = 1.0f / 40.0f;
-    float x = 0.0f;
+    int min = 0;
 
     for( ;; ) {
         if( self->quit )
             break;
 
-        for( int i = 0; i < bufferSize; i++ ) {
-            data[i * channelCount] = sinf( x );
+        AudioFrame frame;
+        frame.channelCount = 2;
+        frame.frameData = data;
+        frame.fullMinSample = min;
+        frame.fullMaxSample = min + bufferSize - 1;
+        frame.currentMinSample = frame.fullMinSample;
+        frame.currentMaxSample = frame.fullMaxSample;
 
-            x += sampleDiff;
+        self->audioSource.funcs->getFrame( self->audioSource.source, &frame );
 
-            if( x > (2.0f * F_PI) )
-                x -= 2.0f * F_PI;
-        }
+//        for( int i = 0; i < bufferSize; i++ ) {
+//            for( int j = 0; j < channelCount; j++ ) {
+//                data[i * channelCount + j] = 0.0f;
+//            }
+//        }
 
         snd_pcm_writei( self->pcmDevice, data, bufferSize );
+
+        min += bufferSize;
     }
 
     snd_pcm_drop( self->pcmDevice );
@@ -100,6 +108,14 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
 static int
 AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kwds ) {
+    PyObject *frameSource = NULL;
+
+    if( !PyArg_ParseTuple( args, "O", &frameSource ) )
+        return -1;
+
+    if( !takeAudioSource( frameSource, &self->audioSource ) )
+        return -1;
+
     int error;
     const char *deviceName = "default";
 
@@ -165,7 +181,10 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
     if( self->playbackThread != NULL )
         g_thread_join( self->playbackThread );
 
-    snd_pcm_close( self->pcmDevice );
+    if( self->pcmDevice != NULL ) {
+        snd_pcm_close( self->pcmDevice );
+        self->pcmDevice = NULL;
+    }
 
     self->ob_type->tp_free( (PyObject*) self );
 }

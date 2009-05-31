@@ -89,7 +89,8 @@ NOEXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
 typedef struct {
     float *frameData;
     int channelCount;
-    int64_t minSample, maxSample;
+    int fullMinSample, fullMaxSample;
+    int currentMinSample, currentMaxSample;
 } AudioFrame;
 
 typedef void (*audio_getFrameFunc)( PyObject *self, AudioFrame *frame );
