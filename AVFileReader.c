@@ -300,8 +300,7 @@ AVVideoReader_getFrame( py_obj_AVVideoReader *self, int64_t frameIndex, RgbaFram
 
         if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
             uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
-            half a = 1.0f;
-            const float __unbyte = 1.0f / 255.0f;
+            half a = f2h( 1.0f );
 
             for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
     #if DO_SCALE
@@ -333,11 +332,11 @@ AVVideoReader_getFrame( py_obj_AVVideoReader *self, int64_t frameIndex, RgbaFram
                         float y = yplane[x * 4 + i] - 16.0f;
 
                         frame->frameData[row * frame->stride + x * 4 + i].r =
-                            gamma22[f2h( (y * self->colorMatrix[0][0] + ccr) * __unbyte )];
+                            gamma22[f2h( y * self->colorMatrix[0][0] + ccr )];
                         frame->frameData[row * frame->stride + x * 4 + i].g =
-                            gamma22[f2h( (y * self->colorMatrix[1][0] + ccg) * __unbyte )];
+                            gamma22[f2h( y * self->colorMatrix[1][0] + ccg )];
                         frame->frameData[row * frame->stride + x * 4 + i].b =
-                            gamma22[f2h( (y * self->colorMatrix[2][0] + ccb) * __unbyte )];
+                            gamma22[f2h( y * self->colorMatrix[2][0] + ccb )];
                         frame->frameData[row * frame->stride + x * 4 + i].a = a;
                     }
                 }
@@ -585,13 +584,7 @@ AVAudioReader_getFrame( py_obj_AVAudioReader *self, AudioFrame *frame ) {
 
     //printf( "Requested %ld\n", frameIndex );
 
-    AVRational *timeBase = &self->context->streams[self->firstAudioStream]->time_base;
-    printf( "timebase: %d/%d\n", timeBase->num, timeBase->den );
-
-//    int64_t frameDuration = (timeBase->den * frameRate->den) / (timeBase->num * frameRate->num);
     int64_t timestamp = frame->fullMinSample;
-    //printf( "frameRate: %d/%d\n", frameRate->num, frameRate->den );
-    //printf( "frameDuration: %ld\n", frameDuration );
 
 //    if( (uint64_t) self->context->start_time != AV_NOPTS_VALUE )
 //        timestamp += self->context->start_time;
@@ -605,40 +598,40 @@ AVAudioReader_getFrame( py_obj_AVAudioReader *self, AudioFrame *frame ) {
     }
     else {*/
         // Only bother seeking if we're way off (or it's behind us)
-        if( self->lastPacketStart != -1 && (frame->fullMinSample < self->lastPacketStart || (frame->fullMinSample - self->lastPacketStart) >= 48000) ) {
+        if( self->lastPacketStart != -1 && (frame->fullMinSample < self->lastPacketStart || (frame->fullMinSample - self->lastPacketStart) >= (frame->fullMaxSample - frame->fullMinSample) * 20) ) {
 
+            printf( "min: %d, lastPacket: %d\n", frame->fullMinSample, self->lastPacketStart );
             printf( "Seeking back to %ld...\n", timestamp );
-            int seekStamp = timestamp - 24000;
+            int seekStamp = timestamp;
 
             if( seekStamp < 0 )
                 seekStamp = 0;
 
-            av_seek_frame( self->context, self->firstAudioStream, seekStamp, AVSEEK_FLAG_BACKWARD );
+            av_seek_frame( self->context, self->firstAudioStream, seekStamp, AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD );
         }
 //    }
 
     bool first = true;
     int channelCount = min(frame->channelCount, self->codecContext->channels);
 
-    for( ;; ) {
-        if( first && self->lastPacketStart != -1 && self->lastPacketStart <= frame->fullMaxSample &&
-            (self->lastPacketStart + self->lastPacketDuration) >= frame->fullMinSample ) {
+    if( self->lastPacketStart != -1 && self->lastPacketStart <= frame->fullMaxSample &&
+        (self->lastPacketStart + self->lastPacketDuration) >= frame->fullMinSample ) {
 
-            // Decode into the current frame
-            for( int sample = max(self->lastPacketStart, frame->fullMinSample); sample < min(self->lastPacketStart + self->lastPacketDuration, frame->fullMaxSample + 1); sample++ ) {
-                for( int channel = 0; channel < channelCount; channel++ ) {
-                    frame->frameData[frame->channelCount * (sample - frame->fullMinSample) + channel] =
-                        (float) self->scratchyRadioBuffer[(sample - self->lastPacketStart) * self->codecContext->channels + channel] * (1.0f / 32768.0f);
-                }
+        // Decode into the current frame
+        for( int sample = max(self->lastPacketStart, frame->fullMinSample); sample < min(self->lastPacketStart + self->lastPacketDuration, frame->fullMaxSample + 1); sample++ ) {
+            for( int channel = 0; channel < channelCount; channel++ ) {
+                frame->frameData[frame->channelCount * (sample - frame->fullMinSample) + channel] =
+                    (float) self->scratchyRadioBuffer[(sample - self->lastPacketStart) * self->codecContext->channels + channel] * (1.0f / 32768.0f);
             }
-
-            frame->currentMinSample = self->lastPacketStart;
-            frame->currentMaxSample = self->lastPacketDuration;
-            first = false;
         }
 
-        AVPacket packet;
+        frame->currentMinSample = self->lastPacketStart;
+        frame->currentMaxSample = self->lastPacketDuration;
+        first = false;
+    }
 
+    for( ;; ) {
+        AVPacket packet;
         av_init_packet( &packet );
 
         //printf( "Reading frame\n" );

@@ -102,7 +102,7 @@ typedef struct {
     PyObject *drawingAreaObj;
     VideoSourceHolder frameSource;
     PresentationClockHolder clock;
-    GMutex *frameReadMutex, *frameRenderMutex;
+    GMutex *frameReadMutex;
     GCond *frameReadCond;
     int nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
@@ -339,8 +339,10 @@ playbackThread( py_obj_VideoWidget *self ) {
         while( !self->quit && !self->renderOneFrame && self->filled > 2 )
             g_cond_wait( self->frameReadCond, self->frameReadMutex );
 
-        if( self->quit )
+        if( self->quit ) {
+            g_mutex_unlock( self->frameReadMutex );
             return NULL;
+        }
 
         // If restarting, reset the clock; who knows how long we've been waiting?
         if( self->filled < 0 )
@@ -621,7 +623,6 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
-    self->frameRenderMutex = g_mutex_new();
     self->nextToRenderFrame = 0;
     self->filled = 3;
     self->readBuffer = 3;
@@ -667,6 +668,16 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
 
     if( self->drawingArea != NULL )
         gtk_widget_destroy( GTK_WIDGET(self->drawingArea) );
+
+    if( self->frameReadMutex != NULL ) {
+        g_mutex_free( self->frameReadMutex );
+        self->frameReadMutex = NULL;
+    }
+
+    if( self->frameReadCond != NULL ) {
+        g_cond_free( self->frameReadCond );
+        self->frameReadCond = NULL;
+    }
 
     self->ob_type->tp_free( (PyObject*) self );
 }

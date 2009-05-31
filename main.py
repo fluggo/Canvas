@@ -6,6 +6,8 @@ from fluggo.video import *
 from fractions import Fraction
 
 clock = SystemPresentationClock()
+audio = AVAudioReader('/home/james/Videos/Okra - 79b,100.avi')
+player = AlsaPlayer(audio)
 
 #window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 #window.set_title('boogidy boogidy')
@@ -26,7 +28,7 @@ clock = SystemPresentationClock()
 #window.show()
 
 def createVideoWidget():
-    widget = VideoWidget(clock)
+    widget = VideoWidget(player)
     widget.drawingArea().show()
 
     # Temporary hack to keep the container object around
@@ -54,31 +56,36 @@ class MainWindow(object):
         glib.timeout_add(100, self.updateCurrentFrame)
 
         #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
-        av = AVVideoReader('/home/james/Videos/demux003.m2v')
-        #av = AVFileReader('/home/james/Videos/Okra - 79b,100.avi')
-        size = av.size()
+        #videro = AVVideoReader('/home/james/Videos/demux003.m2v')
+        videro = AVVideoReader('/home/james/Videos/Okra - 79b,100.avi')
+
+        size = videro.size()
         self.videoWidget.setDisplayWindow((0, 0, size[0] - 1, size[1] - 1))
         #self.videoWidget.setSource(av)
-        self.videoWidget.setSource(Pulldown23RemovalFilter(av, 3, True))
+        self.videoWidget.setSource(Pulldown23RemovalFilter(videro, 0, False))
         self.videoWidget.stop()
 
     def on_playButton_clicked(self, *args):
         clock.play(1)
+        player.play()
         self.videoWidget.play()
         self.playing = True
 
     def on_rewindButton_clicked(self, *args):
         clock.play(-2)
+        player.play()
         self.videoWidget.play()
         self.playing = True
 
     def on_forwardButton_clicked(self, *args):
         clock.play(2)
+        player.play()
         self.videoWidget.play()
         self.playing = True
 
     def on_pauseButton_clicked(self, *args):
         clock.play(0)
+        player.stop()
         self.updateCurrentFrame()
         self.videoWidget.stop()
         self.playing = False

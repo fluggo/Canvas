@@ -55,6 +55,8 @@ static inline int max( int a, int b ) {
     return a > b ? a : b;
 }
 
+NOEXPORT int64_t getFrameTime( rational *frameRate, int frame );
+NOEXPORT int getTimeFrame( rational *frameRate, int64_t time );
 NOEXPORT bool parseRational( PyObject *in, rational *out );
 
 /************* Video *******/
