@@ -601,8 +601,8 @@ AVAudioReader_getFrame( py_obj_AVAudioReader *self, AudioFrame *frame ) {
         // Only bother seeking if we're way off (or it's behind us)
         if( self->lastPacketStart != -1 && (frame->fullMinSample < self->lastPacketStart || (frame->fullMinSample - self->lastPacketStart) >= (frame->fullMaxSample - frame->fullMinSample) * 4) ) {
 
-            printf( "min: %d, lastPacket: %d\n", frame->fullMinSample, self->lastPacketStart );
-            printf( "Seeking back to %ld...\n", timestamp );
+            //printf( "min: %d, lastPacket: %d\n", frame->fullMinSample, self->lastPacketStart );
+            //printf( "Seeking back to %ld...\n", timestamp );
             int seekStamp = timestamp;
 
             if( seekStamp < 0 )
@@ -698,7 +698,7 @@ AVAudioReader_getFrame( py_obj_AVAudioReader *self, AudioFrame *frame ) {
 
         av_free_packet( &packet );
 
-        if( frame->currentMaxSample == frame->fullMaxSample ) {
+        if( packet.dts + packet.duration >= frame->fullMaxSample ) {
 //            printf( "Enough: (%d, %d) vs (%d, %d)\n", frame->currentMinSample, frame->currentMaxSample, frame->fullMinSample, frame->fullMaxSample );
             return;
         }

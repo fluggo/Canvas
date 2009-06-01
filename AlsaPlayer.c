@@ -43,6 +43,7 @@ typedef struct {
     rational rate, playSpeed;
     int bufferSize, channelCount;
     float *inBuffer;
+    void *outBuffer;
     snd_pcm_hw_params_t *hwParams;
 } py_obj_AlsaPlayer;
 
@@ -67,29 +68,63 @@ playbackThread( py_obj_AlsaPlayer *self ) {
             break;
         }
 
+        rational speed = self->playSpeed;
+        rational rate = self->rate;
         int nextSample = self->nextSample;
-        self->nextSample += self->bufferSize;
+        float *inptr = self->inBuffer;
+        void *outptr = self->outBuffer;
+        int hwCount = min(self->bufferSize, self->bufferSize * speed.d / abs(speed.n));
+        int swCount = min(self->bufferSize, self->bufferSize * abs(speed.n) / speed.d);
 
         // Grab the current buffer/period size
         snd_pcm_uframes_t hwBufferSize, hwPeriodSize;
         snd_pcm_get_params( self->pcmDevice, &hwBufferSize, &hwPeriodSize );
 
-        g_mutex_unlock( self->mutex );
-
         AudioFrame frame;
         frame.channelCount = self->channelCount;
         frame.frameData = self->inBuffer;
-        frame.fullMinSample = nextSample;
-        frame.fullMaxSample = nextSample + self->bufferSize - 1;
+
+        if( speed.n > 0 ) {
+            self->nextSample += swCount;
+            frame.fullMinSample = nextSample;
+            frame.fullMaxSample = nextSample + swCount - 1;
+        }
+        else {
+            self->nextSample -= swCount;
+            frame.fullMinSample = nextSample - swCount + 1;
+            frame.fullMaxSample = nextSample;
+        }
+
         frame.currentMinSample = frame.fullMinSample;
         frame.currentMaxSample = frame.fullMaxSample;
 
+        g_mutex_unlock( self->mutex );
+
         self->audioSource.funcs->getFrame( self->audioSource.source, &frame );
 
-        float *ptr = self->inBuffer;
-        int count = self->bufferSize;
+        // Convert speed differences
+        if( speed.n == 1 && speed.d == 1 ) {
+            // As long as the output is float, we can use the original buffer
+            outptr = inptr;
+        }
+        else if( speed.n > 0 ) {
+            for( int i = 0; i < hwCount; i++ ) {
+                for( int ch = 0; ch < frame.channelCount; ch++ ) {
+                    ((float *) outptr)[i * frame.channelCount + ch] =
+                        inptr[(i * speed.n / speed.d) * frame.channelCount + ch];
+                }
+            }
+        }
+        else {
+            for( int i = 0; i < hwCount; i++ ) {
+                for( int ch = 0; ch < frame.channelCount; ch++ ) {
+                    ((float *) outptr)[(hwCount - i - 1) * frame.channelCount + ch] =
+                        inptr[(i * -speed.n / speed.d) * frame.channelCount + ch];
+                }
+            }
+        }
 
-        while( count > 0 ) {
+        while( hwCount > 0 ) {
             int error;
             g_mutex_lock( self->mutex );
 
@@ -99,27 +134,31 @@ playbackThread( py_obj_AlsaPlayer *self ) {
             snd_pcm_htimestamp( self->pcmDevice, &avail, &tstamp );
 
             self->baseTime = (int64_t) tstamp.tv_sec * INT64_C(1000000000) + (int64_t) tstamp.tv_nsec;
-            self->seekTime = getFrameTime( &self->rate, nextSample - (hwBufferSize - avail) );
+
+            if( speed.n > 0 )
+                self->seekTime = getFrameTime( &rate, nextSample - (hwBufferSize - avail) );
+            else
+                self->seekTime = getFrameTime( &rate, nextSample + (hwBufferSize - avail) );
 
             g_mutex_unlock( self->mutex );
 
             // BJC: I like someone who makes my life easy:
             // the ALSA API here is self-limiting
-            error = snd_pcm_writei( self->pcmDevice, ptr, count );
+            error = snd_pcm_writei( self->pcmDevice, outptr, hwCount );
 
             if( error == -EAGAIN )
                 continue;
 
             if( error == -EPIPE ) {
                 // Underrun!
-                self->seekTime = getFrameTime( &self->rate, self->nextSample );
-
+                printf("ALSA playback underrun\n" );
+                self->seekTime = getFrameTime( &rate, self->nextSample );
                 snd_pcm_prepare( self->pcmDevice );
                 continue;
             }
 
-            ptr += error * frame.channelCount;
-            count -= error;
+            outptr += error * frame.channelCount * sizeof(float);
+            hwCount -= error;
         }
     }
 
@@ -202,6 +241,13 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kwds ) {
         return -1;
     }
 
+    self->outBuffer = PyMem_Malloc( self->bufferSize * self->channelCount * sizeof(float) );
+
+    if( self->outBuffer == NULL ) {
+        PyErr_NoMemory();
+        return -1;
+    }
+
     self->playbackThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
 
     return 0;
@@ -226,6 +272,11 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
 
     if( self->inBuffer != NULL ) {
         PyMem_Free( self->inBuffer );
+        self->inBuffer = NULL;
+    }
+
+    if( self->outBuffer != NULL ) {
+        PyMem_Free( self->outBuffer );
         self->inBuffer = NULL;
     }
 
@@ -296,7 +347,6 @@ static void
 _set( py_obj_AlsaPlayer *self, int64_t seekTime, rational *speed ) {
     g_mutex_lock( self->mutex );
     self->baseTime = _pcmTime( self );
-    printf( "%lld\n", self->baseTime );
     self->seekTime = seekTime;
     self->playSpeed = *speed;
     self->nextSample = getTimeFrame( &self->rate, self->seekTime );
