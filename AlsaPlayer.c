@@ -41,21 +41,13 @@ typedef struct {
     GCond *cond;
     bool quit, stop;
     rational rate, playSpeed;
+    int bufferSize, channelCount;
+    float *inBuffer;
+    snd_pcm_hw_params_t *hwParams;
 } py_obj_AlsaPlayer;
 
 static gpointer
 playbackThread( py_obj_AlsaPlayer *self ) {
-    int error;
-    snd_pcm_uframes_t hwBufferSize, hwPeriodSize;
-
-    const int bufferSize = 1024, channelCount = 2;
-    float *data = malloc( bufferSize * channelCount * sizeof(float) );
-
-    if( data == NULL ) {
-        printf( "Out of memory in AlsaPlayer allocating output buffer\n" );
-        return NULL;
-    }
-
     for( ;; ) {
         g_mutex_lock( self->mutex );
 
@@ -76,26 +68,29 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         }
 
         int nextSample = self->nextSample;
-        self->nextSample += bufferSize;
+        self->nextSample += self->bufferSize;
 
+        // Grab the current buffer/period size
+        snd_pcm_uframes_t hwBufferSize, hwPeriodSize;
         snd_pcm_get_params( self->pcmDevice, &hwBufferSize, &hwPeriodSize );
 
         g_mutex_unlock( self->mutex );
 
         AudioFrame frame;
-        frame.channelCount = 2;
-        frame.frameData = data;
+        frame.channelCount = self->channelCount;
+        frame.frameData = self->inBuffer;
         frame.fullMinSample = nextSample;
-        frame.fullMaxSample = nextSample + bufferSize - 1;
+        frame.fullMaxSample = nextSample + self->bufferSize - 1;
         frame.currentMinSample = frame.fullMinSample;
         frame.currentMaxSample = frame.fullMaxSample;
 
         self->audioSource.funcs->getFrame( self->audioSource.source, &frame );
 
-        float *ptr = data;
-        int count = bufferSize;
+        float *ptr = self->inBuffer;
+        int count = self->bufferSize;
 
         while( count > 0 ) {
+            int error;
             g_mutex_lock( self->mutex );
 
             // Reset the clock so that it stays in sync
@@ -108,15 +103,15 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
             g_mutex_unlock( self->mutex );
 
-            error = snd_pcm_writei( self->pcmDevice, data, bufferSize );
+            // BJC: I like someone who makes my life easy:
+            // the ALSA API here is self-limiting
+            error = snd_pcm_writei( self->pcmDevice, ptr, count );
 
             if( error == -EAGAIN )
                 continue;
 
             if( error == -EPIPE ) {
                 // Underrun!
-                printf( "Underrun\n" );
-
                 self->seekTime = getFrameTime( &self->rate, self->nextSample );
 
                 snd_pcm_prepare( self->pcmDevice );
@@ -129,7 +124,6 @@ playbackThread( py_obj_AlsaPlayer *self ) {
     }
 
     snd_pcm_drop( self->pcmDevice );
-    free( data );
 
     return NULL;
 }
@@ -152,47 +146,45 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kwds ) {
         return -1;
     }
 
-    snd_pcm_hw_params_t *params = PyMem_Malloc( snd_pcm_hw_params_sizeof() );
+    self->hwParams = PyMem_Malloc( snd_pcm_hw_params_sizeof() );
 
-    if( params == NULL ) {
+    if( self->hwParams == NULL ) {
         PyErr_NoMemory();
         return -1;
     }
 
-    if( (error = snd_pcm_hw_params_any( self->pcmDevice, params )) < 0 ) {
+    if( (error = snd_pcm_hw_params_any( self->pcmDevice, self->hwParams )) < 0 ) {
         PyErr_Format( PyExc_Exception, "Could not open configuration for playback on %s: %s", deviceName, snd_strerror( error ) );
         return -1;
     }
 
-    if( (error = snd_pcm_hw_params_set_access( self->pcmDevice, params, SND_PCM_ACCESS_RW_INTERLEAVED )) < 0 ) {
+    if( (error = snd_pcm_hw_params_set_access( self->pcmDevice, self->hwParams, SND_PCM_ACCESS_RW_INTERLEAVED )) < 0 ) {
         PyErr_Format( PyExc_Exception, "Failed to set interleaved access on %s: %s", deviceName, snd_strerror( error ) );
         return -1;
     }
 
     // Set stereo channels for now
-    if( (error = snd_pcm_hw_params_set_channels( self->pcmDevice, params, 2 )) < 0 ) {
+    if( (error = snd_pcm_hw_params_set_channels( self->pcmDevice, self->hwParams, 2 )) < 0 ) {
         PyErr_Format( PyExc_Exception, "Failed to set channel count to 2 on %s: %s", deviceName, snd_strerror( error ) );
         return -1;
     }
 
     // Grab what should be an easy-to-find format
-    if( (error = snd_pcm_hw_params_set_format( self->pcmDevice, params, SND_PCM_FORMAT_FLOAT )) < 0 ) {
+    if( (error = snd_pcm_hw_params_set_format( self->pcmDevice, self->hwParams, SND_PCM_FORMAT_FLOAT )) < 0 ) {
         PyErr_Format( PyExc_Exception, "Failed to set sample format on %s: %s", deviceName, snd_strerror( error ) );
         return -1;
     }
 
     // Set a common sample rate
-    if( (error = snd_pcm_hw_params_set_rate( self->pcmDevice, params, 48000, 0 )) < 0 ) {
+    if( (error = snd_pcm_hw_params_set_rate( self->pcmDevice, self->hwParams, 48000, 0 )) < 0 ) {
         PyErr_Format( PyExc_Exception, "Failed to set sample rate on %s: %s", deviceName, snd_strerror( error ) );
         return -1;
     }
 
-    if( (error = snd_pcm_hw_params( self->pcmDevice, params )) < 0 ) {
+    if( (error = snd_pcm_hw_params( self->pcmDevice, self->hwParams )) < 0 ) {
         PyErr_Format( PyExc_Exception, "Failed to write parameter set to %s: %s", deviceName, snd_strerror( error ) );
         return -1;
     }
-
-    PyMem_Free( params );
 
     //printf( "%s\n", snd_pcm_state_name( snd_pcm_state( self->pcmDevice ) ) );
 
@@ -201,6 +193,14 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kwds ) {
     self->stop = true;
     self->rate.n = 48000;
     self->rate.d = 1;
+    self->bufferSize = 1024;
+    self->channelCount = 2;
+    self->inBuffer = PyMem_Malloc( self->bufferSize * self->channelCount * sizeof(float) );
+
+    if( self->inBuffer == NULL ) {
+        PyErr_NoMemory();
+        return -1;
+    }
 
     self->playbackThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
 
@@ -223,6 +223,16 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
 
     if( self->playbackThread != NULL )
         g_thread_join( self->playbackThread );
+
+    if( self->inBuffer != NULL ) {
+        PyMem_Free( self->inBuffer );
+        self->inBuffer = NULL;
+    }
+
+    if( self->hwParams != NULL ) {
+        PyMem_Free( self->hwParams );
+        self->hwParams = NULL;
+    }
 
     if( self->pcmDevice != NULL ) {
         snd_pcm_close( self->pcmDevice );
