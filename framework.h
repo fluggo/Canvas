@@ -4,7 +4,6 @@
 
 #include <Python.h>
 
-#define __STDC_CONSTANT_MACROS
 #include <stdint.h>
 #include <stdbool.h>
 #include "half.h"
