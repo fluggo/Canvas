@@ -14,9 +14,9 @@ if int(debug):
 elif int(profile):
 	env['CCFLAGS'] = '-fno-strict-aliasing -std=c99 -Wall -g'
 elif int(assembly):
-	env['CCFLAGS'] = '-fno-strict-aliasing -std=c99 -g -S -Wall -O3 -mtune=native -march=native'
+	env['CCFLAGS'] = '-fno-strict-aliasing -std=c99 -g -S -Wall -O3 -mtune=native -march=native -fno-signed-zeros -fno-math-errno'
 else:
-	env['CCFLAGS'] = '-fno-strict-aliasing -std=c99 -Wall -O3 -mtune=native -march=native'
+	env['CCFLAGS'] = '-fno-strict-aliasing -std=c99 -Wall -O3 -mtune=native -march=native -fno-signed-zeros -fno-math-errno'
 
 env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gtk+-2.0 gl gtkglext-1.0 gthread-2.0 pygtk-2.0 pygobject-2.0')
 
