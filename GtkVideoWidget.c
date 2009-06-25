@@ -78,10 +78,10 @@ typedef struct {
     float rate;
     bool quit, textureAllocated;
     GThread *renderThread;
-} py_obj_VideoWidget;
+} py_obj_GtkVideoWidget;
 
 static gboolean
-expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
+expose( GtkWidget *widget, GdkEventExpose *event, py_obj_GtkVideoWidget *self ) {
     GdkGLContext *glcontext = gtk_widget_get_gl_context( self->drawingArea );
     GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable( self->drawingArea );
 
@@ -193,7 +193,7 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_VideoWidget *self ) {
     return TRUE;
 }
 
-static gboolean playSingleFrame( py_obj_VideoWidget *self );
+static gboolean playSingleFrame( py_obj_GtkVideoWidget *self );
 
 static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
     v2i size1, size2;
@@ -205,7 +205,7 @@ static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
 }
 
 static gpointer
-playbackThread( py_obj_VideoWidget *self ) {
+playbackThread( py_obj_GtkVideoWidget *self ) {
     RgbaFrame frame;
 
     box2i_setEmpty( &frame.fullDataWindow );
@@ -385,7 +385,7 @@ playbackThread( py_obj_VideoWidget *self ) {
 }
 
 static gboolean
-playSingleFrame( py_obj_VideoWidget *self ) {
+playSingleFrame( py_obj_GtkVideoWidget *self ) {
     if( self->quit )
         return FALSE;
 
@@ -450,7 +450,7 @@ playSingleFrame( py_obj_VideoWidget *self ) {
 }
 
 static int
-VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
+GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds ) {
     PyObject *pyclock;
     PyObject *frameSource = NULL;
 
@@ -524,7 +524,7 @@ VideoWidget_init( py_obj_VideoWidget *self, PyObject *args, PyObject *kwds ) {
 }
 
 static void
-VideoWidget_dealloc( py_obj_VideoWidget *self ) {
+GtkVideoWidget_dealloc( py_obj_GtkVideoWidget *self ) {
     // Stop the render thread
     if( self->frameReadMutex != NULL ) {
         g_mutex_lock( self->frameReadMutex );
@@ -561,7 +561,7 @@ VideoWidget_dealloc( py_obj_VideoWidget *self ) {
 }
 
 static PyObject *
-VideoWidget_stop( py_obj_VideoWidget *self ) {
+GtkVideoWidget_stop( py_obj_GtkVideoWidget *self ) {
     if( self->timeoutSourceID != 0 ) {
         g_source_remove( self->timeoutSourceID );
         self->timeoutSourceID = 0;
@@ -582,7 +582,7 @@ VideoWidget_stop( py_obj_VideoWidget *self ) {
 }
 
 static PyObject *
-VideoWidget_play( py_obj_VideoWidget *self ) {
+GtkVideoWidget_play( py_obj_GtkVideoWidget *self ) {
     if( self->timeoutSourceID != 0 ) {
         g_source_remove( self->timeoutSourceID );
         self->timeoutSourceID = 0;
@@ -602,19 +602,19 @@ VideoWidget_play( py_obj_VideoWidget *self ) {
 }
 
 static PyObject *
-VideoWidget_widgetObj( py_obj_VideoWidget *self ) {
+GtkVideoWidget_widgetObj( py_obj_GtkVideoWidget *self ) {
     Py_INCREF( self->drawingAreaObj );
     return self->drawingAreaObj;
 }
 
 static PyObject *
-VideoWidget_getDisplayWindow( py_obj_VideoWidget *self ) {
+GtkVideoWidget_getDisplayWindow( py_obj_GtkVideoWidget *self ) {
     return Py_BuildValue( "(iiii)", self->displayWindow.min.x, self->displayWindow.min.y,
         self->displayWindow.max.x, self->displayWindow.max.y );
 }
 
 static PyObject *
-VideoWidget_setDisplayWindow( py_obj_VideoWidget *self, PyObject *args ) {
+GtkVideoWidget_setDisplayWindow( py_obj_GtkVideoWidget *self, PyObject *args ) {
     box2i window;
 
     if( !PyArg_ParseTuple( args, "(iiii)", &window.min.x, &window.min.y, &window.max.x, &window.max.y ) )
@@ -633,7 +633,7 @@ VideoWidget_setDisplayWindow( py_obj_VideoWidget *self, PyObject *args ) {
 }
 
 static PyObject *
-VideoWidget_getSource( py_obj_VideoWidget *self ) {
+GtkVideoWidget_getSource( py_obj_GtkVideoWidget *self ) {
     if( self->frameSource.source == NULL )
         Py_RETURN_NONE;
 
@@ -642,7 +642,7 @@ VideoWidget_getSource( py_obj_VideoWidget *self ) {
 }
 
 static PyObject *
-VideoWidget_setSource( py_obj_VideoWidget *self, PyObject *args, void *closure ) {
+GtkVideoWidget_setSource( py_obj_GtkVideoWidget *self, PyObject *args, void *closure ) {
     PyObject *source;
 
     if( !PyArg_ParseTuple( args, "O", &source ) )
@@ -658,34 +658,34 @@ VideoWidget_setSource( py_obj_VideoWidget *self, PyObject *args, void *closure )
     Py_RETURN_NONE;
 }
 
-static PyMethodDef VideoWidget_methods[] = {
-    { "play", (PyCFunction) VideoWidget_play, METH_NOARGS,
+static PyMethodDef GtkVideoWidget_methods[] = {
+    { "play", (PyCFunction) GtkVideoWidget_play, METH_NOARGS,
         "Signals that the widget should start processing frames or process a speed change." },
-    { "stop", (PyCFunction) VideoWidget_stop, METH_NOARGS,
+    { "stop", (PyCFunction) GtkVideoWidget_stop, METH_NOARGS,
         "Signals the widget to stop processing frames." },
-    { "drawingArea", (PyCFunction) VideoWidget_widgetObj, METH_NOARGS,
+    { "drawingArea", (PyCFunction) GtkVideoWidget_widgetObj, METH_NOARGS,
         "Returns the drawing area used for video output." },
-    { "displayWindow", (PyCFunction) VideoWidget_getDisplayWindow, METH_NOARGS,
+    { "displayWindow", (PyCFunction) GtkVideoWidget_getDisplayWindow, METH_NOARGS,
         "Gets the display window as a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
-    { "source", (PyCFunction) VideoWidget_getSource, METH_NOARGS,
+    { "source", (PyCFunction) GtkVideoWidget_getSource, METH_NOARGS,
         "Gets the video source." },
-    { "setDisplayWindow", (PyCFunction) VideoWidget_setDisplayWindow, METH_VARARGS,
+    { "setDisplayWindow", (PyCFunction) GtkVideoWidget_setDisplayWindow, METH_VARARGS,
         "Sets the display window using a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
-    { "setSource", (PyCFunction) VideoWidget_setSource, METH_VARARGS,
+    { "setSource", (PyCFunction) GtkVideoWidget_setSource, METH_VARARGS,
         "Sets the video source." },
     { NULL }
 };
 
-static PyTypeObject py_type_VideoWidget = {
+static PyTypeObject py_type_GtkVideoWidget = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.VideoWidget",    // tp_name
-    sizeof(py_obj_VideoWidget),    // tp_basicsize
+    "fluggo.video.GtkVideoWidget",    // tp_name
+    sizeof(py_obj_GtkVideoWidget),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) VideoWidget_dealloc,
-    .tp_init = (initproc) VideoWidget_init,
-    .tp_methods = VideoWidget_methods
+    .tp_dealloc = (destructor) GtkVideoWidget_dealloc,
+    .tp_init = (initproc) GtkVideoWidget_init,
+    .tp_methods = GtkVideoWidget_methods
 };
 
 static inline float clampf( float x, float min, float max ) {
@@ -701,11 +701,11 @@ NOEXPORT void init_GtkVideoWidget( PyObject *m ) {
     char *arg = "dummy";
     char **argv = &arg;
 
-    if( PyType_Ready( &py_type_VideoWidget ) < 0 )
+    if( PyType_Ready( &py_type_GtkVideoWidget ) < 0 )
         return;
 
-    Py_INCREF( &py_type_VideoWidget );
-    PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_VideoWidget );
+    Py_INCREF( &py_type_GtkVideoWidget );
+    PyModule_AddObject( m, "GtkVideoWidget", (PyObject *) &py_type_GtkVideoWidget );
 
     // Fill in the 0.45 gamma table
     for( int i = 0; i < 65536; i++ ) {

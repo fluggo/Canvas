@@ -16,7 +16,7 @@ typedef struct {
     struct SwsContext *scaler;
     bool allKeyframes;
     int currentVideoFrame;
-} py_obj_AVVideoReader;
+} py_obj_FFVideoReader;
 
 /*static float gamma22ExpandFunc( float input ) {
     return powf( input, 2.2f );
@@ -27,7 +27,7 @@ static half gamma22[65536];
 /*static halfFunction<half> __gamma22( gamma22ExpandFunc, half( -2.0f ), half( 2.0f ) );*/
 
 static int
-AVVideoReader_init( py_obj_AVVideoReader *self, PyObject *args, PyObject *kwds ) {
+FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds ) {
     int error;
     char *filename;
 
@@ -161,7 +161,7 @@ AVVideoReader_init( py_obj_AVVideoReader *self, PyObject *args, PyObject *kwds )
 }
 
 static void
-AVVideoReader_dealloc( py_obj_AVVideoReader *self ) {
+FFVideoReader_dealloc( py_obj_FFVideoReader *self ) {
     if( self->scaler != NULL ) {
         sws_freeContext( self->scaler );
         self->scaler = NULL;
@@ -196,7 +196,7 @@ AVVideoReader_dealloc( py_obj_AVVideoReader *self ) {
 }
 
 static void
-AVVideoReader_getFrame( py_obj_AVVideoReader *self, int64_t frameIndex, RgbaFrame *frame ) {
+FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFrame *frame ) {
     if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -414,43 +414,43 @@ AVVideoReader_getFrame( py_obj_AVVideoReader *self, int64_t frameIndex, RgbaFram
 
 static VideoFrameSourceFuncs videoSourceFuncs = {
     0,
-    (video_getFrameFunc) AVVideoReader_getFrame
+    (video_getFrameFunc) FFVideoReader_getFrame
 };
 
 static PyObject *pyVideoSourceFuncs;
 
 static PyObject *
-AVVideoReader_getFuncs( py_obj_AVVideoReader *self, void *closure ) {
+FFVideoReader_getFuncs( py_obj_FFVideoReader *self, void *closure ) {
     return pyVideoSourceFuncs;
 }
 
-static PyGetSetDef AVVideoReader_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) AVVideoReader_getFuncs, NULL, "Video frame source C API." },
+static PyGetSetDef FFVideoReader_getsetters[] = {
+    { "_videoFrameSourceFuncs", (getter) FFVideoReader_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 
 static PyObject *
-AVVideoReader_size( py_obj_AVVideoReader *self ) {
+FFVideoReader_size( py_obj_FFVideoReader *self ) {
     return Py_BuildValue( "(ii)", self->codecContext->width, self->codecContext->height );
 }
 
-static PyMethodDef AVVideoReader_methods[] = {
-    { "size", (PyCFunction) AVVideoReader_size, METH_NOARGS,
+static PyMethodDef FFVideoReader_methods[] = {
+    { "size", (PyCFunction) FFVideoReader_size, METH_NOARGS,
         "Gets the frame size for this video." },
     { NULL }
 };
 
-static PyTypeObject py_type_AVVideoReader = {
+static PyTypeObject py_type_FFVideoReader = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.AVVideoReader",    // tp_name
-    sizeof(py_obj_AVVideoReader),    // tp_basicsize
+    "fluggo.video.FFVideoReader",    // tp_name
+    sizeof(py_obj_FFVideoReader),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) AVVideoReader_dealloc,
-    .tp_init = (initproc) AVVideoReader_init,
-    .tp_getset = AVVideoReader_getsetters,
-    .tp_methods = AVVideoReader_methods
+    .tp_dealloc = (destructor) FFVideoReader_dealloc,
+    .tp_init = (initproc) FFVideoReader_init,
+    .tp_getset = FFVideoReader_getsetters,
+    .tp_methods = FFVideoReader_methods
 };
 
 NOEXPORT void init_AVFileReader( PyObject *module ) {
@@ -460,11 +460,11 @@ NOEXPORT void init_AVFileReader( PyObject *module ) {
         gamma22[i] = f2h( powf( h2f( (half) i ) * __unbyte, 2.2f ) );
     }
 
-    if( PyType_Ready( &py_type_AVVideoReader ) < 0 )
+    if( PyType_Ready( &py_type_FFVideoReader ) < 0 )
         return;
 
-    Py_INCREF( &py_type_AVVideoReader );
-    PyModule_AddObject( module, "AVVideoReader", (PyObject *) &py_type_AVVideoReader );
+    Py_INCREF( &py_type_FFVideoReader );
+    PyModule_AddObject( module, "FFVideoReader", (PyObject *) &py_type_FFVideoReader );
 
     pyVideoSourceFuncs = PyCObject_FromVoidPtr( &videoSourceFuncs, NULL );
 }
