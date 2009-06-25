@@ -31,6 +31,7 @@ typedef struct {
 
     GMutex *mutex;
     int64_t seekTime, baseTime;
+    ClockRegions regions;
     rational speed;
 } py_obj_SystemPresentationClock;
 
@@ -49,6 +50,11 @@ SystemPresentationClock_init( py_obj_SystemPresentationClock *self, PyObject *ar
     self->speed.d = 1;
     self->mutex = g_mutex_new();
     self->baseTime = gettime();
+    self->regions.playbackMin = 0;
+    self->regions.playbackMax = 0;
+    self->regions.loopMin = 0;
+    self->regions.loopMax = -1;
+    self->regions.flags = 0;
 
     return 0;
 }
@@ -71,15 +77,55 @@ _set( py_obj_SystemPresentationClock *self, int64_t seekTime, rational *speed ) 
 static int64_t
 _getPresentationTime( py_obj_SystemPresentationClock *self ) {
     g_mutex_lock( self->mutex );
-    int64_t elapsed = (gettime() - self->baseTime) * self->speed.n;
     int64_t seekTime = self->seekTime;
-    unsigned int d = self->speed.d;
+
+    if( self->speed.n == 0 ) {
+        g_mutex_unlock( self->mutex );
+        return seekTime;
+    }
+
+    int64_t elapsed = (gettime() - self->baseTime) * self->speed.n;
+
+    if( self->speed.d != 1 )
+        elapsed /= self->speed.d;
+
+    int64_t currentTime = seekTime + elapsed;
+
+    if( self->speed.n > 0 ) {
+        if( currentTime > self->regions.playbackMax ) {
+            self->baseTime = gettime();
+            self->seekTime = self->regions.playbackMax;
+            self->speed.n = 0;
+            self->speed.d = 1;
+        }
+        else if( self->regions.loopMin <= self->regions.loopMax && seekTime <= self->regions.loopMax ) {
+            // We could be looping right now
+            if( currentTime > self->regions.loopMax ) {
+                currentTime = (seekTime - self->regions.loopMin) +
+                    elapsed % (self->regions.loopMax - self->regions.loopMin + 1);
+            }
+        }
+    }
+    else {
+        // Going backwards, reverse situation
+        if( currentTime < self->regions.playbackMin ) {
+            self->baseTime = gettime();
+            self->seekTime = self->regions.playbackMin;
+            self->speed.n = 0;
+            self->speed.d = 1;
+        }
+        else if( self->regions.loopMin <= self->regions.loopMax && seekTime >= self->regions.loopMin ) {
+            // We could be looping right now
+            if( currentTime < self->regions.loopMin ) {
+                currentTime = (self->regions.loopMin - seekTime) +
+                    elapsed % (self->regions.loopMax - self->regions.loopMin + 1);
+            }
+        }
+    }
+
     g_mutex_unlock( self->mutex );
 
-    if( d == 1 )
-        return elapsed + seekTime;
-    else
-        return elapsed / d + seekTime;
+    return currentTime;
 }
 
 static PyObject *
