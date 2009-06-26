@@ -6,29 +6,6 @@
 
 #define F_PI 3.1415926535897932384626433832795f
 
-bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
-    Py_CLEAR( holder->source );
-    Py_CLEAR( holder->csource );
-    holder->funcs = NULL;
-
-    if( source == NULL || source == Py_None )
-        return true;
-
-    Py_INCREF( source );
-    holder->source = source;
-    holder->csource = PyObject_GetAttrString( source, "_audioFrameSourceFuncs" );
-
-    if( holder->csource == NULL ) {
-        Py_CLEAR( holder->source );
-        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _audioFrameSourceFuncs attribute." );
-        return false;
-    }
-
-    holder->funcs = (AudioFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
-
-    return true;
-}
-
 typedef struct {
     PyObject_HEAD
 

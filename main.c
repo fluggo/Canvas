@@ -37,6 +37,29 @@ bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     return true;
 }
 
+bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
+    Py_CLEAR( holder->source );
+    Py_CLEAR( holder->csource );
+    holder->funcs = NULL;
+
+    if( source == NULL || source == Py_None )
+        return true;
+
+    Py_INCREF( source );
+    holder->source = source;
+    holder->csource = PyObject_GetAttrString( source, "_audioFrameSourceFuncs" );
+
+    if( holder->csource == NULL ) {
+        Py_CLEAR( holder->source );
+        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _audioFrameSourceFuncs attribute." );
+        return false;
+    }
+
+    holder->funcs = (AudioFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
+
+    return true;
+}
+
 int64_t
 getFrameTime( rational *frameRate, int frame ) {
     return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);
