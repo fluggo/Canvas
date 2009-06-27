@@ -101,10 +101,17 @@ playbackThread( py_obj_AlsaPlayer *self ) {
             }
         }
 
+        // Do this next part under a lock, because the
+        // Python thread may want to stop the device/change the config
+        g_mutex_lock( self->mutex );
+
+        if( self->stop ) {
+            g_mutex_unlock( self->mutex );
+            continue;
+        }
+
         while( hwCount > 0 ) {
             int error;
-            g_mutex_lock( self->mutex );
-
             // Reset the clock so that it stays in sync
             snd_htimestamp_t tstamp;
             snd_pcm_uframes_t avail;
@@ -116,8 +123,6 @@ playbackThread( py_obj_AlsaPlayer *self ) {
                 self->seekTime = getFrameTime( &rate, nextSample - (hwBufferSize - avail) );
             else
                 self->seekTime = getFrameTime( &rate, nextSample + (hwBufferSize - avail) );
-
-            g_mutex_unlock( self->mutex );
 
             // BJC: I like someone who makes my life easy:
             // the ALSA API here is self-limiting
@@ -137,6 +142,8 @@ playbackThread( py_obj_AlsaPlayer *self ) {
             outptr += error * frame.channelCount * sizeof(float);
             hwCount -= error;
         }
+
+        g_mutex_unlock( self->mutex );
     }
 
     snd_pcm_drop( self->pcmDevice );
@@ -144,11 +151,117 @@ playbackThread( py_obj_AlsaPlayer *self ) {
     return NULL;
 }
 
+static bool _setConfig( py_obj_AlsaPlayer *self, unsigned int *ratePtr, unsigned int *channelsPtr ) {
+    // This is a Python-only method; we include a raw version here
+    // for use inside the init method
+
+    int error;
+
+    unsigned int channels = (channelsPtr && *channelsPtr) ? *channelsPtr : 2,
+        rate = (ratePtr && *ratePtr) ? *ratePtr : 48000;
+
+    if( !self->hwParams ) {
+        self->hwParams = PyMem_Malloc( snd_pcm_hw_params_sizeof() );
+
+        if( self->hwParams == NULL ) {
+            PyErr_NoMemory();
+            return false;
+        }
+    }
+    else {
+        if( (error = snd_pcm_drop( self->pcmDevice )) < 0 ) {
+            PyErr_Format( PyExc_Exception, "Could not stop device: %s", snd_strerror( error ) );
+            return false;
+        }
+
+        // Existing config; swipe numbers from it if we can
+        if( channelsPtr && !*channelsPtr ) {
+            if( (error = snd_pcm_hw_params_get_channels( self->hwParams, &channels )) < 0 ) {
+                PyErr_Format( PyExc_Exception, "Could not read channels from existing config: %s", snd_strerror( error ) );
+                return false;
+            }
+        }
+
+        if( ratePtr && !*ratePtr ) {
+            unsigned int num, den;
+
+            if( (error = snd_pcm_hw_params_get_rate_numden( self->hwParams, &num, &den )) < 0 ) {
+                PyErr_Format( PyExc_Exception, "Could not read rate from existing config: %s", snd_strerror( error ) );
+                return false;
+            }
+
+            rate = num / den;
+        }
+    }
+
+    if( (error = snd_pcm_hw_params_any( self->pcmDevice, self->hwParams )) < 0 ) {
+        PyErr_Format( PyExc_Exception, "Could not open configuration for playback: %s", snd_strerror( error ) );
+        return false;
+    }
+
+    do {
+        // Whatever happens in here, self->hwParams needs to try to have the current HW state by the end
+        if( (error = snd_pcm_hw_params_set_access( self->pcmDevice, self->hwParams, SND_PCM_ACCESS_RW_INTERLEAVED )) < 0 ) {
+            PyErr_Format( PyExc_Exception, "Failed to set interleaved access: %s", snd_strerror( error ) );
+            break;
+        }
+
+        // Set stereo channels for now
+        if( (error = snd_pcm_hw_params_set_channels_near( self->pcmDevice, self->hwParams, &channels )) < 0 ) {
+            PyErr_Format( PyExc_Exception, "Failed to set channel count: %s", snd_strerror( error ) );
+            break;
+        }
+
+        // Grab what should be an easy-to-find format
+        if( (error = snd_pcm_hw_params_set_format( self->pcmDevice, self->hwParams, SND_PCM_FORMAT_FLOAT )) < 0 ) {
+            PyErr_Format( PyExc_Exception, "Failed to set sample format: %s", snd_strerror( error ) );
+            break;
+        }
+
+        if( (error = snd_pcm_hw_params_set_rate_near( self->pcmDevice, self->hwParams, &rate, NULL )) < 0 ) {
+            PyErr_Format( PyExc_Exception, "Failed to set sample rate: %s", snd_strerror( error ) );
+            break;
+        }
+
+        if( (error = snd_pcm_hw_params( self->pcmDevice, self->hwParams )) < 0 ) {
+            PyErr_Format( PyExc_Exception, "Failed to write parameter set: %s", snd_strerror( error ) );
+            break;
+        }
+
+        // Read back config
+        if( (error = snd_pcm_hw_params_current( self->pcmDevice, self->hwParams )) < 0 ) {
+            PyErr_Format( PyExc_Exception, "Could not read current config: %s", snd_strerror( error ) );
+            return false;
+        }
+
+        self->rate.n = rate;
+        self->rate.d = 1;
+        self->channelCount = channels;
+
+        if( ratePtr )
+            *ratePtr = rate;
+
+        if( channelsPtr )
+            *channelsPtr = channels;
+
+        return true;
+    } while( 0 );
+
+    // Emergency get hw state
+    snd_pcm_hw_params_current( self->pcmDevice, self->hwParams );
+    snd_pcm_prepare( self->pcmDevice );
+    return false;
+}
+
 static int
-AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kwds ) {
+AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
     PyObject *frameSource = NULL;
 
-    if( !PyArg_ParseTuple( args, "O", &frameSource ) )
+    unsigned int rate = 0, channels = 0;
+    static char *kwlist[] = { "rate", "channels", "source", NULL };
+
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "|IIO", kwlist,
+            &rate, &channels, &frameSource ) )
         return -1;
 
     if( !takeAudioSource( frameSource, &self->audioSource ) )
@@ -162,55 +275,13 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kwds ) {
         return -1;
     }
 
-    self->hwParams = PyMem_Malloc( snd_pcm_hw_params_sizeof() );
-
-    if( self->hwParams == NULL ) {
-        PyErr_NoMemory();
+    if( !_setConfig( self, &rate, &channels ) )
         return -1;
-    }
-
-    if( (error = snd_pcm_hw_params_any( self->pcmDevice, self->hwParams )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Could not open configuration for playback on %s: %s", deviceName, snd_strerror( error ) );
-        return -1;
-    }
-
-    if( (error = snd_pcm_hw_params_set_access( self->pcmDevice, self->hwParams, SND_PCM_ACCESS_RW_INTERLEAVED )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Failed to set interleaved access on %s: %s", deviceName, snd_strerror( error ) );
-        return -1;
-    }
-
-    // Set stereo channels for now
-    if( (error = snd_pcm_hw_params_set_channels( self->pcmDevice, self->hwParams, 2 )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Failed to set channel count to 2 on %s: %s", deviceName, snd_strerror( error ) );
-        return -1;
-    }
-
-    // Grab what should be an easy-to-find format
-    if( (error = snd_pcm_hw_params_set_format( self->pcmDevice, self->hwParams, SND_PCM_FORMAT_FLOAT )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Failed to set sample format on %s: %s", deviceName, snd_strerror( error ) );
-        return -1;
-    }
-
-    // Set a common sample rate
-    if( (error = snd_pcm_hw_params_set_rate( self->pcmDevice, self->hwParams, 48000, 0 )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Failed to set sample rate on %s: %s", deviceName, snd_strerror( error ) );
-        return -1;
-    }
-
-    if( (error = snd_pcm_hw_params( self->pcmDevice, self->hwParams )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Failed to write parameter set to %s: %s", deviceName, snd_strerror( error ) );
-        return -1;
-    }
-
-    //printf( "%s\n", snd_pcm_state_name( snd_pcm_state( self->pcmDevice ) ) );
 
     self->mutex = g_mutex_new();
     self->cond = g_cond_new();
     self->stop = true;
-    self->rate.n = 48000;
-    self->rate.d = 1;
     self->bufferSize = 1024;
-    self->channelCount = 2;
     self->inBuffer = PyMem_Malloc( self->bufferSize * self->channelCount * sizeof(float) );
 
     if( self->inBuffer == NULL ) {
@@ -278,6 +349,25 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
     }
 
     self->ob_type->tp_free( (PyObject*) self );
+}
+
+static PyObject *AlsaPlayer_setConfig( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
+    unsigned int channels = 0, rate = 0;
+
+    static char *kwlist[] = { "rate", "channels", NULL };
+
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "|II", kwlist,
+            &rate, &channels ) )
+        return NULL;
+
+    g_mutex_lock( self->mutex );
+    if( !_setConfig( self, &rate, &channels ) ) {
+        g_mutex_unlock( self->mutex );
+        return NULL;
+    }
+    g_mutex_unlock( self->mutex );
+
+    return Py_BuildValue( "II", rate, channels );
 }
 
 static int64_t _pcmTime( py_obj_AlsaPlayer *self ) {
@@ -431,6 +521,8 @@ static PyMethodDef AlsaPlayer_methods[] = {
         "Stops playing audio from the source." },
     { "getPresentationTime", (PyCFunction) AlsaPlayer_getPresentationTime, METH_NOARGS,
         "Gets the current presentation time in nanoseconds." },
+    { "setConfig", (PyCFunction) AlsaPlayer_setConfig, METH_VARARGS | METH_KEYWORDS,
+        "rate, channels = setConfig([rate = 48000, channels = 2]): Sets the configuration for this device." },
     { NULL }
 };
 
