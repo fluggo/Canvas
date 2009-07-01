@@ -708,9 +708,19 @@ NOEXPORT void init_GtkVideoWidget( PyObject *m ) {
     PyModule_AddObject( m, "GtkVideoWidget", (PyObject *) &py_type_GtkVideoWidget );
 
     // Fill in the 0.45 gamma table
-    for( int i = 0; i < 65536; i++ ) {
-        gamma45[i] = (uint8_t) gamma45Func( h2f( (half) i ) );
-    }
+    half *h = malloc( sizeof(half) * 65536 );
+    float *f = malloc( sizeof(float) * 65536 );
+
+    for( int i = 0; i < 65536; i++ )
+        h[i] = (half) i;
+
+    convert_h2f( h, f, 65536 );
+    free( h );
+
+    for( int i = 0; i < 65536; i++ )
+        gamma45[i] = (uint8_t) gamma45Func( f[i] );
+
+    free( f );
 
     init_pygobject();
     init_pygtk();

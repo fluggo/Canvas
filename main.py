@@ -7,7 +7,7 @@ from fractions import Fraction
 
 #clock = SystemPresentationClock()
 audio = FFAudioReader('/home/james/Videos/Okra - 79b,100.avi')
-player = AlsaPlayer(audio)
+player = AlsaPlayer(48000, source=audio)
 clock = player
 
 #window = gtk.Window(gtk.WINDOW_TOPLEVEL)

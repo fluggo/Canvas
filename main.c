@@ -243,12 +243,14 @@ void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
 void init_AlsaPlayer( PyObject *module );
 void init_GtkVideoWidget( PyObject *module );
+void init_half( PyObject *module );
 
 PyMODINIT_FUNC
 initvideo() {
     PyObject *m = Py_InitModule3( "video", module_methods,
         "The Fluggo Video library for Python." );
 
+    init_half( m );
     init_AVFileReader( m );
     init_FFAudioReader( m );
     init_Pulldown23RemovalFilter( m );

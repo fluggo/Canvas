@@ -300,7 +300,6 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
 
         if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
             uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
-            half a = f2h( 1.0f );
 
             for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
     #if DO_SCALE
@@ -331,13 +330,17 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
 
                         float y = yplane[x * 4 + i] - 16.0f;
 
-                        frame->frameData[row * frame->stride + x * 4 + i].r =
-                            gamma22[f2h( y * self->colorMatrix[0][0] + ccr )];
-                        frame->frameData[row * frame->stride + x * 4 + i].g =
-                            gamma22[f2h( y * self->colorMatrix[1][0] + ccg )];
-                        frame->frameData[row * frame->stride + x * 4 + i].b =
-                            gamma22[f2h( y * self->colorMatrix[2][0] + ccb )];
-                        frame->frameData[row * frame->stride + x * 4 + i].a = a;
+                        float in[4] = {
+                            y * self->colorMatrix[0][0] + ccr,
+                            y * self->colorMatrix[1][0] + ccg,
+                            y * self->colorMatrix[2][0] + ccb,
+                            1.0f
+                        };
+
+                        half *out = &frame->frameData[row * frame->stride + x * 4 + i];
+
+                        convert_f2h( in, out, 4 );
+                        half_lookup( gamma22, out, out, 4 );
                     }
                 }
     #endif
@@ -351,7 +354,6 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
             uint8_t *restrict yplane = avFrame->data[0], *restrict cbplane = avFrame->data[1], *restrict crplane = avFrame->data[2];
             rgba *restrict frameData = frame->frameData;
 
-            half a = f2h( 1.0f );
             int pyi = avFrame->interlaced_frame ? 2 : 1;
 
             // 4:2:0 interlaced:
@@ -387,14 +389,17 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
                                 continue;
 
                             float cy = yplane[avFrame->linesize[0] * (py + pyi * i) + px] - 16.0f;
+                            float in[4] = {
+                                cy * self->colorMatrix[0][0] + ccr,
+                                cy * self->colorMatrix[1][0] + ccg,
+                                cy * self->colorMatrix[2][0] + ccb,
+                                1.0f
+                            };
 
-                            frameData[(py + pyi * i) * frame->stride + px].r =
-                                gamma22[f2h((cy * self->colorMatrix[0][0] + ccr))];
-                            frameData[(py + pyi * i) * frame->stride + px].g =
-                                gamma22[f2h((cy * self->colorMatrix[1][0] + ccg))];
-                            frameData[(py + pyi * i) * frame->stride + px].b =
-                                gamma22[f2h((cy * self->colorMatrix[2][0] + ccb))];
-                            frameData[(py + pyi * i) * frame->stride + px].a = a;
+                            half *out = &frameData[(py + pyi * i) * frame->stride + px];
+
+                            convert_f2h( in, out, 4 );
+                            half_lookup( gamma22, out, out, 4 );
                         }
                     }
                 }
@@ -454,11 +459,19 @@ static PyTypeObject py_type_FFVideoReader = {
 };
 
 NOEXPORT void init_AVFileReader( PyObject *module ) {
-    const float __unbyte = 1.0f / 255.0f;
+    float *f = malloc( sizeof(float) * 65536 );
 
-    for( int i = 0; i < 65536; i++ ) {
-        gamma22[i] = f2h( powf( h2f( (half) i ) * __unbyte, 2.2f ) );
-    }
+    for( int i = 0; i < 65536; i++ )
+        gamma22[i] = (uint16_t) i;
+
+    convert_h2f( gamma22, f, 65536 );
+
+    for( int i = 0; i < 65536; i++ )
+        f[i] = powf( f[i] / 255.0f, 2.2f );
+
+    convert_f2h( f, gamma22, 65536 );
+
+    free( f );
 
     if( PyType_Ready( &py_type_FFVideoReader ) < 0 )
         return;
