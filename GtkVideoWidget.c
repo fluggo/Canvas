@@ -403,7 +403,7 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
             gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
             //gdk_window_process_updates( self->drawingArea->window, FALSE );
 
-            //printf( "Painted %d from %d...\n", getTimeFrame(self->frameRate, self->presentationTime[self->readBuffer]), self->readBuffer );
+            printf( "Painted %d from %d...\n", getTimeFrame( &self->frameRate, self->targets[self->readBuffer].time ), self->readBuffer );
 
             if( self->drawOneFrame ) {
                 // We're done here, go back to sleep
@@ -714,7 +714,7 @@ NOEXPORT void init_GtkVideoWidget( PyObject *m ) {
     for( int i = 0; i < 65536; i++ )
         h[i] = (half) i;
 
-    convert_h2f( h, f, 65536 );
+    half_convert_to_float( h, f, 65536 );
     free( h );
 
     for( int i = 0; i < 65536; i++ )

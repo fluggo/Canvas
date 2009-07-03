@@ -337,9 +337,9 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
                             1.0f
                         };
 
-                        half *out = &frame->frameData[row * frame->stride + x * 4 + i];
+                        half *out = &frame->frameData[row * frame->stride + x * 4 + i].r;
 
-                        convert_f2h( in, out, 4 );
+                        half_convert_from_float_fast( in, out, 4 );
                         half_lookup( gamma22, out, out, 4 );
                     }
                 }
@@ -396,9 +396,9 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
                                 1.0f
                             };
 
-                            half *out = &frameData[(py + pyi * i) * frame->stride + px];
+                            half *out = &frameData[(py + pyi * i) * frame->stride + px].r;
 
-                            convert_f2h( in, out, 4 );
+                            half_convert_from_float_fast( in, out, 4 );
                             half_lookup( gamma22, out, out, 4 );
                         }
                     }
@@ -464,12 +464,12 @@ NOEXPORT void init_AVFileReader( PyObject *module ) {
     for( int i = 0; i < 65536; i++ )
         gamma22[i] = (uint16_t) i;
 
-    convert_h2f( gamma22, f, 65536 );
+    half_convert_to_float( gamma22, f, 65536 );
 
     for( int i = 0; i < 65536; i++ )
         f[i] = powf( f[i] / 255.0f, 2.2f );
 
-    convert_f2h( f, gamma22, 65536 );
+    half_convert_from_float( f, gamma22, 65536 );
 
     free( f );
 
