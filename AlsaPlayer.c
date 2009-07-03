@@ -136,7 +136,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
                 printf("ALSA playback underrun\n" );
                 self->seekTime = getFrameTime( &rate, self->nextSample );
                 snd_pcm_prepare( self->pcmDevice );
-                continue;
+                break;
             }
 
             outptr += error * frame.channelCount * sizeof(float);
