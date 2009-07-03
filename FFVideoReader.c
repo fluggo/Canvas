@@ -2,6 +2,8 @@
 #include "framework.h"
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <Cg/cg.h>
+#include <Cg/cgGL.h>
 
 typedef struct {
     PyObject_HEAD
@@ -18,13 +20,8 @@ typedef struct {
     int currentVideoFrame;
 } py_obj_FFVideoReader;
 
-/*static float gamma22ExpandFunc( float input ) {
-    return powf( input, 2.2f );
-}*/
-
 static half gamma22[65536];
-
-/*static halfFunction<half> __gamma22( gamma22ExpandFunc, half( -2.0f ), half( 2.0f ) );*/
+static CGcontext cgContext;
 
 static int
 FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds ) {
@@ -473,6 +470,9 @@ NOEXPORT void init_AVFileReader( PyObject *module ) {
     PyModule_AddObject( module, "FFVideoReader", (PyObject *) &py_type_FFVideoReader );
 
     pyVideoSourceFuncs = PyCObject_FromVoidPtr( &videoSourceFuncs, NULL );
+
+    // Set up Cg
+    cgContext = cgCreateContext();
 }
 
 

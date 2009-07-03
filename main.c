@@ -14,6 +14,7 @@
 #include <gdk/gdkkeysyms.h>
 #include <GL/glew.h>
 #include <GL/gl.h>
+#include <Cg/cg.h>
 
 static int64_t gettime() {
     struct timespec time;
@@ -305,8 +306,14 @@ void init_AlsaPlayer( PyObject *module );
 void init_GtkVideoWidget( PyObject *module );
 void init_half( PyObject *module );
 
+void _cgErrorCallback() {
+    printf( "CG error: %s\n", cgGetErrorString( cgGetError() ) );
+}
+
 PyMODINIT_FUNC
 initvideo() {
+    cgSetErrorCallback( _cgErrorCallback );
+
     PyObject *m = Py_InitModule3( "video", module_methods,
         "The Fluggo Video library for Python." );
 
