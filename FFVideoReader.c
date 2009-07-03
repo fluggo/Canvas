@@ -301,7 +301,6 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
         if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
             uint8_t *yplane, *cbplane, *crplane;
 
-            printf( "Allocating...\n" );
             rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
 
             if( !tempRow ) {
@@ -342,7 +341,6 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
                     4 * (coordWindow.max.x - coordWindow.min.x + 1) );
             }
 
-            printf( "Freeing...\n" );
             slice_free( sizeof(rgba_f32) * self->codecContext->width, tempRow );
         }
         else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
