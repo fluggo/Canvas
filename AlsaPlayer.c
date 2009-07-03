@@ -14,7 +14,7 @@ typedef struct {
     AudioSourceHolder audioSource;
     snd_pcm_t *pcmDevice;
     GThread *playbackThread;
-    GMutex *mutex;
+    GMutex *mutex, *configMutex;
     GCond *cond;
     bool quit, stop;
     rational rate, playSpeed;
@@ -103,10 +103,10 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
         // Do this next part under a lock, because the
         // Python thread may want to stop the device/change the config
-        g_mutex_lock( self->mutex );
+        g_mutex_lock( self->configMutex );
 
         if( self->stop ) {
-            g_mutex_unlock( self->mutex );
+            g_mutex_unlock( self->configMutex );
             continue;
         }
 
@@ -143,7 +143,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
             hwCount -= error;
         }
 
-        g_mutex_unlock( self->mutex );
+        g_mutex_unlock( self->configMutex );
     }
 
     snd_pcm_drop( self->pcmDevice );
@@ -279,6 +279,7 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
         return -1;
 
     self->mutex = g_mutex_new();
+    self->configMutex = g_mutex_new();
     self->cond = g_cond_new();
     self->stop = true;
     self->bufferSize = 1024;
@@ -338,7 +339,12 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
         self->pcmDevice = NULL;
     }
 
-    if( self->mutex != NULL ) {
+    if( self->configMutex ) {
+        g_mutex_free( self->configMutex );
+        self->configMutex = NULL;
+    }
+
+    if( self->mutex ) {
         g_mutex_free( self->mutex );
         self->mutex = NULL;
     }
@@ -360,12 +366,12 @@ static PyObject *AlsaPlayer_setConfig( py_obj_AlsaPlayer *self, PyObject *args, 
             &rate, &channels ) )
         return NULL;
 
-    g_mutex_lock( self->mutex );
+    g_mutex_lock( self->configMutex );
     if( !_setConfig( self, &rate, &channels ) ) {
-        g_mutex_unlock( self->mutex );
+        g_mutex_unlock( self->configMutex );
         return NULL;
     }
-    g_mutex_unlock( self->mutex );
+    g_mutex_unlock( self->configMutex );
 
     return Py_BuildValue( "II", rate, channels );
 }
