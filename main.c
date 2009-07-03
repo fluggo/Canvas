@@ -7,12 +7,20 @@
 #include <structmember.h>
 #include "framework.h"
 #include "clock.h"
+#include <time.h>
 
 #include <gtk/gtk.h>
 #include <gtk/gtkgl.h>
 #include <gdk/gdkkeysyms.h>
 #include <GL/glew.h>
 #include <GL/gl.h>
+
+static int64_t gettime() {
+    struct timespec time;
+    clock_gettime( CLOCK_MONOTONIC, &time );
+
+    return ((int64_t) time.tv_sec) * INT64_C(1000000000) + (int64_t) time.tv_nsec;
+}
 
 bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     Py_CLEAR( holder->source );
@@ -227,6 +235,56 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
     return result;
 }
 
+PyObject *
+py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
+    PyObject *dataWindowTuple = NULL, *sourceObj;
+    RgbaFrame frame;
+    box2i_set( &frame.fullDataWindow, 0, 0, 4095, 4095 );
+    int minFrame, maxFrame;
+
+    static char *kwlist[] = { "source", "minFrame", "maxFrame", "dataWindow", NULL };
+
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "Oii|O", kwlist,
+            &sourceObj, &minFrame, &maxFrame, &dataWindowTuple ) )
+        return NULL;
+
+    if( dataWindowTuple && !PyArg_ParseTuple( dataWindowTuple, "iiii",
+        &frame.fullDataWindow.min.x,
+        &frame.fullDataWindow.min.y,
+        &frame.fullDataWindow.max.x,
+        &frame.fullDataWindow.max.y ) )
+        return NULL;
+
+    v2i frameSize;
+    box2i_getSize( &frame.fullDataWindow, &frameSize );
+
+    frame.currentDataWindow = frame.fullDataWindow;
+    frame.stride = frameSize.x;
+    frame.frameData = PyMem_Malloc( sizeof(rgba) * frameSize.x * frameSize.y );
+
+    if( !frame.frameData )
+        return PyErr_NoMemory();
+
+    VideoSourceHolder source;
+
+    if( !takeVideoSource( sourceObj, &source ) ) {
+        PyMem_Free( frame.frameData );
+        return NULL;
+    }
+
+    int64_t startTime = gettime();
+    for( int i = minFrame; i <= maxFrame; i++ )
+        source.funcs->getFrame( source.source, i, &frame );
+    int64_t endTime = gettime();
+
+    PyMem_Free( frame.frameData );
+
+    if( !takeVideoSource( NULL, &source ) )
+        return NULL;
+
+    return Py_BuildValue( "L", endTime - startTime );
+}
+
 static PyMethodDef module_methods[] = {
     { "getFrameTime", (PyCFunction) py_getFrameTime, METH_VARARGS,
         "getFrameTime(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
@@ -234,6 +292,8 @@ static PyMethodDef module_methods[] = {
         "getTimeFrame(rate, time): Gets the frame containing the given time in nanoseconds at the given Fraction frame rate." },
     { "getAudioData", (PyCFunction) py_getAudioData, METH_VARARGS | METH_KEYWORDS,
         "minSample, maxSample, data = getAudioData(source, minSample, maxSample[, channels=2]): Gets raw audio data from the source." },
+    { "timeGetFrame", (PyCFunction) py_timeGetFrame, METH_VARARGS | METH_KEYWORDS,
+        "timeGetFrame(source, minFrame, maxFrame, dataWindow=(0,0,1,1)): Retrieves minFrame through maxFrame from the source and returns the time it took in nanoseconds." },
     { NULL }
 };
 
