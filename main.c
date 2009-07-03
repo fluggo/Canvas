@@ -69,12 +69,12 @@ bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
 }
 
 int64_t
-getFrameTime( rational *frameRate, int frame ) {
+getFrameTime( const rational *frameRate, int frame ) {
     return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);
 }
 
 int
-getTimeFrame( rational *frameRate, int64_t time ) {
+getTimeFrame( const rational *frameRate, int64_t time ) {
     return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 

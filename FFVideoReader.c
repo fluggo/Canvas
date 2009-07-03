@@ -299,22 +299,23 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
         //printf( "pix_fmt: %d\n", self->codecContext->pix_fmt );
 
         if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
-            uint8_t *yplane = avFrame->data[0], *cbplane = avFrame->data[1], *crplane = avFrame->data[2];
+            uint8_t *yplane, *cbplane, *crplane;
+
+            printf( "Allocating...\n" );
+            rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
+
+            if( !tempRow ) {
+                printf( "Failed to allocate row\n" );
+                box2i_setEmpty( &frame->currentDataWindow );
+                av_free_packet( &packet );
+                return;
+            }
 
             for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
-    #if DO_SCALE
-                for( int x = 0; x < self->codecContext->width; x++ ) {
-                    float y = yplane[x] - 16.0f, cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
+                yplane = avFrame->data[0] + (row * avFrame->linesize[0]);
+                cbplane = avFrame->data[1] + (row * avFrame->linesize[1]);
+                crplane = avFrame->data[2] + (row * avFrame->linesize[2]);
 
-                    frame->base[row * frame->stride + x].r = __gamma22( y * self->colorMatrix[0][0] + cb * self->colorMatrix[0][1] +
-                        cr * self->colorMatrix[0][2] );
-                    frame->base[row * frame->stride + x].g = __gamma22( y * self->colorMatrix[1][0] + cb * self->colorMatrix[1][1] +
-                        cr * self->colorMatrix[1][2] );
-                    frame->base[row * frame->stride + x].b = __gamma22( y * self->colorMatrix[2][0] + cb * self->colorMatrix[2][1] +
-                        cr * self->colorMatrix[2][2] );
-                    frame->base[row * frame->stride + x].a = a;
-                }
-    #else
                 for( int x = coordWindow.min.x / 4; x <= coordWindow.max.x / 4; x++ ) {
                     float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
 
@@ -324,31 +325,25 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
 
                     for( int i = 0; i < 4; i++ ) {
                         int px = x * 4 + i;
+                        float y = yplane[px] - 16.0f;
 
-                        if( px < coordWindow.min.x || px > coordWindow.max.x )
-                            continue;
-
-                        float y = yplane[x * 4 + i] - 16.0f;
-
-                        float in[4] = {
-                            y * self->colorMatrix[0][0] + ccr,
-                            y * self->colorMatrix[1][0] + ccg,
-                            y * self->colorMatrix[2][0] + ccb,
-                            1.0f
-                        };
-
-                        half *out = &frame->frameData[row * frame->stride + x * 4 + i].r;
-
-                        half_convert_from_float_fast( in, out, 4 );
-                        half_lookup( gamma22, out, out, 4 );
+                        tempRow[px].r = y * self->colorMatrix[0][0] + ccr;
+                        tempRow[px].g = y * self->colorMatrix[1][0] + ccg;
+                        tempRow[px].b = y * self->colorMatrix[2][0] + ccb;
+                        tempRow[px].a = 1.0f;
                     }
                 }
-    #endif
 
-                yplane += avFrame->linesize[0];
-                cbplane += avFrame->linesize[1];
-                crplane += avFrame->linesize[2];
+                half *out = &frame->frameData[row * frame->stride + coordWindow.min.x].r;
+
+                half_convert_from_float_fast( (float*)(tempRow + coordWindow.min.x), out,
+                    4 * (coordWindow.max.x - coordWindow.min.x + 1) );
+                half_lookup( gamma22, out, out,
+                    4 * (coordWindow.max.x - coordWindow.min.x + 1) );
             }
+
+            printf( "Freeing...\n" );
+            slice_free( sizeof(rgba_f32) * self->codecContext->width, tempRow );
         }
         else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
             uint8_t *restrict yplane = avFrame->data[0], *restrict cbplane = avFrame->data[1], *restrict crplane = avFrame->data[2];

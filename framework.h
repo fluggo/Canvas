@@ -13,6 +13,18 @@
 
 #define NOEXPORT __attribute__((visibility("hidden")))
 
+#if defined(USE_GLIB)
+#include <glib.h>
+#define slice_alloc(size) g_slice_alloc(size)
+#define slice_alloc0(size) g_slice_alloc0(size)
+#define slice_free(size, ptr) g_slice_free1(size, ptr)
+#else
+#define slice_alloc(size) malloc(size)
+#define slice_alloc0(size) calloc(1, size)
+#define slice_free(size, ptr) free(ptr)
+#endif
+
+
 typedef struct {
     int n;
     unsigned int d;
@@ -37,11 +49,11 @@ static inline void box2i_setEmpty( box2i *box ) {
     box2i_set( box, 0, 0, -1, -1 );
 }
 
-static inline bool box2i_isEmpty( box2i *box ) {
+static inline bool box2i_isEmpty( const box2i *box ) {
     return box->max.x < box->min.x || box->max.y < box->min.y;
 }
 
-static inline void box2i_getSize( box2i *box, v2i *result ) {
+static inline void box2i_getSize( const box2i *box, v2i *result ) {
     result->x = (box->max.x < box->min.x) ? 0 : (box->max.x - box->min.x + 1);
     result->y = (box->max.y < box->min.y) ? 0 : (box->max.y - box->min.y + 1);
 }
@@ -54,14 +66,18 @@ static inline int max( int a, int b ) {
     return a > b ? a : b;
 }
 
-NOEXPORT int64_t getFrameTime( rational *frameRate, int frame );
-NOEXPORT int getTimeFrame( rational *frameRate, int64_t time );
+NOEXPORT int64_t getFrameTime( const rational *frameRate, int frame );
+NOEXPORT int getTimeFrame( const rational *frameRate, int64_t time );
 NOEXPORT bool parseRational( PyObject *in, rational *out );
 
 /************* Video *******/
 typedef struct {
     half r, g, b, a;
 } rgba;
+
+typedef struct {
+    float r, g, b, a;
+} rgba_f32;
 
 typedef struct {
     rgba *frameData;
