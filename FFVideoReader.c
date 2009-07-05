@@ -12,8 +12,6 @@ typedef struct {
     AVCodecContext *codecContext;
     AVCodec *codec;
     int firstVideoStream;
-    AVFrame *inputFrame, *rgbFrame;
-    uint8_t *rgbBuffer;
     float colorMatrix[3][3];
     struct SwsContext *scaler;
     bool allKeyframes;
@@ -22,6 +20,8 @@ typedef struct {
 
 static half gamma22[65536];
 static CGcontext cgContext;
+
+static void FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFrame *frame );
 
 static int
 FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds ) {
@@ -32,9 +32,6 @@ FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds )
     self->context = NULL;
     self->codecContext = NULL;
     self->codec = NULL;
-    self->inputFrame = NULL;
-    self->rgbFrame = NULL;
-    self->rgbBuffer = NULL;
     self->scaler = NULL;
 
     if( !PyArg_ParseTuple( args, "s", &filename ) )
@@ -77,27 +74,6 @@ FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds )
         return -1;
     }
 
-    if( (self->inputFrame = avcodec_alloc_frame()) == NULL ) {
-        PyErr_Format( PyExc_Exception, "Could not allocate input frame (%s).", strerror( ENOMEM ) );
-        return -1;
-    }
-
-    if( (self->rgbFrame = avcodec_alloc_frame()) == NULL ) {
-        PyErr_Format( PyExc_Exception, "Could not allocate output frame (%s).", strerror( ENOMEM ) );
-        return -1;
-    }
-
-    int byteCount = avpicture_get_size( PIX_FMT_YUV444P, self->codecContext->width,
-        self->codecContext->height );
-
-    if( (self->rgbBuffer = (uint8_t*) av_malloc( byteCount )) == NULL ) {
-        PyErr_Format( PyExc_Exception, "Could not allocate output frame buffer (%s).", strerror( ENOMEM ) );
-        return -1;
-    }
-
-    avpicture_fill( (AVPicture *) self->rgbFrame, self->rgbBuffer, PIX_FMT_YUV444P,
-        self->codecContext->width, self->codecContext->height );
-
     // Rec. 601 weights courtesy of http://www.poynton.com/notes/colour_and_gamma/ColorFAQ.html
 /*    self->colorMatrix[0][0] = 1.0f / 219.0f;    // Y -> R
     self->colorMatrix[0][1] = 0.0f;    // Pb -> R, and so on
@@ -139,18 +115,7 @@ FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds )
 
     if( !self->allKeyframes ) {
         // Prime the pump for MPEG so we get frame accuracy (otherwise we seem to start a few frames in)
-        AVPacket packet;
-        int gotPicture;
-
-        av_init_packet( &packet );
-        av_read_frame( self->context, &packet );
-
-        if( packet.stream_index == self->firstVideoStream ) {
-            avcodec_decode_video( self->codecContext, self->inputFrame, &gotPicture,
-                packet.data, packet.size );
-        }
-
-        av_free_packet( &packet );
+        FFVideoReader_getFrame( self, 0, NULL );
         av_seek_frame( self->context, self->firstVideoStream, 0, AVSEEK_FLAG_BACKWARD );
     }
 
@@ -162,21 +127,6 @@ FFVideoReader_dealloc( py_obj_FFVideoReader *self ) {
     if( self->scaler != NULL ) {
         sws_freeContext( self->scaler );
         self->scaler = NULL;
-    }
-
-    if( self->rgbBuffer != NULL ) {
-        av_free( self->rgbBuffer );
-        self->rgbBuffer = NULL;
-    }
-
-    if( self->rgbFrame != NULL ) {
-        av_free( self->rgbFrame );
-        self->rgbFrame = NULL;
-    }
-
-    if( self->inputFrame != NULL ) {
-        av_free( self->inputFrame );
-        self->inputFrame = NULL;
     }
 
     if( self->codecContext != NULL ) {
@@ -235,176 +185,208 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
         self->currentVideoFrame = frameIndex;
     }
 
+    // Allocate data structures for reading
+    AVFrame avFrame;
+    avcodec_get_frame_defaults( &avFrame );
+
+    int inputBufferSize = avpicture_get_size(
+        self->codecContext->pix_fmt,
+        self->codecContext->width,
+        self->codecContext->height );
+
+    uint8_t *inputBuffer;
+
+    if( (inputBuffer = (uint8_t*) slice_alloc( inputBufferSize )) == NULL ) {
+        printf( "Could not allocate output buffer\n" );
+
+        if( frame )
+            box2i_setEmpty( &frame->currentDataWindow );
+
+        return;
+    }
+
+    avpicture_fill( (AVPicture *) &avFrame, inputBuffer,
+        self->codecContext->pix_fmt,
+        self->codecContext->width,
+        self->codecContext->height );
+
+    AVPacket packet;
+    av_init_packet( &packet );
+
     for( ;; ) {
-        AVPacket packet;
-
-        av_init_packet( &packet );
-
         //printf( "Reading frame\n" );
-        if( av_read_frame( self->context, &packet ) < 0 )
+        if( av_read_frame( self->context, &packet ) < 0 ) {
             printf( "Could not read the frame.\n" );
+
+            if( frame )
+                box2i_setEmpty( &frame->currentDataWindow );
+
+            slice_free( inputBufferSize, inputBuffer );
+            return;
+        }
 
         if( packet.stream_index != self->firstVideoStream ) {
             //printf( "Not the right stream\n" );
-            av_free_packet( &packet );
             continue;
         }
 
         int gotPicture;
 
         //printf( "Decoding video\n" );
-        avcodec_decode_video( self->codecContext, self->inputFrame, &gotPicture,
+        avcodec_decode_video( self->codecContext, &avFrame, &gotPicture,
             packet.data, packet.size );
 
         if( !gotPicture ) {
             //printf( "Didn't get a picture\n" );
-            av_free_packet( &packet );
             continue;
         }
 
         if( (packet.dts + frameDuration) < timestamp ) {
             //printf( "Too early (%ld vs %ld)\n", packet.dts, timestamp );
-            av_free_packet( &packet );
             continue;
         }
 
         //printf( "We'll take that\n" );
+        break;
+    }
 
-        AVFrame *avFrame = self->rgbFrame;
+    av_free_packet( &packet );
+
+    if( !frame ) {
+        slice_free( inputBufferSize, inputBuffer );
+        return;
+    }
 
 #if DO_SCALE
-        if( sws_scale( self->scaler, self->inputFrame->data, self->inputFrame->linesize, 0,
-                self->codecContext->height, self->rgbFrame->data, self->rgbFrame->linesize ) < self->codecContext->height ) {
-            av_free_packet( &packet );
-            THROW( Iex::BaseExc, "The image conversion failed." );
-        }
-#else
-        avFrame = self->inputFrame;
+    if( sws_scale( self->scaler, self->inputFrame->data, self->inputFrame->linesize, 0,
+            self->codecContext->height, self->rgbFrame->data, self->rgbFrame->linesize ) < self->codecContext->height ) {
+        av_free_packet( &packet );
+        THROW( Iex::BaseExc, "The image conversion failed." );
+    }
 #endif
 
-        // Now convert to halfs
-        frame->currentDataWindow.min.x = max( 0, frame->currentDataWindow.min.x );
-        frame->currentDataWindow.min.y = max( 0, frame->currentDataWindow.min.y );
-        frame->currentDataWindow.max.x = min( self->codecContext->width - 1, frame->currentDataWindow.max.x );
-        frame->currentDataWindow.max.y = min( self->codecContext->height - 1, frame->currentDataWindow.max.y );
+    // Now convert to halfs
+    box2i_set( &frame->currentDataWindow,
+        max( 0, frame->currentDataWindow.min.x ),
+        max( 0, frame->currentDataWindow.min.y ),
+        min( self->codecContext->width - 1, frame->currentDataWindow.max.x ),
+        min( self->codecContext->height - 1, frame->currentDataWindow.max.y ) );
 
-        box2i coordWindow = {
-            { frame->currentDataWindow.min.x - frame->fullDataWindow.min.x, frame->currentDataWindow.min.y - frame->fullDataWindow.min.y },
-            { frame->currentDataWindow.max.x - frame->fullDataWindow.min.x, frame->currentDataWindow.max.y - frame->fullDataWindow.min.y }
-        };
+    box2i coordWindow = {
+        { frame->currentDataWindow.min.x - frame->fullDataWindow.min.x, frame->currentDataWindow.min.y - frame->fullDataWindow.min.y },
+        { frame->currentDataWindow.max.x - frame->fullDataWindow.min.x, frame->currentDataWindow.max.y - frame->fullDataWindow.min.y }
+    };
 
-        //printf( "pix_fmt: %d\n", self->codecContext->pix_fmt );
+    //printf( "pix_fmt: %d\n", self->codecContext->pix_fmt );
 
-        if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
-            uint8_t *yplane, *cbplane, *crplane;
+    if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
+        uint8_t *yplane, *cbplane, *crplane;
 
-            rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
+        rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
 
-            if( !tempRow ) {
-                printf( "Failed to allocate row\n" );
-                box2i_setEmpty( &frame->currentDataWindow );
-                av_free_packet( &packet );
-                return;
+        if( !tempRow ) {
+            printf( "Failed to allocate row\n" );
+            box2i_setEmpty( &frame->currentDataWindow );
+            av_free_packet( &packet );
+            return;
+        }
+
+        for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
+            yplane = avFrame.data[0] + (row * avFrame.linesize[0]);
+            cbplane = avFrame.data[1] + (row * avFrame.linesize[1]);
+            crplane = avFrame.data[2] + (row * avFrame.linesize[2]);
+
+            for( int x = coordWindow.min.x / 4; x <= coordWindow.max.x / 4; x++ ) {
+                float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
+
+                float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
+                float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
+                float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
+
+                for( int i = 0; i < 4; i++ ) {
+                    int px = x * 4 + i;
+                    float y = yplane[px] - 16.0f;
+
+                    tempRow[px].r = y * self->colorMatrix[0][0] + ccr;
+                    tempRow[px].g = y * self->colorMatrix[1][0] + ccg;
+                    tempRow[px].b = y * self->colorMatrix[2][0] + ccb;
+                    tempRow[px].a = 1.0f;
+                }
             }
 
-            for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
-                yplane = avFrame->data[0] + (row * avFrame->linesize[0]);
-                cbplane = avFrame->data[1] + (row * avFrame->linesize[1]);
-                crplane = avFrame->data[2] + (row * avFrame->linesize[2]);
+            half *out = &frame->frameData[row * frame->stride + coordWindow.min.x].r;
 
-                for( int x = coordWindow.min.x / 4; x <= coordWindow.max.x / 4; x++ ) {
-                    float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
+            half_convert_from_float_fast( (float*)(tempRow + coordWindow.min.x), out,
+                4 * (coordWindow.max.x - coordWindow.min.x + 1) );
+            half_lookup( gamma22, out, out,
+                4 * (coordWindow.max.x - coordWindow.min.x + 1) );
+        }
+
+        slice_free( sizeof(rgba_f32) * self->codecContext->width, tempRow );
+    }
+    else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
+        uint8_t *restrict yplane = avFrame.data[0], *restrict cbplane = avFrame.data[1], *restrict crplane = avFrame.data[2];
+        rgba *restrict frameData = frame->frameData;
+
+        int pyi = avFrame.interlaced_frame ? 2 : 1;
+
+        // 4:2:0 interlaced:
+        // 0 -> 0, 2; 2 -> 4, 6; 4 -> 8, 10
+        // 1 -> 1, 3; 3 -> 5, 7; 5 -> 9, 11
+
+        // 4:2:0 progressive:
+        // 0 -> 0, 1; 1 -> 2, 3; 2 -> 4, 5
+
+        const int minsx = coordWindow.min.x >> 1, maxsx = coordWindow.max.x >> 1;
+
+        for( int sy = coordWindow.min.y / 2; sy <= coordWindow.max.y / 2; sy++ ) {
+            int py = sy * 2;
+
+            if( avFrame.interlaced_frame && (sy & 1) == 1 )
+                py--;
+
+            for( int i = 0; i < 2; i++ ) {
+                uint8_t *restrict cbx = cbplane + minsx, *restrict crx = crplane + minsx;
+
+                for( int sx = minsx; sx <= maxsx; sx++ ) {
+                    float cb = *cbx++ - 128.0f, cr = *crx++ - 128.0f;
 
                     float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
                     float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
                     float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
 
-                    for( int i = 0; i < 4; i++ ) {
-                        int px = x * 4 + i;
-                        float y = yplane[px] - 16.0f;
+                    if( py < coordWindow.min.y || py > coordWindow.max.y )
+                        continue;
 
-                        tempRow[px].r = y * self->colorMatrix[0][0] + ccr;
-                        tempRow[px].g = y * self->colorMatrix[1][0] + ccg;
-                        tempRow[px].b = y * self->colorMatrix[2][0] + ccb;
-                        tempRow[px].a = 1.0f;
-                    }
-                }
-
-                half *out = &frame->frameData[row * frame->stride + coordWindow.min.x].r;
-
-                half_convert_from_float_fast( (float*)(tempRow + coordWindow.min.x), out,
-                    4 * (coordWindow.max.x - coordWindow.min.x + 1) );
-                half_lookup( gamma22, out, out,
-                    4 * (coordWindow.max.x - coordWindow.min.x + 1) );
-            }
-
-            slice_free( sizeof(rgba_f32) * self->codecContext->width, tempRow );
-        }
-        else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
-            uint8_t *restrict yplane = avFrame->data[0], *restrict cbplane = avFrame->data[1], *restrict crplane = avFrame->data[2];
-            rgba *restrict frameData = frame->frameData;
-
-            int pyi = avFrame->interlaced_frame ? 2 : 1;
-
-            // 4:2:0 interlaced:
-            // 0 -> 0, 2; 2 -> 4, 6; 4 -> 8, 10
-            // 1 -> 1, 3; 3 -> 5, 7; 5 -> 9, 11
-
-            // 4:2:0 progressive:
-            // 0 -> 0, 1; 1 -> 2, 3; 2 -> 4, 5
-
-            const int minsx = coordWindow.min.x >> 1, maxsx = coordWindow.max.x >> 1;
-
-            for( int sy = coordWindow.min.y / 2; sy <= coordWindow.max.y / 2; sy++ ) {
-                int py = sy * 2;
-
-                if( avFrame->interlaced_frame && (sy & 1) == 1 )
-                    py--;
-
-                for( int i = 0; i < 2; i++ ) {
-                    uint8_t *restrict cbx = cbplane + minsx, *restrict crx = crplane + minsx;
-
-                    for( int sx = minsx; sx <= maxsx; sx++ ) {
-                        float cb = *cbx++ - 128.0f, cr = *crx++ - 128.0f;
-
-                        float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
-                        float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
-                        float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
-
-                        if( py < coordWindow.min.y || py > coordWindow.max.y )
+                    for( int px = sx * 2; px <= sx * 2 + 1; px++ ) {
+                        if( px < coordWindow.min.x || px > coordWindow.max.x )
                             continue;
 
-                        for( int px = sx * 2; px <= sx * 2 + 1; px++ ) {
-                            if( px < coordWindow.min.x || px > coordWindow.max.x )
-                                continue;
+                        float cy = yplane[avFrame.linesize[0] * (py + pyi * i) + px] - 16.0f;
+                        float in[4] = {
+                            cy * self->colorMatrix[0][0] + ccr,
+                            cy * self->colorMatrix[1][0] + ccg,
+                            cy * self->colorMatrix[2][0] + ccb,
+                            1.0f
+                        };
 
-                            float cy = yplane[avFrame->linesize[0] * (py + pyi * i) + px] - 16.0f;
-                            float in[4] = {
-                                cy * self->colorMatrix[0][0] + ccr,
-                                cy * self->colorMatrix[1][0] + ccg,
-                                cy * self->colorMatrix[2][0] + ccb,
-                                1.0f
-                            };
+                        half *out = &frameData[(py + pyi * i) * frame->stride + px].r;
 
-                            half *out = &frameData[(py + pyi * i) * frame->stride + px].r;
-
-                            half_convert_from_float_fast( in, out, 4 );
-                            half_lookup( gamma22, out, out, 4 );
-                        }
+                        half_convert_from_float_fast( in, out, 4 );
+                        half_lookup( gamma22, out, out, 4 );
                     }
                 }
-
-                cbplane += avFrame->linesize[1];
-                crplane += avFrame->linesize[2];
             }
-        }
-        else {
-            box2i_setEmpty( &frame->currentDataWindow );
-        }
 
-        av_free_packet( &packet );
-        return;
+            cbplane += avFrame.linesize[1];
+            crplane += avFrame.linesize[2];
+        }
     }
+    else {
+        box2i_setEmpty( &frame->currentDataWindow );
+    }
+
+    slice_free( inputBufferSize, inputBuffer );
 }
 
 static VideoFrameSourceFuncs videoSourceFuncs = {
