@@ -1,7 +1,14 @@
 
+#include "framework.h"
 #include "clock.h"
-#include <time.h>
 #include <gtk/gtk.h>
+
+int64_t gettime() {
+    struct timespec time;
+    clock_gettime( CLOCK_MONOTONIC, &time );
+
+    return ((int64_t) time.tv_sec) * INT64_C(1000000000) + (int64_t) time.tv_nsec;
+}
 
 bool takePresentationClock( PyObject *source, PresentationClockHolder *holder ) {
     Py_CLEAR( holder->source );
@@ -34,13 +41,6 @@ typedef struct {
     ClockRegions regions;
     rational speed;
 } py_obj_SystemPresentationClock;
-
-static int64_t gettime() {
-    struct timespec time;
-    clock_gettime( CLOCK_MONOTONIC, &time );
-
-    return ((int64_t) time.tv_sec) * INT64_C(1000000000) + (int64_t) time.tv_nsec;
-}
 
 /***************** SystemPresentationClock *********/
 static int

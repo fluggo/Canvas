@@ -16,13 +16,6 @@
 #include <GL/gl.h>
 #include <Cg/cg.h>
 
-static int64_t gettime() {
-    struct timespec time;
-    clock_gettime( CLOCK_MONOTONIC, &time );
-
-    return ((int64_t) time.tv_sec) * INT64_C(1000000000) + (int64_t) time.tv_nsec;
-}
-
 bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
