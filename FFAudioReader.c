@@ -227,7 +227,7 @@ FFAudioReader_getFrame( py_obj_FFAudioReader *self, AudioFrame *frame ) {
     int sampleRate = self->codecContext->sample_rate;
     //printf( "timeBase: %d/%d, frameRate: %d/%d\n", timeBase->num, timeBase->den, sampleRate, 1 );
     int64_t frameDuration = (timeBase->den) / (timeBase->num * sampleRate);
-    int64_t timestamp = frame->fullMinSample * (timeBase->den) / (timeBase->num * sampleRate) + frameDuration / 2;
+    int64_t timestamp = ((int64_t) frame->fullMinSample * timeBase->den) / (timeBase->num * sampleRate) + frameDuration / 2;
 
 
 //    if( (uint64_t) self->context->start_time != AV_NOPTS_VALUE )

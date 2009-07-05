@@ -147,7 +147,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         else
             self->seekTime = getFrameTime( &rate, self->nextSample + (hwBufferSize - avail) );
 
-        //printf( "hwBufferSize: %d, avail: %d\n", hwBufferSize, avail );
+        //printf( "nextSample: %d, hwBufferSize: %d, avail: %d\n", self->nextSample, hwBufferSize, avail );
         g_mutex_unlock( self->mutex );
 
         g_mutex_unlock( self->configMutex );
