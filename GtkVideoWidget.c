@@ -15,6 +15,8 @@
 #include <GL/gl.h>
 
 static uint8_t gamma45[65536];
+#define    SOFT_MODE_BUFFERS    4
+#define HARD_MODE_BUFFERS    2
 
 static void checkGLError() {
     int error = glGetError();
@@ -50,7 +52,7 @@ typedef struct {
     rgb8 *frameData;
     int stride;
     box2i fullDataWindow, currentDataWindow;
-} FrameTarget;
+} SoftFrameTarget;
 
 typedef struct {
     PyObject_HEAD
@@ -70,13 +72,20 @@ typedef struct {
     box2i displayWindow;
     int firstFrame, lastFrame;
     float pixelAspectRatio;
-    GLuint textureId;
     float texCoordX, texCoordY;
     bool renderOneFrame, drawOneFrame;
 
-    FrameTarget targets[4];
+    SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
+    GLuint softTextureId;
+
+    // True: render in software, false, render in hardware
+    bool softMode;
+
+    // Number of buffers available
+    int bufferCount;
+
     float rate;
-    bool quit, textureAllocated;
+    bool quit;
     GThread *renderThread;
 } py_obj_GtkVideoWidget;
 
@@ -91,9 +100,9 @@ static void _gl_initialize( py_obj_GtkVideoWidget *self ) {
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
 
-    if( !self->textureAllocated ) {
-        glGenTextures( 1, &self->textureId );
-        glBindTexture( GL_TEXTURE_2D, self->textureId );
+    if( !self->softTextureId ) {
+        glGenTextures( 1, &self->softTextureId );
+        glBindTexture( GL_TEXTURE_2D, self->softTextureId );
 
         if( GLEW_ARB_texture_non_power_of_two ) {
             glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
@@ -127,8 +136,6 @@ static void _gl_initialize( py_obj_GtkVideoWidget *self ) {
             self->texCoordX = (float) frameSize.x / (float) texW;
             self->texCoordY = (float) frameSize.y / (float) texH;
         }
-
-        self->textureAllocated = true;
     }
 }
 
@@ -137,9 +144,9 @@ void _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
 
-    glBindTexture( GL_TEXTURE_2D, self->textureId );
+    glBindTexture( GL_TEXTURE_2D, self->softTextureId );
     glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, frameSize.x, frameSize.y,
-        GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer].frameData[0] );
+        GL_RGB, GL_UNSIGNED_BYTE, &self->softTargets[self->readBuffer].frameData[0] );
     checkGLError();
 }
 
@@ -178,7 +185,7 @@ void _gl_draw( py_obj_GtkVideoWidget *self ) {
     glClear( GL_COLOR_BUFFER_BIT );
 
     // Render texture onto quad
-    glBindTexture( GL_TEXTURE_2D, self->textureId );
+    glBindTexture( GL_TEXTURE_2D, self->softTextureId );
     glEnable( GL_TEXTURE_2D );
 
     glBegin( GL_QUADS );
@@ -240,7 +247,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         int64_t startTime = self->clock.funcs->getPresentationTime( self->clock.source );
 
         g_mutex_lock( self->frameReadMutex );
-        while( !self->quit && !self->renderOneFrame && self->filled > 2 )
+        while( !self->quit && ((!self->renderOneFrame && self->filled > 2) || !self->softMode) )
             g_cond_wait( self->frameReadCond, self->frameReadMutex );
 
         if( self->quit ) {
@@ -263,11 +270,11 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
 
         // Set up the proper write buffer
         if( !self->renderOneFrame )
-            self->writeBuffer = (self->writeBuffer + 1) & 3;
+            self->writeBuffer = (self->writeBuffer + 1) % self->bufferCount;
 
         int writeBuffer = self->writeBuffer;
 
-        FrameTarget *target = &self->targets[writeBuffer];
+        SoftFrameTarget *target = &self->softTargets[writeBuffer];
 
         // If the frame is the wrong size, reallocate it now
         if( box2i_isEmpty( &target->fullDataWindow ) ||
@@ -335,7 +342,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
 
         //usleep( 100000 );
 
-        self->targets[writeBuffer].time = getFrameTime( &self->frameRate, nextFrame );
+        self->softTargets[writeBuffer].time = getFrameTime( &self->frameRate, nextFrame );
         int64_t endTime = self->clock.funcs->getPresentationTime( self->clock.source );
 
         int64_t lastDuration = endTime - startTime;
@@ -420,9 +427,9 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
         int filled = self->filled;
 
         if( !self->drawOneFrame )
-            self->readBuffer = (self->readBuffer + 1) & 3;
+            self->readBuffer = (self->readBuffer + 1) % self->bufferCount;
 
-        int64_t nextPresentationTime = self->targets[self->readBuffer].nextTime;
+        int64_t nextPresentationTime = self->softTargets[self->readBuffer].nextTime;
         g_mutex_unlock( self->frameReadMutex );
 
         if( filled != 0 || self->drawOneFrame ) {
@@ -525,22 +532,23 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
     self->frameRate.n = 24000;
     self->frameRate.d = 1001u;
 
+    self->softMode = true;
+    self->bufferCount = SOFT_MODE_BUFFERS;
+
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
     self->nextToRenderFrame = 0;
-    self->filled = 3;
-    self->readBuffer = 3;
-    self->writeBuffer = 3;
+    self->filled = self->bufferCount - 1;
+    self->readBuffer = self->bufferCount - 1;
+    self->writeBuffer = self->bufferCount - 1;
     self->firstFrame = 0;
     self->lastFrame = INT_MAX;
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
-    self->textureId = -1;
-    box2i_setEmpty( &self->targets[0].fullDataWindow );
-    box2i_setEmpty( &self->targets[1].fullDataWindow );
-     box2i_setEmpty( &self->targets[2].fullDataWindow );
-    box2i_setEmpty( &self->targets[3].fullDataWindow );
-    self->textureAllocated = false;
+    self->softTextureId = 0;
+
+    for( int i = 0; i < SOFT_MODE_BUFFERS; i++ )
+        box2i_setEmpty( &self->softTargets[i].fullDataWindow );
 
     g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );
 
