@@ -80,14 +80,7 @@ typedef struct {
     GThread *renderThread;
 } py_obj_GtkVideoWidget;
 
-static gboolean
-expose( GtkWidget *widget, GdkEventExpose *event, py_obj_GtkVideoWidget *self ) {
-    GdkGLContext *glcontext = gtk_widget_get_gl_context( self->drawingArea );
-    GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable( self->drawingArea );
-
-    if( !gdk_gl_drawable_gl_begin( gldrawable, glcontext ) )
-        return FALSE;
-
+static void _gl_initialize( py_obj_GtkVideoWidget *self ) {
     static bool __glewInit = false;
 
     if( !__glewInit ) {
@@ -95,26 +88,8 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_GtkVideoWidget *self ) 
         __glewInit = true;
     }
 
-    // Set ourselves up with the correct aspect ratio for the space
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
-
-    float width = frameSize.x * self->pixelAspectRatio;
-    float height = frameSize.y;
-
-    if( width > widget->allocation.width ) {
-        height *= widget->allocation.width / width;
-        width = widget->allocation.width;
-    }
-
-    if( height > widget->allocation.height ) {
-        width *= widget->allocation.height / height;
-        height = widget->allocation.height;
-    }
-
-    // Center
-    float x = widget->allocation.width * 0.5f - width * 0.5f;
-    float y = widget->allocation.height * 0.5f - height * 0.5f;
 
     if( !self->textureAllocated ) {
         glGenTextures( 1, &self->textureId );
@@ -155,19 +130,55 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_GtkVideoWidget *self ) 
 
         self->textureAllocated = true;
     }
+}
 
-    glLoadIdentity();
-    glViewport( 0, 0, widget->allocation.width, widget->allocation.height );
-    glOrtho( 0, widget->allocation.width, widget->allocation.height, 0, -1, 1 );
-
-    glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
-    glClear( GL_COLOR_BUFFER_BIT );
+void _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
+    // Load texture
+    v2i frameSize;
+    box2i_getSize( &self->displayWindow, &frameSize );
 
     glBindTexture( GL_TEXTURE_2D, self->textureId );
     glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, frameSize.x, frameSize.y,
         GL_RGB, GL_UNSIGNED_BYTE, &self->targets[self->readBuffer].frameData[0] );
     checkGLError();
+}
 
+void _gl_draw( py_obj_GtkVideoWidget *self ) {
+    // Set ourselves up with the correct aspect ratio for the space
+    v2i frameSize;
+    box2i_getSize( &self->displayWindow, &frameSize );
+
+    v2i widgetSize = {
+        .x = self->drawingArea->allocation.width,
+        .y = self->drawingArea->allocation.height };
+
+    float width = frameSize.x * self->pixelAspectRatio;
+    float height = frameSize.y;
+
+    if( width > widgetSize.x ) {
+        height *= widgetSize.x / width;
+        width = widgetSize.x;
+    }
+
+    if( height > widgetSize.y ) {
+        width *= widgetSize.y / height;
+        height = widgetSize.y;
+    }
+
+    // Center
+    float x = widgetSize.x * 0.5f - width * 0.5f;
+    float y = widgetSize.y * 0.5f - height * 0.5f;
+
+    // Set up for drawing
+    glLoadIdentity();
+    glViewport( 0, 0, widgetSize.x, widgetSize.y );
+    glOrtho( 0, widgetSize.x, widgetSize.y, 0, -1, 1 );
+
+    glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
+    glClear( GL_COLOR_BUFFER_BIT );
+
+    // Render texture onto quad
+    glBindTexture( GL_TEXTURE_2D, self->textureId );
     glEnable( GL_TEXTURE_2D );
 
     glBegin( GL_QUADS );
@@ -182,7 +193,22 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_GtkVideoWidget *self ) 
     glEnd();
 
     glDisable( GL_TEXTURE_2D );
+}
 
+static gboolean
+expose( GtkWidget *widget, GdkEventExpose *event, py_obj_GtkVideoWidget *self ) {
+    GdkGLContext *glcontext = gtk_widget_get_gl_context( self->drawingArea );
+    GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable( self->drawingArea );
+
+    if( !gdk_gl_drawable_gl_begin( gldrawable, glcontext ) )
+        return FALSE;
+
+    // Render here
+    _gl_initialize( self );
+    _gl_softLoadTexture( self );
+    _gl_draw( self );
+
+    // Flush buffers
     if( gdk_gl_drawable_is_double_buffered( gldrawable ) )
         gdk_gl_drawable_swap_buffers( gldrawable );
     else
