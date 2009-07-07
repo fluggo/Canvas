@@ -27,7 +27,7 @@ Pulldown23RemovalFilter_init( py_obj_Pulldown23RemovalFilter *self, PyObject *ar
 }
 
 static void
-Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int64_t frameIndex, RgbaFrame *frame ) {
+Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int frameIndex, RgbaFrame *frame ) {
     if( self->source.source == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );

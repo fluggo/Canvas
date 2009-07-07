@@ -2,8 +2,6 @@
 #include "framework.h"
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
-#include <Cg/cg.h>
-#include <Cg/cgGL.h>
 
 typedef struct {
     PyObject_HEAD
@@ -19,9 +17,8 @@ typedef struct {
 } py_obj_FFVideoReader;
 
 static half gamma22[65536];
-static CGcontext cgContext;
 
-static void FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFrame *frame );
+static void FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *frame );
 
 static int
 FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds ) {
@@ -142,14 +139,8 @@ FFVideoReader_dealloc( py_obj_FFVideoReader *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-static void
-FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFrame *frame ) {
-    if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
-        // No result
-        box2i_setEmpty( &frame->currentDataWindow );
-        return;
-    }
-
+static bool
+read_frame( py_obj_FFVideoReader *self, int frameIndex, AVFrame *frame ) {
     //printf( "Requested %ld\n", frameIndex );
 
     AVRational *timeBase = &self->context->streams[self->firstVideoStream]->time_base;
@@ -165,7 +156,7 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
     if( self->allKeyframes ) {
         if( av_seek_frame( self->context, self->firstVideoStream, frameIndex,
                 AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD ) < 0 )
-            printf( "Could not seek to frame %ld.\n", frameIndex );
+            printf( "Could not seek to frame %d.\n", frameIndex );
 
         self->currentVideoFrame = frameIndex;
     }
@@ -183,6 +174,49 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
         }
 
         self->currentVideoFrame = frameIndex;
+    }
+
+    AVPacket packet;
+    av_init_packet( &packet );
+
+    for( ;; ) {
+        //printf( "Reading frame\n" );
+        if( av_read_frame( self->context, &packet ) < 0 )
+            return false;
+
+        if( packet.stream_index != self->firstVideoStream ) {
+            //printf( "Not the right stream\n" );
+            continue;
+        }
+
+        int gotPicture;
+
+        //printf( "Decoding video\n" );
+        avcodec_decode_video( self->codecContext, frame, &gotPicture,
+            packet.data, packet.size );
+
+        if( !gotPicture ) {
+            //printf( "Didn't get a picture\n" );
+            continue;
+        }
+
+        if( (packet.dts + frameDuration) < timestamp ) {
+            //printf( "Too early (%ld vs %ld)\n", packet.dts, timestamp );
+            continue;
+        }
+
+        //printf( "We'll take that\n" );
+        av_free_packet( &packet );
+        return true;
+    }
+}
+
+static void
+FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *frame ) {
+    if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
+        // No result
+        box2i_setEmpty( &frame->currentDataWindow );
+        return;
     }
 
     // Allocate data structures for reading
@@ -210,47 +244,14 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
         self->codecContext->width,
         self->codecContext->height );
 
-    AVPacket packet;
-    av_init_packet( &packet );
+    if( !read_frame( self, frameIndex, &avFrame ) ) {
+        printf( "Could not read the frame.\n" );
 
-    for( ;; ) {
-        //printf( "Reading frame\n" );
-        if( av_read_frame( self->context, &packet ) < 0 ) {
-            printf( "Could not read the frame.\n" );
+        if( frame )
+            box2i_setEmpty( &frame->currentDataWindow );
 
-            if( frame )
-                box2i_setEmpty( &frame->currentDataWindow );
-
-            slice_free( inputBufferSize, inputBuffer );
-            return;
-        }
-
-        if( packet.stream_index != self->firstVideoStream ) {
-            //printf( "Not the right stream\n" );
-            continue;
-        }
-
-        int gotPicture;
-
-        //printf( "Decoding video\n" );
-        avcodec_decode_video( self->codecContext, &avFrame, &gotPicture,
-            packet.data, packet.size );
-
-        if( !gotPicture ) {
-            //printf( "Didn't get a picture\n" );
-            continue;
-        }
-
-        if( (packet.dts + frameDuration) < timestamp ) {
-            //printf( "Too early (%ld vs %ld)\n", packet.dts, timestamp );
-            continue;
-        }
-
-        //printf( "We'll take that\n" );
-        break;
+        slice_free( inputBufferSize, inputBuffer );
     }
-
-    av_free_packet( &packet );
 
     if( !frame ) {
         slice_free( inputBufferSize, inputBuffer );
@@ -286,8 +287,8 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int64_t frameIndex, RgbaFram
 
         if( !tempRow ) {
             printf( "Failed to allocate row\n" );
+            slice_free( inputBufferSize, inputBuffer );
             box2i_setEmpty( &frame->currentDataWindow );
-            av_free_packet( &packet );
             return;
         }
 
@@ -430,6 +431,26 @@ static PyTypeObject py_type_FFVideoReader = {
     .tp_methods = FFVideoReader_methods
 };
 
+const char *yuvCgSource =
+"struct PixelOut { half4 color: COLOR; };"
+""
+"PixelOut"
+"main( float2 texCoord: TEXCOORD0,"
+"    uniform sampler texY: TEXUNIT0,"
+"    uniform float3x3 rgbMatrix,"
+"    uniform float gamma )"
+"{"
+"    half y = tex2D( texY, texCoord ).r;"
+""
+"    half4 color = half4( y, y, y, 1.0 );"
+""
+"    // De-gamma the result"
+"    PixelOut result;"
+"    result.color = pow( color, gamma );"
+"    return result;"
+"};"
+;
+
 NOEXPORT void init_AVFileReader( PyObject *module ) {
     float *f = malloc( sizeof(float) * 65536 );
 
@@ -452,9 +473,6 @@ NOEXPORT void init_AVFileReader( PyObject *module ) {
     PyModule_AddObject( module, "FFVideoReader", (PyObject *) &py_type_FFVideoReader );
 
     pyVideoSourceFuncs = PyCObject_FromVoidPtr( &videoSourceFuncs, NULL );
-
-    // Set up Cg
-    cgContext = cgCreateContext();
 }
 
 

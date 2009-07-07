@@ -38,6 +38,14 @@ typedef struct {
     v2i min, max;
 } box2i;
 
+typedef struct {
+    float x, y;
+} v2f;
+
+typedef struct {
+    v2f min, max;
+} box2f;
+
 static inline void box2i_set( box2i *box, int minX, int minY, int maxX, int maxY ) {
     box->min.x = minX;
     box->min.y = minY;
@@ -86,11 +94,19 @@ typedef struct {
     int stride;
 } RgbaFrame;
 
-typedef void (*video_getFrameFunc)( PyObject *self, int64_t frameIndex, RgbaFrame *frame );
+typedef struct {
+    int targetTexture;
+    box2f fullDataWindow;
+    box2f currentDataWindow;
+} GLFrame;
+
+typedef void (*video_getFrameFunc)( PyObject *self, int frameIndex, RgbaFrame *frame );
+typedef void (*video_getGLFrameFunc)( PyObject *self, int frameIndex, GLFrame *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero
     video_getFrameFunc getFrame;
+    video_getGLFrameFunc getGLFrame;
 } VideoFrameSourceFuncs;
 
 typedef struct {
