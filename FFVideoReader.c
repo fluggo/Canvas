@@ -317,7 +317,7 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
 
             half *out = &frame->frameData[row * frame->stride + coordWindow.min.x].r;
 
-            half_convert_from_float_fast( (float*)(tempRow + coordWindow.min.x), out,
+            half_convert_from_float( (float*)(tempRow + coordWindow.min.x), out,
                 4 * (coordWindow.max.x - coordWindow.min.x + 1) );
             half_lookup( gamma22, out, out,
                 4 * (coordWindow.max.x - coordWindow.min.x + 1) );
