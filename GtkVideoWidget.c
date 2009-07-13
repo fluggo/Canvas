@@ -240,6 +240,7 @@ static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
 static gpointer
 playbackThread( py_obj_GtkVideoWidget *self ) {
     RgbaFrame frame;
+    frame.frameData = NULL;
 
     box2i_setEmpty( &frame.fullDataWindow );
 
@@ -285,7 +286,8 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
                 target->frameData = NULL;
             }
 
-            target->frameData = malloc( frameSize.y * frameSize.x * sizeof(rgba) );
+            free( target->frameData );
+            target->frameData = malloc( frameSize.y * frameSize.x * sizeof(rgb8) );
             target->stride = frameSize.x;
         }
 
@@ -293,6 +295,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         if( box2i_isEmpty( &frame.fullDataWindow ) ||
             !box2i_equalSize( &self->displayWindow, &frame.fullDataWindow ) ) {
 
+            free( frame.frameData );
             frame.frameData = malloc( frameSize.y * frameSize.x * sizeof(rgba) );
             frame.stride = frameSize.x;
         }
@@ -328,15 +331,13 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
 
         // Convert the results to floating-point
         for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
-            for( int x = frame.currentDataWindow.min.x; x <= frame.currentDataWindow.max.x; x++ ) {
-                rgb8 *targetData = &target->frameData
-                    [(y - target->fullDataWindow.min.y) * target->stride + x - target->fullDataWindow.min.x];
-                rgba *sourceData = &frame.frameData
-                    [(y - frame.fullDataWindow.min.y) * frame.stride + x - frame.fullDataWindow.min.x];
+            rgb8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride];
+            rgba *sourceData = &frame.frameData[(y - frame.fullDataWindow.min.y) * frame.stride];
 
-                targetData->r = gamma45[sourceData->r];
-                targetData->g = gamma45[sourceData->g];
-                targetData->b = gamma45[sourceData->b];
+            for( int x = 0; x < frame.currentDataWindow.max.x - frame.currentDataWindow.min.x + 1; x++ ) {
+                targetData[x].r = gamma45[sourceData[x].r];
+                targetData[x].g = gamma45[sourceData[x].g];
+                targetData[x].b = gamma45[sourceData[x].b];
             }
         }
 
@@ -547,8 +548,10 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
     self->quit = false;
     self->softTextureId = 0;
 
-    for( int i = 0; i < SOFT_MODE_BUFFERS; i++ )
+    for( int i = 0; i < SOFT_MODE_BUFFERS; i++ ) {
+        self->softTargets[i].frameData = NULL;
         box2i_setEmpty( &self->softTargets[i].fullDataWindow );
+    }
 
     g_signal_connect( G_OBJECT(self->drawingArea), "expose_event", G_CALLBACK(expose), self );
 
