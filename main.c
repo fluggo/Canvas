@@ -278,6 +278,8 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     return Py_BuildValue( "L", endTime - startTime );
 }
 
+PyObject *py_writeVideo( PyObject *self, PyObject *args, PyObject *kw );
+
 static PyMethodDef module_methods[] = {
     { "getFrameTime", (PyCFunction) py_getFrameTime, METH_VARARGS,
         "getFrameTime(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
@@ -287,6 +289,8 @@ static PyMethodDef module_methods[] = {
         "minSample, maxSample, data = getAudioData(source, minSample, maxSample[, channels=2]): Gets raw audio data from the source." },
     { "timeGetFrame", (PyCFunction) py_timeGetFrame, METH_VARARGS | METH_KEYWORDS,
         "timeGetFrame(source, minFrame, maxFrame, dataWindow=(0,0,1,1)): Retrieves minFrame through maxFrame from the source and returns the time it took in nanoseconds." },
+    { "writeVideo", (PyCFunction) py_writeVideo, METH_VARARGS | METH_KEYWORDS,
+        "TBD" },
     { NULL }
 };
 

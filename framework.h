@@ -13,7 +13,7 @@
 
 #define NOEXPORT __attribute__((visibility("hidden")))
 
-#if defined(USE_GLIB)
+#if 1
 #include <glib.h>
 #define slice_alloc(size) g_slice_alloc(size)
 #define slice_alloc0(size) g_slice_alloc0(size)
@@ -74,6 +74,14 @@ static inline int max( int a, int b ) {
     return a > b ? a : b;
 }
 
+static inline float min_f32( float a, float b ) {
+    return a < b ? a : b;
+}
+
+static inline float max_f32( float a, float b ) {
+    return a > b ? a : b;
+}
+
 NOEXPORT int64_t getFrameTime( const rational *frameRate, int frame );
 NOEXPORT int getTimeFrame( const rational *frameRate, int64_t time );
 NOEXPORT bool parseRational( PyObject *in, rational *out );
@@ -82,6 +90,10 @@ NOEXPORT bool parseRational( PyObject *in, rational *out );
 typedef struct {
     half r, g, b, a;
 } rgba;
+
+typedef struct {
+    uint8_t r, g, b, a;
+} rgba_u8;
 
 typedef struct {
     float r, g, b, a;
