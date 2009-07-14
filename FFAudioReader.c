@@ -304,7 +304,7 @@ FFAudioReader_getFrame( py_obj_FFAudioReader *self, AudioFrame *frame ) {
         int bufferSize = AVCODEC_MAX_AUDIO_FRAME_SIZE;
         uint8_t *data = packet.data;
         int dataSize = packet.size;
-        uint8_t *audioBuffer = self->audioBuffer;
+        void *audioBuffer = self->audioBuffer;
 
         int packetStart = (packet.dts * timeBase->num * sampleRate) / (timeBase->den);
         int packetDuration = 0;
