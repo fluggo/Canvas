@@ -12,23 +12,24 @@
 
 PyObject *
 py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
-    rational frameRate = { 30000, 1001 };
+    rational videoRate = { 30000, 1001 };
+    rational audioRate = { 48000, 1 };
     box2i dataWindow = { { 0, 0 }, { 719, 479 } };
     PyObject *videoSourceObj = NULL, *audioSourceObj = NULL;
-    int startFrame = 0, endFrame = 500;        // temporary; final needs to be done by time
+    int64_t startTime = INT64_C(0), endTime = 5 * INT64_C(1000000000);
     char *filename = NULL;
     int result;
 
     static char *kwlist[] = { "filename", "videoSource", "audioSource", "startFrame", "endFrame", NULL };
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "s|OOii", kwlist,
-            &filename, &videoSourceObj, &audioSourceObj, &startFrame, &endFrame ) )
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "s|OOII", kwlist,
+            &filename, &videoSourceObj, &audioSourceObj, &startTime, &endTime ) )
         return NULL;
 
     v2i frameSize;
     box2i_getSize( &dataWindow, &frameSize );
 
-    VideoSourceHolder videoSource;
+    VideoSourceHolder videoSource = { NULL };
     if( !takeVideoSource( videoSourceObj, &videoSource ) )
         return NULL;
 
@@ -101,8 +102,8 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
 
     //if (codec && codec->supported_framerates && !force_fps)
     //    fps = codec->supported_framerates[av_find_nearest_q_idx(fps, codec->supported_framerates)];
-    video->codec->time_base.den = frameRate.n;
-    video->codec->time_base.num = frameRate.d;
+    video->codec->time_base.den = videoRate.n;
+    video->codec->time_base.num = videoRate.d;
 
     video->codec->width = frameSize.x;
     video->codec->height = frameSize.y;
@@ -165,13 +166,21 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     avpicture_fill( (AVPicture *) &outputFrame, outputBuffer,
         video->codec->pix_fmt, frameSize.x, frameSize.y );
 
-    for( int frameIndex = startFrame; frameIndex <= endFrame; frameIndex++ ) {
+    int nextVideoFrame = getTimeFrame( &videoRate, startTime );
+    int nextAudioSample = getTimeFrame( &audioRate, startTime );
+    int startVideoFrame = nextVideoFrame, startAudioSample = nextAudioSample;
+
+    int64_t time = startTime,
+        nextVideoTime = getFrameTime( &videoRate, nextVideoFrame ),
+        nextAudioTime = getFrameTime( &audioRate, nextAudioSample );
+
+    while( time <= endTime ) {
         AVPacket packet;
         av_init_packet( &packet );
         packet.stream_index = video->index;
 
         inputFrame.currentDataWindow = inputFrame.fullDataWindow;
-        videoSource.funcs->getFrame( videoSource.source, frameIndex, &inputFrame );
+        videoSource.funcs->getFrame( videoSource.source, nextVideoFrame, &inputFrame );
 
         // Transcode to RGBA
         for( int y = 0; y < frameSize.y; y++ ) {
@@ -196,7 +205,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         // Write to file
         outputFrame.interlaced_frame = 1;
         outputFrame.top_field_first = 0;
-        outputFrame.pts = frameIndex - startFrame;
+        outputFrame.pts = nextVideoFrame - startVideoFrame;
 
         result = avcodec_encode_video( video->codec,
             bitBucket, bitBucketSize, &outputFrame );
@@ -223,6 +232,10 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
                 return NULL;
             }
         }
+
+        nextVideoFrame++;
+        nextVideoTime = getFrameTime( &videoRate, nextVideoFrame );
+        time = nextVideoTime;
     }
 
     // Flush video
