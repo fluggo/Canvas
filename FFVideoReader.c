@@ -11,7 +11,6 @@ typedef struct {
     AVCodec *codec;
     int firstVideoStream;
     float colorMatrix[3][3];
-    struct SwsContext *scaler;
     bool allKeyframes;
     int currentVideoFrame;
 } py_obj_FFVideoReader;
@@ -29,7 +28,6 @@ FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds )
     self->context = NULL;
     self->codecContext = NULL;
     self->codec = NULL;
-    self->scaler = NULL;
 
     if( !PyArg_ParseTuple( args, "s", &filename ) )
         return -1;
@@ -93,16 +91,6 @@ FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds )
     self->colorMatrix[2][1] = 1.732f;
     self->colorMatrix[2][2] = 0.0f;
 
-    self->scaler = sws_getContext(
-        self->codecContext->width, self->codecContext->height, self->codecContext->pix_fmt,
-        self->codecContext->width, self->codecContext->height, PIX_FMT_YUV444P, SWS_POINT,
-        NULL, NULL, NULL );
-
-    if( self->scaler == NULL ) {
-        PyErr_Format( PyExc_Exception, "Could not allocate scaler (%s).", strerror( ENOMEM ) );
-        return -1;
-    }
-
     self->currentVideoFrame = 0;
 
     // Use MLT's keyframe conditions
@@ -121,11 +109,6 @@ FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds )
 
 static void
 FFVideoReader_dealloc( py_obj_FFVideoReader *self ) {
-    if( self->scaler != NULL ) {
-        sws_freeContext( self->scaler );
-        self->scaler = NULL;
-    }
-
     if( self->codecContext != NULL ) {
         avcodec_close( self->codecContext );
         self->codecContext = NULL;
@@ -257,14 +240,6 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
         slice_free( inputBufferSize, inputBuffer );
         return;
     }
-
-#if DO_SCALE
-    if( sws_scale( self->scaler, self->inputFrame->data, self->inputFrame->linesize, 0,
-            self->codecContext->height, self->rgbFrame->data, self->rgbFrame->linesize ) < self->codecContext->height ) {
-        av_free_packet( &packet );
-        THROW( Iex::BaseExc, "The image conversion failed." );
-    }
-#endif
 
     // Now convert to halfs
     box2i_set( &frame->currentDataWindow,
