@@ -15,6 +15,10 @@ typedef struct {
     int currentVideoFrame;
 } py_obj_FFVideoReader;
 
+typedef struct {
+    float cb, cr;
+} cbcr_f32;
+
 static half gamma22[65536];
 
 static void FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *frame );
@@ -257,8 +261,11 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
 
     if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
         uint8_t *yplane, *cbplane, *crplane;
+        float triangleFilter[] = { 0.125f, 0.375f, 0.625f, 0.875f, 0.875f, 0.625f, 0.375f, 0.125f };
+        int filterWidth = 8;
 
         rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
+        cbcr_f32 *tempChroma = slice_alloc( sizeof(cbcr_f32) * self->codecContext->width );
 
         if( !tempRow ) {
             printf( "Failed to allocate row\n" );
@@ -272,22 +279,34 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
             cbplane = avFrame.data[1] + (row * avFrame.linesize[1]);
             crplane = avFrame.data[2] + (row * avFrame.linesize[2]);
 
-            for( int x = coordWindow.min.x / 4; x <= coordWindow.max.x / 4; x++ ) {
+            memset( tempChroma, 0, sizeof(cbcr_f32) * self->codecContext->width );
+
+            int startx = coordWindow.min.x / 4, endx = coordWindow.max.x / 4;
+
+            for( int x = startx; x <= endx; x++ ) {
                 float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
 
-                float ccr = cb * self->colorMatrix[0][1] + cr * self->colorMatrix[0][2];
-                float ccg = cb * self->colorMatrix[1][1] + cr * self->colorMatrix[1][2];
-                float ccb = cb * self->colorMatrix[2][1] + cr * self->colorMatrix[2][2];
+                for( int i = max(coordWindow.min.x, x * 4 - (filterWidth / 2));
+                        i <= min(coordWindow.max.x, x * 4 + (filterWidth / 2) - 1); i++ ) {
 
-                for( int i = 0; i < 4; i++ ) {
-                    int px = x * 4 + i;
-                    float y = yplane[px] - 16.0f;
-
-                    tempRow[px].r = y * self->colorMatrix[0][0] + ccr;
-                    tempRow[px].g = y * self->colorMatrix[1][0] + ccg;
-                    tempRow[px].b = y * self->colorMatrix[2][0] + ccb;
-                    tempRow[px].a = 1.0f;
+                    tempChroma[i].cb += cb * triangleFilter[i - x * 4 + (filterWidth / 2)];
+                    tempChroma[i].cr += cr * triangleFilter[i - x * 4 + (filterWidth / 2)];
                 }
+            }
+
+            for( int x = coordWindow.min.x; x <= coordWindow.max.x; x++ ) {
+                float y = yplane[x] - 16.0f;
+
+                tempRow[x].r = y * self->colorMatrix[0][0] +
+                    tempChroma[x].cb * self->colorMatrix[0][1] +
+                    tempChroma[x].cr * self->colorMatrix[0][2];
+                tempRow[x].g = y * self->colorMatrix[1][0] +
+                    tempChroma[x].cb * self->colorMatrix[1][1] +
+                    tempChroma[x].cr * self->colorMatrix[1][2];
+                tempRow[x].b = y * self->colorMatrix[2][0] +
+                    tempChroma[x].cb * self->colorMatrix[2][1] +
+                    tempChroma[x].cr * self->colorMatrix[2][2];
+                tempRow[x].a = 1.0f;
             }
 
             half *out = &frame->frameData[row * frame->stride + coordWindow.min.x].r;
@@ -299,6 +318,7 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
         }
 
         slice_free( sizeof(rgba_f32) * self->codecContext->width, tempRow );
+        slice_free( sizeof(cbcr_f32) * self->codecContext->width, tempChroma );
     }
     else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
         uint8_t *restrict yplane = avFrame.data[0], *restrict cbplane = avFrame.data[1], *restrict crplane = avFrame.data[2];
