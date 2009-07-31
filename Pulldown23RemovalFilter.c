@@ -87,9 +87,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
 
 static void
 Pulldown23RemovalFilter_dealloc( py_obj_Pulldown23RemovalFilter *self ) {
-    Py_CLEAR( self->source.source );
-    Py_CLEAR( self->source.csource );
-
+    takeVideoSource( NULL, &self->source );
     self->ob_type->tp_free( (PyObject*) self );
 }
 
