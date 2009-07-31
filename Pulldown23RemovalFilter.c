@@ -8,17 +8,14 @@ typedef struct {
 
     VideoSourceHolder source;
     int offset;
-    bool oddFirst;
 } py_obj_Pulldown23RemovalFilter;
 
 static int
 Pulldown23RemovalFilter_init( py_obj_Pulldown23RemovalFilter *self, PyObject *args, PyObject *kwds ) {
-    PyObject *source, *oddFirst;
+    PyObject *source;
 
-    if( !PyArg_ParseTuple( args, "OiO", &source, &self->offset, &oddFirst ) )
+    if( !PyArg_ParseTuple( args, "Oi", &source, &self->offset ) )
         return -1;
-
-    self->oddFirst = (bool) PyObject_IsTrue( oddFirst );
 
     if( !takeVideoSource( source, &self->source ) )
         return -1;
@@ -62,25 +59,29 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
         self->source.funcs->getFrame( self->source.source, baseFrame + 4, frame );
     }
     else {
-        // Mixed fields
+        // Mixed fields; we want the odds (field #2) from this frame:
         self->source.funcs->getFrame( self->source.source, baseFrame + 2, frame );
 
         int height = frame->currentDataWindow.max.y - frame->currentDataWindow.min.y + 1;
         int width = frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1;
 
+        // We want the evens (field #1) from this next frame
         // TODO: Cache this temp frame between calls
         RgbaFrame tempFrame;
-        tempFrame.frameData = malloc( sizeof(rgba) * height * width );
+        tempFrame.frameData = slice_alloc( sizeof(rgba) * height * width );
         tempFrame.stride = width;
         tempFrame.fullDataWindow = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
 
         self->source.funcs->getFrame( self->source.source, baseFrame + 3, &tempFrame );
 
-        for( int i = (self->oddFirst ? 0 : 1); i < height; i += 2 )
-            memcpy( &frame->frameData[i * frame->stride], &tempFrame.frameData[i * frame->stride], width * sizeof(rgba) );
+        for( int i = (frame->currentDataWindow.min.y & 1) ? 1 : 0; i < height; i += 2 ) {
+            memcpy( &frame->frameData[i * frame->stride + frame->currentDataWindow.min.y - frame->fullDataWindow.min.y],
+                &tempFrame.frameData[i * frame->stride],
+                width * sizeof(rgba) );
+        }
 
-        free( tempFrame.frameData );
+        slice_free( sizeof(rgba) * height * width, tempFrame.frameData );
     }
 }
 

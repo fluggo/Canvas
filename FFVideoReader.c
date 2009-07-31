@@ -245,13 +245,21 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
         return;
     }
 
+    v2i picOffset = { 0, 0 };
+
+    // Offset the frame so that line zero is part of the first field
+    if( avFrame.interlaced_frame && !avFrame.top_field_first )
+        picOffset.y = -1;
+
     // Now convert to halfs
     box2i_set( &frame->currentDataWindow,
-        max( 0, frame->currentDataWindow.min.x ),
-        max( 0, frame->currentDataWindow.min.y ),
-        min( self->codecContext->width - 1, frame->currentDataWindow.max.x ),
-        min( self->codecContext->height - 1, frame->currentDataWindow.max.y ) );
+        max( picOffset.x, frame->currentDataWindow.min.x ),
+        max( picOffset.y, frame->currentDataWindow.min.y ),
+        min( self->codecContext->width + picOffset.x - 1, frame->currentDataWindow.max.x ),
+        min( self->codecContext->height + picOffset.y - 1, frame->currentDataWindow.max.y ) );
 
+    // Coord window is our current data window
+    // in terms of the frame's data buffer
     box2i coordWindow = {
         { frame->currentDataWindow.min.x - frame->fullDataWindow.min.x, frame->currentDataWindow.min.y - frame->fullDataWindow.min.y },
         { frame->currentDataWindow.max.x - frame->fullDataWindow.min.x, frame->currentDataWindow.max.y - frame->fullDataWindow.min.y }
@@ -264,6 +272,7 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
         float triangleFilter[] = { 0.125f, 0.375f, 0.625f, 0.875f, 0.875f, 0.625f, 0.375f, 0.125f };
         int filterWidth = 8;
 
+        // Temp rows aligned to the AVFrame buffer [0, width)
         rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
         cbcr_f32 *tempChroma = slice_alloc( sizeof(cbcr_f32) * self->codecContext->width );
 
@@ -274,47 +283,49 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
             return;
         }
 
-        for( int row = coordWindow.min.y; row <= coordWindow.max.y; row++ ) {
+        for( int row = frame->currentDataWindow.min.y - picOffset.y; row <= frame->currentDataWindow.max.y - picOffset.y; row++ ) {
             yplane = avFrame.data[0] + (row * avFrame.linesize[0]);
             cbplane = avFrame.data[1] + (row * avFrame.linesize[1]);
             crplane = avFrame.data[2] + (row * avFrame.linesize[2]);
 
             memset( tempChroma, 0, sizeof(cbcr_f32) * self->codecContext->width );
 
-            int startx = coordWindow.min.x / 4, endx = coordWindow.max.x / 4;
+            int startx = 0, endx = (self->codecContext->width - 1) / 4;
 
             for( int x = startx; x <= endx; x++ ) {
                 float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
 
-                for( int i = max(coordWindow.min.x, x * 4 - (filterWidth / 2));
-                        i <= min(coordWindow.max.x, x * 4 + (filterWidth / 2) - 1); i++ ) {
+                for( int i = max(frame->currentDataWindow.min.x - picOffset.x, x * 4 - (filterWidth / 2));
+                        i <= min(frame->currentDataWindow.max.x - picOffset.x, x * 4 + (filterWidth / 2) - 1); i++ ) {
 
                     tempChroma[i].cb += cb * triangleFilter[i - x * 4 + (filterWidth / 2)];
                     tempChroma[i].cr += cr * triangleFilter[i - x * 4 + (filterWidth / 2)];
                 }
             }
 
-            for( int x = coordWindow.min.x; x <= coordWindow.max.x; x++ ) {
-                float y = yplane[x] - 16.0f;
+            for( int x = frame->currentDataWindow.min.x; x <= frame->currentDataWindow.max.x; x++ ) {
+                float y = yplane[x - picOffset.x] - 16.0f;
 
                 tempRow[x].r = y * self->colorMatrix[0][0] +
-                    tempChroma[x].cb * self->colorMatrix[0][1] +
-                    tempChroma[x].cr * self->colorMatrix[0][2];
+                    tempChroma[x - picOffset.x].cb * self->colorMatrix[0][1] +
+                    tempChroma[x - picOffset.x].cr * self->colorMatrix[0][2];
                 tempRow[x].g = y * self->colorMatrix[1][0] +
-                    tempChroma[x].cb * self->colorMatrix[1][1] +
-                    tempChroma[x].cr * self->colorMatrix[1][2];
+                    tempChroma[x - picOffset.x].cb * self->colorMatrix[1][1] +
+                    tempChroma[x - picOffset.x].cr * self->colorMatrix[1][2];
                 tempRow[x].b = y * self->colorMatrix[2][0] +
-                    tempChroma[x].cb * self->colorMatrix[2][1] +
-                    tempChroma[x].cr * self->colorMatrix[2][2];
+                    tempChroma[x - picOffset.x].cb * self->colorMatrix[2][1] +
+                    tempChroma[x - picOffset.x].cr * self->colorMatrix[2][2];
                 tempRow[x].a = 1.0f;
             }
 
-            half *out = &frame->frameData[row * frame->stride + coordWindow.min.x].r;
+            half *out = &frame->frameData[
+                (row + picOffset.y - frame->fullDataWindow.min.y) * frame->stride +
+                frame->currentDataWindow.min.x - frame->fullDataWindow.min.x].r;
 
-            half_convert_from_float( (float*)(tempRow + coordWindow.min.x), out,
-                4 * (coordWindow.max.x - coordWindow.min.x + 1) );
+            half_convert_from_float( (float*)(tempRow + frame->currentDataWindow.min.x - picOffset.x), out,
+                4 * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
             half_lookup( gamma22, out, out,
-                4 * (coordWindow.max.x - coordWindow.min.x + 1) );
+                4 * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
         }
 
         slice_free( sizeof(rgba_f32) * self->codecContext->width, tempRow );

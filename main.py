@@ -61,9 +61,9 @@ class MainWindow(object):
         videro = FFVideoReader('/home/james/Videos/Okra - 79b,100.avi')
 
         size = videro.size()
-        self.videoWidget.setDisplayWindow((0, 0, size[0] - 1, size[1] - 1))
+        self.videoWidget.setDisplayWindow((0, -1, size[0] - 1, size[1] - 2))
         #self.videoWidget.setSource(av)
-        self.videoWidget.setSource(Pulldown23RemovalFilter(videro, 0, False))
+        self.videoWidget.setSource(Pulldown23RemovalFilter(videro, 0))
         self.videoWidget.stop()
 
     def on_playButton_clicked(self, *args):
