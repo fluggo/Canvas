@@ -21,6 +21,6 @@ else:
 env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gtk+-2.0 gl gtkglext-1.0 gthread-2.0 pygtk-2.0 pygobject-2.0')
 
 lib = env.SharedLibrary('fluggo/video.so',
-	['main.c', 'FFVideoReader.c', 'writeVideo.c', 'FFAudioReader.c', 'GtkVideoWidget.c', 'Pulldown23RemovalFilter.c', 'clock.c', 'half.c', 'halftab.c', 'AlsaPlayer.c'])
+	['main.c', 'FFVideoSource.c', 'writeVideo.c', 'FFAudioSource.c', 'GtkVideoWidget.c', 'Pulldown23RemovalFilter.c', 'clock.c', 'half.c', 'halftab.c', 'AlsaPlayer.c'])
 Depends(lib, half)
 
