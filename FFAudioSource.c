@@ -2,7 +2,7 @@
 #include "framework.h"
 #include <libavformat/avformat.h>
 
-/******** FFAudioReader *********/
+/******** FFAudioSource *********/
 typedef struct {
     PyObject_HEAD
 
@@ -14,10 +14,10 @@ typedef struct {
     bool allKeyframes;
     void *audioBuffer;
     int lastPacketStart, lastPacketDuration;
-} py_obj_FFAudioReader;
+} py_obj_FFAudioSource;
 
 static int
-FFAudioReader_init( py_obj_FFAudioReader *self, PyObject *args, PyObject *kwds ) {
+FFAudioSource_init( py_obj_FFAudioSource *self, PyObject *args, PyObject *kwds ) {
     int error;
     char *filename;
 
@@ -103,7 +103,7 @@ FFAudioReader_init( py_obj_FFAudioReader *self, PyObject *args, PyObject *kwds )
 }
 
 static void
-FFAudioReader_dealloc( py_obj_FFAudioReader *self ) {
+FFAudioSource_dealloc( py_obj_FFAudioSource *self ) {
     PyMem_Free( self->audioBuffer );
     self->audioBuffer = NULL;
 
@@ -213,7 +213,7 @@ static int getSampleCount( int byteCount, enum SampleFormat sample_fmt, int chan
 }
 
 static void
-FFAudioReader_getFrame( py_obj_FFAudioReader *self, AudioFrame *frame ) {
+FFAudioSource_getFrame( py_obj_FFAudioSource *self, AudioFrame *frame ) {
 /*    if( frameIndex < 0 || frameIndex > self->context->streams[self->firstAudioStream]->duration ) {
         // No result
         frame->currentMaxSample = -1;
@@ -376,40 +376,40 @@ FFAudioReader_getFrame( py_obj_FFAudioReader *self, AudioFrame *frame ) {
 
 static AudioFrameSourceFuncs audioSourceFuncs = {
     0,
-    (audio_getFrameFunc) FFAudioReader_getFrame
+    (audio_getFrameFunc) FFAudioSource_getFrame
 };
 
 static PyObject *pyAudioSourceFuncs;
 
 static PyObject *
-FFAudioReader_getFuncs( py_obj_FFAudioReader *self, void *closure ) {
+FFAudioSource_getFuncs( py_obj_FFAudioSource *self, void *closure ) {
     return pyAudioSourceFuncs;
 }
 
-static PyGetSetDef FFAudioReader_getsetters[] = {
-    { "_audioFrameSourceFuncs", (getter) FFAudioReader_getFuncs, NULL, "Audio frame source C API." },
+static PyGetSetDef FFAudioSource_getsetters[] = {
+    { "_audioFrameSourceFuncs", (getter) FFAudioSource_getFuncs, NULL, "Audio frame source C API." },
     { NULL }
 };
 
-static PyTypeObject py_type_FFAudioReader = {
+static PyTypeObject py_type_FFAudioSource = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.FFAudioReader",    // tp_name
-    sizeof(py_obj_FFAudioReader),    // tp_basicsize
+    "fluggo.video.FFAudioSource",    // tp_name
+    sizeof(py_obj_FFAudioSource),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFAudioReader_dealloc,
-    .tp_init = (initproc) FFAudioReader_init,
-    .tp_getset = FFAudioReader_getsetters,
-//    .tp_methods = FFAudioReader_methods
+    .tp_dealloc = (destructor) FFAudioSource_dealloc,
+    .tp_init = (initproc) FFAudioSource_init,
+    .tp_getset = FFAudioSource_getsetters,
+//    .tp_methods = FFAudioSource_methods
 };
 
-NOEXPORT void init_FFAudioReader( PyObject *module ) {
-    if( PyType_Ready( &py_type_FFAudioReader ) < 0 )
+NOEXPORT void init_FFAudioSource( PyObject *module ) {
+    if( PyType_Ready( &py_type_FFAudioSource ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFAudioReader );
-    PyModule_AddObject( module, "FFAudioReader", (PyObject *) &py_type_FFAudioReader );
+    Py_INCREF( &py_type_FFAudioSource );
+    PyModule_AddObject( module, "FFAudioSource", (PyObject *) &py_type_FFAudioSource );
 
     pyAudioSourceFuncs = PyCObject_FromVoidPtr( &audioSourceFuncs, NULL );
 }

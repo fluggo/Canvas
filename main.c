@@ -294,8 +294,8 @@ static PyMethodDef module_methods[] = {
     { NULL }
 };
 
-void init_AVFileReader( PyObject *module );
-void init_FFAudioReader( PyObject *module );
+void init_FFVideoSource( PyObject *module );
+void init_FFAudioSource( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
 void init_AlsaPlayer( PyObject *module );
@@ -309,8 +309,8 @@ initvideo() {
         "The Fluggo Video library for Python." );
 
     init_half( m );
-    init_AVFileReader( m );
-    init_FFAudioReader( m );
+    init_FFVideoSource( m );
+    init_FFAudioSource( m );
     init_Pulldown23RemovalFilter( m );
     init_SystemPresentationClock( m );
     init_AlsaPlayer( m );

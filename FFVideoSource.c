@@ -13,7 +13,7 @@ typedef struct {
     float colorMatrix[3][3];
     bool allKeyframes;
     int currentVideoFrame;
-} py_obj_FFVideoReader;
+} py_obj_FFVideoSource;
 
 typedef struct {
     float cb, cr;
@@ -21,10 +21,10 @@ typedef struct {
 
 static half gamma22[65536];
 
-static void FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *frame );
+static void FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, RgbaFrame *frame );
 
 static int
-FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds ) {
+FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds ) {
     int error;
     char *filename;
 
@@ -104,7 +104,7 @@ FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds )
 
     if( !self->allKeyframes ) {
         // Prime the pump for MPEG so we get frame accuracy (otherwise we seem to start a few frames in)
-        FFVideoReader_getFrame( self, 0, NULL );
+        FFVideoSource_getFrame( self, 0, NULL );
         av_seek_frame( self->context, self->firstVideoStream, 0, AVSEEK_FLAG_BACKWARD );
     }
 
@@ -112,7 +112,7 @@ FFVideoReader_init( py_obj_FFVideoReader *self, PyObject *args, PyObject *kwds )
 }
 
 static void
-FFVideoReader_dealloc( py_obj_FFVideoReader *self ) {
+FFVideoSource_dealloc( py_obj_FFVideoSource *self ) {
     if( self->codecContext != NULL ) {
         avcodec_close( self->codecContext );
         self->codecContext = NULL;
@@ -127,7 +127,7 @@ FFVideoReader_dealloc( py_obj_FFVideoReader *self ) {
 }
 
 static bool
-read_frame( py_obj_FFVideoReader *self, int frameIndex, AVFrame *frame ) {
+read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
     //printf( "Requested %ld\n", frameIndex );
 
     AVRational *timeBase = &self->context->streams[self->firstVideoStream]->time_base;
@@ -199,7 +199,7 @@ read_frame( py_obj_FFVideoReader *self, int frameIndex, AVFrame *frame ) {
 }
 
 static void
-FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *frame ) {
+FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, RgbaFrame *frame ) {
     if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -398,43 +398,43 @@ FFVideoReader_getFrame( py_obj_FFVideoReader *self, int frameIndex, RgbaFrame *f
 
 static VideoFrameSourceFuncs videoSourceFuncs = {
     0,
-    (video_getFrameFunc) FFVideoReader_getFrame
+    (video_getFrameFunc) FFVideoSource_getFrame
 };
 
 static PyObject *pyVideoSourceFuncs;
 
 static PyObject *
-FFVideoReader_getFuncs( py_obj_FFVideoReader *self, void *closure ) {
+FFVideoSource_getFuncs( py_obj_FFVideoSource *self, void *closure ) {
     return pyVideoSourceFuncs;
 }
 
-static PyGetSetDef FFVideoReader_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) FFVideoReader_getFuncs, NULL, "Video frame source C API." },
+static PyGetSetDef FFVideoSource_getsetters[] = {
+    { "_videoFrameSourceFuncs", (getter) FFVideoSource_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 
 static PyObject *
-FFVideoReader_size( py_obj_FFVideoReader *self ) {
+FFVideoSource_size( py_obj_FFVideoSource *self ) {
     return Py_BuildValue( "(ii)", self->codecContext->width, self->codecContext->height );
 }
 
-static PyMethodDef FFVideoReader_methods[] = {
-    { "size", (PyCFunction) FFVideoReader_size, METH_NOARGS,
+static PyMethodDef FFVideoSource_methods[] = {
+    { "size", (PyCFunction) FFVideoSource_size, METH_NOARGS,
         "Gets the frame size for this video." },
     { NULL }
 };
 
-static PyTypeObject py_type_FFVideoReader = {
+static PyTypeObject py_type_FFVideoSource = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.FFVideoReader",    // tp_name
-    sizeof(py_obj_FFVideoReader),    // tp_basicsize
+    "fluggo.video.FFVideoSource",    // tp_name
+    sizeof(py_obj_FFVideoSource),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFVideoReader_dealloc,
-    .tp_init = (initproc) FFVideoReader_init,
-    .tp_getset = FFVideoReader_getsetters,
-    .tp_methods = FFVideoReader_methods
+    .tp_dealloc = (destructor) FFVideoSource_dealloc,
+    .tp_init = (initproc) FFVideoSource_init,
+    .tp_getset = FFVideoSource_getsetters,
+    .tp_methods = FFVideoSource_methods
 };
 
 const char *yuvCgSource =
@@ -457,7 +457,7 @@ const char *yuvCgSource =
 "};"
 ;
 
-NOEXPORT void init_AVFileReader( PyObject *module ) {
+NOEXPORT void init_FFVideoSource( PyObject *module ) {
     float *f = malloc( sizeof(float) * 65536 );
 
     for( int i = 0; i < 65536; i++ )
@@ -472,11 +472,11 @@ NOEXPORT void init_AVFileReader( PyObject *module ) {
 
     free( f );
 
-    if( PyType_Ready( &py_type_FFVideoReader ) < 0 )
+    if( PyType_Ready( &py_type_FFVideoSource ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFVideoReader );
-    PyModule_AddObject( module, "FFVideoReader", (PyObject *) &py_type_FFVideoReader );
+    Py_INCREF( &py_type_FFVideoSource );
+    PyModule_AddObject( module, "FFVideoSource", (PyObject *) &py_type_FFVideoSource );
 
     pyVideoSourceFuncs = PyCObject_FromVoidPtr( &videoSourceFuncs, NULL );
 }
