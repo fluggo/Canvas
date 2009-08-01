@@ -6,7 +6,7 @@ from fluggo.video import *
 from fractions import Fraction
 
 #clock = SystemPresentationClock()
-audio = FFAudioReader('/home/james/Videos/Okra - 79b,100.avi')
+audio = FFAudioSource('/home/james/Videos/Okra - 79b,100.avi')
 player = AlsaPlayer(48000, source=audio)
 clock = player
 
@@ -58,7 +58,7 @@ class MainWindow(object):
 
         #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
         #videro = FFVideoReader('/home/james/Videos/demux003.m2v')
-        videro = FFVideoReader('/home/james/Videos/Okra - 79b,100.avi')
+        videro = FFVideoSource('/home/james/Videos/Okra - 79b,100.avi')
 
         size = videro.size()
         self.videoWidget.setDisplayWindow((0, -1, size[0] - 1, size[1] - 2))
