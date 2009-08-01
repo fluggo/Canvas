@@ -63,7 +63,14 @@ class MainWindow(object):
         size = videro.size()
         self.videoWidget.setDisplayWindow((0, -1, size[0] - 1, size[1] - 2))
         #self.videoWidget.setSource(av)
-        self.videoWidget.setSource(Pulldown23RemovalFilter(videro, 0))
+
+        pulldown = Pulldown23RemovalFilter(videro, 0);
+        seq = VideoSequence()
+        seq.append((pulldown, 30, 60))
+        seq.append((pulldown, 300, 250))
+        seq.append((pulldown, 0, 150))
+
+        self.videoWidget.setSource(seq)
         self.videoWidget.stop()
 
     def on_playButton_clicked(self, *args):
