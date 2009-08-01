@@ -301,6 +301,7 @@ void init_SystemPresentationClock( PyObject *module );
 void init_AlsaPlayer( PyObject *module );
 void init_GtkVideoWidget( PyObject *module );
 void init_half( PyObject *module );
+void init_VideoSequence( PyObject *module );
 
 PyMODINIT_FUNC
 initvideo() {
@@ -314,6 +315,7 @@ initvideo() {
     init_SystemPresentationClock( m );
     init_AlsaPlayer( m );
     init_GtkVideoWidget( m );
+    init_VideoSequence( m );
 }
 
 #if 0

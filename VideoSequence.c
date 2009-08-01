@@ -14,34 +14,53 @@ typedef struct {
 typedef struct {
     GArray *sequence;
     GMutex *mutex;
+    int lastElement;
 } VideoSequence_private;
 
-#define PRIV(obj)  ((VideoSequence_private*)(((void *) obj) + (py_type_MutableSequence->tp_basicsize)))
+#define PRIV(obj)              ((VideoSequence_private*)(((void *) obj) + (py_type_MutableSequence->tp_basicsize)))
+#define SEQINDEX(self, i)    g_array_index( PRIV(self)->sequence, Element, i )
 
 static int
 VideoSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
     if( py_type_MutableSequence->tp_init( (PyObject *) self, args, kwds ) < 0 )
         return -1;
 
-/*    if( !PyArg_ParseTuple( args, "Oi", &source, &self->offset ) )
-        return -1;
-
-    if( !takeVideoSource( source, &self->source ) )
-        return -1;*/
-
     PRIV(self)->sequence = g_array_new( false, true, sizeof(Element) );
     PRIV(self)->mutex = g_mutex_new();
+    PRIV(self)->lastElement = 0;
 
     return 0;
 }
 
 static void
 VideoSequence_getFrame( PyObject *self, int frameIndex, RgbaFrame *frame ) {
-//    if( self->source.source == NULL ) {
+    if( frameIndex < 0 || PRIV(self)->sequence->len == 0 ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
         return;
-//    }
+    }
+
+    // Find the source
+    // BJC: I realize this is O(n) worst-case, but hopefully n is small
+    // and the worst-case is rare
+    int i = min(PRIV(self)->lastElement, PRIV(self)->sequence->len);
+
+    while( i < PRIV(self)->sequence->len && frameIndex >= SEQINDEX(self, i).startFrame + SEQINDEX(self, i).length )
+        i++;
+
+    while( i > 0 && frameIndex < SEQINDEX(self, i).startFrame )
+        i--;
+
+    Element elem = SEQINDEX(self, i);
+
+    if( !elem.source.funcs || elem.startFrame + elem.length < frameIndex ) {
+        // No result
+        box2i_setEmpty( &frame->currentDataWindow );
+        return;
+    }
+
+    elem.source.funcs->getFrame( elem.source.source,
+        frameIndex + elem.offset, frame );
 }
 
 static Py_ssize_t
@@ -86,7 +105,7 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
     VideoSourceHolder source = { NULL };
 
     // Parse everything and make sure it's okay
-    if( !PyArg_ParseTuple( v, "Oii", &sourceObj, &length, &offset ) )
+    if( !PyArg_ParseTuple( v, "Oii", &sourceObj, &offset, &length ) )
         return -1;
 
     if( length < 1 ) {
