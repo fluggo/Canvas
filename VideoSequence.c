@@ -34,8 +34,10 @@ VideoSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 
 static void
 VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) {
+    g_mutex_lock( PRIV(self)->mutex );
     if( frameIndex < 0 || PRIV(self)->sequence->len == 0 ) {
         // No result
+        g_mutex_unlock( PRIV(self)->mutex );
         box2i_setEmpty( &frame->currentDataWindow );
         return;
     }
@@ -51,13 +53,17 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) 
     while( i > 0 && frameIndex < SEQINDEX(self, i).startFrame )
         i--;
 
+    PRIV(self)->lastElement = i;
     Element elem = SEQINDEX(self, i);
 
     if( !elem.source.funcs || elem.startFrame + elem.length < frameIndex ) {
         // No result
+        g_mutex_unlock( PRIV(self)->mutex );
         box2i_setEmpty( &frame->currentDataWindow );
         return;
     }
+
+    g_mutex_unlock( PRIV(self)->mutex );
 
     elem.source.funcs->getFrame( elem.source.source,
         frameIndex + elem.offset, frame );
