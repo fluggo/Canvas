@@ -176,14 +176,14 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         return NULL;
     }
 
-    RgbaFrame inputFrame;
+    rgba_f16_frame inputFrame;
     AVFrame interFrame, outputFrame;
     uint8_t *interBuffer = NULL, *outputBuffer = NULL;
     int interBufferSize = 0, outputBufferSize = 0;
 
     if( videoSource.funcs ) {
         inputFrame.fullDataWindow = dataWindow;
-        inputFrame.frameData = (rgba*) slice_alloc( frameSize.x * frameSize.y * sizeof(rgba) );
+        inputFrame.frameData = (rgba_f16*) slice_alloc( frameSize.x * frameSize.y * sizeof(rgba_f16) );
         inputFrame.stride = frameSize.x;
 
         avcodec_get_frame_defaults( &interFrame );
@@ -247,7 +247,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             // Transcode to RGBA
             for( int y = 0; y < frameSize.y; y++ ) {
                 rgba_u8 *targetData = (rgba_u8*) &interFrame.data[0][y * interFrame.linesize[0]];
-                rgba *sourceData = &inputFrame.frameData[y * inputFrame.stride];
+                rgba_f16 *sourceData = &inputFrame.frameData[y * inputFrame.stride];
 
                 for( int x = 0; x < frameSize.x; x++ ) {
                     targetData[x].r = ramp[sourceData[x].r];
@@ -418,7 +418,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     if( videoSource.funcs ) {
         avcodec_close( video->codec );
         slice_free( RAMP_SIZE, ramp );
-        slice_free( frameSize.x * frameSize.y * sizeof(rgba), inputFrame.frameData );
+        slice_free( frameSize.x * frameSize.y * sizeof(rgba_f16), inputFrame.frameData );
         slice_free( interBufferSize, interBuffer );
         slice_free( outputBufferSize, outputBuffer );
         sws_freeContext( scaler );

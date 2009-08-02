@@ -33,7 +33,7 @@ VideoSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 }
 
 static void
-VideoSequence_getFrame( PyObject *self, int frameIndex, RgbaFrame *frame ) {
+VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) {
     if( frameIndex < 0 || PRIV(self)->sequence->len == 0 ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );

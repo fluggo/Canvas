@@ -239,9 +239,7 @@ static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
 
 static gpointer
 playbackThread( py_obj_GtkVideoWidget *self ) {
-    RgbaFrame frame;
-    frame.frameData = NULL;
-
+    rgba_f16_frame frame = { NULL };
     box2i_setEmpty( &frame.fullDataWindow );
 
     for( ;; ) {
@@ -296,7 +294,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
             !box2i_equalSize( &self->displayWindow, &frame.fullDataWindow ) ) {
 
             free( frame.frameData );
-            frame.frameData = malloc( frameSize.y * frameSize.x * sizeof(rgba) );
+            frame.frameData = malloc( frameSize.y * frameSize.x * sizeof(rgba_f16) );
             frame.stride = frameSize.x;
         }
 
@@ -332,7 +330,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         // Convert the results to floating-point
         for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
             rgb8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride];
-            rgba *sourceData = &frame.frameData[(y - frame.fullDataWindow.min.y) * frame.stride];
+            rgba_f16 *sourceData = &frame.frameData[(y - frame.fullDataWindow.min.y) * frame.stride];
 
             for( int x = 0; x < frame.currentDataWindow.max.x - frame.currentDataWindow.min.x + 1; x++ ) {
                 targetData[x].r = gamma45[sourceData[x].r];

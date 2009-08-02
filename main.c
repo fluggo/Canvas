@@ -231,7 +231,7 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
 PyObject *
 py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     PyObject *dataWindowTuple = NULL, *sourceObj;
-    RgbaFrame frame;
+    rgba_f16_frame frame;
     box2i_set( &frame.fullDataWindow, 0, 0, 4095, 4095 );
     int minFrame, maxFrame;
 
@@ -253,7 +253,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     frame.currentDataWindow = frame.fullDataWindow;
     frame.stride = frameSize.x;
-    frame.frameData = PyMem_Malloc( sizeof(rgba) * frameSize.x * frameSize.y );
+    frame.frameData = PyMem_Malloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
 
     if( !frame.frameData )
         return PyErr_NoMemory();

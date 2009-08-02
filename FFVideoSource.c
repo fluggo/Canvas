@@ -21,7 +21,7 @@ typedef struct {
 
 static half gamma22[65536];
 
-static void FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, RgbaFrame *frame );
+static void FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_frame *frame );
 
 static int
 FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds ) {
@@ -199,7 +199,7 @@ read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
 }
 
 static void
-FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, RgbaFrame *frame ) {
+FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_frame *frame ) {
     if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -333,7 +333,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, RgbaFrame *f
     }
     else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
         uint8_t *restrict yplane = avFrame.data[0], *restrict cbplane = avFrame.data[1], *restrict crplane = avFrame.data[2];
-        rgba *restrict frameData = frame->frameData;
+        rgba_f16 *restrict frameData = frame->frameData;
 
         int pyi = avFrame.interlaced_frame ? 2 : 1;
 

@@ -89,7 +89,7 @@ NOEXPORT bool parseRational( PyObject *in, rational *out );
 /************* Video *******/
 typedef struct {
     half r, g, b, a;
-} rgba;
+} rgba_f16;
 
 typedef struct {
     uint8_t r, g, b, a;
@@ -100,11 +100,11 @@ typedef struct {
 } rgba_f32;
 
 typedef struct {
-    rgba *frameData;
+    rgba_f16 *frameData;
     box2i fullDataWindow;
     box2i currentDataWindow;
     int stride;
-} RgbaFrame;
+} rgba_f16_frame;
 
 typedef struct {
     int targetTexture;
@@ -112,7 +112,7 @@ typedef struct {
     box2f currentDataWindow;
 } GLFrame;
 
-typedef void (*video_getFrameFunc)( PyObject *self, int frameIndex, RgbaFrame *frame );
+typedef void (*video_getFrameFunc)( PyObject *self, int frameIndex, rgba_f16_frame *frame );
 typedef void (*video_getGLFrameFunc)( PyObject *self, int frameIndex, GLFrame *frame );
 
 typedef struct {
