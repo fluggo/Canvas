@@ -61,6 +61,98 @@ bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
     return true;
 }
 
+void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame ) {
+    if( !source || !source->funcs ) {
+        box2i_setEmpty( &targetFrame->currentDataWindow );
+        return;
+    }
+
+    if( source->funcs->getFrame ) {
+        source->funcs->getFrame( source->source, frameIndex, targetFrame );
+        return;
+    }
+
+    if( !source->funcs->getFrame32 ) {
+        box2i_setEmpty( &targetFrame->currentDataWindow );
+        return;
+    }
+
+    // Allocate a new frame
+    rgba_f32_frame tempFrame;
+    v2i size;
+
+    box2i_getSize( &targetFrame->fullDataWindow, &size );
+    tempFrame.frameData = slice_alloc( sizeof(rgba_f32) * size.x * size.y );
+    tempFrame.fullDataWindow = targetFrame->fullDataWindow;
+    tempFrame.currentDataWindow = targetFrame->fullDataWindow;
+    tempFrame.stride = size.x;
+
+    source->funcs->getFrame32( source->source, frameIndex, &tempFrame );
+
+    // Convert to f16
+    int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
+    int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
+
+    for( int y = tempFrame.currentDataWindow.min.y - tempFrame.fullDataWindow.min.y;
+        y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
+
+        half_convert_from_float(
+            &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
+            &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
+            countX );
+    }
+
+    targetFrame->currentDataWindow = tempFrame.currentDataWindow;
+
+    slice_free( sizeof(rgba_f32) * size.x * size.y, tempFrame.frameData );
+}
+
+void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame ) {
+    if( !source || !source->funcs ) {
+        box2i_setEmpty( &targetFrame->currentDataWindow );
+        return;
+    }
+
+    if( source->funcs->getFrame32 ) {
+        source->funcs->getFrame32( source->source, frameIndex, targetFrame );
+        return;
+    }
+
+    if( !source->funcs->getFrame ) {
+        box2i_setEmpty( &targetFrame->currentDataWindow );
+        return;
+    }
+
+    // Allocate a new frame
+    rgba_f16_frame tempFrame;
+    v2i size;
+
+    box2i_getSize( &targetFrame->fullDataWindow, &size );
+    tempFrame.frameData = slice_alloc( sizeof(rgba_f16) * size.x * size.y );
+    tempFrame.fullDataWindow = targetFrame->fullDataWindow;
+    tempFrame.currentDataWindow = targetFrame->fullDataWindow;
+    tempFrame.stride = size.x;
+
+    source->funcs->getFrame( source->source, frameIndex, &tempFrame );
+
+    // Convert to f32
+    int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
+    int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
+
+    for( int y = tempFrame.currentDataWindow.min.y - tempFrame.fullDataWindow.min.y;
+        y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
+
+        half_convert_to_float(
+            &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
+            &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
+            countX );
+    }
+
+    targetFrame->currentDataWindow = tempFrame.currentDataWindow;
+
+    slice_free( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
+}
+
 int64_t
 getFrameTime( const rational *frameRate, int frame ) {
     return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);
