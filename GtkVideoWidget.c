@@ -318,7 +318,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         frame.currentDataWindow = target->fullDataWindow;
 
         if( funcs != NULL ) {
-            funcs->getFrame( self->frameSource.source, nextFrame, &frame );
+            getFrame_f16( &self->frameSource, nextFrame, &frame );
         }
         else {
             // No result

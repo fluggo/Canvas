@@ -50,17 +50,17 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
 
     // Solid frames
     if( frameOffset == 0 ) {
-        self->source.funcs->getFrame( self->source.source, baseFrame, frame );
+        getFrame_f16( &self->source, baseFrame, frame );
     }
     else if( frameOffset == 1 ) {
-        self->source.funcs->getFrame( self->source.source, baseFrame + 1, frame );
+        getFrame_f16( &self->source, baseFrame + 1, frame );
     }
     else if( frameOffset == 3 ) {
-        self->source.funcs->getFrame( self->source.source, baseFrame + 4, frame );
+        getFrame_f16( &self->source, baseFrame + 4, frame );
     }
     else {
         // Mixed fields; we want the odds (field #2) from this frame:
-        self->source.funcs->getFrame( self->source.source, baseFrame + 2, frame );
+        getFrame_f16( &self->source, baseFrame + 2, frame );
 
         int height = frame->currentDataWindow.max.y - frame->currentDataWindow.min.y + 1;
         int width = frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1;
@@ -73,7 +73,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
         tempFrame.fullDataWindow = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
 
-        self->source.funcs->getFrame( self->source.source, baseFrame + 3, &tempFrame );
+        getFrame_f16( &self->source, baseFrame + 3, &tempFrame );
 
         for( int i = (frame->currentDataWindow.min.y & 1) ? 1 : 0; i < height; i += 2 ) {
             memcpy( &frame->frameData[i * frame->stride + frame->currentDataWindow.min.y - frame->fullDataWindow.min.y],

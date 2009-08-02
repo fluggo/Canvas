@@ -242,7 +242,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             packet.stream_index = video->index;
 
             inputFrame.currentDataWindow = inputFrame.fullDataWindow;
-            videoSource.funcs->getFrame( videoSource.source, nextVideoFrame, &inputFrame );
+            getFrame_f16( &videoSource, nextVideoFrame, &inputFrame );
 
             // Transcode to RGBA
             for( int y = 0; y < frameSize.y; y++ ) {

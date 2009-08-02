@@ -65,8 +65,7 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) 
 
     g_mutex_unlock( PRIV(self)->mutex );
 
-    elem.source.funcs->getFrame( elem.source.source,
-        frameIndex + elem.offset, frame );
+    getFrame_f16( &elem.source, frameIndex + elem.offset, frame );
 }
 
 static Py_ssize_t
