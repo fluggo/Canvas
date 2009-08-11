@@ -216,6 +216,7 @@ static PyObject *pysourceFuncs;
 
 static PyObject *
 SystemPresentationClock_getFuncs( py_obj_SystemPresentationClock *self, void *closure ) {
+    Py_INCREF(pysourceFuncs);
     return pysourceFuncs;
 }
 

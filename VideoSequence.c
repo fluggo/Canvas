@@ -214,6 +214,7 @@ static VideoFrameSourceFuncs sourceFuncs = {
 
 static PyObject *
 VideoSequence_getFuncs( PyObject *self, void *closure ) {
+    Py_INCREF(pysourceFuncs);
     return pysourceFuncs;
 }
 

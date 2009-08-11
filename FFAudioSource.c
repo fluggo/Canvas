@@ -383,6 +383,7 @@ static PyObject *pyAudioSourceFuncs;
 
 static PyObject *
 FFAudioSource_getFuncs( py_obj_FFAudioSource *self, void *closure ) {
+    Py_INCREF(pyAudioSourceFuncs);
     return pyAudioSourceFuncs;
 }
 

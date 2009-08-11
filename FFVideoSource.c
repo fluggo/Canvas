@@ -405,6 +405,7 @@ static PyObject *pyVideoSourceFuncs;
 
 static PyObject *
 FFVideoSource_getFuncs( py_obj_FFVideoSource *self, void *closure ) {
+    Py_INCREF(pyVideoSourceFuncs);
     return pyVideoSourceFuncs;
 }
 

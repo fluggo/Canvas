@@ -98,6 +98,7 @@ static VideoFrameSourceFuncs sourceFuncs = {
 
 static PyObject *
 Pulldown23RemovalFilter_getFuncs( py_obj_Pulldown23RemovalFilter *self, void *closure ) {
+    Py_INCREF(pysourceFuncs);
     return pysourceFuncs;
 }
 
