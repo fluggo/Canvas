@@ -269,8 +269,8 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
 
     if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
         uint8_t *yplane, *cbplane, *crplane;
-        float triangleFilter[] = { 0.125f, 0.375f, 0.625f, 0.875f, 0.875f, 0.625f, 0.375f, 0.125f };
-        int filterWidth = 8;
+        float triangleFilter[] = { 0.25f, 0.5f, 0.75f, 1.0f, 0.75f, 0.5f, 0.25f };
+        int filterWidth = 7;
 
         // Temp rows aligned to the AVFrame buffer [0, width)
         rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
@@ -296,7 +296,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
                 float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
 
                 for( int i = max(frame->currentDataWindow.min.x - picOffset.x, x * 4 - (filterWidth / 2));
-                        i <= min(frame->currentDataWindow.max.x - picOffset.x, x * 4 + (filterWidth / 2) - 1); i++ ) {
+                        i <= min(frame->currentDataWindow.max.x - picOffset.x, x * 4 + ((filterWidth + 1) / 2) - 1); i++ ) {
 
                     tempChroma[i].cb += cb * triangleFilter[i - x * 4 + (filterWidth / 2)];
                     tempChroma[i].cr += cr * triangleFilter[i - x * 4 + (filterWidth / 2)];
