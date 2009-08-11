@@ -61,6 +61,42 @@ bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
     return true;
 }
 
+bool takeTimeFunction( PyObject *source, TimeFunctionHolder *holder ) {
+    Py_CLEAR( holder->source );
+    Py_CLEAR( holder->csource );
+    holder->funcs = NULL;
+    holder->constant = 0.0f;
+
+    if( source == NULL || source == Py_None )
+        return true;
+
+    PyObject *asFloat = PyNumber_Float( source );
+
+    if( asFloat ) {
+        holder->constant = (float) PyFloat_AS_DOUBLE( asFloat );
+        Py_CLEAR( asFloat );
+        return true;
+    }
+    else {
+        // Clear any errors
+        PyErr_Clear();
+    }
+
+    Py_INCREF( source );
+    holder->source = source;
+    holder->csource = PyObject_GetAttrString( source, "_timeFunctionFuncs" );
+
+    if( holder->csource == NULL ) {
+        Py_CLEAR( holder->source );
+        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _timeFunctionFuncs attribute." );
+        return false;
+    }
+
+    holder->funcs = (TimeFunctionFuncs*) PyCObject_AsVoidPtr( holder->csource );
+
+    return true;
+}
+
 void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );

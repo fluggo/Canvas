@@ -164,5 +164,23 @@ typedef struct {
 
 NOEXPORT bool takeAudioSource( PyObject *source, AudioSourceHolder *holder );
 
+/*********** Time functions *****/
+
+typedef void (*timefunc_getValuesFunc)( PyObject *self, int count, long *times, float *outValues );
+
+typedef struct {
+    int flags;
+    timefunc_getValuesFunc getValues;
+} TimeFunctionFuncs;
+
+typedef struct {
+    PyObject *source;
+    PyObject *csource;
+    TimeFunctionFuncs *funcs;
+    float constant;
+} TimeFunctionHolder;
+
+NOEXPORT bool takeTimeFunction( PyObject *source, TimeFunctionHolder *holder );
+
 #endif
 
