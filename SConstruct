@@ -32,6 +32,6 @@ lib = env.SharedLibrary('fluggo/video.so',
 		'half.c',
 		'halftab.c',
 		'AlsaPlayer.c',
-		'basictimefuncs.c'])
+		'basicframefuncs.c'])
 Depends(lib, half)
 
