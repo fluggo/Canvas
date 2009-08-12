@@ -6,10 +6,10 @@ generic_dealloc( PyObject *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-#define DECLARE_TIMEFUNC(name, deallocFunc)    \
-    static TimeFunctionFuncs name##_sourceFuncs = { \
+#define DECLARE_FRAMEFUNC(name, deallocFunc)    \
+    static FrameFunctionFuncs name##_sourceFuncs = { \
         0, \
-        (timefunc_getValuesFunc) name##_getValues \
+        (framefunc_getValuesFunc) name##_getValues \
     }; \
     \
     static PyTypeObject py_type_##name = { \
@@ -34,7 +34,7 @@ generic_dealloc( PyObject *self ) {
     } \
 
 #define DECLARE_GETSETTER(name) \
-    { "_timeFunctionFuncs", (getter) name##_getFuncs, NULL, "Time function C API." }
+    { "_frameFunctionFuncs", (getter) name##_getFuncs, NULL, "Frame function C API." }
 
 #define DECLARE_DEFAULT_GETSETTERS(name) \
     static PyGetSetDef name##_getsetters[] = { \
@@ -42,7 +42,7 @@ generic_dealloc( PyObject *self ) {
         { NULL } \
     };
 
-#define SETUP_TIMEFUNC(name) \
+#define SETUP_FRAMEFUNC(name) \
     if( PyType_Ready( &py_type_##name ) < 0 ) \
         return; \
     \
@@ -55,10 +55,10 @@ generic_dealloc( PyObject *self ) {
 typedef struct {
     PyObject_HEAD
     float a, b;
-} py_obj_LinearTimeFunc;
+} py_obj_LinearFrameFunc;
 
 static int
-LinearTimeFunc_init( py_obj_LinearTimeFunc *self, PyObject *args, PyObject *kwds ) {
+LinearFrameFunc_init( py_obj_LinearFrameFunc *self, PyObject *args, PyObject *kwds ) {
     static char *kwlist[] = { "a", "b", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kwds, "ff", kwlist,
@@ -69,17 +69,17 @@ LinearTimeFunc_init( py_obj_LinearTimeFunc *self, PyObject *args, PyObject *kwds
 }
 
 static void
-LinearTimeFunc_getValues( py_obj_LinearTimeFunc *self, int count, long *times, float *outValues ) {
+LinearFrameFunc_getValues( py_obj_LinearFrameFunc *self, int count, long *frames, long frameBase, float *outValues ) {
     for( int i = 0; i < count; i++ )
-        outValues[i] = (times[i] / (float) NS_PER_SEC) * self->a + self->b;
+        outValues[i] = (frames[i] / (float) frameBase) * self->a + self->b;
 }
 
-DECLARE_GETTER(LinearTimeFunc)
-DECLARE_DEFAULT_GETSETTERS(LinearTimeFunc)
-DECLARE_TIMEFUNC(LinearTimeFunc, generic_dealloc)
+DECLARE_GETTER(LinearFrameFunc)
+DECLARE_DEFAULT_GETSETTERS(LinearFrameFunc)
+DECLARE_FRAMEFUNC(LinearFrameFunc, generic_dealloc)
 
-void init_basictimefuncs( PyObject *module ) {
-    SETUP_TIMEFUNC(LinearTimeFunc);
+void init_basicframefuncs( PyObject *module ) {
+    SETUP_FRAMEFUNC(LinearFrameFunc);
 }
 
 

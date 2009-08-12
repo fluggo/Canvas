@@ -61,7 +61,7 @@ bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
     return true;
 }
 
-bool takeTimeFunction( PyObject *source, TimeFunctionHolder *holder ) {
+bool takeFrameFunction( PyObject *source, FrameFunctionHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
     holder->funcs = NULL;
@@ -84,15 +84,15 @@ bool takeTimeFunction( PyObject *source, TimeFunctionHolder *holder ) {
 
     Py_INCREF( source );
     holder->source = source;
-    holder->csource = PyObject_GetAttrString( source, "_timeFunctionFuncs" );
+    holder->csource = PyObject_GetAttrString( source, "_frameFunctionFuncs" );
 
     if( holder->csource == NULL ) {
         Py_CLEAR( holder->source );
-        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _timeFunctionFuncs attribute." );
+        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _frameFunctionFuncs attribute." );
         return false;
     }
 
-    holder->funcs = (TimeFunctionFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->funcs = (FrameFunctionFuncs*) PyCObject_AsVoidPtr( holder->csource );
 
     return true;
 }
@@ -430,6 +430,7 @@ void init_AlsaPlayer( PyObject *module );
 void init_GtkVideoWidget( PyObject *module );
 void init_half( PyObject *module );
 void init_VideoSequence( PyObject *module );
+void init_basicframefuncs( PyObject *module );
 
 PyMODINIT_FUNC
 initvideo() {
@@ -444,6 +445,7 @@ initvideo() {
     init_AlsaPlayer( m );
     init_GtkVideoWidget( m );
     init_VideoSequence( m );
+    init_basicframefuncs( m );
 }
 
 #if 0

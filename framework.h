@@ -24,6 +24,7 @@
 #define slice_free(size, ptr) free(ptr)
 #endif
 
+#define NS_PER_SEC    INT64_C(1000000000)
 
 typedef struct {
     int n;
@@ -164,23 +165,23 @@ typedef struct {
 
 NOEXPORT bool takeAudioSource( PyObject *source, AudioSourceHolder *holder );
 
-/*********** Time functions *****/
+/*********** Frame functions *****/
 
-typedef void (*timefunc_getValuesFunc)( PyObject *self, int count, long *times, float *outValues );
+typedef void (*framefunc_getValuesFunc)( PyObject *self, int count, long *frames, long frameBase, float *outValues );
 
 typedef struct {
     int flags;
-    timefunc_getValuesFunc getValues;
-} TimeFunctionFuncs;
+    framefunc_getValuesFunc getValues;
+} FrameFunctionFuncs;
 
 typedef struct {
     PyObject *source;
     PyObject *csource;
-    TimeFunctionFuncs *funcs;
+    FrameFunctionFuncs *funcs;
     float constant;
-} TimeFunctionHolder;
+} FrameFunctionHolder;
 
-NOEXPORT bool takeTimeFunction( PyObject *source, TimeFunctionHolder *holder );
+NOEXPORT bool takeFrameFunction( PyObject *source, FrameFunctionHolder *holder );
 
 #endif
 
