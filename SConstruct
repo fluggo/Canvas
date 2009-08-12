@@ -20,7 +20,7 @@ else:
 
 env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gtk+-2.0 gl gtkglext-1.0 gthread-2.0 pygtk-2.0 pygobject-2.0')
 
-lib = env.SharedLibrary('fluggo/video.so',
+lib = env.SharedLibrary('fluggo/media.so',
 	['main.c',
 		'FFVideoSource.c',
 		'VideoSequence.c',

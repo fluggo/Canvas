@@ -714,7 +714,7 @@ static PyMethodDef GtkVideoWidget_methods[] = {
 static PyTypeObject py_type_GtkVideoWidget = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.GtkVideoWidget",    // tp_name
+    "fluggo.media.GtkVideoWidget",    // tp_name
     sizeof(py_obj_GtkVideoWidget),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

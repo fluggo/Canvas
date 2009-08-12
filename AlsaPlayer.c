@@ -530,7 +530,7 @@ static PyMethodDef AlsaPlayer_methods[] = {
 static PyTypeObject py_type_AlsaPlayer = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.AlsaPlayer",    // tp_name
+    "fluggo.media.AlsaPlayer",    // tp_name
     sizeof(py_obj_AlsaPlayer),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

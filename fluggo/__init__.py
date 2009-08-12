@@ -1,2 +1,2 @@
-__all__ = ['video']
+__all__ = ['media']
 

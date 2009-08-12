@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import glib
 import gtk
 import gtk.glade
-from fluggo.video import *
+from fluggo.media import *
 from fractions import Fraction
 
 #clock = SystemPresentationClock()

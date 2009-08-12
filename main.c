@@ -433,9 +433,9 @@ void init_VideoSequence( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 
 PyMODINIT_FUNC
-initvideo() {
-    PyObject *m = Py_InitModule3( "video", module_methods,
-        "The Fluggo Video library for Python." );
+initmedia() {
+    PyObject *m = Py_InitModule3( "media", module_methods,
+        "The Fluggo Media library for Python." );
 
     init_half( m );
     init_FFVideoSource( m );

@@ -15,7 +15,7 @@ generic_dealloc( PyObject *self ) {
     static PyTypeObject py_type_##name = { \
         PyObject_HEAD_INIT(NULL) \
         0, \
-        "fluggo.video." #name, \
+        "fluggo.media." #name, \
         sizeof(py_obj_##name), \
         .tp_flags = Py_TPFLAGS_DEFAULT, \
         .tp_new = PyType_GenericNew, \

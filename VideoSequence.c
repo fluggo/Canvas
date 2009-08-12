@@ -239,7 +239,7 @@ static PyMethodDef VideoSequence_methods[] = {
 
 static PyTypeObject py_type_VideoSequence = {
     PyObject_HEAD_INIT(NULL)
-    .tp_name = "fluggo.video.VideoSequence",    // tp_name
+    .tp_name = "fluggo.media.VideoSequence",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_dealloc = (destructor) VideoSequence_dealloc,
     .tp_init = (initproc) VideoSequence_init,

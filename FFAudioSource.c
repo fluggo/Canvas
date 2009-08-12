@@ -395,7 +395,7 @@ static PyGetSetDef FFAudioSource_getsetters[] = {
 static PyTypeObject py_type_FFAudioSource = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.video.FFAudioSource",    // tp_name
+    "fluggo.media.FFAudioSource",    // tp_name
     sizeof(py_obj_FFAudioSource),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
