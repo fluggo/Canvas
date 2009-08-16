@@ -315,7 +315,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
                 tempRow[x].b = y * self->colorMatrix[2][0] +
                     tempChroma[x - picOffset.x].cb * self->colorMatrix[2][1] +
                     tempChroma[x - picOffset.x].cr * self->colorMatrix[2][2];
-                tempRow[x].a = 1.0f;
+                tempRow[x].a = 256.0f;
             }
 
             half *out = &frame->frameData[
@@ -374,7 +374,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
                             cy * self->colorMatrix[0][0] + ccr,
                             cy * self->colorMatrix[1][0] + ccg,
                             cy * self->colorMatrix[2][0] + ccb,
-                            1.0f
+                            256.0f
                         };
 
                         half *out = &frameData[(py + pyi * i) * frame->stride + px].r;
