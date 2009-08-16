@@ -70,7 +70,9 @@ class MainWindow(object):
         seq.append((pulldown, 300, 250))
         seq.append((pulldown, 0, 150))
 
-        self.videoWidget.setSource(seq)
+        mix = VideoMixFilter(srcA=pulldown, srcB=seq, mixB=LinearFrameFunc(a=1/300.0, b=0))
+
+        self.videoWidget.setSource(mix)
         self.videoWidget.stop()
 
     def on_playButton_clicked(self, *args):

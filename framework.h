@@ -75,12 +75,16 @@ static inline int max( int a, int b ) {
     return a > b ? a : b;
 }
 
-static inline float min_f32( float a, float b ) {
+static inline float minf( float a, float b ) {
     return a < b ? a : b;
 }
 
-static inline float max_f32( float a, float b ) {
+static inline float maxf( float a, float b ) {
     return a > b ? a : b;
+}
+
+static inline float clampf( float value, float min, float max ) {
+    return minf(maxf(value, min), max);
 }
 
 NOEXPORT int64_t getFrameTime( const rational *frameRate, int frame );
@@ -181,7 +185,7 @@ typedef struct {
     float constant;
 } FrameFunctionHolder;
 
-NOEXPORT bool takeFrameFunction( PyObject *source, FrameFunctionHolder *holder );
+NOEXPORT bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder );
 
 #endif
 

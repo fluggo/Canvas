@@ -54,7 +54,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
 
     for( int i = 0; i < RAMP_SIZE; i++ ) {
         ramp[i] = (uint8_t) min( 255, max( 0,
-            (int)(powf( min_f32( 1.0f, max_f32( 0.0f, tempRampF[i] ) ), 0.45f ) * 255.0f) ) );
+            (int)(powf( clampf(tempRampF[i], 0.0f, 1.0f), 0.45f ) * 255.0f) ) );
     }
 
     slice_free( RAMP_SIZE * sizeof(float), tempRampF );

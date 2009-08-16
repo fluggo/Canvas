@@ -723,10 +723,6 @@ static PyTypeObject py_type_GtkVideoWidget = {
     .tp_methods = GtkVideoWidget_methods
 };
 
-static inline float clampf( float x, float min, float max ) {
-    return (x < min) ? min : ((x > max) ? max : x);
-}
-
 static inline float gamma45Func( float input ) {
     return clampf( powf( input, 0.45f ) * 255.0f, 0.0f, 255.0f );
 }

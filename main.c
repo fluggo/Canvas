@@ -61,7 +61,7 @@ bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
     return true;
 }
 
-bool takeFrameFunction( PyObject *source, FrameFunctionHolder *holder ) {
+bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
     holder->funcs = NULL;
@@ -135,7 +135,7 @@ void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *ta
         half_convert_from_float(
             &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
             &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
-            countX );
+            countX * 4 );
     }
 
     targetFrame->currentDataWindow = tempFrame.currentDataWindow;
@@ -181,7 +181,7 @@ void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *ta
         half_convert_to_float(
             &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
             &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
-            countX );
+            countX * 4 );
     }
 
     targetFrame->currentDataWindow = tempFrame.currentDataWindow;
@@ -430,6 +430,7 @@ void init_AlsaPlayer( PyObject *module );
 void init_GtkVideoWidget( PyObject *module );
 void init_half( PyObject *module );
 void init_VideoSequence( PyObject *module );
+void init_VideoMixFilter( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 
 PyMODINIT_FUNC
@@ -445,6 +446,7 @@ initmedia() {
     init_AlsaPlayer( m );
     init_GtkVideoWidget( m );
     init_VideoSequence( m );
+    init_VideoMixFilter( m );
     init_basicframefuncs( m );
 }
 
