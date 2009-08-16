@@ -47,7 +47,7 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) 
     // and the worst-case is rare
     int i = min(PRIV(self)->lastElement, PRIV(self)->sequence->len);
 
-    while( i < PRIV(self)->sequence->len && frameIndex >= SEQINDEX(self, i).startFrame + SEQINDEX(self, i).length )
+    while( i < (PRIV(self)->sequence->len - 1) && frameIndex >= SEQINDEX(self, i).startFrame + SEQINDEX(self, i).length )
         i++;
 
     while( i > 0 && frameIndex < SEQINDEX(self, i).startFrame )
@@ -65,7 +65,7 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) 
 
     g_mutex_unlock( PRIV(self)->mutex );
 
-    getFrame_f16( &elem.source, frameIndex + elem.offset, frame );
+    getFrame_f16( &elem.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static Py_ssize_t
