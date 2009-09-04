@@ -121,40 +121,18 @@ static void _gl_initialize( py_obj_GtkVideoWidget *self ) {
 
     if( !self->softTextureId ) {
         glGenTextures( 1, &self->softTextureId );
-        glBindTexture( GL_TEXTURE_2D, self->softTextureId );
+        glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
 
-        if( GLEW_ARB_texture_non_power_of_two ) {
-            glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-            glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, frameSize.x, frameSize.y,
-                0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
+        glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+        glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+        glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+        glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+        glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+        glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGB, frameSize.x, frameSize.y,
+            0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
 
-            self->texCoordX = 1.0f;
-            self->texCoordY = 1.0f;
-        }
-        else {
-            int texW = 1, texH = 1;
-
-            while( texW < frameSize.x )
-                texW <<= 1;
-
-            while( texH < frameSize.y )
-                texH <<= 1;
-
-            glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-            glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, texW, texH,
-                0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
-
-            self->texCoordX = (float) frameSize.x / (float) texW;
-            self->texCoordY = (float) frameSize.y / (float) texH;
-        }
+        self->texCoordX = frameSize.x;
+        self->texCoordY = frameSize.y;
     }
 }
 
@@ -163,8 +141,8 @@ void _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
 
-    glBindTexture( GL_TEXTURE_2D, self->softTextureId );
-    glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, frameSize.x, frameSize.y,
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
+    glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
         GL_RGB, GL_UNSIGNED_BYTE, &self->softTargets[self->readBuffer].frameData[0] );
     checkGLError();
 }
@@ -204,8 +182,8 @@ void _gl_draw( py_obj_GtkVideoWidget *self ) {
     glClear( GL_COLOR_BUFFER_BIT );
 
     // Render texture onto quad
-    glBindTexture( GL_TEXTURE_2D, self->softTextureId );
-    glEnable( GL_TEXTURE_2D );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
     glBegin( GL_QUADS );
     glTexCoord2f( 0, 0 );
@@ -218,7 +196,7 @@ void _gl_draw( py_obj_GtkVideoWidget *self ) {
     glVertex2f( x, y + height );
     glEnd();
 
-    glDisable( GL_TEXTURE_2D );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
 }
 
 static gboolean
