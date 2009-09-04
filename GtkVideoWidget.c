@@ -114,6 +114,13 @@ static void _gl_initialize( py_obj_GtkVideoWidget *self ) {
     if( !__glewInit ) {
         glewInit();
         __glewInit = true;
+
+        // BJC: For now, we're doing an auto-soft-mode disable here
+        if( GLEW_ATI_texture_float &&
+            GLEW_ARB_fragment_shader &&
+            GLEW_EXT_framebuffer_object &&
+            GLEW_ARB_half_float_pixel )
+            self->softMode = false;
     }
 
     v2i frameSize;
