@@ -286,6 +286,12 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         // Pull out the next frame
         int nextFrame = self->nextToRenderFrame;
 
+        // Clamp to the set first/last frames
+        if( nextFrame > self->lastFrame )
+            nextFrame = self->lastFrame;
+        else if( nextFrame < self->firstFrame )
+            nextFrame = self->firstFrame;
+
         // Set up the proper write buffer
         if( !self->renderOneFrame )
             self->writeBuffer = (self->writeBuffer + 1) % self->bufferCount;
@@ -297,11 +303,6 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         // If the frame is the wrong size, reallocate it now
         if( box2i_isEmpty( &target->fullDataWindow ) ||
             !box2i_equalSize( &self->displayWindow, &target->fullDataWindow ) ) {
-
-            if( target->frameData ) {
-                free( target->frameData );
-                target->frameData = NULL;
-            }
 
             free( target->frameData );
             target->frameData = malloc( frameSize.y * frameSize.x * sizeof(rgb8) );
@@ -320,12 +321,6 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         // The frame could shift without changing size, so we set this here just in case
         target->fullDataWindow = self->displayWindow;
         frame.fullDataWindow = self->displayWindow;
-
-        // Clip to the set first/last frames
-        if( nextFrame > self->lastFrame )
-            nextFrame = self->lastFrame;
-        else if( nextFrame < self->firstFrame )
-            nextFrame = self->firstFrame;
 
         VideoFrameSourceFuncs *funcs = self->frameSource.funcs;
 
