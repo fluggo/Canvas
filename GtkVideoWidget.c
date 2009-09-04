@@ -108,7 +108,8 @@ typedef struct {
     GThread *renderThread;
 } py_obj_GtkVideoWidget;
 
-static void _gl_initialize( py_obj_GtkVideoWidget *self ) {
+static void
+_gl_initialize( py_obj_GtkVideoWidget *self ) {
     static bool __glewInit = false;
 
     if( !__glewInit ) {
@@ -143,7 +144,8 @@ static void _gl_initialize( py_obj_GtkVideoWidget *self ) {
     }
 }
 
-void _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
+static void
+_gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
     // Load texture
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
@@ -154,7 +156,8 @@ void _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
     checkGLError();
 }
 
-void _gl_draw( py_obj_GtkVideoWidget *self ) {
+static void
+_gl_draw( py_obj_GtkVideoWidget *self ) {
     // Set ourselves up with the correct aspect ratio for the space
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
