@@ -95,11 +95,12 @@ typedef struct {
     bool renderOneFrame, drawOneFrame;
     int lastHardFrame;
 
-    SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
-    GLuint softTextureId;
-
     // True: render in software, false, render in hardware
     bool softMode;
+
+    SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
+    GLuint softTextureId;
+    GLhandleARB hardGammaShader, hardGammaProgram;
 
     // Number of buffers available
     int bufferCount;
@@ -119,6 +120,7 @@ _gl_initialize( py_obj_GtkVideoWidget *self ) {
 
         // BJC: For now, we're doing an auto-soft-mode disable here
         if( GLEW_ATI_texture_float &&
+            GLEW_ARB_texture_rectangle &&
             GLEW_ARB_fragment_shader &&
             GLEW_EXT_framebuffer_object &&
             GLEW_ARB_half_float_pixel )
@@ -209,6 +211,18 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
     self->lastHardFrame = frameIndex;
 }
 
+const char *gammaShader[] = {
+"#extension GL_ARB_texture_rectangle : enable\n"
+"uniform sampler2DRect tex;"
+//"out vec4 gl_FragColor;"
+""
+"void main() {"
+"    vec4 color = texture2DRect( tex, gl_TexCoord[0].st );"
+"    gl_FragColor.rgb = pow( color.rgb, 0.45 );"
+"    gl_FragColor.a = color.a;"
+"}"
+};
+
 static void
 _gl_draw( py_obj_GtkVideoWidget *self ) {
     // Set ourselves up with the correct aspect ratio for the space
@@ -243,6 +257,37 @@ _gl_draw( py_obj_GtkVideoWidget *self ) {
 
     glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
+
+    if( !self->softMode ) {
+        if( !self->hardGammaShader ) {
+            self->hardGammaShader = glCreateShaderObjectARB( GL_FRAGMENT_SHADER_ARB );
+            glShaderSourceARB( self->hardGammaShader, sizeof(gammaShader) / sizeof(const char *), gammaShader, NULL );
+            glCompileShaderARB( self->hardGammaShader );
+
+            int status;
+            glGetObjectParameterivARB( self->hardGammaShader, GL_OBJECT_COMPILE_STATUS_ARB, &status );
+
+            if( !status ) {
+                printf( "Error(s) compiling the shader:\n" );
+                int infoLogLength;
+
+                glGetObjectParameterivARB( self->hardGammaShader, GL_OBJECT_INFO_LOG_LENGTH_ARB, &infoLogLength );
+
+                char *infoLog = calloc( 1, infoLogLength + 1 );
+
+                glGetInfoLogARB( self->hardGammaShader, infoLogLength, &infoLogLength, infoLog );
+
+                puts( infoLog );
+                free( infoLog );
+            }
+
+            self->hardGammaProgram = glCreateProgramObjectARB();
+            glAttachObjectARB( self->hardGammaProgram, self->hardGammaShader );
+            glLinkProgramARB( self->hardGammaProgram );
+        }
+
+        glUseProgramObjectARB( self->hardGammaProgram );
+    }
 
     // Render texture onto quad
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
@@ -646,6 +691,7 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
     self->softTextureId = 0;
+    self->hardGammaShader = 0;
     self->renderOneFrame = true;
     self->lastHardFrame = -1;
 
