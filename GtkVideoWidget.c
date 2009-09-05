@@ -211,6 +211,26 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
     self->lastHardFrame = frameIndex;
 }
 
+void
+printShaderErrors( GLhandleARB shader ) {
+    int status;
+    glGetObjectParameterivARB( shader, GL_OBJECT_COMPILE_STATUS_ARB, &status );
+
+    if( !status ) {
+        printf( "Error(s) compiling the shader:\n" );
+        int infoLogLength;
+
+        glGetObjectParameterivARB( shader, GL_OBJECT_INFO_LOG_LENGTH_ARB, &infoLogLength );
+
+        char *infoLog = calloc( 1, infoLogLength + 1 );
+
+        glGetInfoLogARB( shader, infoLogLength, &infoLogLength, infoLog );
+
+        puts( infoLog );
+        free( infoLog );
+    }
+}
+
 const char *gammaShader[] = {
 "#extension GL_ARB_texture_rectangle : enable\n"
 "uniform sampler2DRect tex;"
@@ -264,22 +284,7 @@ _gl_draw( py_obj_GtkVideoWidget *self ) {
             glShaderSourceARB( self->hardGammaShader, sizeof(gammaShader) / sizeof(const char *), gammaShader, NULL );
             glCompileShaderARB( self->hardGammaShader );
 
-            int status;
-            glGetObjectParameterivARB( self->hardGammaShader, GL_OBJECT_COMPILE_STATUS_ARB, &status );
-
-            if( !status ) {
-                printf( "Error(s) compiling the shader:\n" );
-                int infoLogLength;
-
-                glGetObjectParameterivARB( self->hardGammaShader, GL_OBJECT_INFO_LOG_LENGTH_ARB, &infoLogLength );
-
-                char *infoLog = calloc( 1, infoLogLength + 1 );
-
-                glGetInfoLogARB( self->hardGammaShader, infoLogLength, &infoLogLength, infoLog );
-
-                puts( infoLog );
-                free( infoLog );
-            }
+            printShaderErrors( self->hardGammaShader );
 
             self->hardGammaProgram = glCreateProgramObjectARB();
             glAttachObjectARB( self->hardGammaProgram, self->hardGammaShader );
