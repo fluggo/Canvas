@@ -208,6 +208,35 @@ void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *ta
     slice_free( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
 }
 
+void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame ) {
+    if( !source || !source->funcs ) {
+        box2i_setEmpty( &targetFrame->currentDataWindow );
+        return;
+    }
+
+    if( source->funcs->getFrameGL ) {
+        source->funcs->getFrameGL( source->source, frameIndex, targetFrame );
+        return;
+    }
+
+    // Pull 16-bit frame data from the software chain and load it
+    v2i frameSize;
+    box2i_getSize( &targetFrame->fullDataWindow, &frameSize );
+
+    rgba_f16_frame frame = { NULL };
+    frame.frameData = slice_alloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
+    frame.fullDataWindow = targetFrame->fullDataWindow;
+    frame.stride = frameSize.x;
+
+    getFrame_f16( source, frameIndex, &frame );
+
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, targetFrame->targetTexture );
+    glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
+        GL_RGBA, GL_HALF_FLOAT_ARB, frame.frameData );
+
+    slice_free( sizeof(rgba_f16) * frameSize.x * frameSize.y, frame.frameData );
+}
+
 int64_t
 getFrameTime( const rational *frameRate, int frame ) {
     return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);

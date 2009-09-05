@@ -178,33 +178,12 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
     else if( frameIndex < self->firstFrame )
         frameIndex = self->firstFrame;
 
-    v2i frameSize;
-    box2i_getSize( &self->displayWindow, &frameSize );
+    rgba_gl_frame frame = {
+        .targetTexture = self->softTextureId,
+        .fullDataWindow = self->displayWindow
+    };
 
-    rational speed;
-    self->clock.funcs->getSpeed( self->clock.source, &speed );
-
-    rgba_f16_frame frame = { NULL };
-    frame.frameData = slice_alloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
-    frame.fullDataWindow = self->displayWindow;
-    frame.stride = frameSize.x;
-
-    // Pull the frame data from the chain
-    VideoFrameSourceFuncs *funcs = self->frameSource.funcs;
-
-    if( funcs != NULL ) {
-        getFrame_f16( &self->frameSource, frameIndex, &frame );
-    }
-    else {
-        // No result
-        box2i_setEmpty( &frame.currentDataWindow );
-    }
-
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
-    glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
-        GL_RGBA, GL_HALF_FLOAT_ARB, frame.frameData );
-
-    slice_free( sizeof(rgba_f16) * frameSize.x * frameSize.y, frame.frameData );
+    getFrame_gl( &self->frameSource, frameIndex, &frame );
 
     self->lastHardFrame = frameIndex;
 }

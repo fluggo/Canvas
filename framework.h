@@ -141,20 +141,20 @@ typedef struct {
 } rgba_f32_frame;
 
 typedef struct {
-    GLuint targetTexture, sourceTexture;
-    box2f fullDataWindow;
-    box2f currentDataWindow;
-} GLFrame;
+    GLuint targetTexture;
+    box2i fullDataWindow;
+    box2i currentDataWindow;
+} rgba_gl_frame;
 
 typedef void (*video_getFrameFunc)( PyObject *self, int frameIndex, rgba_f16_frame *frame );
 typedef void (*video_getFrame32Func)( PyObject *self, int frameIndex, rgba_f32_frame *frame );
-typedef void (*video_getGLFrameFunc)( PyObject *self, int frameIndex, GLFrame *frame );
+typedef void (*video_getGLFrameFunc)( PyObject *self, int frameIndex, rgba_gl_frame *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero
     video_getFrameFunc getFrame;
     video_getFrame32Func getFrame32;
-    video_getGLFrameFunc getGLFrame;
+    video_getGLFrameFunc getFrameGL;
 } VideoFrameSourceFuncs;
 
 typedef struct {
@@ -166,6 +166,7 @@ typedef struct {
 NOEXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
 NOEXPORT void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame );
 NOEXPORT void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame );
+NOEXPORT void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame );
 
 /************* Audio *******/
 
