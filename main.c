@@ -230,8 +230,9 @@ void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targ
 
     getFrame_f16( source, frameIndex, &frame );
 
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, targetFrame->targetTexture );
-    glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
+    glGenTextures( 1, &targetFrame->texture );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, targetFrame->texture );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
         GL_RGBA, GL_HALF_FLOAT_ARB, frame.frameData );
 
     slice_free( sizeof(rgba_f16) * frameSize.x * frameSize.y, frame.frameData );

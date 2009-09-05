@@ -97,7 +97,7 @@ typedef struct {
     bool softMode;
 
     SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
-    GLuint softTextureId;
+    GLuint softTextureId, hardTextureId;
     GLhandleARB hardGammaShader, hardGammaProgram;
 
     // Number of buffers available
@@ -128,7 +128,7 @@ _gl_initialize( py_obj_GtkVideoWidget *self ) {
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
 
-    if( !self->softTextureId ) {
+    if( !self->softTextureId && self->softMode ) {
         glGenTextures( 1, &self->softTextureId );
         glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
 
@@ -138,19 +138,13 @@ _gl_initialize( py_obj_GtkVideoWidget *self ) {
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
-        if( self->softMode ) {
-            // BJC: This should become an RGBA texture in the end
-            glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGB, frameSize.x, frameSize.y,
-                0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
-        }
-        else {
-            glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y,
-                0, GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
-        }
-
-        self->texCoordX = frameSize.x;
-        self->texCoordY = frameSize.y;
+        // BJC: This should become an RGBA texture in the end
+        glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGB, frameSize.x, frameSize.y,
+            0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
     }
+
+    self->texCoordX = frameSize.x;
+    self->texCoordY = frameSize.y;
 }
 
 static void
@@ -168,6 +162,10 @@ _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
 static void
 _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
     // This is being done on the main app thread
+    if( self->hardTextureId ) {
+        glDeleteTextures( 1, &self->hardTextureId );
+        self->hardTextureId = 0;
+    }
 
     // Pull out the next frame
     int frameIndex = self->nextToRenderFrame;
@@ -179,12 +177,12 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
         frameIndex = self->firstFrame;
 
     rgba_gl_frame frame = {
-        .targetTexture = self->softTextureId,
         .fullDataWindow = self->displayWindow
     };
 
     getFrame_gl( &self->frameSource, frameIndex, &frame );
 
+    self->hardTextureId = frame.texture;
     self->lastHardFrame = frameIndex;
 }
 
@@ -272,7 +270,7 @@ _gl_draw( py_obj_GtkVideoWidget *self ) {
     }
 
     // Render texture onto quad
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softMode ? self->softTextureId : self->hardTextureId );
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
     glBegin( GL_QUADS );
@@ -673,6 +671,7 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
     self->softTextureId = 0;
+    self->hardTextureId = 0;
     self->hardGammaShader = 0;
     self->renderOneFrame = true;
     self->lastHardFrame = -1;

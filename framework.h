@@ -141,7 +141,7 @@ typedef struct {
 } rgba_f32_frame;
 
 typedef struct {
-    GLuint targetTexture;
+    GLuint texture;
     box2i fullDataWindow;
     box2i currentDataWindow;
 } rgba_gl_frame;
