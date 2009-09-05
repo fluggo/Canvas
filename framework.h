@@ -43,6 +43,9 @@
 #define slice_free(size, ptr) free(ptr)
 #endif
 
+#include <GL/glew.h>
+#include <GL/gl.h>
+
 #define NS_PER_SEC    INT64_C(1000000000)
 
 typedef struct {
@@ -138,7 +141,7 @@ typedef struct {
 } rgba_f32_frame;
 
 typedef struct {
-    int targetTexture;
+    GLuint targetTexture, sourceTexture;
     box2f fullDataWindow;
     box2f currentDataWindow;
 } GLFrame;

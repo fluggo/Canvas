@@ -30,8 +30,6 @@
 #include <gtk/gtk.h>
 #include <gtk/gtkgl.h>
 #include <gdk/gdkkeysyms.h>
-#include <GL/glew.h>
-#include <GL/gl.h>
 
 static uint8_t gamma45[65536];
 #define    SOFT_MODE_BUFFERS    4
