@@ -93,6 +93,7 @@ typedef struct {
     float pixelAspectRatio;
     float texCoordX, texCoordY;
     bool renderOneFrame, drawOneFrame;
+    int lastHardFrame;
 
     SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
     GLuint softTextureId;
@@ -136,8 +137,16 @@ _gl_initialize( py_obj_GtkVideoWidget *self ) {
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-        glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGB, frameSize.x, frameSize.y,
-            0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
+
+        if( self->softMode ) {
+            // BJC: This should become an RGBA texture in the end
+            glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGB, frameSize.x, frameSize.y,
+                0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
+        }
+        else {
+            glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y,
+                0, GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+        }
 
         self->texCoordX = frameSize.x;
         self->texCoordY = frameSize.y;
@@ -154,6 +163,50 @@ _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
     glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
         GL_RGB, GL_UNSIGNED_BYTE, &self->softTargets[self->readBuffer].frameData[0] );
     checkGLError();
+}
+
+static void
+_gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
+    // This is being done on the main app thread
+
+    // Pull out the next frame
+    int frameIndex = self->nextToRenderFrame;
+
+    // Clamp to the set first/last frames
+    if( frameIndex > self->lastFrame )
+        frameIndex = self->lastFrame;
+    else if( frameIndex < self->firstFrame )
+        frameIndex = self->firstFrame;
+
+    v2i frameSize;
+    box2i_getSize( &self->displayWindow, &frameSize );
+
+    rational speed;
+    self->clock.funcs->getSpeed( self->clock.source, &speed );
+
+    rgba_f16_frame frame = { NULL };
+    frame.frameData = slice_alloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
+    frame.fullDataWindow = self->displayWindow;
+    frame.stride = frameSize.x;
+
+    // Pull the frame data from the chain
+    VideoFrameSourceFuncs *funcs = self->frameSource.funcs;
+
+    if( funcs != NULL ) {
+        getFrame_f16( &self->frameSource, frameIndex, &frame );
+    }
+    else {
+        // No result
+        box2i_setEmpty( &frame.currentDataWindow );
+    }
+
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
+    glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
+        GL_RGBA, GL_HALF_FLOAT_ARB, frame.frameData );
+
+    slice_free( sizeof(rgba_f16) * frameSize.x * frameSize.y, frame.frameData );
+
+    self->lastHardFrame = frameIndex;
 }
 
 static void
@@ -219,7 +272,15 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_GtkVideoWidget *self ) 
 
     // Render here
     _gl_initialize( self );
-    _gl_softLoadTexture( self );
+
+    if( self->softMode ) {
+        _gl_softLoadTexture( self );
+    }
+    else if( self->renderOneFrame ) {
+        _gl_hardLoadTexture( self );
+        self->renderOneFrame = false;
+    }
+
     _gl_draw( self );
 
     // Flush buffers
@@ -227,6 +288,9 @@ expose( GtkWidget *widget, GdkEventExpose *event, py_obj_GtkVideoWidget *self ) 
         gdk_gl_drawable_swap_buffers( gldrawable );
     else
         glFlush();
+
+    if( !self->softMode && !self->renderOneFrame && self->lastHardFrame != self->nextToRenderFrame )
+        _gl_hardLoadTexture( self );
 
     gdk_gl_drawable_gl_end( gldrawable );
 
@@ -423,49 +487,84 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
     if( self->quit )
         return FALSE;
 
-    if( self->filled > 0 || self->drawOneFrame ) {
-        g_mutex_lock( self->frameReadMutex );
-        int filled = self->filled;
+    if( self->softMode ) {
+        if( self->filled > 0 || self->drawOneFrame ) {
+            g_mutex_lock( self->frameReadMutex );
+            int filled = self->filled;
 
-        if( !self->drawOneFrame )
-            self->readBuffer = (self->readBuffer + 1) % self->bufferCount;
+            if( !self->drawOneFrame )
+                self->readBuffer = (self->readBuffer + 1) % self->bufferCount;
 
-        int64_t nextPresentationTime = self->softTargets[self->readBuffer].nextTime;
-        g_mutex_unlock( self->frameReadMutex );
+            int64_t nextPresentationTime = self->softTargets[self->readBuffer].nextTime;
+            g_mutex_unlock( self->frameReadMutex );
 
-        if( filled != 0 || self->drawOneFrame ) {
-            gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
-            //gdk_window_process_updates( self->drawingArea->window, FALSE );
+            if( filled != 0 || self->drawOneFrame ) {
+                gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
+                //gdk_window_process_updates( self->drawingArea->window, FALSE );
 
-            //printf( "Painted %d from %d...\n", getTimeFrame( &self->frameRate, self->targets[self->readBuffer].time ), self->readBuffer );
+                //printf( "Painted %d from %d...\n", getTimeFrame( &self->frameRate, self->targets[self->readBuffer].time ), self->readBuffer );
 
-            if( self->drawOneFrame ) {
-                // We're done here, go back to sleep
-                self->drawOneFrame = false;
-            }
-            else {
-                g_mutex_lock( self->frameReadMutex );
-
-                self->filled--;
-
-                g_cond_signal( self->frameReadCond );
-                g_mutex_unlock( self->frameReadMutex );
-
-                rational speed;
-                self->clock.funcs->getSpeed( self->clock.source, &speed );
-
-                if( speed.n != 0 ) {
-                    //printf( "nextPresent: %ld, current: %ld, baseTime: %ld, seekTime: %ld\n", nextPresentationTime, self->clock->getPresentationTime(), ((SystemPresentationClock*)self->clock)->_baseTime, ((SystemPresentationClock*) self->clock)->_seekTime );
-
-                    int timeout = ((nextPresentationTime - self->clock.funcs->getPresentationTime( self->clock.source )) * speed.d) / (speed.n * 1000000);
-
-                    if( timeout < 0 )
-                        timeout = 0;
-
-                    self->timeoutSourceID = g_timeout_add_full(
-                        G_PRIORITY_DEFAULT, timeout, (GSourceFunc) playSingleFrame, self, NULL );
+                if( self->drawOneFrame ) {
+                    // We're done here, go back to sleep
+                    self->drawOneFrame = false;
                 }
+                else {
+                    g_mutex_lock( self->frameReadMutex );
+
+                    self->filled--;
+
+                    g_cond_signal( self->frameReadCond );
+                    g_mutex_unlock( self->frameReadMutex );
+
+                    rational speed;
+                    self->clock.funcs->getSpeed( self->clock.source, &speed );
+
+                    if( speed.n != 0 ) {
+                        //printf( "nextPresent: %ld, current: %ld, baseTime: %ld, seekTime: %ld\n", nextPresentationTime, self->clock->getPresentationTime(), ((SystemPresentationClock*)self->clock)->_baseTime, ((SystemPresentationClock*) self->clock)->_seekTime );
+
+                        int timeout = ((nextPresentationTime - self->clock.funcs->getPresentationTime( self->clock.source )) * speed.d) / (speed.n * 1000000);
+
+                        if( timeout < 0 )
+                            timeout = 0;
+
+                        self->timeoutSourceID = g_timeout_add_full(
+                            G_PRIORITY_DEFAULT, timeout, (GSourceFunc) playSingleFrame, self, NULL );
+                    }
+                }
+
+                return FALSE;
             }
+        }
+    }
+    else {
+        // Naive
+        printf( "Exposing...\n" );
+        gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
+
+        for( ;; ) {
+            rational speed;
+            self->clock.funcs->getSpeed( self->clock.source, &speed );
+
+            if( speed.n > 0 )
+                self->nextToRenderFrame++;
+            else if( speed.n < 0 )
+                self->nextToRenderFrame--;
+            else if( speed.n == 0 )
+                return FALSE;
+
+            int64_t nextPresentationTime = getFrameTime( &self->frameRate, self->nextToRenderFrame );
+
+            //printf( "nextPresent: %ld, current: %ld, baseTime: %ld, seekTime: %ld\n", nextPresentationTime, self->clock->getPresentationTime(), ((SystemPresentationClock*)self->clock)->_baseTime, ((SystemPresentationClock*) self->clock)->_seekTime );
+
+            int64_t timeout = ((nextPresentationTime - self->clock.funcs->getPresentationTime( self->clock.source )) * speed.d) / (speed.n * INT64_C(1000000));
+
+            if( timeout < 0 )
+                continue;
+
+            printf( "Next frame at %d, timeout %d ms\n", self->nextToRenderFrame, (int) timeout );
+
+            self->timeoutSourceID = g_timeout_add_full(
+                G_PRIORITY_DEFAULT, (int) timeout, (GSourceFunc) playSingleFrame, self, NULL );
 
             return FALSE;
         }
@@ -547,6 +646,8 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
     self->pixelAspectRatio = 40.0f / 33.0f;
     self->quit = false;
     self->softTextureId = 0;
+    self->renderOneFrame = true;
+    self->lastHardFrame = -1;
 
     for( int i = 0; i < SOFT_MODE_BUFFERS; i++ ) {
         self->softTargets[i].frameData = NULL;
@@ -614,6 +715,11 @@ GtkVideoWidget_stop( py_obj_GtkVideoWidget *self ) {
     self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
     g_cond_signal( self->frameReadCond );
     g_mutex_unlock( self->frameReadMutex );
+
+    if( !self->softMode ) {
+        // We have to play the one frame ourselves
+        playSingleFrame( self );
+    }
 
     Py_RETURN_NONE;
 }
