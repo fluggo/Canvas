@@ -51,10 +51,10 @@ VideoSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
     return 0;
 }
 
-static int
+static Element *
 pickElement_nolock( PyObject *self, int frameIndex ) {
     if( frameIndex < 0 || PRIV(self)->sequence->len == 0 )
-        return -1;        // No result
+        return NULL;
 
     // Find the source
     // BJC: I realize this is O(n) worst-case, but hopefully n is small
@@ -68,30 +68,28 @@ pickElement_nolock( PyObject *self, int frameIndex ) {
         i--;
 
     PRIV(self)->lastElement = i;
-    return i;
+
+    Element *elem = &SEQINDEX(self, i);
+
+    if( !elem->source.funcs || elem->startFrame + elem->length < frameIndex )
+        return NULL;
+
+    return elem;
 }
 
 static void
 VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) {
     g_mutex_lock( PRIV(self)->mutex );
-    int i = pickElement_nolock( self, frameIndex );
+    Element *elemPtr = pickElement_nolock( self, frameIndex );
 
-    if( i < 0 ) {
+    if( !elemPtr ) {
         // No result
         g_mutex_unlock( PRIV(self)->mutex );
         box2i_setEmpty( &frame->currentDataWindow );
         return;
     }
 
-    Element elem = SEQINDEX(self, i);
-
-    if( !elem.source.funcs || elem.startFrame + elem.length < frameIndex ) {
-        // No result
-        g_mutex_unlock( PRIV(self)->mutex );
-        box2i_setEmpty( &frame->currentDataWindow );
-        return;
-    }
-
+    Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
     getFrame_f16( &elem.source, frameIndex - elem.startFrame + elem.offset, frame );
