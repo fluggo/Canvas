@@ -287,13 +287,12 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
         g_dataset_id_set_data_full( context, q_crossfadeShader, shader, (GDestroyNotify) destroyShader );
     }
 
-    glUseProgramObjectARB( shader->program );
-
     rgba_gl_frame frameA = *frame, frameB = *frame;
 
     getFrame_gl( &self->srcA, frameIndex, &frameA );
     getFrame_gl( &self->srcB, frameIndex, &frameB );
 
+    glUseProgramObjectARB( shader->program );
     glUniform1iARB( shader->texA, 0 );
     glUniform1iARB( shader->texB, 1 );
     glUniform1fARB( shader->mixB, mixB );
@@ -320,6 +319,7 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
     glDeleteTextures( 1, &frameA.texture );
     glDeleteTextures( 1, &frameB.texture );
 
+    glUseProgramObjectARB( 0 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
     glActiveTexture( GL_TEXTURE0 );
 }
