@@ -21,6 +21,7 @@
 #include "framework.h"
 
 static PyObject *pysourceFuncs;
+static GQuark q_interlaceShader;
 
 typedef struct {
     PyObject_HEAD
@@ -104,6 +105,104 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
     }
 }
 
+static const char *interlaceText =
+"#version 110\n"
+"#extension GL_ARB_texture_rectangle : enable\n"
+"uniform sampler2DRect texA;"
+""
+"void main() {"
+"    if( cos(gl_FragCoord.t * 3.14156) > 0.0 )"
+// BJC: I have no clue why either of these variants does not work here:
+//"    if( int(gl_FragCoord.t) & 1 == 1 )"
+//"    if( int(gl_FragCoord.t) % 2 == 1 )"
+"        discard;"
+
+"    gl_FragColor = texture2DRect( texA, gl_FragCoord.st );"
+//"    gl_FragColor = vec4(fract(gl_FragCoord.t), 0.0, 0.0, 1.0);"
+"}";
+
+typedef struct {
+    GLhandleARB shader, program;
+} gl_shader_state;
+
+static void destroyShader( gl_shader_state *shader ) {
+    // We assume that we're in the right GL context
+    glDeleteObjectARB( shader->program );
+    glDeleteObjectARB( shader->shader );
+}
+
+static void
+Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_gl_frame *frame ) {
+    if( self->source.source == NULL ) {
+        // No result
+        box2i_setEmpty( &frame->currentDataWindow );
+        return;
+    }
+
+    // Cadence offsets:
+
+    // 0 AA BB BC CD DD (0->0, 1->1, 3->4), (2->2b3a)
+    // 1 BB BC CD DD EE (0->0, 2->3, 3->4), (1->1b2a)
+    // 2 BC CD DD EE FF (1->2, 2->3, 3->4), (0->0b1a)
+    // 3 CD DD EE FF FG (0->1, 1->2, 2->3), (3->4b5a) (same as 4 with 1st frame discarded)
+    // 4 DD EE FF FG GH (0->0, 1->1, 2->2), (3->3b4a)
+
+    int frameOffset;
+
+    if( self->offset == 4 )
+        frameOffset = (frameIndex + 3) & 3;
+    else
+        frameOffset = (frameIndex + self->offset) & 3;
+
+    int64_t baseFrame = ((frameIndex + self->offset) >> 2) * 5 - self->offset;
+
+    // Solid frames
+    if( frameOffset == 0 ) {
+        getFrame_gl( &self->source, baseFrame, frame );
+    }
+    else if( frameOffset == 1 ) {
+        getFrame_gl( &self->source, baseFrame + 1, frame );
+    }
+    else if( frameOffset == 3 ) {
+        getFrame_gl( &self->source, baseFrame + 4, frame );
+    }
+    else {
+        v2i frameSize;
+        box2i_getSize( &frame->fullDataWindow, &frameSize );
+
+        void *context = getCurrentGLContext();
+        gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, q_interlaceShader );
+
+        if( !shader ) {
+            // Time to create the program for this context
+            shader = calloc( sizeof(gl_shader_state), 1 );
+
+            gl_buildShader( interlaceText, &shader->shader, &shader->program );
+
+            g_dataset_id_set_data_full( context, q_interlaceShader, shader, (GDestroyNotify) destroyShader );
+        }
+
+        // Mixed fields
+        rgba_gl_frame frameB = *frame;
+
+        getFrame_gl( &self->source, baseFrame + 2, frame );
+        getFrame_gl( &self->source, baseFrame + 3, &frameB );
+
+        glUseProgramObjectARB( shader->program );
+        glUniform1iARB( glGetUniformLocationARB( shader->program, "texA" ), 0 );
+
+        glActiveTexture( GL_TEXTURE0 );
+        glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameB.texture );
+        glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+        gl_renderToTexture( frame->texture, frameSize.x, frameSize.y );
+
+        glUseProgramObjectARB( 0 );
+        glDisable( GL_TEXTURE_RECTANGLE_ARB );
+        glDeleteTextures( 1, &frameB.texture );
+    }
+}
+
 static void
 Pulldown23RemovalFilter_dealloc( py_obj_Pulldown23RemovalFilter *self ) {
     takeVideoSource( NULL, &self->source );
@@ -111,8 +210,8 @@ Pulldown23RemovalFilter_dealloc( py_obj_Pulldown23RemovalFilter *self ) {
 }
 
 static VideoFrameSourceFuncs sourceFuncs = {
-    0,
-    (video_getFrameFunc) Pulldown23RemovalFilter_getFrame
+    .getFrame = (video_getFrameFunc) Pulldown23RemovalFilter_getFrame,
+    .getFrameGL = (video_getFrameGLFunc) Pulldown23RemovalFilter_getFrameGL
 };
 
 static PyObject *
@@ -146,6 +245,8 @@ void init_Pulldown23RemovalFilter( PyObject *module ) {
     PyModule_AddObject( module, "Pulldown23RemovalFilter", (PyObject *) &py_type_Pulldown23RemovalFilter );
 
     pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+
+    q_interlaceShader = g_quark_from_static_string( "Pulldown23RemovalFilter::interlaceShader" );
 }
 
 
