@@ -148,13 +148,13 @@ typedef struct {
 
 typedef void (*video_getFrameFunc)( PyObject *self, int frameIndex, rgba_f16_frame *frame );
 typedef void (*video_getFrame32Func)( PyObject *self, int frameIndex, rgba_f32_frame *frame );
-typedef void (*video_getGLFrameFunc)( PyObject *self, int frameIndex, rgba_gl_frame *frame );
+typedef void (*video_getFrameGLFunc)( PyObject *self, int frameIndex, rgba_gl_frame *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero
     video_getFrameFunc getFrame;
     video_getFrame32Func getFrame32;
-    video_getGLFrameFunc getFrameGL;
+    video_getFrameGLFunc getFrameGL;
 } VideoFrameSourceFuncs;
 
 typedef struct {
@@ -167,6 +167,8 @@ NOEXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
 NOEXPORT void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame );
 NOEXPORT void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame );
 NOEXPORT void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame );
+NOEXPORT void *getCurrentGLContext();
+NOEXPORT void printShaderErrors( GLhandleARB shader );
 
 /************* Audio *******/
 

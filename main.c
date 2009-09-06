@@ -33,6 +33,31 @@
 #include <gdk/gdkkeysyms.h>
 #include <GL/glew.h>
 #include <GL/gl.h>
+#include <GL/glx.h>
+
+void *getCurrentGLContext() {
+    return glXGetCurrentContext();
+}
+
+void
+printShaderErrors( GLhandleARB shader ) {
+    int status;
+    glGetObjectParameterivARB( shader, GL_OBJECT_COMPILE_STATUS_ARB, &status );
+
+    if( !status ) {
+        printf( "Error(s) compiling the shader:\n" );
+        int infoLogLength;
+
+        glGetObjectParameterivARB( shader, GL_OBJECT_INFO_LOG_LENGTH_ARB, &infoLogLength );
+
+        char *infoLog = calloc( 1, infoLogLength + 1 );
+
+        glGetInfoLogARB( shader, infoLogLength, &infoLogLength, infoLog );
+
+        puts( infoLog );
+        free( infoLog );
+    }
+}
 
 bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     Py_CLEAR( holder->source );
@@ -226,10 +251,12 @@ void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targ
     rgba_f16_frame frame = { NULL };
     frame.frameData = slice_alloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
     frame.fullDataWindow = targetFrame->fullDataWindow;
+    frame.currentDataWindow = targetFrame->fullDataWindow;
     frame.stride = frameSize.x;
 
     getFrame_f16( source, frameIndex, &frame );
 
+    // TODO: Only fill in the area specified by currentDataWindow
     glGenTextures( 1, &targetFrame->texture );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, targetFrame->texture );
     glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,

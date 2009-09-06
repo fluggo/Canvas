@@ -35,7 +35,7 @@ static uint8_t gamma45[65536];
 #define    SOFT_MODE_BUFFERS    4
 #define HARD_MODE_BUFFERS    2
 
-static void checkGLError() {
+void checkGLError() {
     int error = glGetError();
 
     switch( error ) {
@@ -177,7 +177,8 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
         frameIndex = self->firstFrame;
 
     rgba_gl_frame frame = {
-        .fullDataWindow = self->displayWindow
+        .fullDataWindow = self->displayWindow,
+        .currentDataWindow = self->displayWindow
     };
 
     getFrame_gl( &self->frameSource, frameIndex, &frame );
@@ -186,27 +187,7 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
     self->lastHardFrame = frameIndex;
 }
 
-void
-printShaderErrors( GLhandleARB shader ) {
-    int status;
-    glGetObjectParameterivARB( shader, GL_OBJECT_COMPILE_STATUS_ARB, &status );
-
-    if( !status ) {
-        printf( "Error(s) compiling the shader:\n" );
-        int infoLogLength;
-
-        glGetObjectParameterivARB( shader, GL_OBJECT_INFO_LOG_LENGTH_ARB, &infoLogLength );
-
-        char *infoLog = calloc( 1, infoLogLength + 1 );
-
-        glGetInfoLogARB( shader, infoLogLength, &infoLogLength, infoLog );
-
-        puts( infoLog );
-        free( infoLog );
-    }
-}
-
-const char *gammaShader[] = {
+static const char *gammaShader[] = {
 "#extension GL_ARB_texture_rectangle : enable\n"
 "uniform sampler2DRect tex;"
 //"out vec4 gl_FragColor;"

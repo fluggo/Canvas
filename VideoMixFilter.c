@@ -31,6 +31,8 @@
 
 #define frame_pixel(frame, vx, vy)    (frame)->frameData[(frame)->stride * ((vy) - (frame)->fullDataWindow.min.y) + ((vx) - (frame)->fullDataWindow.min.x)]
 
+static GQuark q_crossfadeShader;
+
 typedef enum {
     MIXMODE_BLEND,
     MIXMODE_ADD,
@@ -218,6 +220,129 @@ VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32
     slice_free( sizeof(rgba_f32) * sizeB.y * sizeB.x, tempFrame.frameData );
 }
 
+static const char *crossfadeShaderText =
+"#extension GL_ARB_texture_rectangle : enable\n"
+"uniform sampler2DRect texA;"
+"uniform sampler2DRect texB;"
+"uniform float mixB;"
+""
+"void main() {"
+"    vec4 colorA = texture2DRect( texA, gl_FragCoord.st );"
+"    vec4 colorB = texture2DRect( texB, gl_FragCoord.st );"
+"    gl_FragColor = colorA * (1.0 - mixB) + colorB * mixB;"
+"}";
+
+typedef struct {
+    GLhandleARB shader, program;
+    int texA, texB, mixB;
+} gl_shader_state;
+
+static void destroyShader( gl_shader_state *shader ) {
+    // We assume that we're in the right GL context
+    glDeleteObjectARB( shader->program );
+    glDeleteObjectARB( shader->shader );
+}
+
+void checkGLError();
+
+static void
+VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_frame *frame ) {
+    // Initial logic is the same as in software
+    // Gather the mix factor
+    float mixB = self->mixB.constant;
+
+    if( self->mixB.funcs ) {
+        long index = frameIndex;
+
+        self->mixB.funcs->getValues( self->mixB.source,
+            1, &index, 1, &mixB );
+    }
+
+    mixB = clampf(mixB, 0.0f, 1.0f);
+
+    if( self->mode == MIXMODE_CROSSFADE && mixB == 1.0f ) {
+        // We only need frame B
+        getFrame_gl( &self->srcB, frameIndex, frame );
+        return;
+    }
+    else if( mixB == 0.0f ) {
+        getFrame_gl( &self->srcA, frameIndex, frame );
+        return;
+    }
+
+    void *context = getCurrentGLContext();
+
+    gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, q_crossfadeShader );
+
+    if( !shader ) {
+        // Time to create the program for this context
+        shader = calloc( sizeof(gl_shader_state), 1 );
+
+        shader->shader = glCreateShaderObjectARB( GL_FRAGMENT_SHADER_ARB );
+        glShaderSourceARB( shader->shader, 1, &crossfadeShaderText, NULL );
+        glCompileShaderARB( shader->shader );
+
+        printShaderErrors( shader->shader );
+
+        shader->program = glCreateProgramObjectARB();
+        glAttachObjectARB( shader->program, shader->shader );
+        glLinkProgramARB( shader->program );
+
+        shader->texA = glGetUniformLocationARB( shader->program, "texA" );
+        shader->texB = glGetUniformLocationARB( shader->program, "texB" );
+        shader->mixB = glGetUniformLocationARB( shader->program, "mixB" );
+
+        g_dataset_id_set_data_full( context, q_crossfadeShader, shader, (GDestroyNotify) destroyShader );
+    }
+
+    glUseProgramObjectARB( shader->program );
+
+    rgba_gl_frame frameA = *frame, frameB = *frame;
+
+    getFrame_gl( &self->srcA, frameIndex, &frameA );
+    getFrame_gl( &self->srcB, frameIndex, &frameB );
+
+    glUniform1iARB( shader->texA, 0 );
+    glUniform1iARB( shader->texB, 1 );
+    glUniform1fARB( shader->mixB, mixB );
+
+    // Now set up the texture to render to
+    v2i frameSize;
+    box2i_getSize( &frame->fullDataWindow, &frameSize );
+
+    glGenTextures( 1, &frame->texture );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frame->texture );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
+        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameA.texture );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glActiveTexture( GL_TEXTURE1 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameB.texture );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    GLuint fbo;
+    glGenFramebuffersEXT( 1, &fbo );
+    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
+    glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB,
+        frame->texture, 0 );
+
+    glLoadIdentity();
+    glOrtho( 0, frameSize.x, frameSize.y, 0, -1, 1 );
+    glViewport( 0, 0, frameSize.x, frameSize.y );
+
+    glRecti( 0, 0, frameSize.x, frameSize.y );
+
+    glDeleteFramebuffersEXT( 1, &fbo );
+    glDeleteTextures( 1, &frameA.texture );
+    glDeleteTextures( 1, &frameB.texture );
+
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glActiveTexture( GL_TEXTURE0 );
+}
+
 static void
 VideoMixFilter_dealloc( py_obj_VideoMixFilter *self ) {
     takeVideoSource( NULL, &self->srcA );
@@ -227,9 +352,8 @@ VideoMixFilter_dealloc( py_obj_VideoMixFilter *self ) {
 }
 
 static VideoFrameSourceFuncs sourceFuncs = {
-    0,
-    NULL,
-    (video_getFrame32Func) VideoMixFilter_getFrame32
+    .getFrame32 = (video_getFrame32Func) VideoMixFilter_getFrame32,
+    .getFrameGL = (video_getFrameGLFunc) VideoMixFilter_getFrameGL
 };
 
 static PyObject *
@@ -263,6 +387,8 @@ void init_VideoMixFilter( PyObject *module ) {
     PyModule_AddObject( module, "VideoMixFilter", (PyObject *) &py_type_VideoMixFilter );
 
     pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+
+    q_crossfadeShader = g_quark_from_static_string( "VideoMixFilter::crossfadeShader" );
 }
 
 
