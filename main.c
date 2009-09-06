@@ -40,7 +40,24 @@ void *getCurrentGLContext() {
 }
 
 void
-printShaderErrors( GLhandleARB shader ) {
+gl_renderToTexture( GLuint texture, int width, int height ) {
+    GLuint fbo;
+    glGenFramebuffersEXT( 1, &fbo );
+    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
+    glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB,
+        texture, 0 );
+
+    glLoadIdentity();
+    glOrtho( 0, width, height, 0, -1, 1 );
+    glViewport( 0, 0, width, height );
+
+    glRecti( 0, 0, width, height );
+
+    glDeleteFramebuffersEXT( 1, &fbo );
+}
+
+void
+gl_printShaderErrors( GLhandleARB shader ) {
     int status;
     glGetObjectParameterivARB( shader, GL_OBJECT_COMPILE_STATUS_ARB, &status );
 
@@ -57,6 +74,22 @@ printShaderErrors( GLhandleARB shader ) {
         puts( infoLog );
         free( infoLog );
     }
+}
+
+void
+gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram ) {
+    GLhandleARB shader = glCreateShaderObjectARB( GL_FRAGMENT_SHADER_ARB );
+    glShaderSourceARB( shader, 1, &source, NULL );
+    glCompileShaderARB( shader );
+
+    gl_printShaderErrors( shader );
+
+    GLhandleARB program = glCreateProgramObjectARB();
+    glAttachObjectARB( program, shader );
+    glLinkProgramARB( program );
+
+    *outShader = shader;
+    *outProgram = program;
 }
 
 bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {

@@ -278,15 +278,7 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
         // Time to create the program for this context
         shader = calloc( sizeof(gl_shader_state), 1 );
 
-        shader->shader = glCreateShaderObjectARB( GL_FRAGMENT_SHADER_ARB );
-        glShaderSourceARB( shader->shader, 1, &crossfadeShaderText, NULL );
-        glCompileShaderARB( shader->shader );
-
-        printShaderErrors( shader->shader );
-
-        shader->program = glCreateProgramObjectARB();
-        glAttachObjectARB( shader->program, shader->shader );
-        glLinkProgramARB( shader->program );
+        gl_buildShader( crossfadeShaderText, &shader->shader, &shader->program );
 
         shader->texA = glGetUniformLocationARB( shader->program, "texA" );
         shader->texB = glGetUniformLocationARB( shader->program, "texB" );
@@ -323,19 +315,8 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameB.texture );
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
-    GLuint fbo;
-    glGenFramebuffersEXT( 1, &fbo );
-    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
-    glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB,
-        frame->texture, 0 );
+    gl_renderToTexture( frame->texture, frameSize.x, frameSize.y );
 
-    glLoadIdentity();
-    glOrtho( 0, frameSize.x, frameSize.y, 0, -1, 1 );
-    glViewport( 0, 0, frameSize.x, frameSize.y );
-
-    glRecti( 0, 0, frameSize.x, frameSize.y );
-
-    glDeleteFramebuffersEXT( 1, &fbo );
     glDeleteTextures( 1, &frameA.texture );
     glDeleteTextures( 1, &frameB.texture );
 

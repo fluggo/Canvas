@@ -187,7 +187,7 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
     self->lastHardFrame = frameIndex;
 }
 
-static const char *gammaShader[] = {
+static const char *gammaShader =
 "#extension GL_ARB_texture_rectangle : enable\n"
 "uniform sampler2DRect tex;"
 //"out vec4 gl_FragColor;"
@@ -196,8 +196,7 @@ static const char *gammaShader[] = {
 "    vec4 color = texture2DRect( tex, gl_TexCoord[0].st );"
 "    gl_FragColor.rgb = pow( color.rgb, 0.45 );"
 "    gl_FragColor.a = color.a;"
-"}"
-};
+"}";
 
 static void
 _gl_draw( py_obj_GtkVideoWidget *self ) {
@@ -235,17 +234,8 @@ _gl_draw( py_obj_GtkVideoWidget *self ) {
     glClear( GL_COLOR_BUFFER_BIT );
 
     if( !self->softMode ) {
-        if( !self->hardGammaShader ) {
-            self->hardGammaShader = glCreateShaderObjectARB( GL_FRAGMENT_SHADER_ARB );
-            glShaderSourceARB( self->hardGammaShader, sizeof(gammaShader) / sizeof(const char *), gammaShader, NULL );
-            glCompileShaderARB( self->hardGammaShader );
-
-            printShaderErrors( self->hardGammaShader );
-
-            self->hardGammaProgram = glCreateProgramObjectARB();
-            glAttachObjectARB( self->hardGammaProgram, self->hardGammaShader );
-            glLinkProgramARB( self->hardGammaProgram );
-        }
+        if( !self->hardGammaShader )
+            gl_buildShader( gammaShader, &self->hardGammaShader, &self->hardGammaProgram );
 
         glUseProgramObjectARB( self->hardGammaProgram );
     }
