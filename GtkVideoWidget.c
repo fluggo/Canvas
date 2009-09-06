@@ -222,8 +222,8 @@ _gl_draw( py_obj_GtkVideoWidget *self ) {
     }
 
     // Center
-    float x = widgetSize.x * 0.5f - width * 0.5f;
-    float y = widgetSize.y * 0.5f - height * 0.5f;
+    float x = floor( widgetSize.x * 0.5f - width * 0.5f );
+    float y = floor( widgetSize.y * 0.5f - height * 0.5f );
 
     // Set up for drawing
     glLoadIdentity();
