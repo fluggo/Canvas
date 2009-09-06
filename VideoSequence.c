@@ -95,6 +95,42 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) 
     getFrame_f16( &elem.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
+static void
+VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_f32_frame *frame ) {
+    g_mutex_lock( PRIV(self)->mutex );
+    Element *elemPtr = pickElement_nolock( self, frameIndex );
+
+    if( !elemPtr ) {
+        // No result
+        g_mutex_unlock( PRIV(self)->mutex );
+        box2i_setEmpty( &frame->currentDataWindow );
+        return;
+    }
+
+    Element elem = *elemPtr;
+    g_mutex_unlock( PRIV(self)->mutex );
+
+    getFrame_f32( &elem.source, frameIndex - elem.startFrame + elem.offset, frame );
+}
+
+static void
+VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_gl_frame *frame ) {
+    g_mutex_lock( PRIV(self)->mutex );
+    Element *elemPtr = pickElement_nolock( self, frameIndex );
+
+    if( !elemPtr ) {
+        // No result
+        g_mutex_unlock( PRIV(self)->mutex );
+        box2i_setEmpty( &frame->currentDataWindow );
+        return;
+    }
+
+    Element elem = *elemPtr;
+    g_mutex_unlock( PRIV(self)->mutex );
+
+    getFrame_gl( &elem.source, frameIndex - elem.startFrame + elem.offset, frame );
+}
+
 static Py_ssize_t
 VideoSequence_size( PyObject *self ) {
     return PRIV(self)->sequence->len;
@@ -235,8 +271,9 @@ VideoSequence_dealloc( PyObject *self ) {
 }
 
 static VideoFrameSourceFuncs sourceFuncs = {
-    0,
-    (video_getFrameFunc) VideoSequence_getFrame
+    .getFrame = (video_getFrameFunc) VideoSequence_getFrame,
+    .getFrame32 = (video_getFrame32Func) VideoSequence_getFrame32,
+    .getFrameGL = (video_getFrameGLFunc) VideoSequence_getFrameGL,
 };
 
 static PyObject *
