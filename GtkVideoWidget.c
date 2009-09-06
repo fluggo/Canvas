@@ -133,8 +133,6 @@ _gl_initialize( py_obj_GtkVideoWidget *self ) {
         glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
 
         glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-        glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-        glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
