@@ -221,6 +221,7 @@ VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32
 }
 
 static const char *crossfadeShaderText =
+"#version 110\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
 "uniform sampler2DRect texA;"
 "uniform sampler2DRect texB;"

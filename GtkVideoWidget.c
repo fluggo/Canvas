@@ -186,13 +186,14 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
 }
 
 static const char *gammaShader =
+"#version 110\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
 "uniform sampler2DRect tex;"
 //"out vec4 gl_FragColor;"
 ""
 "void main() {"
 "    vec4 color = texture2DRect( tex, gl_TexCoord[0].st );"
-"    gl_FragColor.rgb = pow( color.rgb, 0.45 );"
+"    gl_FragColor.rgb = pow( color.rgb, vec3(0.45, 0.45, 0.45) );"
 "    gl_FragColor.a = color.a;"
 "}";
 
