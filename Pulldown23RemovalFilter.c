@@ -111,7 +111,7 @@ static const char *interlaceText =
 "uniform sampler2DRect texA;"
 ""
 "void main() {"
-"    if( cos(gl_FragCoord.t * 3.14156) > 0.0 )"
+"    if( cos(gl_TexCoord[0].t * 3.14156) < 0.0 )"
 // BJC: I have no clue why either of these variants does not work here:
 //"    if( int(gl_FragCoord.t) & 1 == 1 )"
 //"    if( int(gl_FragCoord.t) % 2 == 1 )"
@@ -195,7 +195,7 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
         glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameB.texture );
         glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
-        gl_renderToTexture( frame->texture, frameSize.x, frameSize.y );
+        gl_renderToTexture( frame );
 
         glUseProgramObjectARB( 0 );
         glDisable( GL_TEXTURE_RECTANGLE_ARB );

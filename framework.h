@@ -169,7 +169,7 @@ NOEXPORT void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_
 NOEXPORT void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame );
 NOEXPORT void *getCurrentGLContext();
 NOEXPORT void gl_printShaderErrors( GLhandleARB shader );
-NOEXPORT void gl_renderToTexture( GLuint texture, int width, int height );
+NOEXPORT void gl_renderToTexture( rgba_gl_frame *frame );
 NOEXPORT void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );
 
 /************* Audio *******/

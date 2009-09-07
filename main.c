@@ -40,18 +40,30 @@ void *getCurrentGLContext() {
 }
 
 void
-gl_renderToTexture( GLuint texture, int width, int height ) {
+gl_renderToTexture( rgba_gl_frame *frame ) {
+    v2i frameSize;
+    box2i_getSize( &frame->fullDataWindow, &frameSize );
+
     GLuint fbo;
     glGenFramebuffersEXT( 1, &fbo );
     glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
     glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB,
-        texture, 0 );
+        frame->texture, 0 );
 
     glLoadIdentity();
-    glOrtho( 0, width, height, 0, -1, 1 );
-    glViewport( 0, 0, width, height );
+    glOrtho( 0, frameSize.x, frameSize.y, 0, -1, 1 );
+    glViewport( 0, 0, frameSize.x, frameSize.y );
 
-    glRecti( 0, 0, width, height );
+    glBegin( GL_QUADS );
+    glTexCoord2f( frame->fullDataWindow.min.x, frame->fullDataWindow.max.y + 1 );
+    glVertex2f( 0, 0 );
+    glTexCoord2f( frame->fullDataWindow.max.x + 1, frame->fullDataWindow.max.y + 1 );
+    glVertex2f( frameSize.x, 0 );
+    glTexCoord2f( frame->fullDataWindow.max.x + 1, frame->fullDataWindow.min.y );
+    glVertex2f( frameSize.x, frameSize.y );
+    glTexCoord2f( frame->fullDataWindow.min.x, frame->fullDataWindow.min.y );
+    glVertex2f( 0, frameSize.y );
+    glEnd();
 
     glDeleteFramebuffersEXT( 1, &fbo );
 }

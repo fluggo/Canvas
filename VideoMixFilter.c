@@ -315,7 +315,7 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameB.texture );
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
-    gl_renderToTexture( frame->texture, frameSize.x, frameSize.y );
+    gl_renderToTexture( frame );
 
     glDeleteTextures( 1, &frameA.texture );
     glDeleteTextures( 1, &frameB.texture );
