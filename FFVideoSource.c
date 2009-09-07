@@ -22,6 +22,8 @@
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 
+static GQuark q_recon411Shader;
+
 typedef struct {
     PyObject_HEAD
 
@@ -272,10 +274,10 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
 
     // Now convert to halfs
     box2i_set( &frame->currentDataWindow,
-        max( picOffset.x, frame->currentDataWindow.min.x ),
-        max( picOffset.y, frame->currentDataWindow.min.y ),
-        min( self->codecContext->width + picOffset.x - 1, frame->currentDataWindow.max.x ),
-        min( self->codecContext->height + picOffset.y - 1, frame->currentDataWindow.max.y ) );
+        max( picOffset.x, frame->fullDataWindow.min.x ),
+        max( picOffset.y, frame->fullDataWindow.min.y ),
+        min( self->codecContext->width + picOffset.x - 1, frame->fullDataWindow.max.x ),
+        min( self->codecContext->height + picOffset.y - 1, frame->fullDataWindow.max.y ) );
 
     // Coord window is our current data window
     // in terms of the frame's data buffer
@@ -415,9 +417,184 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
     slice_free( inputBufferSize, inputBuffer );
 }
 
+static const char *recon411Text =
+"#version 110\n"
+"#extension GL_ARB_texture_rectangle : enable\n"
+"uniform sampler2DRect texY;"
+"uniform sampler2DRect texCb;"
+"uniform sampler2DRect texCr;"
+"uniform vec2 picOffset;"
+"uniform mat3 yuv2rgb;"
+
+"void main() {"
+"    vec2 texCoord = gl_TexCoord[0].st - picOffset;"
+"    float y = texture2DRect( texY, texCoord ).r - (16.0/256.0);"
+"    float cb = texture2DRect( texCb, texCoord * vec2(0.25, 1.0) ).r - 0.5;"
+"    float cr = texture2DRect( texCr, texCoord * vec2(0.25, 1.0) ).r - 0.5;"
+
+"    vec3 ycbcr = vec3(y, cb, cr);"
+
+"    gl_FragColor.rgb = pow(ycbcr * yuv2rgb, vec3(2.2, 2.2, 2.2));"
+"    gl_FragColor.a = 1.0;"
+"}";
+
+typedef struct {
+    GLhandleARB shader, program;
+    int texY, texCb, texCr, yuv2rgb, picOffset;
+} gl_shader_state;
+
+static void destroyShader( gl_shader_state *shader ) {
+    // We assume that we're in the right GL context
+    glDeleteObjectARB( shader->program );
+    glDeleteObjectARB( shader->shader );
+}
+
+static void
+FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_gl_frame *frame ) {
+    if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
+        // No result
+        box2i_setEmpty( &frame->currentDataWindow );
+        return;
+    }
+
+    // Allocate data structures for reading
+    AVFrame avFrame;
+    avcodec_get_frame_defaults( &avFrame );
+
+    int inputBufferSize = avpicture_get_size(
+        self->codecContext->pix_fmt,
+        self->codecContext->width,
+        self->codecContext->height );
+
+    uint8_t *inputBuffer;
+
+    if( (inputBuffer = (uint8_t*) slice_alloc( inputBufferSize )) == NULL ) {
+        printf( "Could not allocate output buffer\n" );
+
+        if( frame )
+            box2i_setEmpty( &frame->currentDataWindow );
+
+        return;
+    }
+
+    avpicture_fill( (AVPicture *) &avFrame, inputBuffer,
+        self->codecContext->pix_fmt,
+        self->codecContext->width,
+        self->codecContext->height );
+
+    if( !read_frame( self, frameIndex, &avFrame ) ) {
+        printf( "Could not read the frame.\n" );
+
+        if( frame )
+            box2i_setEmpty( &frame->currentDataWindow );
+
+        slice_free( inputBufferSize, inputBuffer );
+    }
+
+    if( !frame ) {
+        slice_free( inputBufferSize, inputBuffer );
+        return;
+    }
+
+    if( self->codecContext->pix_fmt != PIX_FMT_YUV411P ) {
+        puts( "We don't have an implementation for anything but YUV 4:1:1 yet." );
+        return;
+    }
+
+    v2i picOffset = { 0, 0 };
+
+    // Offset the frame so that line zero is part of the first field
+    if( avFrame.interlaced_frame && !avFrame.top_field_first )
+        picOffset.y = -1;
+
+    box2i_set( &frame->currentDataWindow,
+        max( picOffset.x, frame->fullDataWindow.min.x ),
+        max( picOffset.y, frame->fullDataWindow.min.y ),
+        min( self->codecContext->width + picOffset.x - 1, frame->fullDataWindow.max.x ),
+        min( self->codecContext->height + picOffset.y - 1, frame->fullDataWindow.max.y ) );
+
+    // Now set up the texture to render to
+    v2i frameSize;
+    box2i_getSize( &frame->fullDataWindow, &frameSize );
+
+    void *context = getCurrentGLContext();
+    gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, q_recon411Shader );
+
+    if( !shader ) {
+        // Time to create the program for this context
+        shader = calloc( sizeof(gl_shader_state), 1 );
+
+        gl_buildShader( recon411Text, &shader->shader, &shader->program );
+
+        shader->texY = glGetUniformLocationARB( shader->program, "texY" );
+        shader->texCb = glGetUniformLocationARB( shader->program, "texCb" );
+        shader->texCr = glGetUniformLocationARB( shader->program, "texCr" );
+        shader->yuv2rgb = glGetUniformLocationARB( shader->program, "yuv2rgb" );
+        shader->picOffset = glGetUniformLocationARB( shader->program, "picOffset" );
+
+        g_dataset_id_set_data_full( context, q_recon411Shader, shader, (GDestroyNotify) destroyShader );
+    }
+
+    GLuint textures[4];
+    glGenTextures( 4, textures );
+
+    // Set up the result texture
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[3] );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
+        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+
+    // Set up the input textures
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[0] );
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, avFrame.linesize[0] );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, self->codecContext->width, self->codecContext->height, 0,
+        GL_LUMINANCE, GL_UNSIGNED_BYTE, avFrame.data[0] );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glActiveTexture( GL_TEXTURE1 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[1] );
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, avFrame.linesize[1] );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, self->codecContext->width / 4, self->codecContext->height, 0,
+        GL_LUMINANCE, GL_UNSIGNED_BYTE, avFrame.data[1] );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glActiveTexture( GL_TEXTURE2 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[2] );
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, avFrame.linesize[2] );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, self->codecContext->width / 4, self->codecContext->height, 0,
+        GL_LUMINANCE, GL_UNSIGNED_BYTE, avFrame.data[2] );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
+    slice_free( inputBufferSize, inputBuffer );
+
+    glUseProgramObjectARB( shader->program );
+    glUniform1iARB( shader->texY, 0 );
+    glUniform1iARB( shader->texCb, 1 );
+    glUniform1iARB( shader->texCr, 2 );
+    glUniformMatrix3fvARB( shader->yuv2rgb, 1, false, &self->colorMatrix[0][0] );
+    glUniform2fARB( shader->picOffset, picOffset.x, picOffset.y );
+
+    // The troops are ready; define the image
+    frame->texture = textures[3];
+    gl_renderToTexture( frame );
+
+    glDeleteTextures( 3, textures );
+
+    glUseProgramObjectARB( 0 );
+
+    glActiveTexture( GL_TEXTURE2 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glActiveTexture( GL_TEXTURE1 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glActiveTexture( GL_TEXTURE0 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+}
+
 static VideoFrameSourceFuncs videoSourceFuncs = {
-    0,
-    (video_getFrameFunc) FFVideoSource_getFrame
+    .getFrame = (video_getFrameFunc) FFVideoSource_getFrame,
+    .getFrameGL = (video_getFrameGLFunc) FFVideoSource_getFrameGL,
 };
 
 static PyObject *pyVideoSourceFuncs;
@@ -457,26 +634,6 @@ static PyTypeObject py_type_FFVideoSource = {
     .tp_methods = FFVideoSource_methods
 };
 
-const char *yuvCgSource =
-"struct PixelOut { half4 color: COLOR; };"
-""
-"PixelOut"
-"main( float2 texCoord: TEXCOORD0,"
-"    uniform sampler texY: TEXUNIT0,"
-"    uniform float3x3 rgbMatrix,"
-"    uniform float gamma )"
-"{"
-"    half y = tex2D( texY, texCoord ).r;"
-""
-"    half4 color = half4( y, y, y, 1.0 );"
-""
-"    // De-gamma the result"
-"    PixelOut result;"
-"    result.color = pow( color, gamma );"
-"    return result;"
-"};"
-;
-
 NOEXPORT void init_FFVideoSource( PyObject *module ) {
     float *f = malloc( sizeof(float) * 65536 );
 
@@ -499,6 +656,8 @@ NOEXPORT void init_FFVideoSource( PyObject *module ) {
     PyModule_AddObject( module, "FFVideoSource", (PyObject *) &py_type_FFVideoSource );
 
     pyVideoSourceFuncs = PyCObject_FromVoidPtr( &videoSourceFuncs, NULL );
+
+    q_recon411Shader = g_quark_from_static_string( "FFVideoSource::recon411Filter" );
 }
 
 
