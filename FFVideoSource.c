@@ -427,10 +427,11 @@ static const char *recon411Text =
 "uniform mat3 yuv2rgb;"
 
 "void main() {"
-"    vec2 texCoord = gl_TexCoord[0].st - picOffset;"
-"    float y = texture2DRect( texY, texCoord ).r - (16.0/256.0);"
-"    float cb = texture2DRect( texCb, texCoord * vec2(0.25, 1.0) ).r - 0.5;"
-"    float cr = texture2DRect( texCr, texCoord * vec2(0.25, 1.0) ).r - 0.5;"
+"    vec2 yTexCoord = gl_TexCoord[0].st - picOffset;"
+"    vec2 cTexCoord = (yTexCoord - vec2(0.5, 0.5)) * vec2(0.25, 1.0) + vec2(0.5, 0.5);"
+"    float y = texture2DRect( texY, yTexCoord ).r - (16.0/256.0);"
+"    float cb = texture2DRect( texCb, cTexCoord ).r - 0.5;"
+"    float cr = texture2DRect( texCr, cTexCoord ).r - 0.5;"
 
 "    vec3 ycbcr = vec3(y, cb, cr);"
 
