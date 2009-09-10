@@ -219,6 +219,38 @@ read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
     }
 }
 
+typedef struct {
+    float *coeff;
+    int width;
+    int center;    // Index of the center tap
+} fir_filter;
+
+static void
+createTriangleFilter( float sub, float offset, fir_filter *filter ) {
+    // The filter we're coming up with is y(x) = 1 - (1/sub) * abs(x - offset)
+    // Goes to zero at x = offset +/- sub
+
+    float leftEdge = ceilf(offset - sub);
+    float rightEdge = floorf(offset + sub);
+
+    if( leftEdge == offset - sub )
+        leftEdge++;
+
+    if( rightEdge == offset + sub )
+        rightEdge--;
+
+    filter->width = (int) rightEdge - (int) leftEdge + 1;
+    filter->center = - (int) leftEdge;
+    filter->coeff = malloc( sizeof(float) * filter->width );
+
+    for( int i = 0; i < filter->width; i++ ) {
+        filter->coeff[i] = 1.0f - (1.0f / sub) * fabsf((i - filter->center) - offset);
+        printf( "%f, ", filter->coeff[i] );
+    }
+
+    printf( "\n" );
+}
+
 static void
 FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_frame *frame ) {
     if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
@@ -290,8 +322,9 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
 
     if( self->codecContext->pix_fmt == PIX_FMT_YUV411P ) {
         uint8_t *yplane, *cbplane, *crplane;
-        float triangleFilter[] = { 0.25f, 0.5f, 0.75f, 1.0f, 0.75f, 0.5f, 0.25f };
-        int filterWidth = 7;
+
+        fir_filter triangleFilter;
+        createTriangleFilter( 4.0f, 0.0f, &triangleFilter );
 
         // Temp rows aligned to the AVFrame buffer [0, width)
         rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
@@ -316,11 +349,11 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
             for( int x = startx; x <= endx; x++ ) {
                 float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
 
-                for( int i = max(frame->currentDataWindow.min.x - picOffset.x, x * 4 - (filterWidth / 2));
-                        i <= min(frame->currentDataWindow.max.x - picOffset.x, x * 4 + ((filterWidth + 1) / 2) - 1); i++ ) {
+                for( int i = max(frame->currentDataWindow.min.x - picOffset.x, x * 4 - triangleFilter.center );
+                        i <= min(frame->currentDataWindow.max.x - picOffset.x, x * 4 + (triangleFilter.width - triangleFilter.center - 1)); i++ ) {
 
-                    tempChroma[i].cb += cb * triangleFilter[i - x * 4 + (filterWidth / 2)];
-                    tempChroma[i].cr += cr * triangleFilter[i - x * 4 + (filterWidth / 2)];
+                    tempChroma[i].cb += cb * triangleFilter.coeff[i - x * 4 + triangleFilter.center];
+                    tempChroma[i].cr += cr * triangleFilter.coeff[i - x * 4 + triangleFilter.center];
                 }
             }
 
@@ -349,6 +382,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
                 4 * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
         }
 
+        free( triangleFilter.coeff );
         slice_free( sizeof(rgba_f32) * self->codecContext->width, tempRow );
         slice_free( sizeof(cbcr_f32) * self->codecContext->width, tempChroma );
     }
