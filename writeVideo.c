@@ -81,7 +81,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     // Does anyone know a better formula for a bit bucket size than this?
     // TODO: Make sure this is big enough for audio, too
     int bitBucketSize = (frameSize.x * frameSize.y) * 6 + 200;
-    void *bitBucket = malloc( bitBucketSize );
+    void *bitBucket = g_malloc( bitBucketSize );
 
     if( !bitBucket ) {
         return PyErr_NoMemory();
@@ -430,7 +430,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     // Close file
     url_fclose( stream );
 
-    free( bitBucket );
+    g_free( bitBucket );
     takeVideoSource( NULL, &videoSource );
     takeAudioSource( NULL, &audioSource );
 

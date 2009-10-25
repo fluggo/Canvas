@@ -636,7 +636,7 @@ static PyTypeObject py_type_FFVideoSource = {
 };
 
 NOEXPORT void init_FFVideoSource( PyObject *module ) {
-    float *f = malloc( sizeof(float) * 65536 );
+    float *f = g_malloc( sizeof(float) * 65536 );
 
     for( int i = 0; i < 65536; i++ )
         gamma22[i] = (uint16_t) i;
@@ -648,7 +648,7 @@ NOEXPORT void init_FFVideoSource( PyObject *module ) {
 
     half_convert_from_float( f, gamma22, 65536 );
 
-    free( f );
+    g_free( f );
 
     if( PyType_Ready( &py_type_FFVideoSource ) < 0 )
         return;

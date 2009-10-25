@@ -38,9 +38,9 @@
 #define slice_alloc0(size) g_slice_alloc0(size)
 #define slice_free(size, ptr) g_slice_free1(size, ptr)
 #else
-#define slice_alloc(size) malloc(size)
-#define slice_alloc0(size) calloc(1, size)
-#define slice_free(size, ptr) free(ptr)
+#define slice_alloc(size) g_malloc(size)
+#define slice_alloc0(size) g_malloc0(size)
+#define slice_free(size, ptr) g_free(ptr)
 #endif
 
 #include <GL/glew.h>

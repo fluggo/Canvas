@@ -351,8 +351,8 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         if( box2i_isEmpty( &target->fullDataWindow ) ||
             !box2i_equalSize( &self->displayWindow, &target->fullDataWindow ) ) {
 
-            free( target->frameData );
-            target->frameData = malloc( frameSize.y * frameSize.x * sizeof(rgb8) );
+            g_free( target->frameData );
+            target->frameData = g_malloc( frameSize.y * frameSize.x * sizeof(rgb8) );
             target->stride = frameSize.x;
         }
 
@@ -360,8 +360,8 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         if( box2i_isEmpty( &frame.fullDataWindow ) ||
             !box2i_equalSize( &self->displayWindow, &frame.fullDataWindow ) ) {
 
-            free( frame.frameData );
-            frame.frameData = malloc( frameSize.y * frameSize.x * sizeof(rgba_f16) );
+            g_free( frame.frameData );
+            frame.frameData = g_malloc( frameSize.y * frameSize.x * sizeof(rgba_f16) );
             frame.stride = frameSize.x;
         }
 
@@ -844,19 +844,19 @@ NOEXPORT void init_GtkVideoWidget( PyObject *m ) {
     PyModule_AddObject( m, "GtkVideoWidget", (PyObject *) &py_type_GtkVideoWidget );
 
     // Fill in the 0.45 gamma table
-    half *h = malloc( sizeof(half) * 65536 );
-    float *f = malloc( sizeof(float) * 65536 );
+    half *h = g_malloc( sizeof(half) * 65536 );
+    float *f = g_malloc( sizeof(float) * 65536 );
 
     for( int i = 0; i < 65536; i++ )
         h[i] = (half) i;
 
     half_convert_to_float( h, f, 65536 );
-    free( h );
+    g_free( h );
 
     for( int i = 0; i < 65536; i++ )
         gamma45[i] = (uint8_t) gamma45Func( f[i] );
 
-    free( f );
+    g_free( f );
 
     init_pygobject();
     init_pygtk();

@@ -79,12 +79,12 @@ gl_printShaderErrors( GLhandleARB shader ) {
 
         glGetObjectParameterivARB( shader, GL_OBJECT_INFO_LOG_LENGTH_ARB, &infoLogLength );
 
-        char *infoLog = calloc( 1, infoLogLength + 1 );
+        char *infoLog = g_malloc0( infoLogLength + 1 );
 
         glGetInfoLogARB( shader, infoLogLength, &infoLogLength, infoLog );
 
         puts( infoLog );
-        free( infoLog );
+        g_free( infoLog );
     }
 }
 
