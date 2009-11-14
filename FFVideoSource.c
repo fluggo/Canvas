@@ -323,6 +323,11 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
             subOffsetX = 0.0f;
             break;
 
+        case PIX_FMT_YUV444P:
+            subX = 1;
+            subOffsetX = 0.0f;
+            break;
+
         default:
             // TEMP: Wimp out if we don't know the format
             box2i_setEmpty( &frame->currentDataWindow );
