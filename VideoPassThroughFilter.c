@@ -80,6 +80,28 @@ VideoPassThroughFilter_dealloc( py_obj_VideoPassThroughFilter *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
+static PyObject *
+VideoPassThroughFilter_getSource( py_obj_VideoPassThroughFilter *self ) {
+    if( self->source.source == NULL )
+        Py_RETURN_NONE;
+
+    Py_INCREF(self->source.source);
+    return self->source.source;
+}
+
+static PyObject *
+VideoPassThroughFilter_setSource( py_obj_VideoPassThroughFilter *self, PyObject *args, void *closure ) {
+    PyObject *source;
+
+    if( !PyArg_ParseTuple( args, "O", &source ) )
+        return NULL;
+
+    if( !takeVideoSource( source, &self->source ) )
+        return NULL;
+
+    Py_RETURN_NONE;
+}
+
 static VideoFrameSourceFuncs sourceFuncs = {
     .getFrame = (video_getFrameFunc) VideoPassThroughFilter_getFrame,
     .getFrame32 = (video_getFrame32Func) VideoPassThroughFilter_getFrame32,
@@ -97,6 +119,14 @@ static PyGetSetDef VideoPassThroughFilter_getsetters[] = {
     { NULL }
 };
 
+static PyMethodDef VideoPassThroughFilter_methods[] = {
+    { "source", (PyCFunction) VideoPassThroughFilter_getSource, METH_NOARGS,
+        "Gets the video source." },
+    { "setSource", (PyCFunction) VideoPassThroughFilter_setSource, METH_VARARGS,
+        "Sets the video source." },
+    { NULL }
+};
+
 static PyTypeObject py_type_VideoPassThroughFilter = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
@@ -106,7 +136,8 @@ static PyTypeObject py_type_VideoPassThroughFilter = {
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) VideoPassThroughFilter_dealloc,
     .tp_init = (initproc) VideoPassThroughFilter_init,
-    .tp_getset = VideoPassThroughFilter_getsetters
+    .tp_getset = VideoPassThroughFilter_getsetters,
+    .tp_methods = VideoPassThroughFilter_methods,
 };
 
 void init_VideoPassThroughFilter( PyObject *module ) {
