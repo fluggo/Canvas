@@ -552,6 +552,7 @@ void init_GtkVideoWidget( PyObject *module );
 void init_half( PyObject *module );
 void init_VideoSequence( PyObject *module );
 void init_VideoMixFilter( PyObject *module );
+void init_VideoPassThroughFilter( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 
 PyMODINIT_FUNC
@@ -568,6 +569,7 @@ initmedia() {
     init_GtkVideoWidget( m );
     init_VideoSequence( m );
     init_VideoMixFilter( m );
+    init_VideoPassThroughFilter( m );
     init_basicframefuncs( m );
 }
 
