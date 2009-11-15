@@ -320,6 +320,8 @@ getTimeFrame( const rational *frameRate, int64_t time ) {
     return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 
+static PyObject *fraction;
+
 bool parseRational( PyObject *in, rational *out ) {
     // Accept integers as rationals
     if( PyInt_Check( in ) ) {
@@ -355,6 +357,14 @@ bool parseRational( PyObject *in, rational *out ) {
     out->d = (unsigned int) d;
 
     return true;
+}
+
+PyObject *makeFraction( rational *in ) {
+    PyObject *args = Py_BuildValue( "iI", in->n, in->d );
+    PyObject *result = PyObject_CallObject( fraction, args );
+
+    Py_CLEAR( args );
+    return result;
 }
 
 PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
@@ -559,6 +569,14 @@ PyMODINIT_FUNC
 initmedia() {
     PyObject *m = Py_InitModule3( "media", module_methods,
         "The Fluggo Media library for Python." );
+
+    PyObject *fractions = PyImport_ImportModule( "fractions" );
+
+    if( fractions == NULL )
+        Py_FatalError( "Could not find the fractions module." );
+
+    fraction = PyObject_GetAttrString( fractions, "Fraction" );
+    Py_CLEAR( fractions );
 
     init_half( m );
     init_FFVideoSource( m );

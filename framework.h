@@ -112,6 +112,7 @@ static inline float clampf( float value, float min, float max ) {
 NOEXPORT int64_t getFrameTime( const rational *frameRate, int frame );
 NOEXPORT int getTimeFrame( const rational *frameRate, int64_t time );
 NOEXPORT bool parseRational( PyObject *in, rational *out );
+NOEXPORT PyObject *makeFraction( rational *in );
 
 /************* Video *******/
 typedef struct {
