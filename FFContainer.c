@@ -262,6 +262,14 @@ FFStream_encoding( py_obj_FFStream *self, void *closure ) {
     return PyString_FromString( self->stream->codec->codec_name );
 }
 
+static PyObject *
+FFStream_frameCount( py_obj_FFStream *self, void *closure ) {
+    if( self->stream->nb_frames <= 0 )
+        Py_RETURN_NONE;
+
+    return PyLong_FromLongLong( self->stream->nb_frames );
+}
+
 static PyGetSetDef FFStream_getsetters[] = {
     { "timeBase", (getter) FFStream_timeBase, NULL, "The time base of the stream." },
     { "sampleAspectRatio", (getter) FFStream_sampleAspectRatio, NULL, "For picture streams, the aspect ratio of each sample, or None if it's unknown." },
@@ -275,6 +283,7 @@ static PyGetSetDef FFStream_getsetters[] = {
     { "channels", (getter) FFStream_channels, NULL, "The number of channels in the audio stream." },
     { "codec", (getter) FFStream_codec, NULL, "The name of the FFmpeg codec that recognizes this stream." },
     { "encoding", (getter) FFStream_encoding, NULL, "If available, the name of the subformat of this stream." },
+    { "frameCount", (getter) FFStream_frameCount, NULL, "If available, the number of frames in this stream." },
     { NULL }
 };
 
