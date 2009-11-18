@@ -151,10 +151,18 @@ static bool
 read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
     //printf( "Requested %ld\n", frameIndex );
 
-    AVRational *timeBase = &self->context->streams[self->firstVideoStream]->time_base;
-    AVRational *frameRate = &self->context->streams[self->firstVideoStream]->r_frame_rate;
-    int64_t frameDuration = (timeBase->den * frameRate->den) / (timeBase->num * frameRate->num);
-    int64_t timestamp = frameIndex * (timeBase->den * frameRate->den) / (timeBase->num * frameRate->num) + frameDuration / 2;
+    // BJC: After some review of the avcodec structures, I've come to the
+    // conclusion that this formula may not be right, seeing as r_frame_rate is
+    // only a guess, and I've seen some files where it disagrees with time_base
+    // altogether (time_base = 100/2997, r_frame_rate = 30000/1001); we'll have to see
+//    AVRational *timeBase = &self->context->streams[self->firstVideoStream]->time_base;
+//    AVRational *frameRate = &self->context->streams[self->firstVideoStream]->r_frame_rate;
+//    int64_t frameDuration = (timeBase->den * frameRate->den) / (timeBase->num * frameRate->num);
+//    int64_t timestamp = frameIndex * (timeBase->den * frameRate->den) / (timeBase->num * frameRate->num) + frameDuration / 2;
+
+    int64_t frameDuration = 1;
+    int64_t timestamp = frameIndex;
+
     //printf( "frameRate: %d/%d\n", frameRate->num, frameRate->den );
     //printf( "frameDuration: %ld\n", frameDuration );
 
