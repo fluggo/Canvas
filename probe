@@ -1,0 +1,35 @@
+#!/usr/bin/python
+
+from __future__ import print_function
+
+import sys
+from fluggo.media import FFContainer
+
+c = FFContainer(sys.argv[1])
+
+print('Format: ', c.formatLongName, ' (', c.formatName, ')', sep='')
+
+for stream in c.streams:
+	print()
+	print('Stream #', str(stream.index), ' (', stream.type, ')', sep='')
+	print('Time base:', stream.timeBase)
+
+	if stream.realFrameRate:
+		print('Frame rate (guess):', stream.realFrameRate)
+	if stream.encoding:
+		print('Encoding:', stream.encoding)
+	print('Codec:', stream.codec)
+	
+	if stream.bitRate:
+		print('Bit rate:', stream.bitRate)
+	
+	if stream.type == 'video':
+		print('Pixel format:', stream.pixelFormat)
+		print('Frame size:', stream.frameSize)
+	
+		if stream.sampleAspectRatio:
+			print('Sample aspect ratio:', stream.sampleAspectRatio)
+	elif stream.type == 'audio':
+		print('Sample rate:', stream.sampleRate, 'Hz')
+		print('Channels:', stream.channels)
+

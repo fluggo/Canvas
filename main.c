@@ -555,6 +555,7 @@ static PyMethodDef module_methods[] = {
 
 void init_FFVideoSource( PyObject *module );
 void init_FFAudioSource( PyObject *module );
+void init_FFContainer( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
 void init_AlsaPlayer( PyObject *module );
@@ -581,6 +582,7 @@ initmedia() {
     init_half( m );
     init_FFVideoSource( m );
     init_FFAudioSource( m );
+    init_FFContainer( m );
     init_Pulldown23RemovalFilter( m );
     init_SystemPresentationClock( m );
     init_AlsaPlayer( m );
