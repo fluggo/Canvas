@@ -424,7 +424,7 @@ static PyTypeObject py_type_FFAudioSource = {
 //    .tp_methods = FFAudioSource_methods
 };
 
-NOEXPORT void init_FFAudioSource( PyObject *module ) {
+void init_FFAudioSource( PyObject *module ) {
     if( PyType_Ready( &py_type_FFAudioSource ) < 0 )
         return;
 

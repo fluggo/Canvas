@@ -559,7 +559,7 @@ static PyTypeObject py_type_AlsaPlayer = {
     .tp_getset = AlsaPlayer_getsetters
 };
 
-NOEXPORT void init_AlsaPlayer( PyObject *module ) {
+void init_AlsaPlayer( PyObject *module ) {
     if( PyType_Ready( &py_type_AlsaPlayer ) < 0 )
         return;
 

@@ -693,7 +693,7 @@ static PyTypeObject py_type_FFVideoSource = {
     .tp_methods = FFVideoSource_methods
 };
 
-NOEXPORT void init_FFVideoSource( PyObject *module ) {
+void init_FFVideoSource( PyObject *module ) {
     float *f = g_malloc( sizeof(float) * 65536 );
 
     for( int i = 0; i < 65536; i++ )

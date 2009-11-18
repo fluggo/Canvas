@@ -566,7 +566,7 @@ void init_VideoMixFilter( PyObject *module );
 void init_VideoPassThroughFilter( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 
-PyMODINIT_FUNC
+EXPORT PyMODINIT_FUNC
 initmedia() {
     PyObject *m = Py_InitModule3( "media", module_methods,
         "The Fluggo Media library for Python." );

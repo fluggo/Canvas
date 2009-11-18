@@ -832,7 +832,7 @@ static inline float gamma45Func( float input ) {
     return clampf( powf( input, 0.45f ) * 255.0f, 0.0f, 255.0f );
 }
 
-NOEXPORT void init_GtkVideoWidget( PyObject *m ) {
+void init_GtkVideoWidget( PyObject *m ) {
     int argc = 1;
     char *arg = "dummy";
     char **argv = &arg;

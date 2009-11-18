@@ -44,6 +44,6 @@ typedef struct {
     PresentationClockFuncs *funcs;
 } PresentationClockHolder;
 
-NOEXPORT bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
-NOEXPORT int64_t gettime();
+bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
+int64_t gettime();
 

@@ -258,7 +258,7 @@ static PyTypeObject py_type_SystemPresentationClock = {
 };
 
 
-NOEXPORT void init_SystemPresentationClock( PyObject *module ) {
+void init_SystemPresentationClock( PyObject *module ) {
     if( PyType_Ready( &py_type_SystemPresentationClock ) < 0 )
         return;
 

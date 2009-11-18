@@ -299,7 +299,7 @@ static PyTypeObject py_type_FFContainer = {
     .tp_getset = FFContainer_getsetters,
 };
 
-NOEXPORT void init_FFContainer( PyObject *module ) {
+void init_FFContainer( PyObject *module ) {
 #define MKCASE(fmt)        pixFmtLookup[PIX_FMT_##fmt] = PyString_FromString( #fmt );
     MKCASE(YUV420P)
     MKCASE(YUYV422)

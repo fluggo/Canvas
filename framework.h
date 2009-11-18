@@ -30,7 +30,7 @@
 #include <memory.h>
 #include <errno.h>
 
-#define NOEXPORT __attribute__((visibility("hidden")))
+#define EXPORT __attribute__((visibility("default")))
 
 #if 1
 #include <glib.h>
@@ -109,10 +109,10 @@ static inline float clampf( float value, float min, float max ) {
     return minf(maxf(value, min), max);
 }
 
-NOEXPORT int64_t getFrameTime( const rational *frameRate, int frame );
-NOEXPORT int getTimeFrame( const rational *frameRate, int64_t time );
-NOEXPORT bool parseRational( PyObject *in, rational *out );
-NOEXPORT PyObject *makeFraction( rational *in );
+int64_t getFrameTime( const rational *frameRate, int frame );
+int getTimeFrame( const rational *frameRate, int64_t time );
+bool parseRational( PyObject *in, rational *out );
+PyObject *makeFraction( rational *in );
 
 /************* Video *******/
 typedef struct {
@@ -164,14 +164,14 @@ typedef struct {
     VideoFrameSourceFuncs *funcs;
 } VideoSourceHolder;
 
-NOEXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
-NOEXPORT void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame );
-NOEXPORT void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame );
-NOEXPORT void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame );
-NOEXPORT void *getCurrentGLContext();
-NOEXPORT void gl_printShaderErrors( GLhandleARB shader );
-NOEXPORT void gl_renderToTexture( rgba_gl_frame *frame );
-NOEXPORT void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );
+bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
+void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame );
+void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame );
+void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame );
+void *getCurrentGLContext();
+void gl_printShaderErrors( GLhandleARB shader );
+void gl_renderToTexture( rgba_gl_frame *frame );
+void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );
 
 /************* Audio *******/
 
@@ -195,7 +195,7 @@ typedef struct {
     AudioFrameSourceFuncs *funcs;
 } AudioSourceHolder;
 
-NOEXPORT bool takeAudioSource( PyObject *source, AudioSourceHolder *holder );
+bool takeAudioSource( PyObject *source, AudioSourceHolder *holder );
 
 /*********** Frame functions *****/
 
@@ -213,7 +213,7 @@ typedef struct {
     float constant;
 } FrameFunctionHolder;
 
-NOEXPORT bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder );
+bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder );
 
 #endif
 
