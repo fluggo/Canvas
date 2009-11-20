@@ -25,6 +25,7 @@ typedef struct {
     PyObject_HEAD
 
     AVFormatContext *format;
+    AVOutputFormat *out;
     PyObject *streamList;
 } py_obj_FFContainer;
 
@@ -93,6 +94,9 @@ FFContainer_init( py_obj_FFContainer *self, PyObject *args, PyObject *kwds ) {
         PyList_SET_ITEM( self->streamList, i, (PyObject *) stream );
     }
 
+    // Fetch the output format, too, for the MIME type
+    self->out = guess_format( self->format->iformat->name, NULL, NULL );
+
     return 0;
 }
 
@@ -119,6 +123,14 @@ FFContainer_formatLongName( py_obj_FFContainer *self, void *closure ) {
 }
 
 static PyObject *
+FFContainer_mimeType( py_obj_FFContainer *self, void *closure ) {
+    if( !self->out || !self->out->mime_type )
+        Py_RETURN_NONE;
+
+    return PyString_FromString( self->out->mime_type );
+}
+
+static PyObject *
 FFContainer_bitRate( py_obj_FFContainer *self, void *closure ) {
     return PyInt_FromLong( self->format->bit_rate );
 }
@@ -140,6 +152,7 @@ static PyGetSetDef FFContainer_getsetters[] = {
     { "bitRate", (getter) FFContainer_bitRate, NULL, "The bit rate of the file in bit/s." },
     { "loopCount", (getter) FFContainer_loopCount, NULL, "The number of times the output should loop, or -1 for no looping or 0 for infinite looping." },
     { "streams", (getter) FFContainer_streams, NULL, "List of stream descriptors found in the container." },
+    { "mimeType", (getter) FFContainer_mimeType, NULL, "The MIME type of the format, if known." },
     { NULL }
 };
 

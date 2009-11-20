@@ -9,6 +9,9 @@ c = FFContainer(sys.argv[1])
 
 print('Format: ', c.formatLongName, ' (', c.formatName, ')', sep='')
 
+if c.mimeType:
+	print('MIME type:', c.mimeType)
+
 for stream in c.streams:
 	print()
 	print('Stream #', str(stream.index), ' (', stream.type, ')', sep='')
