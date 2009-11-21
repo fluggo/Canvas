@@ -16,6 +16,11 @@ for stream in c.streams:
 	print()
 	print('Stream #', str(stream.index), ' (', stream.type, ')', sep='')
 	print('Time base:', stream.timeBase)
+	
+	if stream.startTime:
+		print('Start time:', stream.startTime)
+	if stream.duration:
+		print('Duration:', stream.duration)
 
 	if stream.frameCount:
 		print('Frames:', stream.frameCount)

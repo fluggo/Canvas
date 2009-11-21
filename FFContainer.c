@@ -277,10 +277,26 @@ FFStream_encoding( py_obj_FFStream *self, void *closure ) {
 
 static PyObject *
 FFStream_frameCount( py_obj_FFStream *self, void *closure ) {
-    if( self->stream->nb_frames <= 0 )
+    if( self->stream->nb_frames <= INT64_C(0) )
         Py_RETURN_NONE;
 
     return PyLong_FromLongLong( self->stream->nb_frames );
+}
+
+static PyObject *
+FFStream_startTime( py_obj_FFStream *self, void *closure ) {
+    if( self->stream->start_time <= INT64_C(0) )
+        Py_RETURN_NONE;
+
+    return PyLong_FromLongLong( self->stream->start_time );
+}
+
+static PyObject *
+FFStream_duration( py_obj_FFStream *self, void *closure ) {
+    if( self->stream->duration <= INT64_C(0) )
+        Py_RETURN_NONE;
+
+    return PyLong_FromLongLong( self->stream->duration );
 }
 
 static PyGetSetDef FFStream_getsetters[] = {
@@ -297,6 +313,8 @@ static PyGetSetDef FFStream_getsetters[] = {
     { "codec", (getter) FFStream_codec, NULL, "The name of the FFmpeg codec that recognizes this stream." },
     { "encoding", (getter) FFStream_encoding, NULL, "If available, the name of the subformat of this stream." },
     { "frameCount", (getter) FFStream_frameCount, NULL, "If available, the number of frames in this stream." },
+    { "startTime", (getter) FFStream_startTime, NULL, "If available, the presentation start time of this stream in timeBase units." },
+    { "duration", (getter) FFStream_duration, NULL, "If available, the duration of the stream in timeBase units." },
     { NULL }
 };
 
