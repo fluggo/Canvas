@@ -352,7 +352,7 @@ static PyGetSetDef VideoMixFilter_getsetters[] = {
 static PyTypeObject py_type_VideoMixFilter = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.VideoMixFilter",    // tp_name
+    "fluggo.media.process.VideoMixFilter",    // tp_name
     sizeof(py_obj_VideoMixFilter),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

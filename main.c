@@ -568,9 +568,9 @@ void init_VideoPassThroughFilter( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
-initmedia() {
-    PyObject *m = Py_InitModule3( "media", module_methods,
-        "The Fluggo Media library for Python." );
+initprocess() {
+    PyObject *m = Py_InitModule3( "process", module_methods,
+        "The Fluggo media processing library for Python." );
 
     PyObject *fractions = PyImport_ImportModule( "fractions" );
 

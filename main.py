@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 import glib
 import gtk
 import gtk.glade
-from fluggo.media import *
+from fluggo.media.process import *
 from fractions import Fraction
 
 #clock = SystemPresentationClock()

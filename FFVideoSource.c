@@ -679,7 +679,7 @@ static PyMethodDef FFVideoSource_methods[] = {
 static PyTypeObject py_type_FFVideoSource = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.FFVideoSource",    // tp_name
+    "fluggo.media.process.FFVideoSource",    // tp_name
     sizeof(py_obj_FFVideoSource),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

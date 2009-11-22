@@ -130,7 +130,7 @@ static PyMethodDef VideoPassThroughFilter_methods[] = {
 static PyTypeObject py_type_VideoPassThroughFilter = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.VideoPassThroughFilter",    // tp_name
+    "fluggo.media.process.VideoPassThroughFilter",    // tp_name
     sizeof(py_obj_VideoPassThroughFilter),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

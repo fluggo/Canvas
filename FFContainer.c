@@ -324,7 +324,7 @@ static PyGetSetDef FFStream_getsetters[] = {
 static PyTypeObject py_type_FFContainer = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.FFContainer",    // tp_name
+    "fluggo.media.process.FFContainer",    // tp_name
     sizeof(py_obj_FFContainer),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

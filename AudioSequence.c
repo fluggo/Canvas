@@ -282,7 +282,7 @@ static PyMethodDef AudioSequence_methods[] = {
 
 static PyTypeObject py_type_AudioSequence = {
     PyObject_HEAD_INIT(NULL)
-    .tp_name = "fluggo.media.AudioSequence",    // tp_name
+    .tp_name = "fluggo.media.process.AudioSequence",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_dealloc = (destructor) AudioSequence_dealloc,
     .tp_init = (initproc) AudioSequence_init,

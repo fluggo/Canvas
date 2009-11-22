@@ -1,9 +1,10 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 from __future__ import print_function
 
 import sys
-from fluggo.media import FFContainer
+from fluggo.media.process import FFContainer
 
 c = FFContainer(sys.argv[1])
 
