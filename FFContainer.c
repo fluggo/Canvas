@@ -88,6 +88,7 @@ FFContainer_init( py_obj_FFContainer *self, PyObject *args, PyObject *kwds ) {
 
     for( int i = 0; i < self->format->nb_streams; i++ ) {
         py_obj_FFStream *stream = (py_obj_FFStream *) PyObject_CallObject( (PyObject *) &py_type_FFStream, NULL );
+        Py_INCREF( self );
         stream->container = self;
         stream->stream = self->format->streams[i];
 
