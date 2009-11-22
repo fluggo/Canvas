@@ -561,6 +561,7 @@ void init_SystemPresentationClock( PyObject *module );
 void init_AlsaPlayer( PyObject *module );
 void init_GtkVideoWidget( PyObject *module );
 void init_half( PyObject *module );
+void init_AudioPassThroughFilter( PyObject *module );
 void init_VideoSequence( PyObject *module );
 void init_VideoMixFilter( PyObject *module );
 void init_VideoPassThroughFilter( PyObject *module );
@@ -589,6 +590,7 @@ initmedia() {
     init_GtkVideoWidget( m );
     init_VideoSequence( m );
     init_VideoMixFilter( m );
+    init_AudioPassThroughFilter( m );
     init_VideoPassThroughFilter( m );
     init_basicframefuncs( m );
 }
