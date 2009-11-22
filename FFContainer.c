@@ -185,7 +185,7 @@ FFStream_sampleAspectRatio( py_obj_FFStream *self, void *closure ) {
     if( sar.num == 0 )
         Py_RETURN_NONE;
 
-    rational result = { .n = self->stream->sample_aspect_ratio.num, .d = self->stream->sample_aspect_ratio.den };
+    rational result = { .n = sar.num, .d = sar.den };
     return makeFraction( &result );
 }
 
