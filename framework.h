@@ -169,6 +169,7 @@ void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *ta
 void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame );
 void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame );
 void *getCurrentGLContext();
+void gl_checkError();
 void gl_printShaderErrors( GLhandleARB shader );
 void gl_renderToTexture( rgba_gl_frame *frame );
 void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );

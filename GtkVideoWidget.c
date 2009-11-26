@@ -35,7 +35,7 @@ static uint8_t gamma45[65536];
 #define    SOFT_MODE_BUFFERS    4
 #define HARD_MODE_BUFFERS    2
 
-void checkGLError() {
+void gl_checkError() {
     int error = glGetError();
 
     switch( error ) {
@@ -154,7 +154,7 @@ _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
     glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
         GL_RGB, GL_UNSIGNED_BYTE, &self->softTargets[self->readBuffer].frameData[0] );
-    checkGLError();
+    gl_checkError();
 }
 
 static void

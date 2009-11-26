@@ -598,6 +598,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_gl_fr
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[3] );
     glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
         GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+    gl_checkError();
 
     // Set up the input textures
     glActiveTexture( GL_TEXTURE0 );
