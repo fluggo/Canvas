@@ -4,7 +4,7 @@ debug = ARGUMENTS.get('debug', 0)
 assembly = ARGUMENTS.get('assembly', 0)
 profile = ARGUMENTS.get('profile', 0)
 env = Environment(LIBS=['rt', 'GLEW'], CPPPATH=[distutils.sysconfig.get_python_inc()],
-	SHLIBPREFIX='', CCFLAGS = ['-fno-strict-aliasing', '-std=c99', '-Wall', '-D_POSIX_C_SOURCE=200112L', '-fvisibility=hidden', '-fpic'])
+	SHLIBPREFIX='', CCFLAGS = ['-fno-strict-aliasing', '-std=c99', '-Wall', '-D_POSIX_C_SOURCE=200112L', '-fvisibility=hidden'])
 	
 env.Append(BUILDERS = {'PyGen': Builder(action = 'python $SOURCE > $TARGET')})
 half = env.PyGen('halftab.c', 'genhalf.py')
