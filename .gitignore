@@ -1,0 +1,6 @@
+/.sconsign.dblite
+/halftab.c
+*.pyc
+*.os
+*.so
+*~
