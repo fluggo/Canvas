@@ -132,34 +132,42 @@ class Timeline(collections.MutableSequence):
             return Ref(frame)
 
     '''
-    narrative = []
+    clips = []
+    transitions = []
     clipStarts = []
 
     markers = []
     refs = []
+
+    The clips list is one longer than the transitions list. Every entry in the
+    clip list must refer to a clip. Each entry in the transition list represents
+    the transition that follows the corresponding clip; a None entry is a cut.
+
+    The length of the timeline is the total length of the clips less the total
+    length of the transitions.
     '''
     def setClipLength(self, index, length):
         if length < 1:
             raise ValueError('length cannot be less than 1')
 
-        oldLength = self.narrative[index]._length
+        oldLength = self.clips[index]._length
 
-        for clip in self.narrative[index + 1:]:
+        for clip in self.clips[index + 1:]:
             clip._start += length - oldLength
 
-        self.narrative[index]._length = length
+        self.clips[index]._length = length
 
     def setClipOffset(self, index, offset):
-        self.narrative[index]._offset = offset
+        self.clips[index]._offset = offset
 
     def setClipSource(self, index, source):
-        self.narrative[index]._source = source
+        self.clips[index]._source = source
 
     def __len__(self):
-        return len(narrative)
+        return len(self.clips)
 
     def __getitem__(self, key):
-        return narrative[key]
+        return self.clips[key]
 
     def __setitem__(self, key, value):
         start, stop, step = None, None, None
@@ -194,12 +202,12 @@ class Timeline(collections.MutableSequence):
             exitTrans = enterTrans
 
         # Start of value and insert point in narrative
-        if ((start == 0 or isinstance(self.narrative[start - 1], Transition))
+        if ((start == 0 or isinstance(self.clips[start - 1], Transition))
             and enterTrans):
             raise ValueError('Cannot place two transitions next to each other.')
 
         # End of value and insert point in narrative
-        if ((end == len(self.narrative) or isinstance(self.narrative[end], Transition))
+        if ((end == len(self.clips) or isinstance(self.clips[end], Transition))
             and exitTrans):
             raise ValueError('Cannot place two transitions next to each other.')
 
@@ -209,7 +217,7 @@ class Timeline(collections.MutableSequence):
                 if isinstance(value[i], Transition) and isinstance(value[i + 1], Transition):
                     raise ValueError('Cannot place two transitions next to each other.')
 
-        self.narrative[key] = value
+        self.clips[key] = value
         self._recalc(start)
 
     def __delitem__(self, key):
