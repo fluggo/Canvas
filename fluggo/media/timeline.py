@@ -19,10 +19,32 @@
 
 import collections
 
-(REGION_BAD
+Clip = namedtuple('Clip', 'source_ref offset length transition transition_cut_point transition_length')
 
-Clip = namedtuple('Clip', 'source offset length')
-Transition = namedtuple('Transition', 'cut_point length')
+def check_clip(clip):
+    if clip is None:
+        raise ValueError('Clip cannot be None.')
+
+    if clip.source_ref is None:
+        raise ValueError('Clip must have a source_ref.')
+
+    if not clip.transition and clip.transition_length != 0:
+        raise ValueError('Clip without a transition must have a transition_length of zero.')
+
+def check_clip_pair(clip1, clip2):
+    if not clip2:
+        # Just verify that our transition is shorter than ourselves
+        if clip1.transition and clip1.transition_length > clip1.length:
+            raise ValueError('The last clip had a transition longer than the clip.')
+    elif not clip1:
+        if clip2.transition:
+            raise ValueError('The timeline must not start with a transition.')
+    else:
+        len_a = new_list[i].transition_length
+        len_b = new_list[i + 1].transition_length
+
+        if clip1.transition_length + clip2.transition_length > clip1.length:
+            raise ValueError('A clip was shorter than the surrounding transitions.')
 
 class Take(object):
     '''
@@ -36,12 +58,12 @@ class TakeTrack(object):
     sync_offset = n (difference between take time and source time)
     start_offset = n (frame in source at which take starts)
     length = n
-    source = Source()
+    source = SourceRef()
 
     '''
     pass
 
-class Timeline(collections.MutableSequence):
+class Timeline(object):
     class _Ref(object):
         def __init__(self, frame):
             self.frame = frame
@@ -55,45 +77,37 @@ class Timeline(collections.MutableSequence):
 
     '''
     clips = []
-    transitions = []
     clipStarts = []
 
     markers = []
     refs = []
 
-    The clips list is one longer than the transitions list. Every entry in the
-    clip list must refer to a clip. Each entry in the transition list represents
-    the transition that follows the corresponding clip; a None entry is a cut.
+    Each entry in the clip list must refer to a clip and may refer to a transition,
+    except the first clip, which must not have a transition. The transition is the
+    transition that precedes the given clip; a None transition is a cut.
 
     The length of the timeline is the total length of the clips less the total
     length of the transitions.
 
     For all i:
 
-        clips[i].length >= (transitions[i-1].length + transitions[i].length)
-
-    transition
-        length
-        cut_point
-
-    clip
-        source
-        offset
-        length
+        clips[i].length >= (clips[i].transition_length + clips[i+1].transition_length)
 
     '''
+    def __init__(self):
+        self.clips = []
 
     def set_clip_length(self, index, length):
-        pass
+        raise NotImplementedError
 
     def set_transition_length(self, index, length):
-        pass
+        raise NotImplementedError
 
-    def set_clip(self, index, clip):
-        pass
+    def set_clip_source(self, index, clip):
+        raise NotImplementedError
 
     def set_transition(self, index, transition):
-        pass
+        raise NotImplementedError
 
     def insert_edit(self, source, source_point, target_ref, length, transition = None, transition_length):
         raise NotImplementedError
@@ -117,111 +131,70 @@ class Timeline(collections.MutableSequence):
         '''
         raise NotImplementedError
 
-    def setClipLength(self, index, length):
-        if length < 1:
-            raise ValueError('length cannot be less than 1')
-
-        oldLength = self.clips[index]._length
-
-        for clip in self.clips[index + 1:]:
-            clip._start += length - oldLength
-
-        self.clips[index]._length = length
-
-    def setClipOffset(self, index, offset):
-        self.clips[index]._offset = offset
-
-    def setClipSource(self, index, source):
-        self.clips[index]._source = source
-
     def __len__(self):
         return len(self.clips)
 
     def __getitem__(self, key):
         return self.clips[key]
 
+    def _replace_clip_range(self, start, stop, clips):
+        # Verify the clips pair-wise
+        for clip1, clip2 in zip(clips[0:-1], clips[1:]):
+            check_clip_pair(clip1, clip2)
+
+        # Verify the ends
+        if len(clips):
+            if start > 0:
+                check_clip_pair(self.clips[start - 1], clips[0])
+            else:
+                check_clip_pair(None, clips[0])
+
+            if stop < len(self.clips):
+                check_clip_pair(clips[-1], self.clips[stop])
+            else
+                check_clip_pair(clips[-1], None)
+        else:
+            # Removal only
+            if start > 0:
+                if stop < len(self.clips):
+                    check_clip_pair(self.clips[start - 1], self.clips[stop])
+                else:
+                    check_clip_pair(self.clips[start - 1], None)
+            elif stop < len(self.clips)
+                check_clip_pair(None, self.clips[stop])
+
+        self.clips[start:stop] = clips
+
     def __setitem__(self, key, value):
         start, stop, step = None, None, None
-        seq = isinstance(value, collections.Sequence):
+        is_slice = isinstance(key, slice):
+        clips = None
 
-        if seq and len(value) == 0:
-            return self.__delitem__(key)
-
-        if isinstance(key, slice):
-            start, stop, step = key.indices(len(self.narrative))
+        if is_slice:
+            start, stop, step = key.indices(len(self.clips))
+            clips = value
         else:
             start, stop, step = key, key, 1
+            clips = [value]
 
-        if step != 1:
-            raise NotImplementedError('A step other than one is not implemented.')
-
-        if start > stop:
-            start, stop = stop, start
-
-            if seq:
-                value = list(reversed(value))
-
-        # What we can't do is let two transitions end up
-        # next to each other (or at the beginning or end)
-        enterTrans, exitTrans = None, None
-
-        if seq:
-            enterTrans = isinstance(value[0], Transition)
-            exitTrans = isinstance(value[len(value) - 1], Transition)
+        if step == 1:
+            self._replace_clip_range(start, stop, clips)
         else:
-            enterTrans = isinstance(value, Transition)
-            exitTrans = enterTrans
+            # Reduce it to solid ranges
+            i = 0
 
-        # Start of value and insert point in narrative
-        if ((start == 0 or isinstance(self.clips[start - 1], Transition))
-            and enterTrans):
-            raise ValueError('Cannot place two transitions next to each other.')
-
-        # End of value and insert point in narrative
-        if ((end == len(self.clips) or isinstance(self.clips[end], Transition))
-            and exitTrans):
-            raise ValueError('Cannot place two transitions next to each other.')
-
-        # Middle of given sequence
-        if seq:
-            for i in range(len(value) - 1):
-                if isinstance(value[i], Transition) and isinstance(value[i + 1], Transition):
-                    raise ValueError('Cannot place two transitions next to each other.')
-
-        self.clips[key] = value
-        self._recalc(start)
+            for j in range(start, stop, step):
+                if i < len(clips):
+                    self._replace_clip_range(j, j + 1, [clips[i]])
+                else:
+                    self._replace_clip_range(j, j + 1, [])
 
     def __delitem__(self, key):
         # Just a special case of __setitem__ above
-        start, stop, step = None, None, None
-
         if isinstance(key, slice):
-            start, stop, step = key.indices(len(self.narrative))
+            self[key] = []
         else:
-            start, stop, step = key, key, 1
-
-        if step != 1:
-            raise NotImplementedError('A step other than one is not implemented.')
-
-        if start > stop:
-            start, stop = stop, start
-
-        if (start != 0 and isinstance(self.narrative[start - 1], Transition)
-            and end != len(self.narrative) and isinstance(self.narrative[end], Transition)):
-            raise ValueError('Cannot place two transitions next to each other.')
-
-        del self.narrative[key]
-        self._recalc(start)
-
-    def _recalc(self, startIndex):
-        for i in range(startIndex, len(self.narrative)):
-            if i == 0:
-                self.narrative[0]._start = 0
-            else:
-                self.narrative[i]._start = self.narrative[i - 1]._start - self.narrative[i - 1]._length
-
-            self.narrative[i]._index = i
-            self.narrative[i]._timeline = self
+            self[key:key + 1] = []
 
 class AttachedTimeline(Timeline):
     '''
@@ -234,6 +207,16 @@ class AudioTimeline(Timeline, AudioSource):
     pass
 
 class VideoTimeline(Timeline, VideoSource):
-    pass
+    def __init__(self, format):
+        Timeline.__init__(self)
+        VideoSource.__init__(self, format)
+        self.source = None
+
+    def create_underlying_source(self):
+        if self.source:
+            return self.source
+
+        self.source = VideoSequence()
+        return self.source
 
 
