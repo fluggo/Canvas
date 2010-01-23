@@ -19,6 +19,11 @@
 
 import collections
 
+(REGION_BAD
+
+Clip = namedtuple('Clip', 'source offset length')
+Transition = namedtuple('Transition', 'cut_point length')
+
 class Take(object):
     '''
     tags = []
@@ -28,96 +33,13 @@ class Take(object):
 
 class TakeTrack(object):
     '''
-    offset = n
+    sync_offset = n (difference between take time and source time)
+    start_offset = n (frame in source at which take starts)
+    length = n
     source = Source()
+
     '''
     pass
-
-class Clip(object):
-    '''
-    source = Source()
-    length = n frames
-    offset = n frames
-
-    A slug is a clip with no source.
-    '''
-
-    def __init__(self, timeline, index):
-        self._timeline = timeline
-        self._source = None
-        self._length = 1
-        self._offset = 0
-
-        # Internal -- index is this clip's index in the narrative
-        # Start is the frame at which this clip starts
-        self._index = index
-        self._start = 0
-
-    @property
-    def length(self):
-        return self._length
-
-    @length.setter
-    def setLength(self, value):
-        self._timeline.setClipLength(self._index, value)
-
-    @property
-    def source(self):
-        return self._source
-
-    @source.setter
-    def setSource(self, value):
-        self._timeline.setClipSource(self._index, value)
-
-    @property
-    def offset(self):
-        return self._offset
-
-    @offset.setter
-    def setOffset(self, value):
-        self._timeline.setClipOffset(self._index, value)
-
-class Transition(object):
-    '''
-    transitionName = '...'
-    function = '...' (linear, fast, slow, custom)
-    cutPoint = n frames
-    length = n frames
-    '''
-    def __init__(self, length=1, name='crossfade', cutPoint=0):
-        if length < 1:
-            raise ValueError('length cannot be less than 1')
-
-        if cutPoint < 0 or cutPoint > length:
-            raise ValueError('cutPoint must be between zero and length inclusive')
-
-        self._timeline = None
-        self._name = name
-        self._cutPoint = cutPoint
-
-        # A transition's length is negative
-        # such that adding all event lengths together
-        # yields the length of the timeline
-        self._length = -length
-
-        # Internal -- index is this clip's index in the narrative
-        # Start is the frame at which this transition starts
-        self._index = 0
-        self._start = 0
-
-    @property
-    def length(self):
-        return -self._length
-
-    @length.setter
-    def setLength(self, value)
-        if value < 1:
-            raise ValueError('length cannot be less than 1')
-
-        if self._timeline:
-            self._timeline.setClipLength(self._index, value)
-        else
-            self._length = -value
 
 class Timeline(collections.MutableSequence):
     class _Ref(object):
@@ -145,7 +67,56 @@ class Timeline(collections.MutableSequence):
 
     The length of the timeline is the total length of the clips less the total
     length of the transitions.
+
+    For all i:
+
+        clips[i].length >= (transitions[i-1].length + transitions[i].length)
+
+    transition
+        length
+        cut_point
+
+    clip
+        source
+        offset
+        length
+
     '''
+
+    def set_clip_length(self, index, length):
+        pass
+
+    def set_transition_length(self, index, length):
+        pass
+
+    def set_clip(self, index, clip):
+        pass
+
+    def set_transition(self, index, transition):
+        pass
+
+    def insert_edit(self, source, source_point, target_ref, length, transition = None, transition_length):
+        raise NotImplementedError
+
+    def overwrite_edit(self, source, source_point, start_ref, length):
+        raise NotImplementedError
+
+    def scissor(self, ref):
+        '''
+        Split a clip into two continuous parts at the reference.
+
+        If a split already exists at the reference, nothing happens.
+
+        TODO: What happens if the ref is in a transition?
+        '''
+        raise NotImplementedError
+
+    def join_clips(self, clip_index):
+        '''
+        Join the clip at clip_index with the next clip.
+        '''
+        raise NotImplementedError
+
     def setClipLength(self, index, length):
         if length < 1:
             raise ValueError('length cannot be less than 1')
