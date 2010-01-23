@@ -262,7 +262,7 @@ AudioSequence_getFuncs( PyObject *self, void *closure ) {
 }
 
 static PyGetSetDef AudioSequence_getsetters[] = {
-    { "_audioFrameSourceFuncs", (getter) AudioSequence_getFuncs, NULL, "Audio frame source C API." },
+    { AUDIO_FRAME_SOURCE_FUNCS, (getter) AudioSequence_getFuncs, NULL, "Audio frame source C API." },
     { NULL }
 };
 
@@ -275,7 +275,7 @@ static PySequenceMethods AudioSequence_sequence = {
 static PyMethodDef AudioSequence_methods[] = {
     { "insert", (PyCFunction) AudioSequence_insert, METH_VARARGS,
         "Inserts a new element into the sequence." },
-    { "getStartSample", (PyCFunction) AudioSequence_getStartSample, METH_VARARGS,
+    { "get_start_sample", (PyCFunction) AudioSequence_getStartSample, METH_VARARGS,
         "Gets the starting sample for an element." },
     { NULL }
 };

@@ -53,7 +53,7 @@ generic_dealloc( PyObject *self ) {
     } \
 
 #define DECLARE_GETSETTER(name) \
-    { "_frameFunctionFuncs", (getter) name##_getFuncs, NULL, "Frame function C API." }
+    { FRAME_FUNCTION_FUNCS, (getter) name##_getFuncs, NULL, "Frame function C API." }
 
 #define DECLARE_DEFAULT_GETSETTERS(name) \
     static PyGetSetDef name##_getsetters[] = { \

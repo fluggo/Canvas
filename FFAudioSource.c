@@ -407,7 +407,7 @@ FFAudioSource_getFuncs( py_obj_FFAudioSource *self, void *closure ) {
 }
 
 static PyGetSetDef FFAudioSource_getsetters[] = {
-    { "_audioFrameSourceFuncs", (getter) FFAudioSource_getFuncs, NULL, "Audio frame source C API." },
+    { AUDIO_FRAME_SOURCE_FUNCS, (getter) FFAudioSource_getFuncs, NULL, "Audio frame source C API." },
     { NULL }
 };
 

@@ -31,12 +31,12 @@ clock = player
 
 def createVideoWidget():
     widget = GtkVideoWidget(player)
-    widget.drawingArea().show()
+    widget.drawing_area().show()
 
     # Temporary hack to keep the container object around
-    widget.drawingArea().myobj = widget
+    widget.drawing_area().myobj = widget
 
-    return widget.drawingArea()
+    return widget.drawing_area()
 
 def my_handler(glade, function_name, widget_name, str1, str2, int1, int2):
     return globals()[function_name]()
@@ -47,22 +47,22 @@ class MainWindow(object):
     def __init__(self):
         self.glade = gtk.glade.XML('player.glade')
         self.glade.signal_autoconnect(self)
-        self.videoWidget = self.glade.get_widget('videoWidget').myobj
-        self.videoWidget.stop()
-        self.videoWidget.drawingArea().set_size_request(320, 240)
-        self.frameRate = Fraction(24000, 1001)
-        self.frameScale = self.glade.get_widget('frameScale')
-        self.frameScale.set_range(0, 5000)
+        self.video_widget = self.glade.get_widget('videoWidget').myobj
+        self.video_widget.stop()
+        self.video_widget.drawing_area().set_size_request(320, 240)
+        self.frame_rate = Fraction(24000, 1001)
+        self.frame_scale = self.glade.get_widget('frameScale')
+        self.frame_scale.set_range(0, 5000)
         self.playing = False
         self.updating = False
-        glib.timeout_add(100, self.updateCurrentFrame)
+        glib.timeout_add(100, self.update_current_frame)
 
         #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
         #videro = FFVideoReader('/home/james/Videos/demux003.m2v')
         videro = FFVideoSource('/home/james/Videos/Okra - 79b,100.avi')
 
         size = videro.size()
-        self.videoWidget.setDisplayWindow((0, -1, size[0] - 1, size[1] - 2))
+        self.video_widget.set_display_window((0, -1, size[0] - 1, size[1] - 2))
         #self.videoWidget.setSource(av)
 
         pulldown = Pulldown23RemovalFilter(videro, 0);
@@ -71,35 +71,35 @@ class MainWindow(object):
         seq.append((pulldown, 300, 250))
         seq.append((pulldown, 0, 150))
 
-        mix = VideoMixFilter(srcA=pulldown, srcB=seq, mixB=LinearFrameFunc(a=1/300.0, b=0))
+        mix = VideoMixFilter(src_a=pulldown, src_b=seq, mix_b=LinearFrameFunc(a=1/300.0, b=0))
 
-        self.videoWidget.setSource(mix)
-        self.videoWidget.stop()
+        self.video_widget.set_source(mix)
+        self.video_widget.stop()
 
     def on_playButton_clicked(self, *args):
         clock.play(1)
         #player.play()
-        self.videoWidget.play()
+        self.video_widget.play()
         self.playing = True
 
     def on_rewindButton_clicked(self, *args):
         clock.play(-2)
         #player.play()
-        self.videoWidget.play()
+        self.video_widget.play()
         self.playing = True
 
     def on_forwardButton_clicked(self, *args):
         clock.play(2)
         #player.play()
-        self.videoWidget.play()
+        self.video_widget.play()
         self.playing = True
 
     def on_pauseButton_clicked(self, *args):
         #clock.play(0)
         clock.stop()
         #player.stop()
-        self.updateCurrentFrame()
-        self.videoWidget.stop()
+        self.update_current_frame()
+        self.video_widget.stop()
         self.playing = False
 
     def on_frameScale_value_changed(self, control):
@@ -107,21 +107,21 @@ class MainWindow(object):
             return
 
         frame = int(control.get_value())
-        time = getFrameTime(self.frameRate, frame)
+        time = get_frame_time(self.frame_rate, frame)
         #print frame, time
 
         clock.seek(time)
 
         if self.playing:
-            self.videoWidget.play()
+            self.video_widget.play()
             pass
         else:
-            self.videoWidget.stop()
+            self.video_widget.stop()
 
-    def updateCurrentFrame(self):
+    def update_current_frame(self):
         self.updating = True
-        frame = getTimeFrame(self.frameRate, clock.getPresentationTime())
-        self.frameScale.set_value(frame)
+        frame = get_time_frame(self.frame_rate, clock.get_presentation_time())
+        self.frame_scale.set_value(frame)
         self.updating = False
         return True
 

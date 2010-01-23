@@ -478,7 +478,7 @@ AlsaPlayer_getFuncs( py_obj_AlsaPlayer *self, void *closure ) {
 }
 
 static PyGetSetDef AlsaPlayer_getsetters[] = {
-    { "_presentationClockFuncs", (getter) AlsaPlayer_getFuncs, NULL, "Presentation clock C API." },
+    { PRESENTATION_CLOCK_FUNCS, (getter) AlsaPlayer_getFuncs, NULL, "Presentation clock C API." },
     { NULL }
 };
 
@@ -539,9 +539,9 @@ static PyMethodDef AlsaPlayer_methods[] = {
         "Plays audio from the source starting at the current spot." },
     { "stop", (PyCFunction) AlsaPlayer_stop, METH_NOARGS,
         "Stops playing audio from the source." },
-    { "getPresentationTime", (PyCFunction) AlsaPlayer_getPresentationTime, METH_NOARGS,
+    { "get_presentation_time", (PyCFunction) AlsaPlayer_getPresentationTime, METH_NOARGS,
         "Gets the current presentation time in nanoseconds." },
-    { "setConfig", (PyCFunction) AlsaPlayer_setConfig, METH_VARARGS | METH_KEYWORDS,
+    { "set_config", (PyCFunction) AlsaPlayer_setConfig, METH_VARARGS | METH_KEYWORDS,
         "rate, channels = setConfig([rate = 48000, channels = 2]): Sets the configuration for this device." },
     { NULL }
 };

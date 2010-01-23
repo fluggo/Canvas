@@ -51,7 +51,7 @@ typedef struct {
 
 static int
 VideoMixFilter_init( py_obj_VideoMixFilter *self, PyObject *args, PyObject *kwds ) {
-    static char *kwlist[] = { "srcA", "srcB", "mixB", NULL };
+    static char *kwlist[] = { "src_a", "src_b", "mix_b", NULL };
     PyObject *srcA, *srcB, *mixB;
 
     if( !PyArg_ParseTupleAndKeywords( args, kwds, "OOO", kwlist,
@@ -345,7 +345,7 @@ VideoMixFilter_getFuncs( py_obj_VideoMixFilter *self, void *closure ) {
 }
 
 static PyGetSetDef VideoMixFilter_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) VideoMixFilter_getFuncs, NULL, "Video frame source C API." },
+    { VIDEO_FRAME_SOURCE_FUNCS, (getter) VideoMixFilter_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 

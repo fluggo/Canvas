@@ -662,7 +662,7 @@ FFVideoSource_getFuncs( py_obj_FFVideoSource *self, void *closure ) {
 }
 
 static PyGetSetDef FFVideoSource_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) FFVideoSource_getFuncs, NULL, "Video frame source C API." },
+    { VIDEO_FRAME_SOURCE_FUNCS, (getter) FFVideoSource_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 

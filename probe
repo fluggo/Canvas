@@ -8,39 +8,39 @@ from fluggo.media.process import FFContainer
 
 c = FFContainer(sys.argv[1])
 
-print('Format: ', c.formatLongName, ' (', c.formatName, ')', sep='')
+print('Format: ', c.format_long_name, ' (', c.format_name, ')', sep='')
 
-if c.mimeType:
-	print('MIME type:', c.mimeType)
+if c.mime_type:
+	print('MIME type:', c.mime_type)
 
 for stream in c.streams:
 	print()
 	print('Stream #', str(stream.index), ' (', stream.type, ')', sep='')
-	print('Time base:', stream.timeBase)
+	print('Time base:', stream.time_base)
 	
-	if stream.startTime:
-		print('Start time:', stream.startTime)
+	if stream.start_time:
+		print('Start time:', stream.start_time)
 	if stream.duration:
 		print('Duration:', stream.duration)
 
-	if stream.frameCount:
-		print('Frames:', stream.frameCount)
-	if stream.realFrameRate:
-		print('Frame rate (guess):', stream.realFrameRate)
+	if stream.frame_count:
+		print('Frames:', stream.frame_count)
+	if stream.real_frame_rate:
+		print('Frame rate (guess):', stream.real_frame_rate)
 	if stream.encoding:
 		print('Encoding:', stream.encoding)
 	print('Codec:', stream.codec)
 	
-	if stream.bitRate:
-		print('Bit rate:', stream.bitRate)
+	if stream.bit_rate:
+		print('Bit rate:', stream.bit_rate)
 	
 	if stream.type == 'video':
-		print('Pixel format:', stream.pixelFormat)
-		print('Frame size:', stream.frameSize)
+		print('Pixel format:', stream.pixel_format)
+		print('Frame size:', stream.frame_size)
 	
-		if stream.sampleAspectRatio:
-			print('Sample aspect ratio:', stream.sampleAspectRatio)
+		if stream.sample_aspect_ratio:
+			print('Sample aspect ratio:', stream.sample_aspect_ratio)
 	elif stream.type == 'audio':
-		print('Sample rate:', stream.sampleRate, 'Hz')
+		print('Sample rate:', stream.sample_rate, 'Hz')
 		print('Channels:', stream.channels)
 

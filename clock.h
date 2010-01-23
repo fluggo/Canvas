@@ -47,3 +47,5 @@ typedef struct {
 bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
 int64_t gettime();
 
+#define PRESENTATION_CLOCK_FUNCS "_presentation_clock_funcs"
+

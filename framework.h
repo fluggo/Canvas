@@ -174,6 +174,8 @@ void gl_printShaderErrors( GLhandleARB shader );
 void gl_renderToTexture( rgba_gl_frame *frame );
 void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );
 
+#define VIDEO_FRAME_SOURCE_FUNCS "_video_frame_source_funcs"
+
 /************* Audio *******/
 
 typedef struct {
@@ -198,6 +200,8 @@ typedef struct {
 
 bool takeAudioSource( PyObject *source, AudioSourceHolder *holder );
 
+#define AUDIO_FRAME_SOURCE_FUNCS "_audio_frame_source_funcs"
+
 /*********** Frame functions *****/
 
 typedef void (*framefunc_getValuesFunc)( PyObject *self, int count, long *frames, long frameBase, float *outValues );
@@ -215,6 +219,8 @@ typedef struct {
 } FrameFunctionHolder;
 
 bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder );
+
+#define FRAME_FUNCTION_FUNCS "_frame_function_funcs"
 
 #endif
 

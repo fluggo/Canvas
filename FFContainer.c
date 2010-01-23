@@ -148,12 +148,12 @@ FFContainer_streams( py_obj_FFContainer *self, void *closure ) {
 }
 
 static PyGetSetDef FFContainer_getsetters[] = {
-    { "formatName", (getter) FFContainer_formatName, NULL, "The short name of the container format." },
-    { "formatLongName", (getter) FFContainer_formatLongName, NULL, "A more descriptive name of the container format." },
-    { "bitRate", (getter) FFContainer_bitRate, NULL, "The bit rate of the file in bit/s." },
-    { "loopCount", (getter) FFContainer_loopCount, NULL, "The number of times the output should loop, or -1 for no looping or 0 for infinite looping." },
+    { "format_name", (getter) FFContainer_formatName, NULL, "The short name of the container format." },
+    { "format_long_name", (getter) FFContainer_formatLongName, NULL, "A more descriptive name of the container format." },
+    { "bit_rate", (getter) FFContainer_bitRate, NULL, "The bit rate of the file in bit/s." },
+    { "loop_count", (getter) FFContainer_loopCount, NULL, "The number of times the output should loop, or -1 for no looping or 0 for infinite looping." },
     { "streams", (getter) FFContainer_streams, NULL, "List of stream descriptors found in the container." },
-    { "mimeType", (getter) FFContainer_mimeType, NULL, "The MIME type of the format, if known." },
+    { "mime_type", (getter) FFContainer_mimeType, NULL, "The MIME type of the format, if known." },
     { NULL }
 };
 
@@ -303,20 +303,20 @@ FFStream_duration( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyGetSetDef FFStream_getsetters[] = {
-    { "timeBase", (getter) FFStream_timeBase, NULL, "The time base of the stream." },
-    { "sampleAspectRatio", (getter) FFStream_sampleAspectRatio, NULL, "For picture streams, the aspect ratio of each sample, or None if it's unknown." },
-    { "pixelFormat", (getter) FFStream_pixelFormat, NULL, "FFmpeg's pixel format for this stream, or None if there isn't one." },
+    { "time_base", (getter) FFStream_timeBase, NULL, "The time base of the stream." },
+    { "sample_aspect_ratio", (getter) FFStream_sampleAspectRatio, NULL, "For picture streams, the aspect ratio of each sample, or None if it's unknown." },
+    { "pixel_format", (getter) FFStream_pixelFormat, NULL, "FFmpeg's pixel format for this stream, or None if there isn't one." },
     { "type", (getter) FFStream_type, NULL, "The type of stream, one of 'video', 'audio', 'data', 'subtitle', or 'attachment', or None if unknown." },
     { "index", (getter) FFStream_index, NULL, "The index of this stream." },
-    { "bitRate", (getter) FFStream_bitRate, NULL, "The bit rate of this stream." },
-    { "frameSize", (getter) FFStream_frameSize, NULL, "The size of the frame in the video stream." },
-    { "realFrameRate", (getter) FFStream_realFrameRate, NULL, "A guess at the real frame rate of the stream." },
-    { "sampleRate", (getter) FFStream_sampleRate, NULL, "The sample rate in the audio stream." },
+    { "bit_rate", (getter) FFStream_bitRate, NULL, "The bit rate of this stream." },
+    { "frame_size", (getter) FFStream_frameSize, NULL, "The size of the frame in the video stream." },
+    { "real_frame_rate", (getter) FFStream_realFrameRate, NULL, "A guess at the real frame rate of the stream." },
+    { "sample_rate", (getter) FFStream_sampleRate, NULL, "The sample rate in the audio stream." },
     { "channels", (getter) FFStream_channels, NULL, "The number of channels in the audio stream." },
     { "codec", (getter) FFStream_codec, NULL, "The name of the FFmpeg codec that recognizes this stream." },
     { "encoding", (getter) FFStream_encoding, NULL, "If available, the name of the subformat of this stream." },
-    { "frameCount", (getter) FFStream_frameCount, NULL, "If available, the number of frames in this stream." },
-    { "startTime", (getter) FFStream_startTime, NULL, "If available, the presentation start time of this stream in timeBase units." },
+    { "frame_count", (getter) FFStream_frameCount, NULL, "If available, the number of frames in this stream." },
+    { "start_time", (getter) FFStream_startTime, NULL, "If available, the presentation start time of this stream in timeBase units." },
     { "duration", (getter) FFStream_duration, NULL, "If available, the duration of the stream in timeBase units." },
     { NULL }
 };

@@ -39,11 +39,11 @@ bool takePresentationClock( PyObject *source, PresentationClockHolder *holder ) 
 
     Py_INCREF( source );
     holder->source = source;
-    holder->csource = PyObject_GetAttrString( source, "_presentationClockFuncs" );
+    holder->csource = PyObject_GetAttrString( source, PRESENTATION_CLOCK_FUNCS );
 
     if( holder->csource == NULL ) {
         Py_CLEAR( holder->source );
-        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _presentationClockFuncs attribute." );
+        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " PRESENTATION_CLOCK_FUNCS " attribute." );
         return false;
     }
 
@@ -221,7 +221,7 @@ static PyMethodDef SystemPresentationClock_methods[] = {
         "Stops the clock." },
     { "seek", (PyCFunction) SystemPresentationClock_seek, METH_VARARGS,
         "Sets the current time." },
-    { "getPresentationTime", (PyCFunction) SystemPresentationClock_getPresentationTime, METH_NOARGS,
+    { "get_presentation_time", (PyCFunction) SystemPresentationClock_getPresentationTime, METH_NOARGS,
         "Gets the current presentation time in nanoseconds." },
     { NULL }
 };
@@ -240,7 +240,7 @@ SystemPresentationClock_getFuncs( py_obj_SystemPresentationClock *self, void *cl
 }
 
 static PyGetSetDef SystemPresentationClock_getsetters[] = {
-    { "_presentationClockFuncs", (getter) SystemPresentationClock_getFuncs, NULL, "Presentation clock C API." },
+    { PRESENTATION_CLOCK_FUNCS, (getter) SystemPresentationClock_getFuncs, NULL, "Presentation clock C API." },
     { NULL }
 };
 

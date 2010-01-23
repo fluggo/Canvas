@@ -114,11 +114,11 @@ bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
 
     Py_INCREF( source );
     holder->source = source;
-    holder->csource = PyObject_GetAttrString( source, "_videoFrameSourceFuncs" );
+    holder->csource = PyObject_GetAttrString( source, VIDEO_FRAME_SOURCE_FUNCS );
 
     if( holder->csource == NULL ) {
         Py_CLEAR( holder->source );
-        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _videoFrameSourceFuncs attribute." );
+        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " VIDEO_FRAME_SOURCE_FUNCS " attribute." );
         return false;
     }
 
@@ -137,11 +137,11 @@ bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
 
     Py_INCREF( source );
     holder->source = source;
-    holder->csource = PyObject_GetAttrString( source, "_audioFrameSourceFuncs" );
+    holder->csource = PyObject_GetAttrString( source, AUDIO_FRAME_SOURCE_FUNCS );
 
     if( holder->csource == NULL ) {
         Py_CLEAR( holder->source );
-        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _audioFrameSourceFuncs attribute." );
+        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " AUDIO_FRAME_SOURCE_FUNCS " attribute." );
         return false;
     }
 
@@ -173,11 +173,11 @@ bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder ) {
 
     Py_INCREF( source );
     holder->source = source;
-    holder->csource = PyObject_GetAttrString( source, "_frameFunctionFuncs" );
+    holder->csource = PyObject_GetAttrString( source, FRAME_FUNCTION_FUNCS );
 
     if( holder->csource == NULL ) {
         Py_CLEAR( holder->source );
-        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable _frameFunctionFuncs attribute." );
+        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " FRAME_FUNCTION_FUNCS " attribute." );
         return false;
     }
 
@@ -401,7 +401,7 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
     AudioSourceHolder source;
     int channels = 2, minSample, maxSample;
 
-    static char *kwlist[] = { "source", "minSample", "maxSample", "channels", NULL };
+    static char *kwlist[] = { "source", "min_sample", "max_sample", "channels", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "Oii|i", kwlist,
             &sourceObj, &minSample, &maxSample, &channels ) )
@@ -494,7 +494,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     box2i_set( &frame.fullDataWindow, 0, 0, 4095, 4095 );
     int minFrame, maxFrame;
 
-    static char *kwlist[] = { "source", "minFrame", "maxFrame", "dataWindow", NULL };
+    static char *kwlist[] = { "source", "min_frame", "max_frame", "data_window", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "Oii|O", kwlist,
             &sourceObj, &minFrame, &maxFrame, &dataWindowTuple ) )
@@ -540,15 +540,15 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 PyObject *py_writeVideo( PyObject *self, PyObject *args, PyObject *kw );
 
 static PyMethodDef module_methods[] = {
-    { "getFrameTime", (PyCFunction) py_getFrameTime, METH_VARARGS,
-        "getFrameTime(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
-    { "getTimeFrame", (PyCFunction) py_getTimeFrame, METH_VARARGS,
-        "getTimeFrame(rate, time): Gets the frame containing the given time in nanoseconds at the given Fraction frame rate." },
-    { "getAudioData", (PyCFunction) py_getAudioData, METH_VARARGS | METH_KEYWORDS,
-        "minSample, maxSample, data = getAudioData(source, minSample, maxSample[, channels=2]): Gets raw audio data from the source." },
-    { "timeGetFrame", (PyCFunction) py_timeGetFrame, METH_VARARGS | METH_KEYWORDS,
-        "timeGetFrame(source, minFrame, maxFrame, dataWindow=(0,0,1,1)): Retrieves minFrame through maxFrame from the source and returns the time it took in nanoseconds." },
-    { "writeVideo", (PyCFunction) py_writeVideo, METH_VARARGS | METH_KEYWORDS,
+    { "get_frame_time", (PyCFunction) py_getFrameTime, METH_VARARGS,
+        "get_frame_time(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
+    { "get_time_frame", (PyCFunction) py_getTimeFrame, METH_VARARGS,
+        "get_time_frame(rate, time): Gets the frame containing the given time in nanoseconds at the given Fraction frame rate." },
+    { "get_audio_data", (PyCFunction) py_getAudioData, METH_VARARGS | METH_KEYWORDS,
+        "min_sample, max_sample, data = getAudioData(source, min_sample, max_sample[, channels=2]): Gets raw audio data from the source." },
+    { "time_get_frame", (PyCFunction) py_timeGetFrame, METH_VARARGS | METH_KEYWORDS,
+        "timeGetFrame(source, min_frame, max_frame, data_window=(0,0,1,1)): Retrieves min_frame through max_frame from the source and returns the time it took in nanoseconds." },
+    { "write_video", (PyCFunction) py_writeVideo, METH_VARARGS | METH_KEYWORDS,
         "TBD" },
     { NULL }
 };

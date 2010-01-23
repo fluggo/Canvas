@@ -40,7 +40,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     int audioChannels = 2;
     int result;
 
-    static char *kwlist[] = { "filename", "videoSource", "audioSource", "startTime", "endTime", NULL };
+    static char *kwlist[] = { "filename", "video_source", "audio_source", "start_time", "end_time", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "s|OOII", kwlist,
             &filename, &videoSourceObj, &audioSourceObj, &startTime, &endTime ) )

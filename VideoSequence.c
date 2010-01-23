@@ -283,7 +283,7 @@ VideoSequence_getFuncs( PyObject *self, void *closure ) {
 }
 
 static PyGetSetDef VideoSequence_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) VideoSequence_getFuncs, NULL, "Video frame source C API." },
+    { VIDEO_FRAME_SOURCE_FUNCS, (getter) VideoSequence_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 
@@ -296,7 +296,7 @@ static PySequenceMethods VideoSequence_sequence = {
 static PyMethodDef VideoSequence_methods[] = {
     { "insert", (PyCFunction) VideoSequence_insert, METH_VARARGS,
         "Inserts a new element into the sequence." },
-    { "getStartFrame", (PyCFunction) VideoSequence_getStartFrame, METH_VARARGS,
+    { "get_start_frame", (PyCFunction) VideoSequence_getStartFrame, METH_VARARGS,
         "Gets the starting frame for an element." },
     { NULL }
 };

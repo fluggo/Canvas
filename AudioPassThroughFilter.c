@@ -91,14 +91,14 @@ AudioPassThroughFilter_getFuncs( py_obj_AudioPassThroughFilter *self, void *clos
 }
 
 static PyGetSetDef AudioPassThroughFilter_getsetters[] = {
-    { "_audioFrameSourceFuncs", (getter) AudioPassThroughFilter_getFuncs, NULL, "Audio frame source C API." },
+    { AUDIO_FRAME_SOURCE_FUNCS, (getter) AudioPassThroughFilter_getFuncs, NULL, "Audio frame source C API." },
     { NULL }
 };
 
 static PyMethodDef AudioPassThroughFilter_methods[] = {
     { "source", (PyCFunction) AudioPassThroughFilter_getSource, METH_NOARGS,
         "Gets the audio source." },
-    { "setSource", (PyCFunction) AudioPassThroughFilter_setSource, METH_VARARGS,
+    { "set_source", (PyCFunction) AudioPassThroughFilter_setSource, METH_VARARGS,
         "Sets the audio source." },
     { NULL }
 };

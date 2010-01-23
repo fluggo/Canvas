@@ -221,7 +221,7 @@ Pulldown23RemovalFilter_getFuncs( py_obj_Pulldown23RemovalFilter *self, void *cl
 }
 
 static PyGetSetDef Pulldown23RemovalFilter_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) Pulldown23RemovalFilter_getFuncs, NULL, "Video frame source C API." },
+    { VIDEO_FRAME_SOURCE_FUNCS, (getter) Pulldown23RemovalFilter_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 

@@ -115,14 +115,14 @@ VideoPassThroughFilter_getFuncs( py_obj_VideoPassThroughFilter *self, void *clos
 }
 
 static PyGetSetDef VideoPassThroughFilter_getsetters[] = {
-    { "_videoFrameSourceFuncs", (getter) VideoPassThroughFilter_getFuncs, NULL, "Video frame source C API." },
+    { VIDEO_FRAME_SOURCE_FUNCS, (getter) VideoPassThroughFilter_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 
 static PyMethodDef VideoPassThroughFilter_methods[] = {
     { "source", (PyCFunction) VideoPassThroughFilter_getSource, METH_NOARGS,
         "Gets the video source." },
-    { "setSource", (PyCFunction) VideoPassThroughFilter_setSource, METH_VARARGS,
+    { "set_source", (PyCFunction) VideoPassThroughFilter_setSource, METH_VARARGS,
         "Sets the video source." },
     { NULL }
 };
