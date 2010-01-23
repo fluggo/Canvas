@@ -170,8 +170,6 @@ FFStream_realFrameRate( py_obj_FFStream *self, void *closure ) {
     if( result.n == 0 )
         Py_RETURN_NONE;
 
-    result.n /= self->stream->codec->ticks_per_frame;
-
     return makeFraction( &result );
 }
 
