@@ -33,20 +33,20 @@ class VideoSource(Source):
         self._passthru = process.VideoPassThroughFilter(None)
 
     def unload(self):
-        self._passthru.setSource(None)
+        self._passthru.set_source(None)
 
-    def createUnderlyingSource(self):
+    def create_underlying_source(self):
         raise NotImplementedError
 
     def load(self):
         if not self._passthru.source():
-            self._passthru.setSource(self.createUnderlyingSource())
+            self._passthru.set_source(self.create_underlying_source())
 
     @property
-    def _videoFrameSourceFuncs(self):
+    def _video_frame_source_funcs(self):
         '''Returns the block of functions for retreiving frames from this source.'''
         self.load()
-        return self._passthru._videoFrameSourceFuncs
+        return self._passthru._video_frame_source_funcs
 
 class AudioSource(Source):
     '''
@@ -57,20 +57,24 @@ class AudioSource(Source):
         self._passthru = process.AudioPassThroughFilter(None)
 
     def unload(self):
-        self._passthru.setSource(None)
+        self._passthru.set_source(None)
 
-    def createUnderlyingSource(self):
+    def create_underlying_source(self):
         raise NotImplementedError
 
     def load(self):
         if not self._passthru.source():
-            self._passthru.setSource(self.createUnderlyingSource())
+            self._passthru.set_source(self.create_underlying_source())
 
     @property
-    def _audioFrameSourceFuncs(self):
+    def _audio_frame_source_funcs(self):
         '''Returns the block of functions for retrieving frames from this source.'''
         self.load()
-        return self._passthru._audioFrameSourceFuncs
+        return self._passthru._audio_frame_source_funcs
+
+class SourceRef(object):
+    def get_source(self):
+        raise NotImplementedError
 
 class ContainerMeta(object):
     '''
@@ -166,39 +170,43 @@ class Container(yaml.YAMLObject):
         data = process.FFContainer(path)
         result = cls(path)
 
-        result.muxer = 'ffmpeg/' + data.formatName
+        result.muxer = 'ffmpeg/' + data.format_name
 
         for stream in data.streams:
-            streamType = stream.type
+            stream_type = stream.type
 
-            if stream.type == 'video':
-                sar = stream.sampleAspectRatio
+            if stream_type == 'video':
+                sar = stream.sample_aspect_ratio
 
                 if not sar:
                     sar = fractions.Fraction(1, 1)
 
-                rect = (0, 0, stream.frameSize[0] - 1, stream.frameSize[1] - 1)
+                rect = (0, 0, stream.frame_size[0] - 1, stream.frame_size[1] - 1)
 
-                encoded = Container.EncodedVideo(result, stream.index,
-                    formats.VideoFormat(stream.realFrameRate, rect, sar),
+                encoded = Container.EncodedVideo(result,
+                    stream.index,
+                    formats.VideoFormat(stream.real_frame_rate, rect, sar),
                     formats.EncodedVideoFormat('ffmpeg/' + stream.codec))
-                encoded.length = stream.frameCount
+                encoded.length = stream.frame_count
 
                 if not encoded.length:
                     # We need to give our best guess
                     if stream.duration:
-                        encoded.length = int(round(fractions.Fraction(stream.duration) * stream.timeBase * stream.realFrameRate))
+                        encoded.length = int(round(fractions.Fraction(stream.duration) * stream.time_base * stream.real_frame_rate))
+                else:
+                    encoded.length = int(encoded.length)
 
                 # Some things, like interlacing, require
                 # peeking into the stream to guess them correctly
                 result.video_streams.append(encoded)
-            elif stream.type == 'audio':
-                encoded = Container.EncodedAudio(result, stream.index,
-                    formats.AudioFormat(stream.sampleRate, formats.guess_channel_assignment(stream.channels)),
+            elif stream_type == 'audio':
+                encoded = Container.EncodedAudio(result,
+                    stream.index,
+                    formats.AudioFormat(stream.sample_rate, formats.guess_channel_assignment(stream.channels)),
                     formats.EncodedAudioFormat('ffmpeg/' + stream.codec))
 
                 if not encoded.length:
-                    encoded.length = int(round(fractions.Fraction(stream.duration) * stream.timeBase * stream.sampleRate))
+                    encoded.length = int(round(fractions.Fraction(stream.duration) * stream.time_base * stream.sample_rate))
 
                 result.audio_streams.append(encoded)
             #else:
