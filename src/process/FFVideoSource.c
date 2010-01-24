@@ -253,7 +253,7 @@ createTriangleFilter( float sub, float offset, fir_filter *filter ) {
 
 static void
 FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_frame *frame ) {
-    if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
+    if( frameIndex < 0 ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
         return;
@@ -506,7 +506,7 @@ static void destroyShader( gl_shader_state *shader ) {
 
 static void
 FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_gl_frame *frame ) {
-    if( frameIndex < 0 || frameIndex > self->context->streams[self->firstVideoStream]->duration ) {
+    if( frameIndex < 0 ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
         return;
