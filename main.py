@@ -63,7 +63,8 @@ class MainWindow(object):
 
         size = videro.size()
         self.video_widget.set_display_window((0, -1, size[0] - 1, size[1] - 2))
-        #self.videoWidget.setSource(av)
+        #self.video_widget.set_hardware_accel(False)
+        #self.video_widget.set_source(av)
 
         pulldown = Pulldown23RemovalFilter(videro, 0);
         seq = VideoSequence()

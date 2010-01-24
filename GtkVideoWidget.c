@@ -95,6 +95,7 @@ typedef struct {
 
     // True: render in software, false, render in hardware
     bool softMode;
+    bool hardModeDisable, hardModeSupported;
 
     SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
     GLuint softTextureId, hardTextureId;
@@ -116,14 +117,15 @@ _gl_initialize( py_obj_GtkVideoWidget *self ) {
         glewInit();
         __glewInit = true;
 
-        // BJC: For now, we're doing an auto-soft-mode disable here
-        if( GLEW_ATI_texture_float &&
+        self->hardModeSupported =
+            GLEW_ATI_texture_float &&
             GLEW_ARB_texture_rectangle &&
             GLEW_ARB_fragment_shader &&
             GLEW_EXT_framebuffer_object &&
-            GLEW_ARB_half_float_pixel )
-            self->softMode = false;
+            GLEW_ARB_half_float_pixel;
     }
+
+    self->softMode = !self->hardModeSupported || self->hardModeDisable;
 
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
@@ -628,6 +630,7 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
     self->frameRate.d = 1001u;
 
     self->softMode = true;
+    self->hardModeDisable = false;
     self->bufferCount = SOFT_MODE_BUFFERS;
 
     self->frameReadMutex = g_mutex_new();
@@ -798,21 +801,59 @@ GtkVideoWidget_setSource( py_obj_GtkVideoWidget *self, PyObject *args, void *clo
     Py_RETURN_NONE;
 }
 
+static PyObject *
+GtkVideoWidget_set_hard_mode_enable( py_obj_GtkVideoWidget *self, PyObject *args ) {
+    PyObject *enable;
+
+    if( !PyArg_ParseTuple( args, "O", &enable ) )
+        return NULL;
+
+    int i = PyObject_IsTrue( enable );
+
+    if( i == -1 )
+        return NULL;
+
+    self->hardModeDisable = !i;
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+GtkVideoWidget_get_hard_mode_enable( py_obj_GtkVideoWidget *self ) {
+    if( !self->hardModeDisable && self->hardModeSupported )
+        Py_RETURN_TRUE;
+    else
+        Py_RETURN_FALSE;
+}
+
+static PyObject *
+GtkVideoWidget_get_hard_mode_supported( py_obj_GtkVideoWidget *self ) {
+    if( self->hardModeSupported )
+        Py_RETURN_TRUE;
+    else
+        Py_RETURN_FALSE;
+}
+
 static PyMethodDef GtkVideoWidget_methods[] = {
     { "play", (PyCFunction) GtkVideoWidget_play, METH_NOARGS,
-        "Signals that the widget should start processing frames or process a speed change." },
+        "Signal that the widget should start processing frames or process a speed change." },
     { "stop", (PyCFunction) GtkVideoWidget_stop, METH_NOARGS,
-        "Signals the widget to stop processing frames." },
+        "Signal the widget to stop processing frames." },
     { "drawing_area", (PyCFunction) GtkVideoWidget_widgetObj, METH_NOARGS,
-        "Returns the drawing area used for video output." },
+        "Return the drawing area used for video output." },
     { "display_window", (PyCFunction) GtkVideoWidget_getDisplayWindow, METH_NOARGS,
-        "Gets the display window as a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
+        "Get the display window as a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
     { "source", (PyCFunction) GtkVideoWidget_getSource, METH_NOARGS,
-        "Gets the video source." },
+        "Get the video source." },
     { "set_display_window", (PyCFunction) GtkVideoWidget_setDisplayWindow, METH_VARARGS,
-        "Sets the display window using a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
+        "Set the display window using a tuple of min and max coordinates (minX, minY, maxX, maxY)." },
     { "set_source", (PyCFunction) GtkVideoWidget_setSource, METH_VARARGS,
-        "Sets the video source." },
+        "Set the video source." },
+    { "hardware_accel_supported", (PyCFunction) GtkVideoWidget_get_hard_mode_supported, METH_NOARGS,
+        "Return true if hardware acceleration is supported." },
+    { "hardware_accel", (PyCFunction) GtkVideoWidget_get_hard_mode_enable, METH_NOARGS,
+        "Return true if hardware acceleration is enabled. If supported, it's enabled by default." },
+    { "set_hardware_accel", (PyCFunction) GtkVideoWidget_set_hard_mode_enable, METH_VARARGS,
+        "Enable or disable hardware acceleration. This has no effect if hardware acceleration isn't supported." },
     { NULL }
 };
 
