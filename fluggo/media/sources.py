@@ -24,29 +24,29 @@ import formats, process
 class Source(object):
     pass
 
-class VideoSource(Source):
+class VideoSource(Source, process.VideoPassThroughFilter):
     '''
     Abstract video source.
     '''
     def __init__(self, format):
+        process.VideoPassThroughFilter.__init__(self, None)
         self.format = format
-        self._passthru = process.VideoPassThroughFilter(None)
 
     def unload(self):
-        self._passthru.set_source(None)
+        process.VideoPassThroughFilter.set_source(self, None)
 
     def create_underlying_source(self):
         raise NotImplementedError
 
     def load(self):
-        if not self._passthru.source():
-            self._passthru.set_source(self.create_underlying_source())
+        if not process.VideoPassThroughFilter.source(self):
+            process.VideoPassThroughFilter.set_source(self, self.create_underlying_source())
 
-    @property
-    def _video_frame_source_funcs(self):
-        '''Returns the block of functions for retreiving frames from this source.'''
-        self.load()
-        return self._passthru._video_frame_source_funcs
+#    @property
+#    def _video_frame_source_funcs(self):
+#        '''Returns the block of functions for retreiving frames from this source.'''
+#        self.load()
+#        return self._passthru._video_frame_source_funcs
 
 class AudioSource(Source):
     '''
@@ -71,10 +71,6 @@ class AudioSource(Source):
         '''Returns the block of functions for retrieving frames from this source.'''
         self.load()
         return self._passthru._audio_frame_source_funcs
-
-class SourceRef(object):
-    def get_source(self):
-        raise NotImplementedError
 
 class ContainerMeta(object):
     '''
@@ -134,6 +130,10 @@ class Container(yaml.YAMLObject):
             self.encoded_format = encoded_format
             self.length = None
 
+        def create_underlying_source(self):
+            # TODO: Locate the correct stream
+            return process.FFVideoSource(self.container.file_path)
+
         @classmethod
         def to_yaml(cls, dumper, data):
             return dumper.represent_mapping(u'!encodedVideo',
@@ -163,7 +163,10 @@ class Container(yaml.YAMLObject):
         self.audio_streams = []
 
     def get_stream(self, id):
-        raise NotImplementedError
+        if id[0] == 'v':
+            return self.video_streams[int(id[1:]) - 1]
+        elif id[0] == 'a':
+            return self.audio_streams[int(id[1:]) - 1]
 
     @classmethod
     def discover(cls, path):
@@ -193,6 +196,8 @@ class Container(yaml.YAMLObject):
                     # We need to give our best guess
                     if stream.duration:
                         encoded.length = int(round(fractions.Fraction(stream.duration) * stream.time_base * stream.real_frame_rate))
+                    elif data.duration:
+                        encoded.length = int(round(fractions.Fraction(data.duration, 1000000) * stream.real_frame_rate))
                 else:
                     encoded.length = int(encoded.length)
 
@@ -206,7 +211,10 @@ class Container(yaml.YAMLObject):
                     formats.EncodedAudioFormat('ffmpeg/' + stream.codec))
 
                 if not encoded.length:
-                    encoded.length = int(round(fractions.Fraction(stream.duration) * stream.time_base * stream.sample_rate))
+                    if stream.duration:
+                        encoded.length = int(round(fractions.Fraction(stream.duration) * stream.time_base * stream.sample_rate))
+                    elif data.duration:
+                        encoded.length = int(round(fractions.Fraction(data.duration, 1000000) * stream.sample_rate))
 
                 result.audio_streams.append(encoded)
             #else:

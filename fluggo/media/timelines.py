@@ -18,15 +18,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import collections
+import process, sources
 
-Clip = namedtuple('Clip', 'source_ref offset length transition transition_cut_point transition_length')
+__clipclass = collections.namedtuple('Clip', 'source offset length transition transition_cut_point transition_length')
+
+def Clip(source, offset, length, transition=None, transition_cut_point=None, transition_length=0):
+    return __clipclass(source, offset, length, transition, transition_cut_point, transition_length)
 
 def check_clip(clip):
     if clip is None:
         raise ValueError('Clip cannot be None.')
 
-    if clip.source_ref is None:
-        raise ValueError('Clip must have a source_ref.')
+    if clip.source is None:
+        raise ValueError('Clip must have a source.')
 
     if not clip.transition and clip.transition_length != 0:
         raise ValueError('Clip without a transition must have a transition_length of zero.')
@@ -40,9 +44,6 @@ def check_clip_pair(clip1, clip2):
         if clip2.transition:
             raise ValueError('The timeline must not start with a transition.')
     else:
-        len_a = new_list[i].transition_length
-        len_b = new_list[i + 1].transition_length
-
         if clip1.transition_length + clip2.transition_length > clip1.length:
             raise ValueError('A clip was shorter than the surrounding transitions.')
 
@@ -109,7 +110,7 @@ class Timeline(object):
     def set_transition(self, index, transition):
         raise NotImplementedError
 
-    def insert_edit(self, source, source_point, target_ref, length, transition = None, transition_length):
+    def insert_edit(self, source, source_point, target_ref, length, transition = None, transition_length = None):
         raise NotImplementedError
 
     def overwrite_edit(self, source, source_point, start_ref, length):
@@ -151,7 +152,7 @@ class Timeline(object):
 
             if stop < len(self.clips):
                 check_clip_pair(clips[-1], self.clips[stop])
-            else
+            else:
                 check_clip_pair(clips[-1], None)
         else:
             # Removal only
@@ -160,14 +161,14 @@ class Timeline(object):
                     check_clip_pair(self.clips[start - 1], self.clips[stop])
                 else:
                     check_clip_pair(self.clips[start - 1], None)
-            elif stop < len(self.clips)
+            elif stop < len(self.clips):
                 check_clip_pair(None, self.clips[stop])
 
         self.clips[start:stop] = clips
 
     def __setitem__(self, key, value):
         start, stop, step = None, None, None
-        is_slice = isinstance(key, slice):
+        is_slice = isinstance(key, slice)
         clips = None
 
         if is_slice:
@@ -203,20 +204,40 @@ class AttachedTimeline(Timeline):
     '''
     pass
 
-class AudioTimeline(Timeline, AudioSource):
+class AudioTimeline(Timeline, sources.AudioSource):
     pass
 
-class VideoTimeline(Timeline, VideoSource):
+class VideoTimeline(Timeline, sources.VideoSource):
     def __init__(self, format):
         Timeline.__init__(self)
-        VideoSource.__init__(self, format)
-        self.source = None
+        sources.VideoSource.__init__(self, format)
+        self.seq = None
 
     def create_underlying_source(self):
-        if self.source:
-            return self.source
+        if self.seq:
+            return self.seq
 
-        self.source = VideoSequence()
-        return self.source
+        self.seq = process.VideoSequence()
+
+        # Walk through the timeline and set it up
+        for clip1, clip2 in zip(self.clips[0:-1], self.clips[1:]):
+            self.seq.append((clip1.source, clip1.offset, clip1.length - clip1.transition_length - clip2.transition_length))
+
+            if clip2.transition:
+                self.seq.append((clip2.transition.create_source(clip1.source, clip2.source, clip2.transition_length)))
+
+        self.seq.append((clip1.source, clip1.offset, clip1.length - clip1.transition_length))
+
+        for elem in self.seq:
+            print elem
+
+        return self.seq
+
+    def _replace_clip_range(self, start, stop, clips):
+        Timeline._replace_clip_range(self, start, stop, clips)
+
+
+
+
 
 
