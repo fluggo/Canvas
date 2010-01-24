@@ -69,6 +69,14 @@ typedef struct {
     v2f min, max;
 } box2f;
 
+static inline int min( int a, int b ) {
+    return a < b ? a : b;
+}
+
+static inline int max( int a, int b ) {
+    return a > b ? a : b;
+}
+
 static inline void box2i_set( box2i *box, int minX, int minY, int maxX, int maxY ) {
     box->min.x = minX;
     box->min.y = minY;
@@ -84,17 +92,16 @@ static inline bool box2i_isEmpty( const box2i *box ) {
     return box->max.x < box->min.x || box->max.y < box->min.y;
 }
 
+static inline void box2i_intersect( box2i *result, const box2i *first, const box2i *second ) {
+    result->min.x = max(first->min.x, second->min.x);
+    result->min.y = max(first->min.y, second->min.y);
+    result->max.x = min(first->max.x, second->max.x);
+    result->max.y = min(first->max.y, second->max.y);
+}
+
 static inline void box2i_getSize( const box2i *box, v2i *result ) {
     result->x = (box->max.x < box->min.x) ? 0 : (box->max.x - box->min.x + 1);
     result->y = (box->max.y < box->min.y) ? 0 : (box->max.y - box->min.y + 1);
-}
-
-static inline int min( int a, int b ) {
-    return a < b ? a : b;
-}
-
-static inline int max( int a, int b ) {
-    return a > b ? a : b;
 }
 
 static inline float minf( float a, float b ) {
@@ -157,6 +164,14 @@ typedef struct {
     video_getFrame32Func getFrame32;
     video_getFrameGLFunc getFrameGL;
 } VideoFrameSourceFuncs;
+
+static inline rgba_f16 *getPixel_f16( rgba_f16_frame *frame, int x, int y ) {
+    return &frame->frameData[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
+}
+
+static inline rgba_f32 *getPixel_f32( rgba_f32_frame *frame, int x, int y ) {
+    return &frame->frameData[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
+}
 
 typedef struct {
     PyObject *source;
