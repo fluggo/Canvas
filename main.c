@@ -566,6 +566,8 @@ void init_AudioPassThroughFilter( PyObject *module );
 void init_VideoSequence( PyObject *module );
 void init_VideoMixFilter( PyObject *module );
 void init_VideoPassThroughFilter( PyObject *module );
+void init_SolidColorVideoSource( PyObject *module );
+void init_EmptyVideoSource( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
@@ -593,6 +595,8 @@ initprocess() {
     init_VideoMixFilter( m );
     init_AudioPassThroughFilter( m );
     init_VideoPassThroughFilter( m );
+    init_SolidColorVideoSource( m );
+    init_EmptyVideoSource( m );
     init_basicframefuncs( m );
 }
 
