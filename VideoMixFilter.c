@@ -324,6 +324,7 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
     glUseProgramObjectARB( 0 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
     glActiveTexture( GL_TEXTURE0 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
 }
 
 static void
