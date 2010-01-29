@@ -99,6 +99,13 @@ static inline void box2i_intersect( box2i *result, const box2i *first, const box
     result->max.y = min(first->max.y, second->max.y);
 }
 
+static inline void box2i_union( box2i *result, const box2i *first, const box2i *second ) {
+    result->min.x = min(first->min.x, second->min.x);
+    result->min.y = min(first->min.y, second->min.y);
+    result->max.x = max(first->max.x, second->max.x);
+    result->max.y = max(first->max.y, second->max.y);
+}
+
 static inline void box2i_getSize( const box2i *box, v2i *result ) {
     result->x = (box->max.x < box->min.x) ? 0 : (box->max.x - box->min.x + 1);
     result->y = (box->max.y < box->min.y) ? 0 : (box->max.y - box->min.y + 1);
