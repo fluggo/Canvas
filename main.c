@@ -51,18 +51,19 @@ gl_renderToTexture( rgba_gl_frame *frame ) {
         frame->texture, 0 );
 
     glLoadIdentity();
-    glOrtho( 0, frameSize.x, frameSize.y, 0, -1, 1 );
+    glOrtho( 0, frameSize.x, 0, frameSize.y, -1, 1 );
     glViewport( 0, 0, frameSize.x, frameSize.y );
 
     glBegin( GL_QUADS );
-    glTexCoord2f( frame->fullDataWindow.min.x, frame->fullDataWindow.max.y + 1 );
-    glVertex2f( 0, 0 );
-    glTexCoord2f( frame->fullDataWindow.max.x + 1, frame->fullDataWindow.max.y + 1 );
-    glVertex2f( frameSize.x, 0 );
-    glTexCoord2f( frame->fullDataWindow.max.x + 1, frame->fullDataWindow.min.y );
-    glVertex2f( frameSize.x, frameSize.y );
-    glTexCoord2f( frame->fullDataWindow.min.x, frame->fullDataWindow.min.y );
-    glVertex2f( 0, frameSize.y );
+    glColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+    glTexCoord2i( 0, 0 );
+    glVertex2i( 0, 0 );
+    glTexCoord2i( frameSize.x, 0 );
+    glVertex2i( frameSize.x, 0 );
+    glTexCoord2i( frameSize.x, frameSize.y );
+    glVertex2i( frameSize.x, frameSize.y );
+    glTexCoord2i( 0, frameSize.y );
+    glVertex2i( 0, frameSize.y );
     glEnd();
 
     glDeleteFramebuffersEXT( 1, &fbo );
