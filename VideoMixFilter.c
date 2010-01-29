@@ -208,10 +208,19 @@ VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32
 
             case MIXMODE_CROSSFADE:
                 for( int x = 0; x < newWidth; x++ ) {
-                    rowA[x].r = rowA[x].r * (1.0f - mixB) + rowB[x].r * mixB;
-                    rowA[x].g = rowA[x].g * (1.0f - mixB) + rowB[x].g * mixB;
-                    rowA[x].b = rowA[x].b * (1.0f - mixB) + rowB[x].b * mixB;
-                    rowA[x].a = rowA[x].a * (1.0f - mixB) + rowB[x].a * mixB;
+                    float alpha_a = rowA[x].a * (1.0f - mixB);
+                    float alpha_b = rowB[x].a * mixB;
+
+                    rowA[x].a = alpha_a + alpha_b;
+
+                    if( rowA[x].a != 0.0 ) {
+                        rowA[x].r = (rowA[x].r * alpha_a + rowB[x].r * alpha_b) / rowA[x].a;
+                        rowA[x].g = (rowA[x].g * alpha_a + rowB[x].g * alpha_b) / rowA[x].a;
+                        rowA[x].b = (rowA[x].b * alpha_a + rowB[x].b * alpha_b) / rowA[x].a;
+                    }
+                    else {
+                        rowA[x].r = rowA[x].g = rowA[x].b = 0.0f;
+                    }
                 }
                 break;
         }
@@ -219,6 +228,9 @@ VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32
 
     slice_free( sizeof(rgba_f32) * sizeB.y * sizeB.x, tempFrame.frameData );
 }
+
+// This crossfade is based on the associative alpha blending formula from:
+//    http://en.wikipedia.org/w/index.php?title=Alpha_compositing&oldid=337850364
 
 static const char *crossfadeShaderText =
 "#version 110\n"
@@ -230,7 +242,16 @@ static const char *crossfadeShaderText =
 "void main() {"
 "    vec4 colorA = texture2DRect( texA, gl_FragCoord.st );"
 "    vec4 colorB = texture2DRect( texB, gl_FragCoord.st );"
-"    gl_FragColor = colorA * (1.0 - mixB) + colorB * mixB;"
+""
+"    float alpha_a = colorA.a * (1.0 - mixB);"
+"    float alpha_b = colorB.a * mixB;"
+""
+"    gl_FragColor.a = alpha_a + alpha_b;"
+""
+"    if( gl_FragColor.a != 0.0 )"
+"        gl_FragColor.rgb = (colorA.rgb * alpha_a + colorB.rgb * alpha_b) / gl_FragColor.a;"
+"    else"
+"        gl_FragColor.rgb = vec3(0.0, 0.0, 0.0);"
 "}";
 
 typedef struct {
