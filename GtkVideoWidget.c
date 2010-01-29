@@ -35,7 +35,7 @@ static uint8_t gamma45[65536];
 #define    SOFT_MODE_BUFFERS    4
 #define HARD_MODE_BUFFERS    2
 
-void gl_checkError() {
+void __gl_checkError(const char *file, const unsigned long line) {
     int error = glGetError();
 
     switch( error ) {
@@ -43,19 +43,19 @@ void gl_checkError() {
             return;
 
         case GL_INVALID_OPERATION:
-            puts( "Invalid operation" );
+            g_warning( "%s:%lu: Invalid operation", file, line );
             return;
 
         case GL_INVALID_VALUE:
-            puts( "Invalid value" );
+            g_warning( "%s:%lu: Invalid value", file, line );
             return;
 
         case GL_INVALID_ENUM:
-            puts( "Invalid enum" );
+            g_warning( "%s:%lu: Invalid enum", file, line );
             return;
 
         default:
-            puts( "Other GL error" );
+            g_warning( "%s:%lu: Other GL error", file, line );
             return;
     }
 }
