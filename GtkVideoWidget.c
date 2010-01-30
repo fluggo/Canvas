@@ -65,8 +65,12 @@ typedef struct {
 } rgb8;
 
 typedef struct {
+    uint8_t r, g, b, a;
+} rgba8;
+
+typedef struct {
     int64_t time, nextTime;
-    rgb8 *frameData;
+    rgba8 *frameData;
     int stride;
     box2i fullDataWindow, currentDataWindow;
 } SoftFrameTarget;
@@ -86,19 +90,20 @@ typedef struct {
     rational frameRate;
     guint timeoutSourceID;
     PyObject *pyclock;
-    box2i displayWindow;
+    box2i displayWindow, currentDataWindow;
     int firstFrame, lastFrame;
     float pixelAspectRatio;
-    float texCoordX, texCoordY;
     bool renderOneFrame, drawOneFrame;
     int lastHardFrame;
+
+    rgb8 checkerColors[2];
 
     // True: render in software, false, render in hardware
     bool softMode;
     bool hardModeDisable, hardModeSupported;
 
     SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
-    GLuint softTextureId, hardTextureId;
+    GLuint softTextureId, hardTextureId, checkerTextureId;
     GLhandleARB hardGammaShader, hardGammaProgram;
 
     // Number of buffers available
@@ -138,13 +143,25 @@ _gl_initialize( py_obj_GtkVideoWidget *self ) {
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
-        // BJC: This should become an RGBA texture in the end
-        glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGB, frameSize.x, frameSize.y,
-            0, GL_RGB, GL_UNSIGNED_BYTE, NULL );
+        glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, frameSize.x, frameSize.y,
+            0, GL_RGBA, GL_UNSIGNED_BYTE, NULL );
     }
 
-    self->texCoordX = frameSize.x;
-    self->texCoordY = frameSize.y;
+    if( !self->checkerTextureId ) {
+        rgb8 checker[4] = { self->checkerColors[0], self->checkerColors[1],
+                            self->checkerColors[1], self->checkerColors[0] };
+
+        glGenTextures( 1, &self->checkerTextureId );
+        glBindTexture( GL_TEXTURE_2D, self->checkerTextureId );
+
+        glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+
+        glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB, GL_UNSIGNED_BYTE, checker );
+    }
 }
 
 static void
@@ -155,8 +172,10 @@ _gl_softLoadTexture( py_obj_GtkVideoWidget *self ) {
 
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
     glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
-        GL_RGB, GL_UNSIGNED_BYTE, &self->softTargets[self->readBuffer].frameData[0] );
+        GL_RGBA, GL_UNSIGNED_BYTE, &self->softTargets[self->readBuffer].frameData[0] );
     gl_checkError();
+
+    self->currentDataWindow = self->softTargets[self->readBuffer].currentDataWindow;
 }
 
 static void
@@ -185,6 +204,7 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
 
     self->hardTextureId = frame.texture;
     self->lastHardFrame = frameIndex;
+    self->currentDataWindow = frame.currentDataWindow;
 }
 
 static const char *gammaShader =
@@ -195,8 +215,7 @@ static const char *gammaShader =
 ""
 "void main() {"
 "    vec4 color = texture2DRect( tex, gl_TexCoord[0].st );"
-"    gl_FragColor.rgb = pow( color.rgb, vec3(0.45, 0.45, 0.45) );"
-"    gl_FragColor.a = color.a;"
+"    gl_FragColor.rgba = pow( color.rgba, vec4(0.45, 0.45, 0.45, 0.45) );"
 "}";
 
 static void
@@ -222,7 +241,7 @@ _gl_draw( py_obj_GtkVideoWidget *self ) {
         height = widgetSize.y;
     }
 
-    // Center
+    // Upper-left
     float x = floor( widgetSize.x * 0.5f - width * 0.5f );
     float y = floor( widgetSize.y * 0.5f - height * 0.5f );
 
@@ -234,6 +253,27 @@ _gl_draw( py_obj_GtkVideoWidget *self ) {
     glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
     glClear( GL_COLOR_BUFFER_BIT );
 
+    // Render the checker onto the field
+    glBindTexture( GL_TEXTURE_2D, self->checkerTextureId );
+    glEnable( GL_TEXTURE_2D );
+
+    glBegin( GL_QUADS );
+    glColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+    glTexCoord2f( self->displayWindow.min.x / 64.0f, self->displayWindow.min.y / 64.0f );
+    glVertex2f( x, y );
+    glTexCoord2f( self->displayWindow.max.x / 64.0f, self->displayWindow.min.y / 64.0f );
+    glVertex2f( x + width, y );
+    glTexCoord2f( self->displayWindow.max.x / 64.0f, self->displayWindow.max.y / 64.0f );
+    glVertex2f( x + width, y + height );
+    glTexCoord2f( self->displayWindow.min.x / 64.0f, self->displayWindow.max.y / 64.0f );
+    glVertex2f( x, y + height );
+    glEnd();
+
+    glDisable( GL_TEXTURE_2D );
+
+    if( box2i_isEmpty( &self->currentDataWindow ) )
+        return;
+
     if( !self->softMode ) {
         if( !self->hardGammaShader )
             gl_buildShader( gammaShader, &self->hardGammaShader, &self->hardGammaProgram );
@@ -241,22 +281,35 @@ _gl_draw( py_obj_GtkVideoWidget *self ) {
         glUseProgramObjectARB( self->hardGammaProgram );
     }
 
+    // Find the corners of the defined window
+    x += (self->currentDataWindow.min.x - self->displayWindow.min.x) * width / frameSize.x;
+    y += (self->currentDataWindow.min.y - self->displayWindow.min.y) * height / frameSize.y;
+    width *= (float)(self->currentDataWindow.max.x - self->currentDataWindow.min.x + 1) / (float)(frameSize.x);
+    height *= (float)(self->currentDataWindow.max.y - self->currentDataWindow.min.y + 1) / (float)(frameSize.y);
+
     // Render texture onto quad
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softMode ? self->softTextureId : self->hardTextureId );
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
+    glEnable( GL_BLEND );
+    glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
     glBegin( GL_QUADS );
-    glTexCoord2f( 0, 0 );
+    glTexCoord2i( self->currentDataWindow.min.x - self->displayWindow.min.x, self->currentDataWindow.min.y - self->displayWindow.min.y );
     glVertex2f( x, y );
-    glTexCoord2f( self->texCoordX, 0 );
+    glTexCoord2i( self->currentDataWindow.max.x - self->displayWindow.min.x + 1, self->currentDataWindow.min.y - self->displayWindow.min.y );
     glVertex2f( x + width, y );
-    glTexCoord2f( self->texCoordX, self->texCoordY );
+    glTexCoord2i( self->currentDataWindow.max.x - self->displayWindow.min.x + 1, self->currentDataWindow.max.y - self->displayWindow.min.y + 1 );
     glVertex2f( x + width, y + height );
-    glTexCoord2f( 0, self->texCoordY );
+    glTexCoord2i( self->currentDataWindow.min.x - self->displayWindow.min.x, self->currentDataWindow.max.y - self->displayWindow.min.y + 1 );
     glVertex2f( x, y + height );
     glEnd();
 
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glDisable( GL_BLEND );
+
+    if( !self->softMode ) {
+        glUseProgramObjectARB( 0 );
+    }
 }
 
 static gboolean
@@ -354,7 +407,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
             !box2i_equalSize( &self->displayWindow, &target->fullDataWindow ) ) {
 
             g_free( target->frameData );
-            target->frameData = g_malloc( frameSize.y * frameSize.x * sizeof(rgb8) );
+            target->frameData = g_malloc( frameSize.y * frameSize.x * sizeof(rgba8) );
             target->stride = frameSize.x;
         }
 
@@ -392,13 +445,14 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
 
         // Convert the results to floating-point
         for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
-            rgb8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride];
+            rgba8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride];
             rgba_f16 *sourceData = &frame.frameData[(y - frame.fullDataWindow.min.y) * frame.stride];
 
-            for( int x = 0; x < frame.currentDataWindow.max.x - frame.currentDataWindow.min.x + 1; x++ ) {
+            for( int x = frame.currentDataWindow.min.x; x <= frame.currentDataWindow.max.x; x++ ) {
                 targetData[x].r = gamma45[sourceData[x].r];
                 targetData[x].g = gamma45[sourceData[x].g];
                 targetData[x].b = gamma45[sourceData[x].b];
+                targetData[x].a = gamma45[sourceData[x].a];
             }
         }
 
@@ -535,7 +589,7 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
     }
     else {
         // Naive
-        printf( "Exposing...\n" );
+        //printf( "Exposing...\n" );
         gdk_window_invalidate_rect( self->drawingArea->window, &self->drawingArea->allocation, FALSE );
 
         for( ;; ) {
@@ -558,7 +612,7 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
             if( timeout < 0 )
                 continue;
 
-            printf( "Next frame at %d, timeout %d ms\n", self->nextToRenderFrame, (int) timeout );
+            //printf( "Next frame at %d, timeout %d ms\n", self->nextToRenderFrame, (int) timeout );
 
             self->timeoutSourceID = g_timeout_add_full(
                 G_PRIORITY_DEFAULT, (int) timeout, (GSourceFunc) playSingleFrame, self, NULL );
@@ -645,9 +699,12 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
     self->quit = false;
     self->softTextureId = 0;
     self->hardTextureId = 0;
+    self->checkerTextureId = 0;
     self->hardGammaShader = 0;
     self->renderOneFrame = true;
     self->lastHardFrame = -1;
+    self->checkerColors[0].r = self->checkerColors[0].g = self->checkerColors[0].b = 128;
+    self->checkerColors[1].r = self->checkerColors[1].g = self->checkerColors[1].b = 192;
 
     for( int i = 0; i < SOFT_MODE_BUFFERS; i++ ) {
         self->softTargets[i].frameData = NULL;
