@@ -20,20 +20,41 @@
 
 #include <stdint.h>
 
-#include <pygobject.h>
-#include <pygtk/pygtk.h>
 #include <Python.h>
 #include <structmember.h>
 #include "framework.h"
 #include "clock.h"
 #include <time.h>
 
-#include <gtk/gtk.h>
-#include <gtk/gtkgl.h>
-#include <gdk/gdkkeysyms.h>
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
+
+EXPORT void
+__gl_checkError(const char *file, const unsigned long line) {
+    int error = glGetError();
+
+    switch( error ) {
+        case GL_NO_ERROR:
+            return;
+
+        case GL_INVALID_OPERATION:
+            g_warning( "%s:%lu: Invalid operation", file, line );
+            return;
+
+        case GL_INVALID_VALUE:
+            g_warning( "%s:%lu: Invalid value", file, line );
+            return;
+
+        case GL_INVALID_ENUM:
+            g_warning( "%s:%lu: Invalid enum", file, line );
+            return;
+
+        default:
+            g_warning( "%s:%lu: Other GL error", file, line );
+            return;
+    }
+}
 
 void *getCurrentGLContext() {
     return glXGetCurrentContext();
@@ -89,7 +110,7 @@ gl_printShaderErrors( GLhandleARB shader ) {
     }
 }
 
-void
+EXPORT void
 gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram ) {
     GLhandleARB shader = glCreateShaderObjectARB( GL_FRAGMENT_SHADER_ARB );
     glShaderSourceARB( shader, 1, &source, NULL );
@@ -105,7 +126,7 @@ gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProg
     *outProgram = program;
 }
 
-bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
+EXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
     holder->funcs = NULL;
@@ -128,7 +149,7 @@ bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     return true;
 }
 
-bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
+EXPORT bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
     holder->funcs = NULL;
@@ -151,7 +172,7 @@ bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
     return true;
 }
 
-bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder ) {
+EXPORT bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
     holder->funcs = NULL;
@@ -187,7 +208,7 @@ bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder ) {
     return true;
 }
 
-void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame ) {
+EXPORT void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
@@ -233,7 +254,7 @@ void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *ta
     slice_free( sizeof(rgba_f32) * size.x * size.y, tempFrame.frameData );
 }
 
-void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame ) {
+EXPORT void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
@@ -279,7 +300,7 @@ void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *ta
     slice_free( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
 }
 
-void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame ) {
+EXPORT void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
@@ -311,19 +332,19 @@ void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targ
     slice_free( sizeof(rgba_f16) * frameSize.x * frameSize.y, frame.frameData );
 }
 
-int64_t
+EXPORT int64_t
 getFrameTime( const rational *frameRate, int frame ) {
     return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);
 }
 
-int
+EXPORT int
 getTimeFrame( const rational *frameRate, int64_t time ) {
     return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 
 static PyObject *fraction;
 
-bool parseRational( PyObject *in, rational *out ) {
+EXPORT bool parseRational( PyObject *in, rational *out ) {
     // Accept integers as rationals
     if( PyInt_Check( in ) ) {
         out->n = PyInt_AsLong( in );
@@ -360,7 +381,7 @@ bool parseRational( PyObject *in, rational *out ) {
     return true;
 }
 
-PyObject *makeFraction( rational *in ) {
+EXPORT PyObject *makeFraction( rational *in ) {
     PyObject *args = Py_BuildValue( "iI", in->n, in->d );
     PyObject *result = PyObject_CallObject( fraction, args );
 
@@ -560,7 +581,6 @@ void init_FFContainer( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
 void init_AlsaPlayer( PyObject *module );
-void init_GtkVideoWidget( PyObject *module );
 void init_half( PyObject *module );
 void init_AudioPassThroughFilter( PyObject *module );
 void init_VideoSequence( PyObject *module );
@@ -590,7 +610,6 @@ initprocess() {
     init_Pulldown23RemovalFilter( m );
     init_SystemPresentationClock( m );
     init_AlsaPlayer( m );
-    init_GtkVideoWidget( m );
     init_VideoSequence( m );
     init_VideoMixFilter( m );
     init_AudioPassThroughFilter( m );

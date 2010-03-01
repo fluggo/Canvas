@@ -3,12 +3,16 @@ from __future__ import unicode_literals
 import glib
 import gtk
 import gtk.glade
-from fluggo.media.process import *
 from fractions import Fraction
 
+from fluggo.media import process, timelines, sources, transitions
+import fluggo.media.gtk
+
+gtk.gdk.threads_init()
+
 #clock = SystemPresentationClock()
-audio = FFAudioSource('/home/james/Videos/Okra - 79b,100.avi')
-player = AlsaPlayer(48000, source=audio)
+audio = process.FFAudioSource('/home/james/Videos/Soft Boiled/Sources/BWFF/1B_1.wav')
+player = process.AlsaPlayer(48000, source=audio)
 clock = player
 
 #window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -30,7 +34,7 @@ clock = player
 #window.show()
 
 def createVideoWidget():
-    widget = GtkVideoWidget(player)
+    widget = fluggo.media.gtk.VideoWidget(player)
     widget.drawing_area().show()
 
     # Temporary hack to keep the container object around
@@ -58,21 +62,24 @@ class MainWindow(object):
         glib.timeout_add(100, self.update_current_frame)
 
         #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
-        #videro = FFVideoReader('/home/james/Videos/demux003.m2v')
-        videro = FFVideoSource('/home/james/Videos/Okra - 79b,100.avi')
+        videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;03;21;24.avi')
 
         size = videro.size()
         self.video_widget.set_display_window((0, -1, size[0] - 1, size[1] - 2))
         #self.video_widget.set_hardware_accel(False)
         #self.video_widget.set_source(av)
 
-        pulldown = Pulldown23RemovalFilter(videro, 0);
-        seq = VideoSequence()
+        pulldown = process.Pulldown23RemovalFilter(videro, 0);
+        seq = process.VideoSequence()
         seq.append((pulldown, 30, 60))
         seq.append((pulldown, 300, 250))
         seq.append((pulldown, 0, 150))
 
-        mix = VideoMixFilter(src_a=pulldown, src_b=seq, mix_b=LinearFrameFunc(a=1/300.0, b=0))
+        #mix = VideoMixFilter(src_a=pulldown, src_b=EmptyVideoSource(), mix_b=LinearFrameFunc(a=1/300.0, b=0))
+        #mix = VideoMixFilter(src_a=pulldown, src_b=pulldown, mix_b=LinearFrameFunc(a=1/300.0, b=0))
+        #mix = VideoMixFilter(src_a=pulldown, src_b=SolidColorVideoSource((1.0, 0.0, 0.0, 0.5), (50, 50, 100, 100)), mix_b=LinearFrameFunc(a=1/300.0, b=0))
+        #mix = VideoMixFilter(src_a=pulldown, src_b=seq, mix_b=LinearFrameFunc(a=1/300.0, b=0))
+        mix = process.VideoMixFilter(src_a=process.SolidColorVideoSource((1.0, 0.0, 0.0, 0.25), (1, 0, 718, 477)), src_b=process.SolidColorVideoSource((0.0, 1.0, 0.0, 0.75), (2, 1, 717, 476)), mix_b=process.LinearFrameFunc(a=1/300.0, b=0))
 
         self.video_widget.set_source(mix)
         self.video_widget.stop()
@@ -121,7 +128,7 @@ class MainWindow(object):
 
     def update_current_frame(self):
         self.updating = True
-        frame = get_time_frame(self.frame_rate, clock.get_presentation_time())
+        frame = process.get_time_frame(self.frame_rate, clock.get_presentation_time())
         self.frame_scale.set_value(frame)
         self.updating = False
         return True

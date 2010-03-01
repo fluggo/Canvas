@@ -84,11 +84,13 @@ static void n_half_lookup( const half *table, const half *in, half *out, int cou
         *out++ = table[*in++];
 }
 
-void (*half_convert_to_float)( const half *, float *, int );
-void (*half_convert_from_float)( const float *, half *, int );
-void (*half_convert_to_float_fast)( const half *, float *, int );
-void (*half_convert_from_float_fast)( const float *, half *, int );
-void (*half_lookup)( const half *, const half *, half *, int );
+#define EXPORT __attribute__((visibility("default")))
+
+EXPORT void (*half_convert_to_float)( const half *, float *, int );
+EXPORT void (*half_convert_from_float)( const float *, half *, int );
+EXPORT void (*half_convert_to_float_fast)( const half *, float *, int );
+EXPORT void (*half_convert_from_float_fast)( const float *, half *, int );
+EXPORT void (*half_lookup)( const half *, const half *, half *, int );
 
 void init_half( void *m ) {
     half_convert_to_float = n_convert_h2f;

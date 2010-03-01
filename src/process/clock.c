@@ -20,7 +20,6 @@
 
 #include "framework.h"
 #include "clock.h"
-#include <gtk/gtk.h>
 
 int64_t gettime() {
     struct timespec time;
@@ -29,7 +28,7 @@ int64_t gettime() {
     return ((int64_t) time.tv_sec) * INT64_C(1000000000) + (int64_t) time.tv_nsec;
 }
 
-bool takePresentationClock( PyObject *source, PresentationClockHolder *holder ) {
+EXPORT bool takePresentationClock( PyObject *source, PresentationClockHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
     holder->funcs = NULL;

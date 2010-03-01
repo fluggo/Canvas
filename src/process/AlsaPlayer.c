@@ -19,7 +19,6 @@
 */
 
 #include "framework.h"
-#include <gtk/gtk.h>
 #include <asoundlib.h>
 #include "clock.h"
 

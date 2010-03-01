@@ -35,31 +35,6 @@ static uint8_t gamma45[65536];
 #define    SOFT_MODE_BUFFERS    4
 #define HARD_MODE_BUFFERS    2
 
-void __gl_checkError(const char *file, const unsigned long line) {
-    int error = glGetError();
-
-    switch( error ) {
-        case GL_NO_ERROR:
-            return;
-
-        case GL_INVALID_OPERATION:
-            g_warning( "%s:%lu: Invalid operation", file, line );
-            return;
-
-        case GL_INVALID_VALUE:
-            g_warning( "%s:%lu: Invalid value", file, line );
-            return;
-
-        case GL_INVALID_ENUM:
-            g_warning( "%s:%lu: Invalid enum", file, line );
-            return;
-
-        default:
-            g_warning( "%s:%lu: Other GL error", file, line );
-            return;
-    }
-}
-
 typedef struct {
     uint8_t r, g, b;
 } rgb8;
@@ -917,7 +892,7 @@ static PyMethodDef GtkVideoWidget_methods[] = {
 static PyTypeObject py_type_GtkVideoWidget = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.process.GtkVideoWidget",    // tp_name
+    "fluggo.media.gtk.VideoWidget",    // tp_name
     sizeof(py_obj_GtkVideoWidget),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
@@ -930,7 +905,11 @@ static inline float gamma45Func( float input ) {
     return clampf( powf( input, 0.45f ) * 255.0f, 0.0f, 255.0f );
 }
 
-void init_GtkVideoWidget( PyObject *m ) {
+EXPORT PyMODINIT_FUNC
+initgtk() {
+    PyObject *m = Py_InitModule3( "gtk", NULL,
+        "GTK support for the Fluggo media processing library for Python." );
+
     int argc = 1;
     char *arg = "dummy";
     char **argv = &arg;
@@ -939,7 +918,7 @@ void init_GtkVideoWidget( PyObject *m ) {
         return;
 
     Py_INCREF( &py_type_GtkVideoWidget );
-    PyModule_AddObject( m, "GtkVideoWidget", (PyObject *) &py_type_GtkVideoWidget );
+    PyModule_AddObject( m, "VideoWidget", (PyObject *) &py_type_GtkVideoWidget );
 
     // Fill in the 0.45 gamma table
     half *h = g_malloc( sizeof(half) * 65536 );
