@@ -45,7 +45,7 @@ Pulldown23RemovalFilter_init( py_obj_Pulldown23RemovalFilter *self, PyObject *ar
 
 static void
 Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_f16_frame *frame ) {
-    if( self->source.source == NULL ) {
+    if( self->source.source.obj == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
         return;
@@ -70,17 +70,17 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
 
     // Solid frames
     if( frameOffset == 0 ) {
-        getFrame_f16( &self->source, baseFrame, frame );
+        getFrame_f16( &self->source.source, baseFrame, frame );
     }
     else if( frameOffset == 1 ) {
-        getFrame_f16( &self->source, baseFrame + 1, frame );
+        getFrame_f16( &self->source.source, baseFrame + 1, frame );
     }
     else if( frameOffset == 3 ) {
-        getFrame_f16( &self->source, baseFrame + 4, frame );
+        getFrame_f16( &self->source.source, baseFrame + 4, frame );
     }
     else {
         // Mixed fields; we want the odds (field #2) from this frame:
-        getFrame_f16( &self->source, baseFrame + 2, frame );
+        getFrame_f16( &self->source.source, baseFrame + 2, frame );
 
         int height = frame->currentDataWindow.max.y - frame->currentDataWindow.min.y + 1;
         int width = frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1;
@@ -93,7 +93,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
         tempFrame.fullDataWindow = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
 
-        getFrame_f16( &self->source, baseFrame + 3, &tempFrame );
+        getFrame_f16( &self->source.source, baseFrame + 3, &tempFrame );
 
         for( int i = (frame->currentDataWindow.min.y & 1) ? 1 : 0; i < height; i += 2 ) {
             memcpy( &frame->frameData[i * frame->stride + frame->currentDataWindow.min.y - frame->fullDataWindow.min.y],
@@ -133,7 +133,7 @@ static void destroyShader( gl_shader_state *shader ) {
 
 static void
 Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_gl_frame *frame ) {
-    if( self->source.source == NULL ) {
+    if( self->source.source.obj == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
         return;
@@ -158,13 +158,13 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
 
     // Solid frames
     if( frameOffset == 0 ) {
-        getFrame_gl( &self->source, baseFrame, frame );
+        getFrame_gl( &self->source.source, baseFrame, frame );
     }
     else if( frameOffset == 1 ) {
-        getFrame_gl( &self->source, baseFrame + 1, frame );
+        getFrame_gl( &self->source.source, baseFrame + 1, frame );
     }
     else if( frameOffset == 3 ) {
-        getFrame_gl( &self->source, baseFrame + 4, frame );
+        getFrame_gl( &self->source.source, baseFrame + 4, frame );
     }
     else {
         v2i frameSize;
@@ -185,8 +185,8 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
         // Mixed fields
         rgba_gl_frame frameB = *frame;
 
-        getFrame_gl( &self->source, baseFrame + 2, frame );
-        getFrame_gl( &self->source, baseFrame + 3, &frameB );
+        getFrame_gl( &self->source.source, baseFrame + 2, frame );
+        getFrame_gl( &self->source.source, baseFrame + 3, &frameB );
 
         glUseProgramObjectARB( shader->program );
         glUniform1iARB( glGetUniformLocationARB( shader->program, "texA" ), 0 );

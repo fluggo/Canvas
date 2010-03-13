@@ -127,24 +127,24 @@ gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProg
 }
 
 EXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
-    Py_CLEAR( holder->source );
+    Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
-    holder->funcs = NULL;
+    holder->source.funcs = NULL;
 
     if( source == NULL || source == Py_None )
         return true;
 
     Py_INCREF( source );
-    holder->source = source;
+    holder->source.obj = source;
     holder->csource = PyObject_GetAttrString( source, VIDEO_FRAME_SOURCE_FUNCS );
 
     if( holder->csource == NULL ) {
-        Py_CLEAR( holder->source );
+        Py_CLEAR( holder->source.obj );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " VIDEO_FRAME_SOURCE_FUNCS " attribute." );
         return false;
     }
 
-    holder->funcs = (VideoFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->source.funcs = (VideoFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
 
     return true;
 }
@@ -208,14 +208,14 @@ EXPORT bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder ) {
     return true;
 }
 
-EXPORT void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame ) {
+EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
     }
 
     if( source->funcs->getFrame ) {
-        source->funcs->getFrame( source->source, frameIndex, targetFrame );
+        source->funcs->getFrame( source->obj, frameIndex, targetFrame );
         return;
     }
 
@@ -234,7 +234,7 @@ EXPORT void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_fr
     tempFrame.currentDataWindow = targetFrame->fullDataWindow;
     tempFrame.stride = size.x;
 
-    source->funcs->getFrame32( source->source, frameIndex, &tempFrame );
+    source->funcs->getFrame32( source->obj, frameIndex, &tempFrame );
 
     // Convert to f16
     int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
@@ -254,14 +254,14 @@ EXPORT void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_fr
     slice_free( sizeof(rgba_f32) * size.x * size.y, tempFrame.frameData );
 }
 
-EXPORT void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame ) {
+EXPORT void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
     }
 
     if( source->funcs->getFrame32 ) {
-        source->funcs->getFrame32( source->source, frameIndex, targetFrame );
+        source->funcs->getFrame32( source->obj, frameIndex, targetFrame );
         return;
     }
 
@@ -280,7 +280,7 @@ EXPORT void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_fr
     tempFrame.currentDataWindow = targetFrame->fullDataWindow;
     tempFrame.stride = size.x;
 
-    source->funcs->getFrame( source->source, frameIndex, &tempFrame );
+    source->funcs->getFrame( source->obj, frameIndex, &tempFrame );
 
     // Convert to f32
     int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
@@ -300,14 +300,14 @@ EXPORT void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_fr
     slice_free( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
 }
 
-EXPORT void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame ) {
+EXPORT void getFrame_gl( video_source *source, int frameIndex, rgba_gl_frame *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
     }
 
     if( source->funcs->getFrameGL ) {
-        source->funcs->getFrameGL( source->source, frameIndex, targetFrame );
+        source->funcs->getFrameGL( source->obj, frameIndex, targetFrame );
         return;
     }
 
@@ -548,7 +548,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     int64_t startTime = gettime();
     for( int i = minFrame; i <= maxFrame; i++ )
-        source.funcs->getFrame( source.source, i, &frame );
+        source.source.funcs->getFrame( source.source.obj, i, &frame );
     int64_t endTime = gettime();
 
     PyMem_Free( frame.frameData );

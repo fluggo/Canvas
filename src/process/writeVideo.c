@@ -49,7 +49,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     v2i frameSize;
     box2i_getSize( &dataWindow, &frameSize );
 
-    VideoSourceHolder videoSource = { NULL };
+    VideoSourceHolder videoSource = { { NULL } };
     if( !takeVideoSource( videoSourceObj, &videoSource ) )
         return NULL;
 
@@ -115,7 +115,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
 
     AVStream *video = NULL, *audio = NULL;
 
-    if( videoSource.funcs ) {
+    if( videoSource.source.funcs ) {
         video = av_new_stream( context, context->nb_streams );
 
         if( !video )
@@ -200,7 +200,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     uint8_t *interBuffer = NULL, *outputBuffer = NULL;
     int interBufferSize = 0, outputBufferSize = 0;
 
-    if( videoSource.funcs ) {
+    if( videoSource.source.funcs ) {
         inputFrame.fullDataWindow = dataWindow;
         inputFrame.frameData = (rgba_f16*) slice_alloc( frameSize.x * frameSize.y * sizeof(rgba_f16) );
         inputFrame.stride = frameSize.x;
@@ -261,7 +261,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             packet.stream_index = video->index;
 
             inputFrame.currentDataWindow = inputFrame.fullDataWindow;
-            getFrame_f16( &videoSource, nextVideoFrame, &inputFrame );
+            getFrame_f16( &videoSource.source, nextVideoFrame, &inputFrame );
 
             // Transcode to RGBA
             for( int y = 0; y < frameSize.y; y++ ) {
@@ -384,7 +384,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             nextAudioTime = getFrameTime( &audioRate, nextAudioSample );
         }
 
-        if( videoSource.funcs ) {
+        if( videoSource.source.funcs ) {
             if( audioSource.funcs )
                 time = (nextAudioTime < nextVideoTime) ? nextAudioTime : nextVideoTime;
             else
@@ -395,7 +395,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     }
 
     // Flush video
-    if( videoSource.funcs ) {
+    if( videoSource.source.funcs ) {
         result = avcodec_encode_video( video->codec, bitBucket, bitBucketSize, NULL );
 
         if( result < 0 ) {
@@ -434,7 +434,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     takeVideoSource( NULL, &videoSource );
     takeAudioSource( NULL, &audioSource );
 
-    if( videoSource.funcs ) {
+    if( videoSource.source.funcs ) {
         avcodec_close( video->codec );
         slice_free( RAMP_SIZE, ramp );
         slice_free( frameSize.x * frameSize.y * sizeof(rgba_f16), inputFrame.frameData );

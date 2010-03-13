@@ -161,9 +161,9 @@ typedef struct {
     box2i currentDataWindow;
 } rgba_gl_frame;
 
-typedef void (*video_getFrameFunc)( PyObject *self, int frameIndex, rgba_f16_frame *frame );
-typedef void (*video_getFrame32Func)( PyObject *self, int frameIndex, rgba_f32_frame *frame );
-typedef void (*video_getFrameGLFunc)( PyObject *self, int frameIndex, rgba_gl_frame *frame );
+typedef void (*video_getFrameFunc)( void *self, int frameIndex, rgba_f16_frame *frame );
+typedef void (*video_getFrame32Func)( void *self, int frameIndex, rgba_f32_frame *frame );
+typedef void (*video_getFrameGLFunc)( void *self, int frameIndex, rgba_gl_frame *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero
@@ -181,15 +181,19 @@ static inline rgba_f32 *getPixel_f32( rgba_f32_frame *frame, int x, int y ) {
 }
 
 typedef struct {
-    PyObject *source;
-    PyObject *csource;
+    void *obj;
     VideoFrameSourceFuncs *funcs;
+} video_source;
+
+typedef struct {
+    video_source source;
+    PyObject *csource;
 } VideoSourceHolder;
 
 bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
-void getFrame_f16( VideoSourceHolder *source, int frameIndex, rgba_f16_frame *targetFrame );
-void getFrame_f32( VideoSourceHolder *source, int frameIndex, rgba_f32_frame *targetFrame );
-void getFrame_gl( VideoSourceHolder *source, int frameIndex, rgba_gl_frame *targetFrame );
+void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *targetFrame );
+void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *targetFrame );
+void getFrame_gl( video_source *source, int frameIndex, rgba_gl_frame *targetFrame );
 void *getCurrentGLContext();
 
 #define gl_checkError()        __gl_checkError(__FILE__, __LINE__)

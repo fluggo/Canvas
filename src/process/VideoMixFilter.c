@@ -122,12 +122,12 @@ VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32
 
     if( self->mode == MIXMODE_CROSSFADE && mixB == 1.0f ) {
         // We only need frame B
-        getFrame_f32( &self->srcB, frameIndex, frame );
+        getFrame_f32( &self->srcB.source, frameIndex, frame );
         return;
     }
 
     // Gather base frame
-    getFrame_f32( &self->srcA, frameIndex, frame );
+    getFrame_f32( &self->srcA.source, frameIndex, frame );
 
     // Shortcut out if we can
     if( mixB == 0.0f )
@@ -160,7 +160,7 @@ VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32
     tempFrame.frameData = slice_alloc( sizeof(rgba_f32) * sizeB.y * sizeB.x );
     tempFrame.stride = sizeB.x;
 
-    getFrame_f32( &self->srcB, frameIndex, &tempFrame );
+    getFrame_f32( &self->srcB.source, frameIndex, &tempFrame );
 
     // Expand them until they're the same size
     box2i newWindow = {
@@ -279,11 +279,11 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
 
     if( self->mode == MIXMODE_CROSSFADE && mixB == 1.0f ) {
         // We only need frame B
-        getFrame_gl( &self->srcB, frameIndex, frame );
+        getFrame_gl( &self->srcB.source, frameIndex, frame );
         return;
     }
     else if( mixB == 0.0f ) {
-        getFrame_gl( &self->srcA, frameIndex, frame );
+        getFrame_gl( &self->srcA.source, frameIndex, frame );
         return;
     }
 
@@ -306,8 +306,8 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
 
     rgba_gl_frame frameA = *frame, frameB = *frame;
 
-    getFrame_gl( &self->srcA, frameIndex, &frameA );
-    getFrame_gl( &self->srcB, frameIndex, &frameB );
+    getFrame_gl( &self->srcA.source, frameIndex, &frameA );
+    getFrame_gl( &self->srcB.source, frameIndex, &frameB );
 
     glUseProgramObjectARB( shader->program );
     glUniform1iARB( shader->texA, 0 );

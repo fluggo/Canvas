@@ -71,7 +71,7 @@ pickElement_nolock( PyObject *self, int frameIndex ) {
 
     Element *elem = &SEQINDEX(self, i);
 
-    if( !elem->source.funcs || elem->startFrame + elem->length < frameIndex )
+    if( !elem->source.source.funcs || elem->startFrame + elem->length < frameIndex )
         return NULL;
 
     return elem;
@@ -92,7 +92,7 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) 
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    getFrame_f16( &elem.source, frameIndex - elem.startFrame + elem.offset, frame );
+    getFrame_f16( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static void
@@ -110,7 +110,7 @@ VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_f32_frame *frame 
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    getFrame_f32( &elem.source, frameIndex - elem.startFrame + elem.offset, frame );
+    getFrame_f32( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static void
@@ -128,7 +128,7 @@ VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_gl_frame *frame )
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    getFrame_gl( &elem.source, frameIndex - elem.startFrame + elem.offset, frame );
+    getFrame_gl( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static Py_ssize_t
@@ -170,7 +170,7 @@ static int
 _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
     PyObject *sourceObj;
     int length, offset;
-    VideoSourceHolder source = { NULL };
+    VideoSourceHolder source = { { NULL } };
 
     // Parse everything and make sure it's okay
     if( !PyArg_ParseTuple( v, "Oii", &sourceObj, &offset, &length ) )

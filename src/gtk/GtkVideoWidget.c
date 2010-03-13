@@ -175,7 +175,7 @@ _gl_hardLoadTexture( py_obj_GtkVideoWidget *self ) {
         .currentDataWindow = self->displayWindow
     };
 
-    getFrame_gl( &self->frameSource, frameIndex, &frame );
+    getFrame_gl( &self->frameSource.source, frameIndex, &frame );
 
     self->hardTextureId = frame.texture;
     self->lastHardFrame = frameIndex;
@@ -399,8 +399,6 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         target->fullDataWindow = self->displayWindow;
         frame.fullDataWindow = self->displayWindow;
 
-        VideoFrameSourceFuncs *funcs = self->frameSource.funcs;
-
         g_mutex_unlock( self->frameReadMutex );
 
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
@@ -408,8 +406,8 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         // Pull the frame data from the chain
         frame.currentDataWindow = target->fullDataWindow;
 
-        if( funcs != NULL ) {
-            getFrame_f16( &self->frameSource, nextFrame, &frame );
+        if( self->frameSource.source.funcs ) {
+            getFrame_f16( &self->frameSource.source, nextFrame, &frame );
         }
         else {
             // No result
@@ -708,10 +706,8 @@ GtkVideoWidget_dealloc( py_obj_GtkVideoWidget *self ) {
     if( self->renderThread != NULL )
         g_thread_join( self->renderThread );
 
-    Py_CLEAR( self->clock.source );
-    Py_CLEAR( self->clock.csource );
-    Py_CLEAR( self->frameSource.source );
-    Py_CLEAR( self->frameSource.csource );
+    takeVideoSource( NULL, &self->frameSource );
+    takePresentationClock( NULL, &self->clock );
     Py_CLEAR( self->drawingAreaObj );
 
     if( self->drawingArea != NULL )
@@ -809,11 +805,11 @@ GtkVideoWidget_setDisplayWindow( py_obj_GtkVideoWidget *self, PyObject *args ) {
 
 static PyObject *
 GtkVideoWidget_getSource( py_obj_GtkVideoWidget *self ) {
-    if( self->frameSource.source == NULL )
+    if( self->frameSource.source.obj == NULL )
         Py_RETURN_NONE;
 
-    Py_INCREF(self->frameSource.source);
-    return self->frameSource.source;
+    Py_INCREF((PyObject *) self->frameSource.source.obj);
+    return (PyObject *) self->frameSource.source.obj;
 }
 
 static PyObject *
