@@ -72,13 +72,8 @@ VideoMixFilter_init( py_obj_VideoMixFilter *self, PyObject *args, PyObject *kwds
     return 0;
 }
 
-void mulalpha( rgba_f32_frame *frame, float f ) {
-    FOREACH_PIXEL_BEGIN(frame, pixel)
-        pixel->a *= f;
-    FOREACH_PIXEL_END
-}
-
-void expand_frame( rgba_f32_frame *frame, box2i newWindow ) {
+static void
+expand_frame( rgba_f32_frame *frame, box2i newWindow ) {
     int leftClear = frame->currentDataWindow.min.x - newWindow.min.x,
         rightClear = newWindow.max.x - frame->currentDataWindow.max.x;
 
