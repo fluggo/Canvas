@@ -115,7 +115,7 @@ class MainWindow(object):
             return
 
         frame = int(control.get_value())
-        time = get_frame_time(self.frame_rate, frame)
+        time = process.get_frame_time(self.frame_rate, frame)
         #print frame, time
 
         clock.seek(time)
