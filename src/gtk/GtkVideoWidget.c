@@ -339,7 +339,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
     box2i_setEmpty( &frame.fullDataWindow );
 
     for( ;; ) {
-        int64_t startTime = self->clock.funcs->getPresentationTime( self->clock.source );
+        int64_t startTime = self->clock.source.funcs->getPresentationTime( self->clock.source.obj );
 
         g_mutex_lock( self->frameReadMutex );
         while( !self->quit && ((!self->renderOneFrame && self->filled > 2) || !self->softMode) )
@@ -352,13 +352,13 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
 
         // If restarting, reset the clock; who knows how long we've been waiting?
         if( self->filled < 0 )
-            startTime = self->clock.funcs->getPresentationTime( self->clock.source );
+            startTime = self->clock.source.funcs->getPresentationTime( self->clock.source.obj );
 
         v2i frameSize;
         rational speed;
 
         box2i_getSize( &self->displayWindow, &frameSize );
-        self->clock.funcs->getSpeed( self->clock.source, &speed );
+        self->clock.source.funcs->getSpeed( self->clock.source.obj, &speed );
 
         // Pull out the next frame
         int nextFrame = self->nextToRenderFrame;
@@ -432,7 +432,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         //usleep( 100000 );
 
         self->softTargets[writeBuffer].time = getFrameTime( &self->frameRate, nextFrame );
-        int64_t endTime = self->clock.funcs->getPresentationTime( self->clock.source );
+        int64_t endTime = self->clock.source.funcs->getPresentationTime( self->clock.source.obj );
 
         int64_t lastDuration = endTime - startTime;
 
@@ -443,7 +443,7 @@ playbackThread( py_obj_GtkVideoWidget *self ) {
         g_mutex_lock( self->frameReadMutex );
         if( self->filled < 0 ) {
             rational newSpeed;
-            self->clock.funcs->getSpeed( self->clock.source, &newSpeed );
+            self->clock.source.funcs->getSpeed( self->clock.source.obj, &newSpeed );
 
             if( speed.n * newSpeed.d != 0 )
                 lastDuration = lastDuration * newSpeed.n * speed.d / (speed.n * newSpeed.d);
@@ -541,12 +541,12 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
                     g_mutex_unlock( self->frameReadMutex );
 
                     rational speed;
-                    self->clock.funcs->getSpeed( self->clock.source, &speed );
+                    self->clock.source.funcs->getSpeed( self->clock.source.obj, &speed );
 
                     if( speed.n != 0 ) {
                         //printf( "nextPresent: %ld, current: %ld, baseTime: %ld, seekTime: %ld\n", nextPresentationTime, self->clock->getPresentationTime(), ((SystemPresentationClock*)self->clock)->_baseTime, ((SystemPresentationClock*) self->clock)->_seekTime );
 
-                        int timeout = ((nextPresentationTime - self->clock.funcs->getPresentationTime( self->clock.source )) * speed.d) / (speed.n * 1000000);
+                        int timeout = ((nextPresentationTime - self->clock.source.funcs->getPresentationTime( self->clock.source.obj )) * speed.d) / (speed.n * 1000000);
 
                         if( timeout < 0 )
                             timeout = 0;
@@ -567,7 +567,7 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
 
         for( ;; ) {
             rational speed;
-            self->clock.funcs->getSpeed( self->clock.source, &speed );
+            self->clock.source.funcs->getSpeed( self->clock.source.obj, &speed );
 
             if( speed.n > 0 )
                 self->nextToRenderFrame++;
@@ -580,7 +580,7 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
 
             //printf( "nextPresent: %ld, current: %ld, baseTime: %ld, seekTime: %ld\n", nextPresentationTime, self->clock->getPresentationTime(), ((SystemPresentationClock*)self->clock)->_baseTime, ((SystemPresentationClock*) self->clock)->_seekTime );
 
-            int64_t timeout = ((nextPresentationTime - self->clock.funcs->getPresentationTime( self->clock.source )) * speed.d) / (speed.n * INT64_C(1000000));
+            int64_t timeout = ((nextPresentationTime - self->clock.source.funcs->getPresentationTime( self->clock.source.obj )) * speed.d) / (speed.n * INT64_C(1000000));
 
             if( timeout < 0 )
                 continue;
@@ -595,7 +595,7 @@ playSingleFrame( py_obj_GtkVideoWidget *self ) {
     }
 
     rational speed;
-    self->clock.funcs->getSpeed( self->clock.source, &speed );
+    self->clock.source.funcs->getSpeed( self->clock.source.obj, &speed );
 
     if( speed.n != 0 ) {
         self->timeoutSourceID = g_timeout_add_full( G_PRIORITY_DEFAULT,
@@ -737,7 +737,7 @@ GtkVideoWidget_stop( py_obj_GtkVideoWidget *self ) {
     g_mutex_lock( self->frameReadMutex );
     self->filled = 3;
 
-    int64_t stopTime = self->clock.funcs->getPresentationTime( self->clock.source );
+    int64_t stopTime = self->clock.source.funcs->getPresentationTime( self->clock.source.obj );
 
     self->renderOneFrame = true;
     self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
@@ -761,7 +761,7 @@ GtkVideoWidget_play( py_obj_GtkVideoWidget *self ) {
 
     // Fire up the production and playback threads from scratch
     g_mutex_lock( self->frameReadMutex );
-    int64_t stopTime = self->clock.funcs->getPresentationTime( self->clock.source );
+    int64_t stopTime = self->clock.source.funcs->getPresentationTime( self->clock.source.obj );
     self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
     self->filled = -2;
     g_cond_signal( self->frameReadCond );

@@ -29,24 +29,24 @@ int64_t gettime() {
 }
 
 EXPORT bool takePresentationClock( PyObject *source, PresentationClockHolder *holder ) {
-    Py_CLEAR( holder->source );
+    Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
-    holder->funcs = NULL;
+    holder->source.funcs = NULL;
 
     if( source == NULL || source == Py_None )
         return true;
 
     Py_INCREF( source );
-    holder->source = source;
+    holder->source.obj = source;
     holder->csource = PyObject_GetAttrString( source, PRESENTATION_CLOCK_FUNCS );
 
     if( holder->csource == NULL ) {
-        Py_CLEAR( holder->source );
+        Py_CLEAR( holder->source.obj );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " PRESENTATION_CLOCK_FUNCS " attribute." );
         return false;
     }
 
-    holder->funcs = (PresentationClockFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->source.funcs = (PresentationClockFuncs*) PyCObject_AsVoidPtr( holder->csource );
 
     return true;
 }

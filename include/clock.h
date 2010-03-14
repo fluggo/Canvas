@@ -39,9 +39,13 @@ typedef struct {
 } PresentationClockFuncs;
 
 typedef struct {
-    PyObject *source;
-    PyObject *csource;
+    void *obj;
     PresentationClockFuncs *funcs;
+} presentation_clock;
+
+typedef struct {
+    presentation_clock source;
+    PyObject *csource;
 } PresentationClockHolder;
 
 bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
