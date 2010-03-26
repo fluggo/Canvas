@@ -3,11 +3,11 @@ import distutils.sysconfig
 debug = ARGUMENTS.get('debug', 0)
 assembly = ARGUMENTS.get('assembly', 0)
 profile = ARGUMENTS.get('profile', 0)
-env = Environment(LIBS=['rt', 'GLEW'], CPPPATH=[distutils.sysconfig.get_python_inc()],
+env = Environment(LIBS=['rt', 'GLEW'], CPPPATH=[distutils.sysconfig.get_python_inc(), 'include'],
 	SHLIBPREFIX='', CCFLAGS = ['-fno-strict-aliasing', '-std=c99', '-Wall', '-D_POSIX_C_SOURCE=200112L', '-fvisibility=hidden'])
 	
 env.Append(BUILDERS = {'PyGen': Builder(action = 'python $SOURCE > $TARGET')})
-half = env.PyGen('halftab.c', 'genhalf.py')
+half = env.PyGen('src/process/halftab.c', 'src/process/genhalf.py')
 
 if int(debug):
 	env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
@@ -20,25 +20,6 @@ else:
 
 env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gtk+-2.0 gl gtkglext-1.0 gthread-2.0 pygtk-2.0 pygobject-2.0')
 
-lib = env.SharedLibrary('fluggo/media/process.so',
-	['main.c',
-		'FFVideoSource.c',
-		'VideoSequence.c',
-		'AudioSequence.c',
-		'VideoMixFilter.c',
-		'writeVideo.c',
-		'FFAudioSource.c',
-		'FFContainer.c',
-		'GtkVideoWidget.c',
-		'Pulldown23RemovalFilter.c',
-		'AudioPassThroughFilter.c',
-		'VideoPassThroughFilter.c',
-		'SolidColorVideoSource.c',
-		'EmptyVideoSource.c',
-		'clock.c',
-		'half.c',
-		'halftab.c',
-		'AlsaPlayer.c',
-		'basicframefuncs.c'])
+lib = env.SharedLibrary('fluggo/media/process.so', env.Glob('src/process/*.c'))
 Depends(lib, half)
 
