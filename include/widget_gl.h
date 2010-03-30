@@ -5,6 +5,10 @@
 #if !defined(FLUGGO_WIDGET_GL_H)
 #define FLUGGO_WIDGET_GL_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct __tag_widget_gl_context widget_gl_context;
 
 typedef void (*invalidate_func)( void *closure );
@@ -51,6 +55,10 @@ void widget_gl_draw( widget_gl_context *self, v2i widget_size );
     the widget.
 */
 void widget_gl_set_invalidate_func( widget_gl_context *self, invalidate_func func, void *closure );
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
 

@@ -48,6 +48,10 @@
 
 #define NS_PER_SEC    INT64_C(1000000000)
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct {
     int n;
     unsigned int d;
@@ -250,6 +254,10 @@ typedef struct {
 bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder );
 
 #define FRAME_FUNCTION_FUNCS "_frame_function_funcs"
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
 

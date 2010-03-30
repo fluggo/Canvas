@@ -23,6 +23,10 @@
 #if !defined(FLUGGO_CLOCK_H)
 #define FLUGGO_CLOCK_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define CLK_LOOP    0x1
 
 typedef struct {
@@ -55,6 +59,10 @@ bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
 int64_t gettime();
 
 #define PRESENTATION_CLOCK_FUNCS "_presentation_clock_funcs"
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
 
