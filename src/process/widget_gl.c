@@ -497,6 +497,11 @@ widget_gl_initialize( widget_gl_context *self ) {
 
 static void
 widget_gl_softLoadTexture( widget_gl_context *self ) {
+    if( self->softTargets[self->readBuffer].frameData == NULL ) {
+        box2i_setEmpty( &self->currentDataWindow );
+        return;
+    }
+
     // Load texture
     v2i frameSize;
     box2i_getSize( &self->displayWindow, &frameSize );
@@ -515,6 +520,11 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
     if( self->hardTextureId ) {
         glDeleteTextures( 1, &self->hardTextureId );
         self->hardTextureId = 0;
+    }
+
+    if( self->frameSource.obj == NULL ) {
+        box2i_setEmpty( &self->currentDataWindow );
+        return;
     }
 
     // Pull out the next frame
