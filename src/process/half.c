@@ -92,7 +92,7 @@ EXPORT void (*half_convert_to_float_fast)( const half *, float *, int );
 EXPORT void (*half_convert_from_float_fast)( const float *, half *, int );
 EXPORT void (*half_lookup)( const half *, const half *, half *, int );
 
-void init_half( void *m ) {
+EXPORT void init_half() {
     half_convert_to_float = n_convert_h2f;
     half_convert_from_float = n_convert_f2h;
     half_convert_to_float_fast = n_convert_h2f_fast;

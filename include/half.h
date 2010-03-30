@@ -25,6 +25,8 @@
 
 typedef uint16_t half;
 
+void init_half();
+
 extern void (*half_convert_from_float)( const float *in, half *out, int count );
 extern void (*half_convert_to_float)( const half *in, float *out, int count );
 extern void (*half_convert_from_float_fast)( const float *in, half *out, int count );

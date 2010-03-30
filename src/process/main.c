@@ -581,7 +581,6 @@ void init_FFContainer( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
 void init_AlsaPlayer( PyObject *module );
-void init_half( PyObject *module );
 void init_AudioPassThroughFilter( PyObject *module );
 void init_VideoSequence( PyObject *module );
 void init_VideoMixFilter( PyObject *module );
@@ -603,7 +602,7 @@ initprocess() {
     fraction = PyObject_GetAttrString( fractions, "Fraction" );
     Py_CLEAR( fractions );
 
-    init_half( m );
+    init_half();
     init_FFVideoSource( m );
     init_FFAudioSource( m );
     init_FFContainer( m );
