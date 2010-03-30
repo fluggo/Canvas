@@ -9,11 +9,6 @@ env = Environment(CPPPATH=['include'],
 	CCFLAGS = ['-fno-strict-aliasing', '-Wall', '-D_POSIX_C_SOURCE=200112L'],
 	CFLAGS=['-std=c99'])
 
-python_env = env.Clone(SHLIBPREFIX='')
-python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()])
-
-half = Command('src/process/halftab.c', 'src/process/genhalf.py', 'python $SOURCE > $TARGET')
-
 if int(debug):
 	env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
 elif int(profile):
@@ -22,6 +17,11 @@ elif int(assembly):
 	env.Append(CCFLAGS = ['-g', '-S', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno'])
 else:
 	env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-fno-tree-vectorize'])
+
+python_env = env.Clone(SHLIBPREFIX='')
+python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()])
+
+half = Command('src/process/halftab.c', 'src/process/genhalf.py', 'python $SOURCE > $TARGET')
 
 process_env = python_env.Clone()
 process_env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gl glib-2.0')
