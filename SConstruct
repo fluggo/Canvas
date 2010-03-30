@@ -79,8 +79,8 @@ if True:
 
 	sip_builder = Builder(action=sip_action, emitter=emitter, source_scanner=SCons.Defaults.CScan)
 
-	qt_env.Append(BUILDERS={'SipModule': sip_builder}, CPPPATH=['src/qt'])
-	qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl')
+	qt_env.Append(BUILDERS={'SipModule': sip_builder}, CPPPATH=['src/qt'], LIBS=[process])
+	qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl glib-2.0')
 
 	Execute(Mkdir('build/qt/sip'))
 	qt_env.Clean('build/qt/sip', Dir('build/qt/sip'))
