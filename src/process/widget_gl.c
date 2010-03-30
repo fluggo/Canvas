@@ -350,6 +350,11 @@ static inline float gamma45Func( float input ) {
 
 EXPORT widget_gl_context *
 widget_gl_new() {
+    init_half();
+
+    if( !g_thread_supported() )
+        g_thread_init( NULL );
+
     static bool __gamma_init = false;
 
     if( !__gamma_init ) {
