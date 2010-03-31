@@ -751,3 +751,16 @@ widget_gl_stop( widget_gl_context *self ) {
     }
 }
 
+EXPORT float
+widget_gl_get_pixel_aspect_ratio( widget_gl_context *self ) {
+    return self->pixelAspectRatio;
+}
+
+EXPORT void
+widget_gl_set_pixel_aspect_ratio( widget_gl_context *self, float pixel_aspect_ratio ) {
+    self->pixelAspectRatio = pixel_aspect_ratio;
+
+    if( self->invalidate_func )
+        self->invalidate_func( self->invalidate_closure );
+}
+
