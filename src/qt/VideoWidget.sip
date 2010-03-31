@@ -60,6 +60,9 @@ public:
             sipCpp->setPresentationClock( &sipCpp->_clockHolder.source );
 %End
 
+    void setPixelAspectRatio( float pixelAspectRatio );
+    float pixelAspectRatio();
+
 protected:
     virtual void paintGL();
 };

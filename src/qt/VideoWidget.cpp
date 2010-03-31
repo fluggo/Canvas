@@ -40,6 +40,14 @@ void VideoWidget::getDisplayWindow( box2i *displayWindow ) {
     widget_gl_get_display_window( _context, displayWindow );
 }
 
+void VideoWidget::setPixelAspectRatio( float pixelAspectRatio ) {
+    widget_gl_set_pixel_aspect_ratio( _context, pixelAspectRatio );
+}
+
+float VideoWidget::pixelAspectRatio() {
+    return widget_gl_get_pixel_aspect_ratio( _context );
+}
+
 void VideoWidget::paintGL() {
     QSize mySize = size();
     v2i glSize = { mySize.width(), mySize.height() };

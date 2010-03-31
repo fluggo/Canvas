@@ -15,6 +15,8 @@ public:
     void setPresentationClock( presentation_clock *presentationClock );
     void setDisplayWindow( box2i *displayWindow );
     void getDisplayWindow( box2i *displayWindow );
+    void setPixelAspectRatio( float pixelAspectRatio );
+    float pixelAspectRatio();
 
     // BJC: I'd rather these be protected at worst, but right
     // now I don't know a better place to put them (they support the SIP code)
