@@ -54,7 +54,7 @@ static void
 SolidColorVideoSource_getFrame( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_f16_frame *frame ) {
     v2i size;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->currentDataWindow );
+    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->fullDataWindow );
     box2i_getSize( &frame->currentDataWindow, &size );
 
     if( size.x == 0 || size.y == 0 )
@@ -77,7 +77,7 @@ static void
 SolidColorVideoSource_getFrame32( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_f32_frame *frame ) {
     v2i size;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->currentDataWindow );
+    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->fullDataWindow );
     box2i_getSize( &frame->currentDataWindow, &size );
 
     if( size.x == 0 || size.y == 0 )
@@ -100,7 +100,7 @@ static void
 SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_gl_frame *frame ) {
     v2i size, frameSize;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->currentDataWindow );
+    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->fullDataWindow );
     box2i_getSize( &frame->currentDataWindow, &size );
 
     if( size.x == 0 || size.y == 0 )
