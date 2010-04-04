@@ -110,6 +110,22 @@ static inline void box2i_union( box2i *result, const box2i *first, const box2i *
     result->max.y = max(first->max.y, second->max.y);
 }
 
+static inline void box2i_normalize( box2i *result ) {
+    int temp;
+
+    if( result->min.x > result->max.x ) {
+        temp = result->min.x;
+        result->min.x = result->max.x;
+        result->max.x = temp;
+    }
+
+    if( result->min.y > result->max.y ) {
+        temp = result->min.y;
+        result->min.y = result->max.y;
+        result->max.y = temp;
+    }
+}
+
 static inline void box2i_getSize( const box2i *box, v2i *result ) {
     result->x = (box->max.x < box->min.x) ? 0 : (box->max.x - box->min.x + 1);
     result->y = (box->max.y < box->min.y) ? 0 : (box->max.y - box->min.y + 1);
