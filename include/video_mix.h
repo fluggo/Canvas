@@ -25,5 +25,6 @@
 
 void video_mix_cross_f32_pull( rgba_f32_frame *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b );
 void video_mix_cross_f32( rgba_f32_frame *out, rgba_f32_frame *a, rgba_f32_frame *b, float mix_b );
+void video_mix_over_f32( rgba_f32_frame *out, rgba_f32_frame *a, rgba_f32_frame *b, float mix_a, float mix_b );
 
 #endif
