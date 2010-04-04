@@ -1,5 +1,6 @@
 /.sconsign.dblite
-/halftab.c
+/src/process/halftab.c
+/build
 *.pyc
 *.os
 *.so
