@@ -18,7 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "framework.h"
+#include "video_mix.h"
 
 #define FOREACH_PIXEL_BEGIN(frame,pixel) \
     for( int _py = (frame)->currentDataWindow.min.y - (frame)->fullDataWindow.min.y; \
@@ -73,40 +73,6 @@ VideoMixFilter_init( py_obj_VideoMixFilter *self, PyObject *args, PyObject *kwds
 }
 
 static void
-expand_frame( rgba_f32_frame *frame, box2i newWindow ) {
-    int leftClear = frame->currentDataWindow.min.x - newWindow.min.x,
-        rightClear = newWindow.max.x - frame->currentDataWindow.max.x;
-
-    // Zero top rows
-    for( int y = newWindow.min.y; y < frame->currentDataWindow.min.y; y++ ) {
-        memset( &frame_pixel(frame, newWindow.min.x, y), 0,
-            sizeof(rgba_f32) * (newWindow.max.x - newWindow.min.x + 1) );
-    }
-
-    // Zero sides
-    if( leftClear > 0 || rightClear > 0 ) {
-        for( int y = frame->currentDataWindow.min.y; y <= frame->currentDataWindow.max.y; y++ ) {
-            if( leftClear > 0 )
-                memset( &frame_pixel(frame, newWindow.min.x, y), 0,
-                    sizeof(rgba_f32) * leftClear );
-
-            if( rightClear > 0 )
-                memset( &frame_pixel(frame, frame->currentDataWindow.max.x + 1, y), 0,
-                    sizeof(rgba_f32) * rightClear );
-        }
-    }
-
-    // Zero bottom rows
-    for( int y = frame->currentDataWindow.max.y + 1; y <= newWindow.max.y; y++ ) {
-        memset( &frame_pixel(frame, newWindow.min.x, y), 0,
-            sizeof(rgba_f32) * (newWindow.max.x - newWindow.min.x + 1) );
-    }
-
-    // Set the frame size
-    frame->currentDataWindow = newWindow;
-}
-
-static void
 VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32_frame *frame ) {
     // Gather the mix factor
     float mixB = self->mixB.constant;
@@ -118,110 +84,7 @@ VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32
             1, &index, 1, &mixB );
     }
 
-    mixB = clampf(mixB, 0.0f, 1.0f);
-
-    if( self->mode == MIXMODE_CROSSFADE && mixB == 1.0f ) {
-        // We only need frame B
-        getFrame_f32( &self->srcB.source, frameIndex, frame );
-        return;
-    }
-
-    // Gather base frame
-    getFrame_f32( &self->srcA.source, frameIndex, frame );
-
-    // Shortcut out if we can
-    if( mixB == 0.0f )
-        return;
-
-    rgba_f32_frame tempFrame;
-    v2i sizeB;
-
-    switch( self->mode ) {
-        case MIXMODE_ADD:
-            // These modes don't need all of frame B
-            box2i_getSize( &frame->currentDataWindow, &sizeB );
-            tempFrame.fullDataWindow = frame->currentDataWindow;
-            tempFrame.currentDataWindow = frame->currentDataWindow;
-            break;
-
-        case MIXMODE_BLEND:
-        case MIXMODE_CROSSFADE:
-            // These modes need all of frame B
-            box2i_getSize( &frame->fullDataWindow, &sizeB );
-            tempFrame.fullDataWindow = frame->fullDataWindow;
-            tempFrame.currentDataWindow = frame->fullDataWindow;
-            break;
-
-        default:
-            // Yeah... dunno.
-            return;
-    }
-
-    tempFrame.frameData = slice_alloc( sizeof(rgba_f32) * sizeB.y * sizeB.x );
-    tempFrame.stride = sizeB.x;
-
-    getFrame_f32( &self->srcB.source, frameIndex, &tempFrame );
-
-    // Expand them until they're the same size
-    box2i newWindow = {
-        {    min(frame->currentDataWindow.min.x, tempFrame.currentDataWindow.min.x),
-            min(frame->currentDataWindow.min.y, tempFrame.currentDataWindow.min.y) },
-        {    max(frame->currentDataWindow.max.x, tempFrame.currentDataWindow.max.x),
-            max(frame->currentDataWindow.max.y, tempFrame.currentDataWindow.max.y) } };
-
-    //expand_frame( frame, newWindow );
-    //expand_frame( &tempFrame, newWindow );
-    int newWidth = newWindow.max.x - newWindow.min.x + 1;
-
-    // Perform the operation
-    for( int y = newWindow.min.y; y <= newWindow.max.y; y++ ) {
-        rgba_f32 *rowA = &frame_pixel(frame, newWindow.min.x, y);
-        rgba_f32 *rowB = &frame_pixel(&tempFrame, newWindow.min.x, y);
-
-        switch( self->mode ) {
-            case MIXMODE_ADD:
-                for( int x = 0; x < newWidth; x++ ) {
-                    rowA[x].r += rowB[x].r * rowB[x].a * mixB;
-                    rowA[x].g += rowB[x].g * rowB[x].a * mixB;
-                    rowA[x].b += rowB[x].b * rowB[x].a * mixB;
-                }
-                break;
-
-            case MIXMODE_BLEND:
-                for( int x = 0; x < newWidth; x++ ) {
-                    // FIXME: Gimp does something different here when
-                    // the alpha of the lower layer is < 1.0f
-                    rowA[x].r = rowA[x].r * (1.0f - rowB[x].a * mixB)
-                        + rowB[x].r * rowB[x].a * mixB;
-                    rowA[x].g = rowA[x].g * (1.0f - rowB[x].a * mixB)
-                        + rowB[x].g * rowB[x].a * mixB;
-                    rowA[x].b = rowA[x].b * (1.0f - rowB[x].a * mixB)
-                        + rowB[x].b * rowB[x].a * mixB;
-                    rowA[x].a = rowA[x].a + rowB[x].a * (1.0f - rowA[x].a) * mixB;
-                }
-                break;
-
-            case MIXMODE_CROSSFADE:
-                for( int x = 0; x < newWidth; x++ ) {
-                    float alpha_a = rowA[x].a * (1.0f - mixB);
-                    float alpha_b = rowB[x].a * mixB;
-
-                    rowA[x].a = alpha_a + alpha_b;
-
-                    if( rowA[x].a != 0.0 ) {
-                        rowA[x].r = (rowA[x].r * alpha_a + rowB[x].r * alpha_b) / rowA[x].a;
-                        rowA[x].g = (rowA[x].g * alpha_a + rowB[x].g * alpha_b) / rowA[x].a;
-                        rowA[x].b = (rowA[x].b * alpha_a + rowB[x].b * alpha_b) / rowA[x].a;
-                    }
-                    else {
-                        rowA[x].r = rowA[x].g = rowA[x].b = 0.0f;
-                    }
-                }
-                break;
-        }
-    }
-
-    slice_free( sizeof(rgba_f32) * sizeB.y * sizeB.x, tempFrame.frameData );
+    video_mix_cross_f32_pull( frame, &self->srcA.source, frameIndex, &self->srcB.source, frameIndex, mixB );
 }
 
 // This crossfade is based on the associative alpha blending formula from:

@@ -114,14 +114,14 @@ static inline void box2i_normalize( box2i *result ) {
     int temp;
 
     if( result->min.x > result->max.x ) {
-        temp = result->min.x;
-        result->min.x = result->max.x;
+        temp = result->min.x - 1;
+        result->min.x = result->max.x + 1;
         result->max.x = temp;
     }
 
     if( result->min.y > result->max.y ) {
-        temp = result->min.y;
-        result->min.y = result->max.y;
+        temp = result->min.y - 1;
+        result->min.y = result->max.y + 1;
         result->max.y = temp;
     }
 }
