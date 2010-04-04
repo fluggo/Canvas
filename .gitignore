@@ -1,5 +1,6 @@
 /.sconsign.dblite
 /src/process/halftab.c
+/src/qt/moc_VideoWidget.cc
 /build
 *.pyc
 *.os
