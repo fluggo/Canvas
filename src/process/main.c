@@ -240,13 +240,15 @@ EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *
     int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
     int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
 
-    for( int y = tempFrame.currentDataWindow.min.y - tempFrame.fullDataWindow.min.y;
-        y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
+    if( countX > 0 ) {
+        for( int y = tempFrame.currentDataWindow.min.y - tempFrame.fullDataWindow.min.y;
+            y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
 
-        half_convert_from_float(
-            &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
-            &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
-            countX * 4 );
+            half_convert_from_float(
+                &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
+                &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
+                countX * 4 );
+        }
     }
 
     targetFrame->currentDataWindow = tempFrame.currentDataWindow;
