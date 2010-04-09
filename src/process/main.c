@@ -590,6 +590,7 @@ void init_VideoPassThroughFilter( PyObject *module );
 void init_SolidColorVideoSource( PyObject *module );
 void init_EmptyVideoSource( PyObject *module );
 void init_basicframefuncs( PyObject *module );
+void init_Workspace( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
 initprocess() {
@@ -618,6 +619,7 @@ initprocess() {
     init_SolidColorVideoSource( m );
     init_EmptyVideoSource( m );
     init_basicframefuncs( m );
+    init_Workspace( m );
 }
 
 #if 0
