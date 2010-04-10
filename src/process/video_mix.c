@@ -48,7 +48,7 @@ video_mix_cross_f32_pull( rgba_f32_frame *out, video_source *a, int frame_a, vid
     }
 }
 
-void
+EXPORT void
 video_copy_frame_alpha_f32( rgba_f32_frame *out, rgba_f32_frame *in, float alpha ) {
     alpha = clampf(alpha, 0.0f, 1.0f);
 
