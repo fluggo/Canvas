@@ -388,7 +388,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
             tempRow[x].b = y * self->colorMatrix[2][0] +
                 tempChroma[x - picOffset.x].cb * self->colorMatrix[2][1] +
                 tempChroma[x - picOffset.x].cr * self->colorMatrix[2][2];
-            tempRow[x].a = 256.0f;
+            tempRow[x].a = 255.0f;
         }
 
         half *out = &frame->frameData[
