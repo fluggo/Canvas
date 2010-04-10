@@ -541,7 +541,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     if( !frame.frameData )
         return PyErr_NoMemory();
 
-    VideoSourceHolder source;
+    VideoSourceHolder source = { .csource = NULL };
 
     if( !takeVideoSource( sourceObj, &source ) ) {
         PyMem_Free( frame.frameData );
