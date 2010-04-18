@@ -35,14 +35,19 @@ typedef struct {
     int flags;
 } ClockRegions;
 
-typedef int64_t (*clock_getPresentationTimeFunc)( PyObject *self );
-typedef void (*clock_getSpeedFunc)( PyObject *self, rational *result );
-typedef void (*clock_getRegionsFunc)( PyObject *self, ClockRegions *result );
+typedef int64_t (*clock_getPresentationTimeFunc)( void *self );
+typedef void (*clock_getSpeedFunc)( void *self, rational *result );
+typedef void (*clock_getRegionsFunc)( void *self, ClockRegions *result );
+typedef void (*clock_callback_func)( void *data, rational *speed, int64_t time );
+typedef void *(*clock_register_callback_func)( void *self, clock_callback_func callback, void *data, GDestroyNotify notify );
+typedef void *(*clock_unregister_callback_func)( void *self, void *handle );
 
 typedef struct {
     clock_getPresentationTimeFunc getPresentationTime;
     clock_getSpeedFunc getSpeed;
     clock_getRegionsFunc getRegions;
+    clock_register_callback_func register_callback;
+    clock_unregister_callback_func unregister_callback;
 } PresentationClockFuncs;
 
 typedef struct {

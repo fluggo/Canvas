@@ -24,6 +24,13 @@
 
 #define F_PI 3.1415926535897932384626433832795f
 
+typedef struct __tag_callback_info {
+    void *data;
+    clock_callback_func callback;
+    GDestroyNotify notify;
+    struct __tag_callback_info *next;
+} callback_info;
+
 typedef struct {
     PyObject_HEAD
 
@@ -40,6 +47,9 @@ typedef struct {
     float *inBuffer;
     void *outBuffer;
     snd_pcm_hw_params_t *hwParams;
+
+    GStaticRWLock callback_lock;
+    callback_info *callbacks;
 } py_obj_AlsaPlayer;
 
 static int64_t _getPresentationTime_nolock( py_obj_AlsaPlayer *self );
@@ -324,6 +334,9 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
 
     self->playbackThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
 
+    self->callbacks = NULL;
+    g_static_rw_lock_init( &self->callback_lock );
+
     return 0;
 }
 
@@ -379,6 +392,19 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
         self->cond = NULL;
     }
 
+    // Free the callback list
+    while( self->callbacks ) {
+        callback_info *info = self->callbacks;
+        self->callbacks = info->next;
+
+        if( info->notify )
+            info->notify( info->data );
+
+        g_slice_free( callback_info, info );
+    }
+
+    g_static_rw_lock_free( &self->callback_lock );
+
     self->ob_type->tp_free( (PyObject*) self );
 }
 
@@ -433,16 +459,24 @@ _getSpeed( py_obj_AlsaPlayer *self, rational *result ) {
 }
 
 static void
-_set( py_obj_AlsaPlayer *self, int64_t seekTime, rational *speed ) {
+_set( py_obj_AlsaPlayer *self, int64_t seek_time, rational *speed ) {
+    g_mutex_lock( self->mutex );
     self->stop = (speed->n == 0);
 
     self->baseTime = gettime();
-    self->seekTime = seekTime;
+    self->seekTime = seek_time;
     self->playSpeed = *speed;
     self->nextSample = getTimeFrame( &self->rate, self->seekTime );
     self->seekTime = getFrameTime( &self->rate, self->nextSample );
+    g_cond_signal( self->cond );
+    g_mutex_unlock( self->mutex );
 
-    //printf( "%lld\n", self->baseTime );
+    // Call callbacks (taking the lock here *might* not be the best idea)
+    g_static_rw_lock_reader_lock( &self->callback_lock );
+    for( callback_info *ptr = self->callbacks; ptr != NULL; ptr = ptr->next ) {
+        ptr->callback( ptr->data, speed, seek_time );
+    }
+    g_static_rw_lock_reader_unlock( &self->callback_lock );
 }
 
 static PyObject *
@@ -457,16 +491,58 @@ AlsaPlayer_set( py_obj_AlsaPlayer *self, PyObject *args ) {
     if( !parseRational( rateObj, &rate ) )
         return NULL;
 
-    g_mutex_lock( self->mutex );
     _set( self, time, &rate );
-    g_mutex_unlock( self->mutex );
 
     Py_RETURN_NONE;
 }
 
+static void *
+_register_callback( py_obj_AlsaPlayer *self, clock_callback_func callback, void *data, GDestroyNotify notify ) {
+    g_assert( callback );
+
+    callback_info *info = g_slice_new( callback_info );
+
+    info->data = data;
+    info->callback = callback;
+    info->notify = notify;
+
+    g_static_rw_lock_writer_lock( &self->callback_lock );
+    info->next = self->callbacks;
+    self->callbacks = info;
+    g_static_rw_lock_writer_unlock( &self->callback_lock );
+
+    return self->callbacks;
+}
+
+static void
+_unregister_callback( py_obj_AlsaPlayer *self, callback_info *info ) {
+    // Unlink it
+    g_static_rw_lock_writer_lock( &self->callback_lock );
+    if( self->callbacks == info ) {
+        self->callbacks = info->next;
+    }
+    else {
+        for( callback_info *ptr = self->callbacks; ptr != NULL; ptr = ptr->next ) {
+            if( ptr->next == info ) {
+                ptr->next = info->next;
+                break;
+            }
+        }
+    }
+    g_static_rw_lock_writer_unlock( &self->callback_lock );
+
+    // Call the GDestroyNotify to let them know we don't hold this anymore
+    if( info->notify )
+        info->notify( info->data );
+
+    g_slice_free( callback_info, info );
+}
+
 static PresentationClockFuncs sourceFuncs = {
     .getPresentationTime = (clock_getPresentationTimeFunc) _getPresentationTime,
-    .getSpeed = (clock_getSpeedFunc) _getSpeed
+    .getSpeed = (clock_getSpeedFunc) _getSpeed,
+    .register_callback = (clock_register_callback_func) _register_callback,
+    .unregister_callback = (clock_unregister_callback_func) _unregister_callback
 };
 
 static PyObject *pysourceFuncs;
@@ -488,10 +564,8 @@ AlsaPlayer_getPresentationTime( py_obj_AlsaPlayer *self ) {
 
 static PyObject *
 AlsaPlayer_stop( py_obj_AlsaPlayer *self ) {
-    g_mutex_lock( self->mutex );
     rational speed = { 0, 1 };
     _set( self, _getPresentationTime_nolock( self ), &speed );
-    g_mutex_unlock( self->mutex );
 
     Py_RETURN_NONE;
 }
@@ -507,10 +581,7 @@ AlsaPlayer_play( py_obj_AlsaPlayer *self, PyObject *args ) {
     if( !parseRational( rateObj, &rate ) )
         return NULL;
 
-    g_mutex_lock( self->mutex );
     _set( self, _getPresentationTime_nolock( self ), &rate );
-    g_cond_signal( self->cond );
-    g_mutex_unlock( self->mutex );
 
     Py_RETURN_NONE;
 }
@@ -522,9 +593,7 @@ AlsaPlayer_seek( py_obj_AlsaPlayer *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "L", &time ) )
         return NULL;
 
-    g_mutex_lock( self->mutex );
     _set( self, time, &self->playSpeed );
-    g_mutex_unlock( self->mutex );
 
     Py_RETURN_NONE;
 }

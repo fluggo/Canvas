@@ -16,14 +16,6 @@ VideoWidget::~VideoWidget() {
     widget_gl_free( _context );
 }
 
-void VideoWidget::play() {
-    widget_gl_play( _context );
-}
-
-void VideoWidget::stop() {
-    widget_gl_stop( _context );
-}
-
 void VideoWidget::setVideoSource( video_source *videoSource ) {
     widget_gl_set_video_source( _context, videoSource );
 }

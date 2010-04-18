@@ -28,8 +28,6 @@ gboolean widget_gl_get_hard_mode_enabled( widget_gl_context *self );
 void widget_gl_hard_mode_enable( widget_gl_context *self, gboolean enable );
 void widget_gl_get_display_window( widget_gl_context *self, box2i *display_window );
 void widget_gl_set_display_window( widget_gl_context *self, box2i *display_window );
-void widget_gl_play( widget_gl_context *self );
-void widget_gl_stop( widget_gl_context *self );
 void widget_gl_set_video_source( widget_gl_context *self, video_source *source );
 void widget_gl_set_presentation_clock( widget_gl_context *self, presentation_clock *clock );
 float widget_gl_get_pixel_aspect_ratio( widget_gl_context *self );

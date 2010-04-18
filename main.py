@@ -52,7 +52,6 @@ class MainWindow(object):
         self.glade = gtk.glade.XML('player.glade')
         self.glade.signal_autoconnect(self)
         self.video_widget = self.glade.get_widget('videoWidget').myobj
-        self.video_widget.stop()
         self.video_widget.drawing_area().set_size_request(320, 240)
         self.frame_rate = Fraction(24000, 1001)
         self.frame_scale = self.glade.get_widget('frameScale')
@@ -63,6 +62,16 @@ class MainWindow(object):
 
         #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
         videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;03;21;24.avi')
+        pulldown = process.Pulldown23RemovalFilter(videro, 0);
+
+        red = process.SolidColorVideoSource((1.0, 0.0, 0.0, 0.25), (20, 20, 318, 277))
+        green = process.SolidColorVideoSource((0.0, 1.0, 0.0, 0.75), (200, 200, 518, 477))
+
+        workspace = process.Workspace()
+        workspace.add(source=pulldown, x=0, width=100, z=0)
+        workspace.add(source=red, x=50, width=100, z=1)
+        workspace.add(source=green, x=75, width=100, z=2)
+        workspace.add(source=pulldown, x=125, width=100, z=0, offset=500)
 
         size = videro.size()
         self.video_widget.set_display_window((0, -1, size[0] - 1, size[1] - 2))
@@ -81,33 +90,24 @@ class MainWindow(object):
         #mix = VideoMixFilter(src_a=pulldown, src_b=seq, mix_b=LinearFrameFunc(a=1/300.0, b=0))
         mix = process.VideoMixFilter(src_a=process.SolidColorVideoSource((1.0, 0.0, 0.0, 0.25), (1, 0, 718, 477)), src_b=process.SolidColorVideoSource((0.0, 1.0, 0.0, 0.75), (2, 1, 717, 476)), mix_b=process.LinearFrameFunc(a=1/300.0, b=0))
 
-        self.video_widget.set_source(mix)
-        self.video_widget.stop()
+        self.video_widget.set_source(workspace)
+        clock.stop()
 
     def on_playButton_clicked(self, *args):
         clock.play(1)
-        #player.play()
-        self.video_widget.play()
         self.playing = True
 
     def on_rewindButton_clicked(self, *args):
         clock.play(-2)
-        #player.play()
-        self.video_widget.play()
         self.playing = True
 
     def on_forwardButton_clicked(self, *args):
         clock.play(2)
-        #player.play()
-        self.video_widget.play()
         self.playing = True
 
     def on_pauseButton_clicked(self, *args):
-        #clock.play(0)
         clock.stop()
-        #player.stop()
         self.update_current_frame()
-        self.video_widget.stop()
         self.playing = False
 
     def on_frameScale_value_changed(self, control):
@@ -119,12 +119,6 @@ class MainWindow(object):
         #print frame, time
 
         clock.seek(time)
-
-        if self.playing:
-            self.video_widget.play()
-            pass
-        else:
-            self.video_widget.stop()
 
     def update_current_frame(self):
         self.updating = True

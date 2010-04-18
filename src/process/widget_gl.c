@@ -49,6 +49,7 @@ struct __tag_widget_gl_context {
     float rate;
     bool quit;
     GThread *renderThread;
+    void *clock_callback_handle;
 };
 
 static gboolean
@@ -401,6 +402,7 @@ widget_gl_new() {
     self->hardGammaShader = 0;
     self->renderOneFrame = true;
     self->lastHardFrame = -1;
+    self->clock_callback_handle = NULL;
     self->checkerColors[0].r = self->checkerColors[0].g = self->checkerColors[0].b = 128;
     self->checkerColors[1].r = self->checkerColors[1].g = self->checkerColors[1].b = 192;
 
@@ -428,6 +430,9 @@ widget_gl_free( widget_gl_context *self ) {
 
     if( self->renderThread != NULL )
         g_thread_join( self->renderThread );
+
+    if( self->clock.funcs && self->clock_callback_handle )
+        self->clock.funcs->unregister_callback( self->clock.obj, self->clock_callback_handle );
 
     self->clock.funcs = NULL;
     self->frameSource.funcs = NULL;
@@ -702,14 +707,28 @@ widget_gl_set_video_source( widget_gl_context *self, video_source *source ) {
     g_mutex_unlock( self->frameReadMutex );
 }
 
+static void _clock_callback( widget_gl_context *self, rational *speed, int64_t time );
+
 EXPORT void
 widget_gl_set_presentation_clock( widget_gl_context *self, presentation_clock *clock ) {
     g_mutex_lock( self->frameReadMutex );
+
+    if( self->clock.funcs && self->clock_callback_handle ) {
+        self->clock.funcs->unregister_callback( self->clock.obj, self->clock_callback_handle );
+        self->clock_callback_handle = NULL;
+    }
+
     self->clock = *clock;
+
+    if( self->clock.funcs && self->clock.funcs->register_callback ) {
+        self->clock_callback_handle = self->clock.funcs->register_callback( self->clock.obj,
+            (clock_callback_func) _clock_callback, self, NULL );
+    }
+
     g_mutex_unlock( self->frameReadMutex );
 }
 
-EXPORT void
+static void
 widget_gl_play( widget_gl_context *self ) {
     if( self->timeoutSourceID != 0 ) {
         g_source_remove( self->timeoutSourceID );
@@ -727,7 +746,7 @@ widget_gl_play( widget_gl_context *self ) {
     playSingleFrame( self );
 }
 
-EXPORT void
+static void
 widget_gl_stop( widget_gl_context *self ) {
     if( self->timeoutSourceID != 0 ) {
         g_source_remove( self->timeoutSourceID );
@@ -749,6 +768,15 @@ widget_gl_stop( widget_gl_context *self ) {
         // We have to play the one frame ourselves
         playSingleFrame( self );
     }
+}
+
+static void
+_clock_callback( widget_gl_context *self, rational *speed, int64_t time ) {
+    // All we have to do here is call the old play/stop interface
+    if( speed->n == 0 )
+        widget_gl_stop( self );
+    else
+        widget_gl_play( self );
 }
 
 EXPORT float

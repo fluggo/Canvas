@@ -9,8 +9,6 @@ class VideoWidget : public QGLWidget {
 public:
     VideoWidget( const QGLFormat &format, QWidget *parent = 0 );
     ~VideoWidget();
-    void play();
-    void stop();
     void setVideoSource( video_source *videoSource );
     void setPresentationClock( presentation_clock *presentationClock );
     void setDisplayWindow( box2i *displayWindow );

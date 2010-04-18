@@ -11,9 +11,6 @@ class VideoWidget : QGLWidget {
 public:
     VideoWidget( const QGLFormat &format, QWidget *parent = 0 );
 
-    void play();
-    void stop();
-
     void setDisplayWindow( SIP_PYTUPLE );
 %MethodCode
         // Python people expect to pass a 4-tuple.

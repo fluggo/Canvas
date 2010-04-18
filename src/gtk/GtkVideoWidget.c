@@ -150,18 +150,6 @@ GtkVideoWidget_dealloc( py_obj_GtkVideoWidget *self ) {
 }
 
 static PyObject *
-GtkVideoWidget_stop( py_obj_GtkVideoWidget *self ) {
-    widget_gl_stop( self->context );
-    Py_RETURN_NONE;
-}
-
-static PyObject *
-GtkVideoWidget_play( py_obj_GtkVideoWidget *self ) {
-    widget_gl_play( self->context );
-    Py_RETURN_NONE;
-}
-
-static PyObject *
 GtkVideoWidget_widgetObj( py_obj_GtkVideoWidget *self ) {
     Py_INCREF( self->drawingAreaObj );
     return self->drawingAreaObj;
@@ -251,10 +239,6 @@ GtkVideoWidget_get_hard_mode_supported( py_obj_GtkVideoWidget *self ) {
 }
 
 static PyMethodDef GtkVideoWidget_methods[] = {
-    { "play", (PyCFunction) GtkVideoWidget_play, METH_NOARGS,
-        "Signal that the widget should start processing frames or process a speed change." },
-    { "stop", (PyCFunction) GtkVideoWidget_stop, METH_NOARGS,
-        "Signal the widget to stop processing frames." },
     { "drawing_area", (PyCFunction) GtkVideoWidget_widgetObj, METH_NOARGS,
         "Return the drawing area used for video output." },
     { "display_window", (PyCFunction) GtkVideoWidget_getDisplayWindow, METH_NOARGS,

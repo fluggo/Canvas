@@ -21,6 +21,13 @@
 #include "framework.h"
 #include "clock.h"
 
+typedef struct __tag_callback_info {
+    void *data;
+    clock_callback_func callback;
+    GDestroyNotify notify;
+    struct __tag_callback_info *next;
+} callback_info;
+
 int64_t gettime() {
     struct timespec time;
     clock_gettime( CLOCK_MONOTONIC, &time );
@@ -58,6 +65,9 @@ typedef struct {
     int64_t seekTime, baseTime;
     ClockRegions regions;
     rational speed;
+
+    GStaticRWLock callback_lock;
+    callback_info *callbacks;
 } py_obj_SystemPresentationClock;
 
 /***************** SystemPresentationClock *********/
@@ -73,23 +83,44 @@ SystemPresentationClock_init( py_obj_SystemPresentationClock *self, PyObject *ar
     self->regions.loopMin = 0;
     self->regions.loopMax = -1;
     self->regions.flags = 0;
+    self->callbacks = NULL;
+    g_static_rw_lock_init( &self->callback_lock );
 
     return 0;
 }
 
 static void
 SystemPresentationClock_dealloc( py_obj_SystemPresentationClock *self ) {
+    // Free the callback list
+    while( self->callbacks ) {
+        callback_info *info = self->callbacks;
+        self->callbacks = info->next;
+
+        if( info->notify )
+            info->notify( info->data );
+
+        g_slice_free( callback_info, info );
+    }
+
     g_mutex_free( self->mutex );
+    g_static_rw_lock_free( &self->callback_lock );
+
     self->ob_type->tp_free( (PyObject*) self );
 }
 
 static void
-_set( py_obj_SystemPresentationClock *self, int64_t seekTime, rational *speed ) {
+_set( py_obj_SystemPresentationClock *self, int64_t seek_time, rational *speed ) {
     g_mutex_lock( self->mutex );
     self->baseTime = gettime();
-    self->seekTime = seekTime;
+    self->seekTime = seek_time;
     self->speed = *speed;
     g_mutex_unlock( self->mutex );
+
+    g_static_rw_lock_reader_lock( &self->callback_lock );
+    for( callback_info *ptr = self->callbacks; ptr != NULL; ptr = ptr->next ) {
+        ptr->callback( ptr->data, speed, seek_time );
+    }
+    g_static_rw_lock_reader_unlock( &self->callback_lock );
 }
 
 static int64_t
@@ -211,6 +242,48 @@ SystemPresentationClock_stop( py_obj_SystemPresentationClock *self ) {
     Py_RETURN_NONE;
 }
 
+static void *
+_register_callback( py_obj_SystemPresentationClock *self, clock_callback_func callback, void *data, GDestroyNotify notify ) {
+    g_assert( callback );
+
+    callback_info *info = g_slice_new( callback_info );
+
+    info->data = data;
+    info->callback = callback;
+    info->notify = notify;
+
+    g_static_rw_lock_writer_lock( &self->callback_lock );
+    info->next = self->callbacks;
+    self->callbacks = info;
+    g_static_rw_lock_writer_unlock( &self->callback_lock );
+
+    return self->callbacks;
+}
+
+static void
+_unregister_callback( py_obj_SystemPresentationClock *self, callback_info *info ) {
+    // Unlink it
+    g_static_rw_lock_writer_lock( &self->callback_lock );
+    if( self->callbacks == info ) {
+        self->callbacks = info->next;
+    }
+    else {
+        for( callback_info *ptr = self->callbacks; ptr != NULL; ptr = ptr->next ) {
+            if( ptr->next == info ) {
+                ptr->next = info->next;
+                break;
+            }
+        }
+    }
+    g_static_rw_lock_writer_unlock( &self->callback_lock );
+
+    // Call the GDestroyNotify to let them know we don't hold this anymore
+    if( info->notify )
+        info->notify( info->data );
+
+    g_slice_free( callback_info, info );
+}
+
 static PyMethodDef SystemPresentationClock_methods[] = {
     { "play", (PyCFunction) SystemPresentationClock_play, METH_VARARGS,
         "Starts the clock at the current spot." },
@@ -227,7 +300,9 @@ static PyMethodDef SystemPresentationClock_methods[] = {
 
 static PresentationClockFuncs sourceFuncs = {
     .getPresentationTime = (clock_getPresentationTimeFunc) _getPresentationTime,
-    .getSpeed = (clock_getSpeedFunc) _getSpeed
+    .getSpeed = (clock_getSpeedFunc) _getSpeed,
+    .register_callback = (clock_register_callback_func) _register_callback,
+    .unregister_callback = (clock_unregister_callback_func) _unregister_callback
 };
 
 static PyObject *pysourceFuncs;
