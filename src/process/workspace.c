@@ -479,7 +479,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_f32_frame *fra
 
         box2i_getSize( &frame->fullDataWindow, &size );
 
-        tempFrame.frameData = slice_alloc( sizeof(rgba_f32) * size.y * size.x );
+        tempFrame.frameData = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
         tempFrame.fullDataWindow = frame->fullDataWindow;
         tempFrame.stride = size.x;
 
@@ -491,7 +491,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_f32_frame *fra
             video_mix_over_f32( frame, frame, &tempFrame, 1.0f, 1.0f );
         }
 
-        slice_free( sizeof(rgba_f32) * size.y * size.x, tempFrame.frameData );
+        g_slice_free1( sizeof(rgba_f32) * size.y * size.x, tempFrame.frameData );
     }
 
     g_static_mutex_unlock( &self->mutex );

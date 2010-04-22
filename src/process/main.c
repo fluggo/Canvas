@@ -229,7 +229,7 @@ EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *
     v2i size;
 
     box2i_getSize( &targetFrame->fullDataWindow, &size );
-    tempFrame.frameData = slice_alloc( sizeof(rgba_f32) * size.x * size.y );
+    tempFrame.frameData = g_slice_alloc( sizeof(rgba_f32) * size.x * size.y );
     tempFrame.fullDataWindow = targetFrame->fullDataWindow;
     tempFrame.currentDataWindow = targetFrame->fullDataWindow;
     tempFrame.stride = size.x;
@@ -253,7 +253,7 @@ EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *
 
     targetFrame->currentDataWindow = tempFrame.currentDataWindow;
 
-    slice_free( sizeof(rgba_f32) * size.x * size.y, tempFrame.frameData );
+    g_slice_free1( sizeof(rgba_f32) * size.x * size.y, tempFrame.frameData );
 }
 
 EXPORT void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *targetFrame ) {
@@ -277,7 +277,7 @@ EXPORT void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *
     v2i size;
 
     box2i_getSize( &targetFrame->fullDataWindow, &size );
-    tempFrame.frameData = slice_alloc( sizeof(rgba_f16) * size.x * size.y );
+    tempFrame.frameData = g_slice_alloc( sizeof(rgba_f16) * size.x * size.y );
     tempFrame.fullDataWindow = targetFrame->fullDataWindow;
     tempFrame.currentDataWindow = targetFrame->fullDataWindow;
     tempFrame.stride = size.x;
@@ -299,7 +299,7 @@ EXPORT void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *
 
     targetFrame->currentDataWindow = tempFrame.currentDataWindow;
 
-    slice_free( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
+    g_slice_free1( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
 }
 
 EXPORT void getFrame_gl( video_source *source, int frameIndex, rgba_gl_frame *targetFrame ) {

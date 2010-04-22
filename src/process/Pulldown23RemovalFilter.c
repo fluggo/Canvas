@@ -88,7 +88,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
         // We want the evens (field #1) from this next frame
         // TODO: Cache this temp frame between calls
         rgba_f16_frame tempFrame;
-        tempFrame.frameData = slice_alloc( sizeof(rgba_f16) * height * width );
+        tempFrame.frameData = g_slice_alloc( sizeof(rgba_f16) * height * width );
         tempFrame.stride = width;
         tempFrame.fullDataWindow = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
@@ -101,7 +101,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
                 width * sizeof(rgba_f16) );
         }
 
-        slice_free( sizeof(rgba_f16) * height * width, tempFrame.frameData );
+        g_slice_free1( sizeof(rgba_f16) * height * width, tempFrame.frameData );
     }
 }
 

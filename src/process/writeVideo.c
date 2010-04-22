@@ -58,9 +58,9 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         return NULL;
 
     // Do a simple gamma ramp for now
-    uint8_t *ramp = slice_alloc( RAMP_SIZE );
-    float *tempRampF = slice_alloc( RAMP_SIZE * sizeof(float) );
-    half *tempRampH = slice_alloc( RAMP_SIZE * sizeof(half) );
+    uint8_t *ramp = g_slice_alloc( RAMP_SIZE );
+    float *tempRampF = g_slice_alloc( RAMP_SIZE * sizeof(float) );
+    half *tempRampH = g_slice_alloc( RAMP_SIZE * sizeof(half) );
 
     if( !ramp )
         return PyErr_NoMemory();
@@ -69,14 +69,14 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         tempRampH[i] = (half) i;
 
     half_convert_to_float( tempRampH, tempRampF, RAMP_SIZE );
-    slice_free( RAMP_SIZE * sizeof(half), tempRampH );
+    g_slice_free1( RAMP_SIZE * sizeof(half), tempRampH );
 
     for( int i = 0; i < RAMP_SIZE; i++ ) {
         ramp[i] = (uint8_t) min( 255, max( 0,
             (int)(powf( clampf(tempRampF[i], 0.0f, 1.0f), 0.45f ) * 255.0f) ) );
     }
 
-    slice_free( RAMP_SIZE * sizeof(float), tempRampF );
+    g_slice_free1( RAMP_SIZE * sizeof(float), tempRampF );
 
     // Does anyone know a better formula for a bit bucket size than this?
     // TODO: Make sure this is big enough for audio, too
@@ -202,7 +202,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
 
     if( videoSource.source.funcs ) {
         inputFrame.fullDataWindow = dataWindow;
-        inputFrame.frameData = (rgba_f16*) slice_alloc( frameSize.x * frameSize.y * sizeof(rgba_f16) );
+        inputFrame.frameData = (rgba_f16*) g_slice_alloc( frameSize.x * frameSize.y * sizeof(rgba_f16) );
         inputFrame.stride = frameSize.x;
 
         avcodec_get_frame_defaults( &interFrame );
@@ -214,11 +214,11 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         outputBufferSize = avpicture_get_size(
             video->codec->pix_fmt, frameSize.x, frameSize.y );
 
-        if( (interBuffer = (uint8_t*) slice_alloc( interBufferSize )) == NULL ) {
+        if( (interBuffer = (uint8_t*) g_slice_alloc( interBufferSize )) == NULL ) {
             return PyErr_NoMemory();
         }
 
-        if( (outputBuffer = (uint8_t*) slice_alloc( outputBufferSize )) == NULL ) {
+        if( (outputBuffer = (uint8_t*) g_slice_alloc( outputBufferSize )) == NULL ) {
             return PyErr_NoMemory();
         }
 
@@ -239,9 +239,9 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             sampleCount = 1024;        // I have no idea
 
         outSampleBufSize = sizeof(short) * audioChannels * sampleCount;
-        outSampleBuf = slice_alloc( outSampleBufSize );
+        outSampleBuf = g_slice_alloc( outSampleBufSize );
 
-        audioInputFrame.frameData = slice_alloc( sizeof(float) * audioChannels * sampleCount );
+        audioInputFrame.frameData = g_slice_alloc( sizeof(float) * audioChannels * sampleCount );
     }
 
     int nextVideoFrame = getTimeFrame( &videoRate, startTime );
@@ -436,18 +436,18 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
 
     if( videoSource.source.funcs ) {
         avcodec_close( video->codec );
-        slice_free( RAMP_SIZE, ramp );
-        slice_free( frameSize.x * frameSize.y * sizeof(rgba_f16), inputFrame.frameData );
-        slice_free( interBufferSize, interBuffer );
-        slice_free( outputBufferSize, outputBuffer );
+        g_slice_free1( RAMP_SIZE, ramp );
+        g_slice_free1( frameSize.x * frameSize.y * sizeof(rgba_f16), inputFrame.frameData );
+        g_slice_free1( interBufferSize, interBuffer );
+        g_slice_free1( outputBufferSize, outputBuffer );
         sws_freeContext( scaler );
         av_free( video );
     }
 
     if( audioSource.funcs ) {
         avcodec_close( audio->codec );
-        slice_free( outSampleBufSize, outSampleBuf );
-        slice_free( sizeof(float) * sampleCount * audioChannels, audioInputFrame.frameData );
+        g_slice_free1( outSampleBufSize, outSampleBuf );
+        g_slice_free1( sizeof(float) * sampleCount * audioChannels, audioInputFrame.frameData );
         av_free( audio );
     }
 

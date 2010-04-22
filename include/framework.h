@@ -27,21 +27,9 @@
 #include <stdbool.h>
 #include "half.h"
 
-#include <memory.h>
-#include <errno.h>
-
 #define EXPORT __attribute__((visibility("default")))
 
-#if 1
 #include <glib.h>
-#define slice_alloc(size) g_slice_alloc(size)
-#define slice_alloc0(size) g_slice_alloc0(size)
-#define slice_free(size, ptr) g_slice_free1(size, ptr)
-#else
-#define slice_alloc(size) g_malloc(size)
-#define slice_alloc0(size) g_malloc0(size)
-#define slice_free(size, ptr) g_free(ptr)
-#endif
 
 #include <GL/glew.h>
 #include <GL/gl.h>

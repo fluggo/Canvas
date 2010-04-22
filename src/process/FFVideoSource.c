@@ -270,7 +270,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
 
     uint8_t *inputBuffer;
 
-    if( (inputBuffer = (uint8_t*) slice_alloc( inputBufferSize )) == NULL ) {
+    if( (inputBuffer = (uint8_t*) g_slice_alloc( inputBufferSize )) == NULL ) {
         printf( "Could not allocate output buffer\n" );
 
         if( frame )
@@ -290,11 +290,11 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
         if( frame )
             box2i_setEmpty( &frame->currentDataWindow );
 
-        slice_free( inputBufferSize, inputBuffer );
+        g_slice_free1( inputBufferSize, inputBuffer );
     }
 
     if( !frame ) {
-        slice_free( inputBufferSize, inputBuffer );
+        g_slice_free1( inputBufferSize, inputBuffer );
         return;
     }
 
@@ -335,7 +335,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
         default:
             // TEMP: Wimp out if we don't know the format
             box2i_setEmpty( &frame->currentDataWindow );
-            slice_free( inputBufferSize, inputBuffer );
+            g_slice_free1( inputBufferSize, inputBuffer );
             return;
     }
 
@@ -346,12 +346,12 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
     createTriangleFilter( subX, subOffsetX, &triangleFilter );
 
     // Temp rows aligned to the AVFrame buffer [0, width)
-    rgba_f32 *tempRow = slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
-    cbcr_f32 *tempChroma = slice_alloc( sizeof(cbcr_f32) * self->codecContext->width );
+    rgba_f32 *tempRow = g_slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
+    cbcr_f32 *tempChroma = g_slice_alloc( sizeof(cbcr_f32) * self->codecContext->width );
 
     if( !tempRow ) {
         printf( "Failed to allocate row\n" );
-        slice_free( inputBufferSize, inputBuffer );
+        g_slice_free1( inputBufferSize, inputBuffer );
         box2i_setEmpty( &frame->currentDataWindow );
         return;
     }
@@ -402,9 +402,9 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
     }
 
     free( triangleFilter.coeff );
-    slice_free( sizeof(rgba_f32) * self->codecContext->width, tempRow );
-    slice_free( sizeof(cbcr_f32) * self->codecContext->width, tempChroma );
-    slice_free( inputBufferSize, inputBuffer );
+    g_slice_free1( sizeof(rgba_f32) * self->codecContext->width, tempRow );
+    g_slice_free1( sizeof(cbcr_f32) * self->codecContext->width, tempChroma );
+    g_slice_free1( inputBufferSize, inputBuffer );
 
 #if 0
     else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
@@ -523,7 +523,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_gl_fr
 
     uint8_t *inputBuffer;
 
-    if( (inputBuffer = (uint8_t*) slice_alloc( inputBufferSize )) == NULL ) {
+    if( (inputBuffer = (uint8_t*) g_slice_alloc( inputBufferSize )) == NULL ) {
         printf( "Could not allocate output buffer\n" );
 
         if( frame )
@@ -543,16 +543,17 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_gl_fr
         if( frame )
             box2i_setEmpty( &frame->currentDataWindow );
 
-        slice_free( inputBufferSize, inputBuffer );
+        g_slice_free1( inputBufferSize, inputBuffer );
     }
 
     if( !frame ) {
-        slice_free( inputBufferSize, inputBuffer );
+        g_slice_free1( inputBufferSize, inputBuffer );
         return;
     }
 
     if( self->codecContext->pix_fmt != PIX_FMT_YUV411P ) {
         puts( "We don't have an implementation for anything but YUV 4:1:1 yet." );
+        g_slice_free1( inputBufferSize, inputBuffer );
         return;
     }
 
@@ -623,7 +624,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_gl_fr
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
     glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
-    slice_free( inputBufferSize, inputBuffer );
+    g_slice_free1( inputBufferSize, inputBuffer );
 
     glUseProgramObjectARB( shader->program );
     glUniform1iARB( shader->texY, 0 );
