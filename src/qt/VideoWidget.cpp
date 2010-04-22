@@ -47,3 +47,7 @@ void VideoWidget::paintGL() {
     widget_gl_draw( _context, glSize );
 }
 
+QSize VideoWidget::sizeHint() const {
+    return QSize(320, 240);
+}
+

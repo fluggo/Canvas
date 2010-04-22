@@ -21,6 +21,8 @@ public:
     PresentationClockHolder _clockHolder;
     VideoSourceHolder _sourceHolder;
 
+    virtual QSize sizeHint() const;
+
 protected:
     virtual void paintGL();
 

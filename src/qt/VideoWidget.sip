@@ -60,6 +60,8 @@ public:
     void setPixelAspectRatio( float pixelAspectRatio );
     float pixelAspectRatio();
 
+    virtual QSize sizeHint() const;
+
 protected:
     virtual void paintGL();
 };
