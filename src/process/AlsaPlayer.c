@@ -290,6 +290,9 @@ static bool _setConfig( py_obj_AlsaPlayer *self, unsigned int *ratePtr, unsigned
 
 static int
 AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
+    if( !g_thread_supported() )
+        g_thread_init( NULL );
+
     PyObject *frameSource = NULL;
 
     unsigned int rate = 0, channels = 0;
