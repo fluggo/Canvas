@@ -318,7 +318,7 @@ EXPORT void getFrame_gl( video_source *source, int frameIndex, rgba_gl_frame *ta
     box2i_getSize( &targetFrame->fullDataWindow, &frameSize );
 
     rgba_f16_frame frame = { NULL };
-    frame.frameData = slice_alloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
+    frame.frameData = g_slice_alloc0( sizeof(rgba_f16) * frameSize.x * frameSize.y );
     frame.fullDataWindow = targetFrame->fullDataWindow;
     frame.currentDataWindow = targetFrame->fullDataWindow;
     frame.stride = frameSize.x;
@@ -331,7 +331,7 @@ EXPORT void getFrame_gl( video_source *source, int frameIndex, rgba_gl_frame *ta
     glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
         GL_RGBA, GL_HALF_FLOAT_ARB, frame.frameData );
 
-    slice_free( sizeof(rgba_f16) * frameSize.x * frameSize.y, frame.frameData );
+    g_slice_free1( sizeof(rgba_f16) * frameSize.x * frameSize.y, frame.frameData );
 }
 
 EXPORT int64_t
