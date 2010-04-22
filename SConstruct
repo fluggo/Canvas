@@ -6,7 +6,7 @@ assembly = ARGUMENTS.get('assembly', 0)
 profile = ARGUMENTS.get('profile', 0)
 
 env = Environment(CPPPATH=['include'],
-	CCFLAGS = ['-fno-strict-aliasing', '-Wall', '-D_POSIX_C_SOURCE=200112L'],
+	CCFLAGS = ['-fno-strict-aliasing', '-Wall', '-D_POSIX_C_SOURCE=200112L', '-Werror=implicit-function-declaration', '-Werror=implicit-int'],
 	CFLAGS=['-std=c99'])
 
 if int(debug):
