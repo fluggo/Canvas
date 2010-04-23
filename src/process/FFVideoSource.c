@@ -21,6 +21,7 @@
 #include "framework.h"
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include "filter.h"
 
 static GQuark q_recon411Shader;
 
@@ -223,34 +224,6 @@ read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
     }
 }
 
-typedef struct {
-    float *coeff;
-    int width;
-    int center;    // Index of the center tap
-} fir_filter;
-
-static void
-createTriangleFilter( float sub, float offset, fir_filter *filter ) {
-    // The filter we're coming up with is y(x) = 1 - (1/sub) * abs(x - offset)
-    // Goes to zero at x = offset +/- sub
-
-    float leftEdge = ceilf(offset - sub);
-    float rightEdge = floorf(offset + sub);
-
-    if( leftEdge == offset - sub )
-        leftEdge++;
-
-    if( rightEdge == offset + sub )
-        rightEdge--;
-
-    filter->width = (int) rightEdge - (int) leftEdge + 1;
-    filter->center = - (int) leftEdge;
-    filter->coeff = malloc( sizeof(float) * filter->width );
-
-    for( int i = 0; i < filter->width; i++ )
-        filter->coeff[i] = 1.0f - (1.0f / sub) * fabsf((i - filter->center) - offset);
-}
-
 static void
 FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_frame *frame ) {
     if( frameIndex < 0 ) {
@@ -342,8 +315,8 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
     // BJC: What follows is the horizontal-subsample-only case
     uint8_t *yplane, *cbplane, *crplane;
 
-    fir_filter triangleFilter;
-    createTriangleFilter( subX, subOffsetX, &triangleFilter );
+    fir_filter triangleFilter = { NULL };
+    filter_createTriangle( subX, subOffsetX, &triangleFilter );
 
     // Temp rows aligned to the AVFrame buffer [0, width)
     rgba_f32 *tempRow = g_slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
@@ -401,7 +374,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_fra
             (sizeof(rgba_f16) / sizeof(half)) * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
     }
 
-    free( triangleFilter.coeff );
+    filter_free( &triangleFilter );
     g_slice_free1( sizeof(rgba_f32) * self->codecContext->width, tempRow );
     g_slice_free1( sizeof(cbcr_f32) * self->codecContext->width, tempChroma );
     g_slice_free1( inputBufferSize, inputBuffer );
