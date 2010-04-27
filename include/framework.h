@@ -61,11 +61,11 @@ typedef struct {
     v2f min, max;
 } box2f;
 
-static inline int min( int a, int b ) {
+G_GNUC_CONST static inline int min( int a, int b ) {
     return a < b ? a : b;
 }
 
-static inline int max( int a, int b ) {
+G_GNUC_CONST static inline int max( int a, int b ) {
     return a > b ? a : b;
 }
 
@@ -80,7 +80,7 @@ static inline void box2i_setEmpty( box2i *box ) {
     box2i_set( box, 0, 0, -1, -1 );
 }
 
-static inline bool box2i_isEmpty( const box2i *box ) {
+G_GNUC_PURE static inline bool box2i_isEmpty( const box2i *box ) {
     return box->max.x < box->min.x || box->max.y < box->min.y;
 }
 
@@ -119,15 +119,15 @@ static inline void box2i_getSize( const box2i *box, v2i *result ) {
     result->y = (box->max.y < box->min.y) ? 0 : (box->max.y - box->min.y + 1);
 }
 
-static inline float minf( float a, float b ) {
+G_GNUC_CONST static inline float minf( float a, float b ) {
     return a < b ? a : b;
 }
 
-static inline float maxf( float a, float b ) {
+G_GNUC_CONST static inline float maxf( float a, float b ) {
     return a > b ? a : b;
 }
 
-static inline float clampf( float value, float min, float max ) {
+G_GNUC_CONST static inline float clampf( float value, float min, float max ) {
     return minf(maxf(value, min), max);
 }
 
@@ -180,11 +180,11 @@ typedef struct {
     video_getFrameGLFunc getFrameGL;
 } VideoFrameSourceFuncs;
 
-static inline rgba_f16 *getPixel_f16( rgba_f16_frame *frame, int x, int y ) {
+G_GNUC_PURE static inline rgba_f16 *getPixel_f16( rgba_f16_frame *frame, int x, int y ) {
     return &frame->frameData[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
 }
 
-static inline rgba_f32 *getPixel_f32( rgba_f32_frame *frame, int x, int y ) {
+G_GNUC_PURE static inline rgba_f32 *getPixel_f32( rgba_f32_frame *frame, int x, int y ) {
     return &frame->frameData[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
 }
 
