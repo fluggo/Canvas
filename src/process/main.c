@@ -391,6 +391,31 @@ EXPORT PyObject *makeFraction( rational *in ) {
     return result;
 }
 
+EXPORT PyObject *
+py_make_box2f( box2f *box ) {
+    // TODO: Probably make a named tuple out of this
+    return Py_BuildValue( "ffff", box->min.x, box->min.y, box->max.x, box->max.y );
+}
+
+EXPORT PyObject *
+py_make_box2i( box2i *box ) {
+    // TODO: Probably make a named tuple out of this
+    return Py_BuildValue( "iiii", box->min.x, box->min.y, box->max.x, box->max.y );
+}
+
+EXPORT PyObject *
+py_make_v2f( v2f *v ) {
+    // TODO: Probably make a named tuple out of this
+    return Py_BuildValue( "ff", v->x, v->y );
+}
+
+EXPORT PyObject *
+py_make_v2i( v2i *v ) {
+    // TODO: Probably make a named tuple out of this
+    return Py_BuildValue( "ii", v->x, v->y );
+}
+
+
 PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
     PyObject *frameRateObj;
     rational frameRate;

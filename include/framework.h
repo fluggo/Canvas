@@ -136,6 +136,11 @@ int getTimeFrame( const rational *frameRate, int64_t time );
 bool parseRational( PyObject *in, rational *out );
 PyObject *makeFraction( rational *in );
 
+PyObject *py_make_box2f( box2f *box );
+PyObject *py_make_box2i( box2i *box );
+PyObject *py_make_v2f( v2f *v );
+PyObject *py_make_v2i( v2i *v );
+
 /************* Video *******/
 typedef struct {
     half r, g, b, a;
