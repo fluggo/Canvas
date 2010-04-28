@@ -595,6 +595,7 @@ void init_EmptyVideoSource( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 void init_Workspace( PyObject *module );
 void init_RgbaFrameF32( PyObject *module );
+void init_VideoScaler( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
 initprocess() {
@@ -625,6 +626,7 @@ initprocess() {
     init_basicframefuncs( m );
     init_Workspace( m );
     init_RgbaFrameF32( m );
+    init_VideoScaler( m );
 }
 
 #if 0
