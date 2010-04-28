@@ -172,42 +172,6 @@ EXPORT bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
     return true;
 }
 
-EXPORT bool takeFrameFunc( PyObject *source, FrameFunctionHolder *holder ) {
-    Py_CLEAR( holder->source );
-    Py_CLEAR( holder->csource );
-    holder->funcs = NULL;
-    holder->constant = 0.0f;
-
-    if( source == NULL || source == Py_None )
-        return true;
-
-    PyObject *asFloat = PyNumber_Float( source );
-
-    if( asFloat ) {
-        holder->constant = (float) PyFloat_AS_DOUBLE( asFloat );
-        Py_CLEAR( asFloat );
-        return true;
-    }
-    else {
-        // Clear any errors
-        PyErr_Clear();
-    }
-
-    Py_INCREF( source );
-    holder->source = source;
-    holder->csource = PyObject_GetAttrString( source, FRAME_FUNCTION_FUNCS );
-
-    if( holder->csource == NULL ) {
-        Py_CLEAR( holder->source );
-        PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " FRAME_FUNCTION_FUNCS " attribute." );
-        return false;
-    }
-
-    holder->funcs = (FrameFunctionFuncs*) PyCObject_AsVoidPtr( holder->csource );
-
-    return true;
-}
-
 EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
@@ -588,6 +552,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
 PyObject *py_writeVideo( PyObject *self, PyObject *args, PyObject *kw );
 PyObject *py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw );
+PyObject *py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw );
 
 static PyMethodDef module_methods[] = {
     { "get_frame_time", (PyCFunction) py_getFrameTime, METH_VARARGS,
@@ -604,6 +569,14 @@ static PyMethodDef module_methods[] = {
         "Get a frame of video from a video source.\n"
         "\n"
         "frame = get_frame_f32(source, frame, data_window)" },
+    { "frame_func_get", (PyCFunction) py_frame_func_get, METH_VARARGS | METH_KEYWORDS,
+        "Get a list of values from a frame function.\n"
+        "\n"
+        "value_list = frame_func_get(source, frames[, div=1])\n"
+        "\n"
+        "source: A frame function.\n"
+        "frames: An integer or a list of integers of the frames to get values for.\n"
+        "div: Optional integer to divide each frame by, to support subsampling the function." },
     { NULL }
 };
 
