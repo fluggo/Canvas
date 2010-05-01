@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 void video_scale_bilinear_f32( rgba_f32_frame *target, v2f target_point, rgba_f32_frame *source, v2f source_point, v2f factors );
+void video_scale_bilinear_f32_pull( rgba_f32_frame *target, v2f target_point, video_source *source, int frame, box2i *source_rect, v2f source_point, v2f factors );
 
 #if defined(__cplusplus)
 }

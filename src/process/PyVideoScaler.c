@@ -27,17 +27,17 @@ typedef struct {
     PyObject_HEAD
 
     VideoSourceHolder source;
-    FrameFunctionHolder target_point, source_point, scale_factors;
+    FrameFunctionHolder target_point, source_point, scale_factors, source_rect;
 } py_obj_VideoScaler;
 
 static int
 VideoScaler_init( py_obj_VideoScaler *self, PyObject *args, PyObject *kw ) {
-    PyObject *sourceObj, *target_point_obj, *source_point_obj, *scale_factor_obj;
+    PyObject *sourceObj, *target_point_obj, *source_point_obj, *scale_factor_obj, *source_rect_obj;
 
-    static char *kwlist[] = { "source", "target_point", "source_point", "scale_factors", NULL };
+    static char *kwlist[] = { "source", "target_point", "source_point", "scale_factors", "source_rect", NULL };
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "OOOO", kwlist,
-            &sourceObj, &target_point_obj, &source_point_obj, &scale_factor_obj ) )
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "OOOOO", kwlist,
+            &sourceObj, &target_point_obj, &source_point_obj, &scale_factor_obj, &source_rect_obj ) )
         return -1;
 
     if( !takeVideoSource( sourceObj, &self->source ) )
@@ -52,6 +52,9 @@ VideoScaler_init( py_obj_VideoScaler *self, PyObject *args, PyObject *kw ) {
     if( !frameFunc_takeSource( scale_factor_obj, &self->scale_factors ) )
         return -1;
 
+    if( !frameFunc_takeSource( source_rect_obj, &self->source_rect ) )
+        return -1;
+
     return 0;
 }
 
@@ -63,24 +66,14 @@ VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_f32_f
         return;
     }
 
-    v2i size;
-    box2i_getSize( &frame->fullDataWindow, &size );
-
     v2f source_point, target_point, scale_factors;
+    box2i source_rect;
     frameFunc_get_v2f( &self->source_point, frame_index, 1, &source_point );
     frameFunc_get_v2f( &self->target_point, frame_index, 1, &target_point );
     frameFunc_get_v2f( &self->scale_factors, frame_index, 1, &scale_factors );
+    frameFunc_get_box2i( &self->source_rect, frame_index, 1, &source_rect );
 
-    rgba_f32_frame temp_frame;
-    temp_frame.frameData = g_slice_alloc( sizeof(rgba_f32) * size.x * size.y );
-    temp_frame.stride = size.x;
-    temp_frame.fullDataWindow = frame->fullDataWindow;
-
-    getFrame_f32( &self->source.source, frame_index, &temp_frame );
-
-    video_scale_bilinear_f32( frame, target_point, &temp_frame, source_point, scale_factors );
-
-    g_slice_free1( sizeof(rgba_f32) * size.x * size.y, temp_frame.frameData );
+    video_scale_bilinear_f32_pull( frame, target_point, &self->source.source, frame_index, &source_rect, source_point, scale_factors );
 }
 
 static void

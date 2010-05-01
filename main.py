@@ -89,7 +89,7 @@ class MainWindow(object):
         #mix = VideoMixFilter(src_a=pulldown, src_b=SolidColorVideoSource((1.0, 0.0, 0.0, 0.5), (50, 50, 100, 100)), mix_b=LinearFrameFunc(a=1/300.0, b=0))
         #mix = VideoMixFilter(src_a=pulldown, src_b=seq, mix_b=LinearFrameFunc(a=1/300.0, b=0))
         #mix = process.VideoMixFilter(src_a=process.SolidColorVideoSource((1.0, 0.0, 0.0, 0.25), (1, 0, 718, 477)), src_b=process.SolidColorVideoSource((0.0, 1.0, 0.0, 0.75), (2, 1, 717, 476)), mix_b=process.LinearFrameFunc(a=1/300.0, b=0))
-        mix = process.VideoScaler(source=pulldown, source_point=(0, 0), target_point=(0, 0), scale_factors=process.LerpFunc((0.25, 0.25), (4.0, 4.0), length=1000))
+        mix = process.VideoScaler(source=pulldown, source_point=(320, 120), target_point=(320, 120), scale_factors=process.LerpFunc((0.25, 0.25), (4.0, 4.0), length=1000), source_rect=(0, -1, size[0] - 1, size[1] - 2))
 
         self.video_widget.set_source(mix)
         clock.stop()
