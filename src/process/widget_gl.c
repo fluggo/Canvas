@@ -304,11 +304,17 @@ playbackThread( widget_gl_context *self ) {
         }
 
         if( self->renderOneFrame ) {
-            // We're done here, draw the frame at the next opportunity
+            // Draw the frame at the next opportunity
             self->readBuffer = writeBuffer;
-            self->renderOneFrame = false;
             self->drawOneFrame = true;
             g_timeout_add_full( G_PRIORITY_DEFAULT, 0, (GSourceFunc) playSingleFrame, self, NULL );
+
+            if( self->nextToRenderFrame == nextFrame ) {
+                // We're done here
+                self->renderOneFrame = false;
+            }
+
+            // Otherwise, loop around and do it again
         }
         else {
             self->filled++;
