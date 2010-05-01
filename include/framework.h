@@ -294,6 +294,7 @@ bool frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder );
 int frameFunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
 float frameFunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
 void frameFunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f *result );
+void frameFunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, box2i *result );
 
 #define FRAME_FUNCTION_FUNCS "_frame_function_funcs"
 

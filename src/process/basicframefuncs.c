@@ -335,14 +335,31 @@ frameFunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f 
         *result = holder->constant.const_v2f;
     }
     else if( holder->constant_type == CONST_TYPE_INT32 ) {
-        result->x = lroundf( holder->constant.const_v2i.x );
-        result->y = lroundf( holder->constant.const_v2i.y );
+        result->x = holder->constant.const_v2i.x;
+        result->y = holder->constant.const_v2i.y;
     }
 
     if( holder->funcs && holder->funcs->getValues_v2f )
         holder->funcs->getValues_v2f( holder->source, 1, &frame, div, result );
 }
 
+EXPORT void
+frameFunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, box2i *result ) {
+    *result = (box2i) { { 0 } };
+
+    if( holder->constant_type == CONST_TYPE_INT32 ) {
+        *result = holder->constant.const_box2i;
+    }
+    else if( holder->constant_type == CONST_TYPE_FLOAT32 ) {
+        result->min.x = lroundf( holder->constant.const_box2f.min.x );
+        result->min.y = lroundf( holder->constant.const_box2f.min.y );
+        result->max.x = lroundf( holder->constant.const_box2f.max.x );
+        result->max.y = lroundf( holder->constant.const_box2f.max.y );
+    }
+
+    if( holder->funcs && holder->funcs->getValues_box2i )
+        holder->funcs->getValues_box2i( holder->source, 1, &frame, div, result );
+}
 
 PyObject *
 py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
