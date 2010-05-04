@@ -28,11 +28,13 @@ process_env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR lib
 process_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
 process = process_env.SharedLibrary('fluggo/media/process.so', env.Glob('src/process/*.c'))
 Depends(process, half)
+Default(process)
 
 gtk_env = python_env.Clone()
 gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
 gtk_env.Append(LIBS=['GLEW', process], CCFLAGS=['-fvisibility=hidden'])
 gtk = gtk_env.SharedLibrary('fluggo/media/gtk.so', ['src/gtk/GtkVideoWidget.c'])
+Default(gtk)
 
 if True:
     import PyQt4.pyqtconfig
@@ -85,4 +87,14 @@ if True:
     Execute(Mkdir('build/qt/sip'))
     qt_env.Clean('build/qt/sip', Dir('build/qt/sip'))
     qt = qt_env.SipModule('fluggo/media/qt.so', env.Glob('src/qt/*.sip') + env.Glob('src/qt/*.cpp'))
+    Default(qt)
+
+testenv = env.Clone()
+testenv.Append(ENV={'PYTHONPATH': env.Dir('.')})
+
+for testfile in Glob('tests/test_*.py'):
+    testenv.Alias('test', testenv.Command('test', testfile, '@python tests/testrunner.py $SOURCE.filebase'))
+
+Depends('test', process)
+
 
