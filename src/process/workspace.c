@@ -451,7 +451,7 @@ workspace_remove_item( workspace_item_t *item ) {
 }
 
 static void
-workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_f32_frame *frame ) {
+workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *frame ) {
     g_static_mutex_lock( &self->mutex );
 
     // Update the composite list
@@ -474,7 +474,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_f32_frame *fra
     getFrame_f32( (video_source *) item->source, frame_index - item->x + item->offset, frame );
 
     if( !g_sequence_iter_is_begin( iter ) ) {
-        rgba_f32_frame tempFrame;
+        rgba_frame_f32 tempFrame;
         v2i size;
 
         box2i_getSize( &frame->fullDataWindow, &size );

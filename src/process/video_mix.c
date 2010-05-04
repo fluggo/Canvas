@@ -21,7 +21,7 @@
 #include "video_mix.h"
 
 EXPORT void
-video_mix_cross_f32_pull( rgba_f32_frame *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b ) {
+video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b ) {
     mix_b = clampf(mix_b, 0.0f, 1.0f);
 
     if( mix_b == 0.0 ) {
@@ -31,7 +31,7 @@ video_mix_cross_f32_pull( rgba_f32_frame *out, video_source *a, int frame_a, vid
         getFrame_f32( b, frame_b, out );
     }
     else {
-        rgba_f32_frame tempFrame;
+        rgba_frame_f32 tempFrame;
         v2i size;
 
         box2i_getSize( &out->fullDataWindow, &size );
@@ -49,7 +49,7 @@ video_mix_cross_f32_pull( rgba_f32_frame *out, video_source *a, int frame_a, vid
 }
 
 EXPORT void
-video_copy_frame_alpha_f32( rgba_f32_frame *out, rgba_f32_frame *in, float alpha ) {
+video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha ) {
     alpha = clampf(alpha, 0.0f, 1.0f);
 
     if( out == in && alpha == 1.0f )
@@ -85,7 +85,7 @@ video_copy_frame_alpha_f32( rgba_f32_frame *out, rgba_f32_frame *in, float alpha
 }
 
 EXPORT void
-video_mix_cross_f32( rgba_f32_frame *out, rgba_f32_frame *a, rgba_f32_frame *b, float mix_b ) {
+video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_b ) {
     box2i *awin = &a->currentDataWindow, *bwin = &b->currentDataWindow;
 
     mix_b = clampf(mix_b, 0.0f, 1.0f);
@@ -112,7 +112,7 @@ video_mix_cross_f32( rgba_f32_frame *out, rgba_f32_frame *a, rgba_f32_frame *b, 
         empty_inner_y = inner.min.y > inner.max.y;
     box2i_normalize( &inner );
 
-    rgba_f32_frame *top = (awin->min.y < bwin->min.y) ? a : b,
+    rgba_frame_f32 *top = (awin->min.y < bwin->min.y) ? a : b,
         *bottom = (awin->max.y > bwin->max.y) ? a : b,
         *left = (awin->min.x < bwin->min.y) ? a : b,
         *right = (awin->max.x > bwin->max.x) ? a : b;
@@ -215,7 +215,7 @@ video_mix_cross_f32( rgba_f32_frame *out, rgba_f32_frame *a, rgba_f32_frame *b, 
 }
 
 EXPORT void
-video_mix_over_f32( rgba_f32_frame *out, rgba_f32_frame *a, rgba_f32_frame *b, float mix_a, float mix_b ) {
+video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_a, float mix_b ) {
     box2i *awin = &a->currentDataWindow, *bwin = &b->currentDataWindow;
 
     mix_a = clampf(mix_a, 0.0f, 1.0f);
@@ -242,7 +242,7 @@ video_mix_over_f32( rgba_f32_frame *out, rgba_f32_frame *a, rgba_f32_frame *b, f
         empty_inner_y = inner.min.y > inner.max.y;
     box2i_normalize( &inner );
 
-    rgba_f32_frame *top = (awin->min.y < bwin->min.y) ? a : b,
+    rgba_frame_f32 *top = (awin->min.y < bwin->min.y) ? a : b,
         *bottom = (awin->max.y > bwin->max.y) ? a : b,
         *left = (awin->min.x < bwin->min.y) ? a : b,
         *right = (awin->max.x > bwin->max.x) ? a : b;

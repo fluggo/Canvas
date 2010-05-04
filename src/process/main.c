@@ -61,7 +61,7 @@ void *getCurrentGLContext() {
 }
 
 void
-gl_renderToTexture( rgba_gl_frame *frame ) {
+gl_renderToTexture( rgba_frame_gl *frame ) {
     v2i frameSize;
     box2i_getSize( &frame->fullDataWindow, &frameSize );
 
@@ -172,7 +172,7 @@ EXPORT bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
     return true;
 }
 
-EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *targetFrame ) {
+EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
@@ -189,7 +189,7 @@ EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *
     }
 
     // Allocate a new frame
-    rgba_f32_frame tempFrame;
+    rgba_frame_f32 tempFrame;
     v2i size;
 
     box2i_getSize( &targetFrame->fullDataWindow, &size );
@@ -220,7 +220,7 @@ EXPORT void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *
     g_slice_free1( sizeof(rgba_f32) * size.x * size.y, tempFrame.frameData );
 }
 
-EXPORT void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *targetFrame ) {
+EXPORT void getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
@@ -237,7 +237,7 @@ EXPORT void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *
     }
 
     // Allocate a new frame
-    rgba_f16_frame tempFrame;
+    rgba_frame_f16 tempFrame;
     v2i size;
 
     box2i_getSize( &targetFrame->fullDataWindow, &size );
@@ -266,7 +266,7 @@ EXPORT void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *
     g_slice_free1( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
 }
 
-EXPORT void getFrame_gl( video_source *source, int frameIndex, rgba_gl_frame *targetFrame ) {
+EXPORT void getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->currentDataWindow );
         return;
@@ -281,7 +281,7 @@ EXPORT void getFrame_gl( video_source *source, int frameIndex, rgba_gl_frame *ta
     v2i frameSize;
     box2i_getSize( &targetFrame->fullDataWindow, &frameSize );
 
-    rgba_f16_frame frame = { NULL };
+    rgba_frame_f16 frame = { NULL };
     frame.frameData = g_slice_alloc0( sizeof(rgba_f16) * frameSize.x * frameSize.y );
     frame.fullDataWindow = targetFrame->fullDataWindow;
     frame.currentDataWindow = targetFrame->fullDataWindow;
@@ -503,7 +503,7 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
 PyObject *
 py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     PyObject *dataWindowTuple = NULL, *sourceObj;
-    rgba_f16_frame frame;
+    rgba_frame_f16 frame;
     box2i_set( &frame.fullDataWindow, 0, 0, 4095, 4095 );
     int minFrame, maxFrame;
 

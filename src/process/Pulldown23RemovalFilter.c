@@ -44,7 +44,7 @@ Pulldown23RemovalFilter_init( py_obj_Pulldown23RemovalFilter *self, PyObject *ar
 }
 
 static void
-Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_f16_frame *frame ) {
+Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_frame_f16 *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -87,7 +87,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
 
         // We want the evens (field #1) from this next frame
         // TODO: Cache this temp frame between calls
-        rgba_f16_frame tempFrame;
+        rgba_frame_f16 tempFrame;
         tempFrame.frameData = g_slice_alloc( sizeof(rgba_f16) * height * width );
         tempFrame.stride = width;
         tempFrame.fullDataWindow = frame->currentDataWindow;
@@ -132,7 +132,7 @@ static void destroyShader( gl_shader_state *shader ) {
 }
 
 static void
-Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_gl_frame *frame ) {
+Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_frame_gl *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -183,7 +183,7 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
         }
 
         // Mixed fields
-        rgba_gl_frame frameB = *frame;
+        rgba_frame_gl frameB = *frame;
 
         getFrame_gl( &self->source.source, baseFrame + 2, frame );
         getFrame_gl( &self->source.source, baseFrame + 3, &frameB );

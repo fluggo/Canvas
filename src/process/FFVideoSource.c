@@ -43,7 +43,7 @@ typedef struct {
 
 static half gamma22[65536];
 
-static void FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_frame *frame );
+static void FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f16 *frame );
 
 static int
 FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds ) {
@@ -225,7 +225,7 @@ read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
 }
 
 static void
-FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_f16_frame *frame ) {
+FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f16 *frame ) {
     if( frameIndex < 0 ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -478,7 +478,7 @@ static void destroyShader( gl_shader_state *shader ) {
 }
 
 static void
-FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_gl_frame *frame ) {
+FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_gl *frame ) {
     if( frameIndex < 0 ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );

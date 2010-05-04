@@ -42,7 +42,7 @@ VideoPassThroughFilter_init( py_obj_VideoPassThroughFilter *self, PyObject *args
 }
 
 static void
-VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_f16_frame *frame ) {
+VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_f16 *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -53,7 +53,7 @@ VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameI
 }
 
 static void
-VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_f32_frame *frame ) {
+VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_f32 *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );
@@ -64,7 +64,7 @@ VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int fram
 }
 
 static void
-VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_gl_frame *frame ) {
+VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_gl *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );

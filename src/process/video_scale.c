@@ -23,7 +23,7 @@
 #include "filter.h"
 
 static void
-video_fill_zero_f32( rgba_f32_frame *target ) {
+video_fill_zero_f32( rgba_frame_f32 *target ) {
     // You know what? Skip the pleasantries:
     v2i size;
     box2i_getSize( &target->fullDataWindow, &size );
@@ -32,7 +32,7 @@ video_fill_zero_f32( rgba_f32_frame *target ) {
 }
 
 static void
-video_scale_bilinear_vertical_f32( rgba_f32_frame *target, float tymin, rgba_f32_frame *source, float symin, float factor ) {
+video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_frame_f32 *source, float symin, float factor ) {
     box2i srect = source->currentDataWindow, trect = target->fullDataWindow;
 
     int xmin = max( source->currentDataWindow.min.x, target->fullDataWindow.min.x );
@@ -95,7 +95,7 @@ video_scale_bilinear_vertical_f32( rgba_f32_frame *target, float tymin, rgba_f32
 }
 
 static void
-video_scale_bilinear_horizontal_f32( rgba_f32_frame *target, float txmin, rgba_f32_frame *source, float sxmin, float factor ) {
+video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_frame_f32 *source, float sxmin, float factor ) {
     // BJC: This is the more-or-less direct translation of vertical, which means
     // it has somewhat poor locality of reference
 
@@ -161,7 +161,7 @@ video_scale_bilinear_horizontal_f32( rgba_f32_frame *target, float txmin, rgba_f
 }
 
 EXPORT void
-video_scale_bilinear_f32( rgba_f32_frame *target, v2f target_point, rgba_f32_frame *source, v2f source_point, v2f factors ) {
+video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f32 *source, v2f source_point, v2f factors ) {
     if( factors.x == 1.0f && target_point.x == source_point.x ) {
         if( factors.y == 1.0f && target_point.y == source_point.y ) {
             video_copy_frame_alpha_f32( target, source, 1.0f );
@@ -178,7 +178,7 @@ video_scale_bilinear_f32( rgba_f32_frame *target, v2f target_point, rgba_f32_fra
 
     // We need another temp frame here; we'll perform the scale in the direction with the smallest scale factor first,
     // both to reduce the amount of memory we need and reduce the computation time for the second half of the scale
-    rgba_f32_frame temp_frame;
+    rgba_frame_f32 temp_frame;
     v2i size;
 
     if( factors.x < factors.y ) {
@@ -220,7 +220,7 @@ video_scale_bilinear_f32( rgba_f32_frame *target, v2f target_point, rgba_f32_fra
 }
 
 EXPORT void
-video_scale_bilinear_f32_pull( rgba_f32_frame *target, v2f target_point, video_source *source, int frame, box2i *source_rect, v2f source_point, v2f factors ) {
+video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_source *source, int frame, box2i *source_rect, v2f source_point, v2f factors ) {
     if( factors.x == 0.0f || factors.y == 0.0f ) {
         box2i_setEmpty( &target->currentDataWindow );
         return;
@@ -231,7 +231,7 @@ video_scale_bilinear_f32_pull( rgba_f32_frame *target, v2f target_point, video_s
         return;
     }
 
-    rgba_f32_frame temp_frame;
+    rgba_frame_f32 temp_frame;
     v2i size;
 
     box2i_set( &temp_frame.fullDataWindow,

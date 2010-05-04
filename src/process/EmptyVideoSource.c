@@ -28,17 +28,17 @@ EmptyVideoSource_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 }
 
 static void
-EmptyVideoSource_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) {
+EmptyVideoSource_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) {
     box2i_setEmpty( &frame->currentDataWindow );
 }
 
 static void
-EmptyVideoSource_getFrame32( PyObject *self, int frameIndex, rgba_f32_frame *frame ) {
+EmptyVideoSource_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame ) {
     box2i_setEmpty( &frame->currentDataWindow );
 }
 
 static void
-EmptyVideoSource_getFrameGL( PyObject *self, int frameIndex, rgba_gl_frame *frame ) {
+EmptyVideoSource_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame ) {
     // Even empty video sources need to produce a texture
     v2i frameSize;
     box2i_getSize( &frame->fullDataWindow, &frameSize );

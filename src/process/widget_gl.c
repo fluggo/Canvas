@@ -169,7 +169,7 @@ static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
 
 static gpointer
 playbackThread( widget_gl_context *self ) {
-    rgba_f16_frame frame = { NULL };
+    rgba_frame_f16 frame = { NULL };
     box2i_setEmpty( &frame.fullDataWindow );
 
     for( ;; ) {
@@ -547,7 +547,7 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
     else if( frameIndex < self->firstFrame )
         frameIndex = self->firstFrame;
 
-    rgba_gl_frame frame = {
+    rgba_frame_gl frame = {
         .fullDataWindow = self->displayWindow,
         .currentDataWindow = self->displayWindow
     };

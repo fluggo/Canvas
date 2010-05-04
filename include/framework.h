@@ -159,24 +159,24 @@ typedef struct {
     box2i fullDataWindow;
     box2i currentDataWindow;
     int stride;
-} rgba_f16_frame;
+} rgba_frame_f16;
 
 typedef struct {
     rgba_f32 *frameData;
     box2i fullDataWindow;
     box2i currentDataWindow;
     int stride;
-} rgba_f32_frame;
+} rgba_frame_f32;
 
 typedef struct {
     GLuint texture;
     box2i fullDataWindow;
     box2i currentDataWindow;
-} rgba_gl_frame;
+} rgba_frame_gl;
 
-typedef void (*video_getFrameFunc)( void *self, int frameIndex, rgba_f16_frame *frame );
-typedef void (*video_getFrame32Func)( void *self, int frameIndex, rgba_f32_frame *frame );
-typedef void (*video_getFrameGLFunc)( void *self, int frameIndex, rgba_gl_frame *frame );
+typedef void (*video_getFrameFunc)( void *self, int frameIndex, rgba_frame_f16 *frame );
+typedef void (*video_getFrame32Func)( void *self, int frameIndex, rgba_frame_f32 *frame );
+typedef void (*video_getFrameGLFunc)( void *self, int frameIndex, rgba_frame_gl *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero
@@ -185,11 +185,11 @@ typedef struct {
     video_getFrameGLFunc getFrameGL;
 } VideoFrameSourceFuncs;
 
-G_GNUC_PURE static inline rgba_f16 *getPixel_f16( rgba_f16_frame *frame, int x, int y ) {
+G_GNUC_PURE static inline rgba_f16 *getPixel_f16( rgba_frame_f16 *frame, int x, int y ) {
     return &frame->frameData[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
 }
 
-G_GNUC_PURE static inline rgba_f32 *getPixel_f32( rgba_f32_frame *frame, int x, int y ) {
+G_GNUC_PURE static inline rgba_f32 *getPixel_f32( rgba_frame_f32 *frame, int x, int y ) {
     return &frame->frameData[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
 }
 
@@ -204,16 +204,16 @@ typedef struct {
 } VideoSourceHolder;
 
 bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
-void getFrame_f16( video_source *source, int frameIndex, rgba_f16_frame *targetFrame );
-void getFrame_f32( video_source *source, int frameIndex, rgba_f32_frame *targetFrame );
-void getFrame_gl( video_source *source, int frameIndex, rgba_gl_frame *targetFrame );
+void getFrame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame );
+void getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame );
+void getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame );
 void *getCurrentGLContext();
 
 #define gl_checkError()        __gl_checkError(__FILE__, __LINE__)
 void __gl_checkError(const char *file, const unsigned long line);
 
 void gl_printShaderErrors( GLhandleARB shader );
-void gl_renderToTexture( rgba_gl_frame *frame );
+void gl_renderToTexture( rgba_frame_gl *frame );
 void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );
 
 #define VIDEO_FRAME_SOURCE_FUNCS "_video_frame_source_funcs"

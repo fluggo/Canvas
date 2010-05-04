@@ -59,7 +59,7 @@ VideoScaler_init( py_obj_VideoScaler *self, PyObject *args, PyObject *kw ) {
 }
 
 static void
-VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_f32_frame *frame ) {
+VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame_f32 *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
         box2i_setEmpty( &frame->currentDataWindow );

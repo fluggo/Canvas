@@ -25,10 +25,10 @@ static PyTypeObject *py_type_Sequence;
 static PyObject *pysource_funcs;
 static Py_ssize_t base_basicsize;
 
-#define PRIV(obj)        ((rgba_f32_frame*)(((void *) obj) + base_basicsize))
+#define PRIV(obj)        ((rgba_frame_f32*)(((void *) obj) + base_basicsize))
 
 static void
-RgbaFrameF32_getFrame32( PyObject *self, int frame_index, rgba_f32_frame *frame ) {
+RgbaFrameF32_getFrame32( PyObject *self, int frame_index, rgba_frame_f32 *frame ) {
     video_copy_frame_alpha_f32( frame, PRIV(self), 1.0f );
 }
 
@@ -191,7 +191,7 @@ void init_RgbaFrameF32( PyObject *module ) {
 
     py_type_RgbaFrameF32.tp_base = py_type_Sequence;
     py_type_RgbaFrameF32.tp_basicsize = py_type_Sequence->tp_basicsize +
-        sizeof(rgba_f32_frame);
+        sizeof(rgba_frame_f32);
 
     if( PyType_Ready( &py_type_RgbaFrameF32 ) < 0 )
         return;

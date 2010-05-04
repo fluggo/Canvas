@@ -73,7 +73,7 @@ VideoMixFilter_init( py_obj_VideoMixFilter *self, PyObject *args, PyObject *kwds
 }
 
 static void
-VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_f32_frame *frame ) {
+VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_frame_f32 *frame ) {
     float mixB = frameFunc_get_f32( &self->mixB, frameIndex, 1 );
 
     video_mix_cross_f32_pull( frame, &self->srcA.source, frameIndex, &self->srcB.source, frameIndex, mixB );
@@ -118,7 +118,7 @@ static void destroyShader( gl_shader_state *shader ) {
 void checkGLError();
 
 static void
-VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_frame *frame ) {
+VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_frame_gl *frame ) {
     // Initial logic is the same as in software
     // Gather the mix factor
     float mixB = frameFunc_get_f32( &self->mixB, frameIndex, 1 );
@@ -151,7 +151,7 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_gl_
         g_dataset_id_set_data_full( context, q_crossfadeShader, shader, (GDestroyNotify) destroyShader );
     }
 
-    rgba_gl_frame frameA = *frame, frameB = *frame;
+    rgba_frame_gl frameA = *frame, frameB = *frame;
 
     getFrame_gl( &self->srcA.source, frameIndex, &frameA );
     getFrame_gl( &self->srcB.source, frameIndex, &frameB );

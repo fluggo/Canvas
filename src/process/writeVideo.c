@@ -195,7 +195,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         return NULL;
     }
 
-    rgba_f16_frame inputFrame;
+    rgba_frame_f16 inputFrame;
     AVFrame interFrame, outputFrame;
     uint8_t *interBuffer = NULL, *outputBuffer = NULL;
     int interBufferSize = 0, outputBufferSize = 0;

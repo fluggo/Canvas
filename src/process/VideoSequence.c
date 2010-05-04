@@ -78,7 +78,7 @@ pickElement_nolock( PyObject *self, int frameIndex ) {
 }
 
 static void
-VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) {
+VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) {
     g_mutex_lock( PRIV(self)->mutex );
     Element *elemPtr = pickElement_nolock( self, frameIndex );
 
@@ -96,7 +96,7 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_f16_frame *frame ) 
 }
 
 static void
-VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_f32_frame *frame ) {
+VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame ) {
     g_mutex_lock( PRIV(self)->mutex );
     Element *elemPtr = pickElement_nolock( self, frameIndex );
 
@@ -114,7 +114,7 @@ VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_f32_frame *frame 
 }
 
 static void
-VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_gl_frame *frame ) {
+VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame ) {
     g_mutex_lock( PRIV(self)->mutex );
     Element *elemPtr = pickElement_nolock( self, frameIndex );
 
