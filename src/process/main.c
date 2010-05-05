@@ -60,6 +60,19 @@ void *getCurrentGLContext() {
     return glXGetCurrentContext();
 }
 
+/*
+    Function: gl_renderToTexture
+    Render a quad to the given GL frame.
+
+    Parameters:
+
+    frame - Frame to render to, containing a valid fullDataWindow.
+            gl_renderToTexture won't alter the currentDataWindow.
+
+    Remarks:
+    This function creates a GL texture for the frame and renders a quad
+    with the current context settings to it.
+*/
 void
 gl_renderToTexture( rgba_frame_gl *frame ) {
     v2i frameSize;

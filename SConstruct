@@ -107,4 +107,10 @@ for testfile in Glob('tests/test_*.py'):
 Depends('test', process)
 Alias('all', 'test')
 
+# Documentation
+if env.WhereIs('naturaldocs'):
+    Command('docs/html/index.html', Glob('src/process/*.c'), '@naturaldocs -i src -o HTML docs/html -p docs/natural -ro')
+    Alias('docs', 'docs/html/index.html')
+    Clean('docs', Glob('docs/html/*'))
+    Alias('all', 'docs')
 
