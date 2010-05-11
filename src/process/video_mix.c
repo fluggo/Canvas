@@ -21,6 +21,27 @@
 #include "video_mix.h"
 
 EXPORT void
+video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in ) {
+    box2i inner;
+    box2i_intersect( &inner, &out->fullDataWindow, &in->currentDataWindow );
+    out->currentDataWindow = inner;
+
+    bool is_empty = box2i_isEmpty( &inner );
+
+    if( is_empty )
+        return;
+
+    int width = inner.max.x - inner.min.x + 1;
+
+    for( int y = inner.min.y; y <= inner.max.y; y++ ) {
+        rgba_f16 *row_out = getPixel_f16( out, inner.min.x, y );
+        rgba_f16 *row_in = getPixel_f16( in, inner.min.x, y );
+
+        memcpy( row_out, row_in, sizeof(rgba_f16) * width );
+    }
+}
+
+EXPORT void
 video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b ) {
     mix_b = clampf(mix_b, 0.0f, 1.0f);
 

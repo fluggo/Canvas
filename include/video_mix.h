@@ -23,6 +23,7 @@
 #if !defined(FLUGGO_VIDEO_MIX_H)
 #define FLUGGO_VIDEO_MIX_H
 
+void video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in );
 void video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha );
 void video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b );
 void video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_b );
