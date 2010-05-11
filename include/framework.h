@@ -203,7 +203,7 @@ typedef struct {
     PyObject *csource;
 } VideoSourceHolder;
 
-bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
+bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder );
 void getFrame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame );
 void getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame );
 void getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame );
@@ -242,7 +242,7 @@ typedef struct {
     AudioFrameSourceFuncs *funcs;
 } AudioSourceHolder;
 
-bool takeAudioSource( PyObject *source, AudioSourceHolder *holder );
+bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder );
 
 #define AUDIO_FRAME_SOURCE_FUNCS "_audio_frame_source_funcs"
 
@@ -292,7 +292,7 @@ typedef struct {
     const_type constant_type;
 } FrameFunctionHolder;
 
-bool frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder );
+bool py_frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder );
 int frameFunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
 float frameFunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
 void frameFunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f *result );

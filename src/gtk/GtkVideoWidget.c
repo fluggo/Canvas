@@ -94,7 +94,7 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
 
     widget_gl_set_presentation_clock( self->context, &self->clock.source );
 
-    if( !takeVideoSource( frameSource, &self->frameSource ) ) {
+    if( !py_video_takeSource( frameSource, &self->frameSource ) ) {
         widget_gl_free( self->context );
         return -1;
     }
@@ -197,7 +197,7 @@ GtkVideoWidget_setSource( py_obj_GtkVideoWidget *self, PyObject *args, void *clo
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return NULL;
 
-    bool result = takeVideoSource( source, &self->frameSource );
+    bool result = py_video_takeSource( source, &self->frameSource );
     widget_gl_set_video_source( self->context, &self->frameSource.source );
 
     if( !result )

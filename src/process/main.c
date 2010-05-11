@@ -139,7 +139,7 @@ gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProg
     *outProgram = program;
 }
 
-EXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
+EXPORT bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder ) {
     Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
     holder->source.funcs = NULL;
@@ -162,7 +162,7 @@ EXPORT bool takeVideoSource( PyObject *source, VideoSourceHolder *holder ) {
     return true;
 }
 
-EXPORT bool takeAudioSource( PyObject *source, AudioSourceHolder *holder ) {
+EXPORT bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
     holder->funcs = NULL;
@@ -445,7 +445,7 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
     }
 
     // Prep data structures
-    if( !takeAudioSource( sourceObj, &source ) )
+    if( !py_audio_takeSource( sourceObj, &source ) )
         return NULL;
 
     AudioFrame frame;
@@ -455,7 +455,7 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
     frame.fullMaxSample = maxSample;
 
     if( frame.frameData == NULL ) {
-        takeAudioSource( NULL, &source );
+        py_audio_takeSource( NULL, &source );
         return PyErr_NoMemory();
     }
 
@@ -463,7 +463,7 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
     source.funcs->getFrame( source.source, &frame );
 
     // Clear the references we took
-    takeAudioSource( NULL, &source );
+    py_audio_takeSource( NULL, &source );
 
     // Prepare to give it to Python
     PyObject *resultChannelList = PyList_New( frame.channelCount );
@@ -545,7 +545,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     VideoSourceHolder source = { .csource = NULL };
 
-    if( !takeVideoSource( sourceObj, &source ) ) {
+    if( !py_video_takeSource( sourceObj, &source ) ) {
         PyMem_Free( frame.frameData );
         return NULL;
     }
@@ -557,7 +557,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     PyMem_Free( frame.frameData );
 
-    if( !takeVideoSource( NULL, &source ) )
+    if( !py_video_takeSource( NULL, &source ) )
         return NULL;
 
     return Py_BuildValue( "L", endTime - startTime );

@@ -35,7 +35,7 @@ AudioPassThroughFilter_init( py_obj_AudioPassThroughFilter *self, PyObject *args
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return -1;
 
-    if( !takeAudioSource( source, &self->source ) )
+    if( !py_audio_takeSource( source, &self->source ) )
         return -1;
 
     return 0;
@@ -54,7 +54,7 @@ AudioPassThroughFilter_getFrame( py_obj_AudioPassThroughFilter *self, AudioFrame
 
 static void
 AudioPassThroughFilter_dealloc( py_obj_AudioPassThroughFilter *self ) {
-    takeAudioSource( NULL, &self->source );
+    py_audio_takeSource( NULL, &self->source );
     self->ob_type->tp_free( (PyObject*) self );
 }
 
@@ -74,7 +74,7 @@ AudioPassThroughFilter_setSource( py_obj_AudioPassThroughFilter *self, PyObject 
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return NULL;
 
-    if( !takeAudioSource( source, &self->source ) )
+    if( !py_audio_takeSource( source, &self->source ) )
         return NULL;
 
     Py_RETURN_NONE;

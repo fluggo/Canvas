@@ -40,19 +40,19 @@ VideoScaler_init( py_obj_VideoScaler *self, PyObject *args, PyObject *kw ) {
             &sourceObj, &target_point_obj, &source_point_obj, &scale_factor_obj, &source_rect_obj ) )
         return -1;
 
-    if( !takeVideoSource( sourceObj, &self->source ) )
+    if( !py_video_takeSource( sourceObj, &self->source ) )
         return -1;
 
-    if( !frameFunc_takeSource( target_point_obj, &self->target_point ) )
+    if( !py_frameFunc_takeSource( target_point_obj, &self->target_point ) )
         return -1;
 
-    if( !frameFunc_takeSource( source_point_obj, &self->source_point ) )
+    if( !py_frameFunc_takeSource( source_point_obj, &self->source_point ) )
         return -1;
 
-    if( !frameFunc_takeSource( scale_factor_obj, &self->scale_factors ) )
+    if( !py_frameFunc_takeSource( scale_factor_obj, &self->scale_factors ) )
         return -1;
 
-    if( !frameFunc_takeSource( source_rect_obj, &self->source_rect ) )
+    if( !py_frameFunc_takeSource( source_rect_obj, &self->source_rect ) )
         return -1;
 
     return 0;
@@ -78,10 +78,10 @@ VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame
 
 static void
 VideoScaler_dealloc( py_obj_VideoScaler *self ) {
-    takeVideoSource( NULL, &self->source );
-    frameFunc_takeSource( NULL, &self->target_point );
-    frameFunc_takeSource( NULL, &self->source_point );
-    frameFunc_takeSource( NULL, &self->scale_factors );
+    py_video_takeSource( NULL, &self->source );
+    py_frameFunc_takeSource( NULL, &self->target_point );
+    py_frameFunc_takeSource( NULL, &self->source_point );
+    py_frameFunc_takeSource( NULL, &self->scale_factors );
 
     self->ob_type->tp_free( (PyObject*) self );
 }

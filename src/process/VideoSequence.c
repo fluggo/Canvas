@@ -181,7 +181,7 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
         return -1;
     }
 
-    if( !takeVideoSource( sourceObj, &source ) )
+    if( !py_video_takeSource( sourceObj, &source ) )
         return -1;
 
     Py_INCREF( v );
@@ -189,7 +189,7 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
     // Replace the current holder
     Element *entry = &g_array_index( PRIV(self)->sequence, Element, i );
     Py_CLEAR( entry->tuple );
-    takeVideoSource( NULL, &entry->source );
+    py_video_takeSource( NULL, &entry->source );
 
     int lengthAdjust = length - entry->length;
 
@@ -261,7 +261,7 @@ VideoSequence_dealloc( PyObject *self ) {
         Element *element = &g_array_index( PRIV(self)->sequence, Element, i );
 
         Py_CLEAR( element->tuple );
-        takeVideoSource( NULL, &element->source );
+        py_video_takeSource( NULL, &element->source );
     }
 
     g_array_free( PRIV(self)->sequence, true );

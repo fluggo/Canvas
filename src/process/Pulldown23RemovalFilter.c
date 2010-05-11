@@ -37,7 +37,7 @@ Pulldown23RemovalFilter_init( py_obj_Pulldown23RemovalFilter *self, PyObject *ar
     if( !PyArg_ParseTuple( args, "Oi", &source, &self->offset ) )
         return -1;
 
-    if( !takeVideoSource( source, &self->source ) )
+    if( !py_video_takeSource( source, &self->source ) )
         return -1;
 
     return 0;
@@ -205,7 +205,7 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
 
 static void
 Pulldown23RemovalFilter_dealloc( py_obj_Pulldown23RemovalFilter *self ) {
-    takeVideoSource( NULL, &self->source );
+    py_video_takeSource( NULL, &self->source );
     self->ob_type->tp_free( (PyObject*) self );
 }
 

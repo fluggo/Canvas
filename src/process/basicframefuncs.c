@@ -185,7 +185,7 @@ DECLARE_FRAMEFUNC(LerpFunc, generic_dealloc)
 
 
 EXPORT bool
-frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder ) {
+py_frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
 
@@ -404,7 +404,7 @@ py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
 
     FrameFunctionHolder holder = { .source = NULL };
 
-    if( !frameFunc_takeSource( source_obj, &holder ) ) {
+    if( !py_frameFunc_takeSource( source_obj, &holder ) ) {
         g_free( frames );
         return NULL;
     }
@@ -498,7 +498,7 @@ py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
         }
     }
 
-    frameFunc_takeSource( NULL, &holder );
+    py_frameFunc_takeSource( NULL, &holder );
     g_free( frames );
 
     return result_obj;

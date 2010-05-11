@@ -35,7 +35,7 @@ VideoPassThroughFilter_init( py_obj_VideoPassThroughFilter *self, PyObject *args
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return -1;
 
-    if( !takeVideoSource( source, &self->source ) )
+    if( !py_video_takeSource( source, &self->source ) )
         return -1;
 
     return 0;
@@ -76,7 +76,7 @@ VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int fram
 
 static void
 VideoPassThroughFilter_dealloc( py_obj_VideoPassThroughFilter *self ) {
-    takeVideoSource( NULL, &self->source );
+    py_video_takeSource( NULL, &self->source );
     self->ob_type->tp_free( (PyObject*) self );
 }
 
@@ -96,7 +96,7 @@ VideoPassThroughFilter_setSource( py_obj_VideoPassThroughFilter *self, PyObject 
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return NULL;
 
-    if( !takeVideoSource( source, &self->source ) )
+    if( !py_video_takeSource( source, &self->source ) )
         return NULL;
 
     Py_RETURN_NONE;

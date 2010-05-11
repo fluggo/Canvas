@@ -246,7 +246,7 @@ py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw ) {
 
     VideoSourceHolder source = { .csource = NULL };
 
-    if( !takeVideoSource( source_obj, &source ) ) {
+    if( !py_video_takeSource( source_obj, &source ) ) {
         Py_DECREF(result);
         PyMem_Free( PRIV(result)->frameData );
         return NULL;
@@ -254,7 +254,7 @@ py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw ) {
 
     getFrame_f16( &source.source, frame_index, PRIV(result) );
 
-    if( !takeVideoSource( NULL, &source ) ) {
+    if( !py_video_takeSource( NULL, &source ) ) {
         Py_DECREF(result);
         PyMem_Free( PRIV(result)->frameData );
         return NULL;
