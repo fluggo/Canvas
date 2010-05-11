@@ -207,6 +207,8 @@ bool takeVideoSource( PyObject *source, VideoSourceHolder *holder );
 void getFrame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame );
 void getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame );
 void getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame );
+const uint8_t *video_get_gamma45_ramp();
+
 void *getCurrentGLContext();
 
 #define gl_checkError()        __gl_checkError(__FILE__, __LINE__)
