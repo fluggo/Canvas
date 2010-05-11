@@ -102,9 +102,9 @@ testenv = env.Clone()
 testenv.Append(ENV={'PYTHONPATH': env.Dir('.')})
 
 for testfile in Glob('tests/test_*.py'):
-    testenv.Alias('test', testenv.Command('test', testfile, '@python tests/testrunner.py $SOURCE.filebase'))
+    testenv.Alias('test', testenv.Command(None, testfile, '@python tests/testrunner.py $SOURCE.filebase'))
 
-Depends('test', process)
+Requires('test', process)
 Alias('all', 'test')
 
 # Documentation
