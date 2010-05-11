@@ -114,9 +114,48 @@ RgbaFrameF16_pixel( PyObject *self, PyObject *args ) {
     return color_to_python( getPixel_f16( PRIV(self), x, y ) );
 }
 
+static PyObject *
+RgbaFrameF16_to_argb32_string( PyObject *self, PyObject *args ) {
+    if( box2i_isEmpty( &PRIV(self)->currentDataWindow ) )
+        Py_RETURN_NONE;
+
+    v2i size;
+    box2i_getSize( &PRIV(self)->currentDataWindow, &size );
+
+    const uint8_t *ramp = video_get_gamma45_ramp();
+
+    ssize_t len = size.x * size.y;
+    uint32_t *data = PyMem_Malloc( len * sizeof(uint32_t) );
+
+    if( !data )
+        return NULL;
+
+    for( int y = PRIV(self)->currentDataWindow.min.y; y <= PRIV(self)->currentDataWindow.max.y; y++ ) {
+        rgba_f16 *sy = getPixel_f16( PRIV(self), PRIV(self)->currentDataWindow.min.x, y );
+
+        for( int x = 0; x < size.x; x++ ) {
+            uint8_t a = ramp[sy[x].a];
+
+            data[(y - PRIV(self)->currentDataWindow.min.y) * size.x + x] =
+                (a << 24) |
+                (((ramp[sy[x].r] * a >> 8) & 0xFF) << 16) |
+                (((ramp[sy[x].g] * a >> 8) & 0xFF) << 8) |
+                ((ramp[sy[x].b] * a >> 8) & 0xFF);
+        }
+    }
+
+    PyObject *result = PyString_FromStringAndSize( (const char *) data, len * sizeof(uint32_t) );
+
+    PyMem_Free( data );
+
+    return result;
+}
+
 static PyMethodDef RgbaFrameF16_methods[] = {
     { "pixel", (PyCFunction) RgbaFrameF16_pixel, METH_VARARGS,
         "Get the pixel at the given coordinates, or None if the pixel isn't defined in this frame." },
+    { "to_argb32_string", (PyCFunction) RgbaFrameF16_to_argb32_string, METH_VARARGS,
+        "Get the defined window in the image as a string containing premultiplied ARGB values, suitable for use with QImage." },
     { NULL }
 };
 

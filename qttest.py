@@ -3,7 +3,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
 from fluggo.media import process, timecode, qt
-import sys, fractions
+import sys, fractions, array
 
 videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;03;21;24.avi')
 pulldown = process.Pulldown23RemovalFilter(videro, 0);
@@ -279,6 +279,14 @@ class TimelineItem(QGraphicsItem):
 
         painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
         painter.drawText(rect, Qt.TextSingleLine, self.name)
+
+        frame = process.get_frame_f16(self.item.source, 0, (0, 0, 199, 199))
+        img_str = frame.to_argb32_string()
+
+        image = QImage(img_str, 200, 200, QImage.Format_ARGB32_Premultiplied)
+
+        painter.drawImage(rect.x(), rect.y(), image, sw=30, sh=30)
+
         painter.restore()
 
     def mouseMoveEvent(self, event):

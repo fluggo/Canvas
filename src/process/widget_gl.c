@@ -1,6 +1,5 @@
 #include "widget_gl.h"
 
-static uint8_t gamma45[65536];
 #define    SOFT_MODE_BUFFERS    4
 #define HARD_MODE_BUFFERS    2
 
@@ -256,6 +255,8 @@ playbackThread( widget_gl_context *self ) {
         target->currentDataWindow = frame.currentDataWindow;
 
         // Convert the results to floating-point
+        const uint8_t *gamma45 = video_get_gamma45_ramp();
+
         for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
             rgba_u8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride];
             rgba_f16 *sourceData = &frame.frameData[(y - frame.fullDataWindow.min.y) * frame.stride];
@@ -351,37 +352,12 @@ playbackThread( widget_gl_context *self ) {
     return NULL;
 }
 
-static inline float gamma45Func( float input ) {
-    return clampf( powf( input, 0.45f ) * 255.0f, 0.0f, 255.0f );
-}
-
 EXPORT widget_gl_context *
 widget_gl_new() {
     init_half();
 
     if( !g_thread_supported() )
         g_thread_init( NULL );
-
-    static bool __gamma_init = false;
-
-    if( !__gamma_init ) {
-        // Fill in the 0.45 gamma table
-        half *h = g_malloc( sizeof(half) * 65536 );
-        float *f = g_malloc( sizeof(float) * 65536 );
-
-        for( int i = 0; i < 65536; i++ )
-            h[i] = (half) i;
-
-        half_convert_to_float( h, f, 65536 );
-        g_free( h );
-
-        for( int i = 0; i < 65536; i++ )
-            gamma45[i] = (uint8_t) gamma45Func( f[i] );
-
-        g_free( f );
-
-        __gamma_init = true;
-    }
 
     widget_gl_context *self = g_malloc0( sizeof(widget_gl_context) );
 
