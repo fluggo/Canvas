@@ -564,6 +564,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 }
 
 PyObject *py_writeVideo( PyObject *self, PyObject *args, PyObject *kw );
+PyObject *py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw );
 PyObject *py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw );
 PyObject *py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw );
 
@@ -578,10 +579,14 @@ static PyMethodDef module_methods[] = {
         "timeGetFrame(source, min_frame, max_frame, data_window=(0,0,1,1)): Retrieves min_frame through max_frame from the source and returns the time it took in nanoseconds." },
     { "write_video", (PyCFunction) py_writeVideo, METH_VARARGS | METH_KEYWORDS,
         "TBD" },
+    { "get_frame_f16", (PyCFunction) py_get_frame_f16, METH_VARARGS | METH_KEYWORDS,
+        "Get a frame of video from a video source.\n"
+        "\n"
+        "(RgbaFrameF16) frame = get_frame_f16(source, frame, data_window)" },
     { "get_frame_f32", (PyCFunction) py_get_frame_f32, METH_VARARGS | METH_KEYWORDS,
         "Get a frame of video from a video source.\n"
         "\n"
-        "frame = get_frame_f32(source, frame, data_window)" },
+        "(RgbaFrameF32) frame = get_frame_f32(source, frame, data_window)" },
     { "frame_func_get", (PyCFunction) py_frame_func_get, METH_VARARGS | METH_KEYWORDS,
         "Get a list of values from a frame function.\n"
         "\n"
@@ -607,6 +612,7 @@ void init_SolidColorVideoSource( PyObject *module );
 void init_EmptyVideoSource( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 void init_Workspace( PyObject *module );
+void init_RgbaFrameF16( PyObject *module );
 void init_RgbaFrameF32( PyObject *module );
 void init_VideoScaler( PyObject *module );
 
@@ -638,6 +644,7 @@ initprocess() {
     init_EmptyVideoSource( m );
     init_basicframefuncs( m );
     init_Workspace( m );
+    init_RgbaFrameF16( m );
     init_RgbaFrameF32( m );
     init_VideoScaler( m );
 }
