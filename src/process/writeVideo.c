@@ -53,7 +53,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     if( !py_video_takeSource( videoSourceObj, &videoSource ) )
         return NULL;
 
-    AudioSourceHolder audioSource = { NULL };
+    AudioSourceHolder audioSource = { { NULL } };
     if( !py_audio_takeSource( audioSourceObj, &audioSource ) )
         return NULL;
 
@@ -149,7 +149,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         avcodec_open( video->codec, videoCodec );
     }
 
-    if( audioSource.funcs ) {
+    if( audioSource.source.funcs ) {
         audio = av_new_stream( context, context->nb_streams );
 
         if( !audio )
@@ -232,7 +232,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     void *outSampleBuf = NULL;
     int outSampleBufSize = 0, sampleCount = 0;
 
-    if( audioSource.funcs ) {
+    if( audioSource.source.funcs ) {
         if( audio->codec->frame_size > 1 )
             sampleCount = audio->codec->frame_size;
         else
@@ -318,7 +318,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             nextVideoTime = getFrameTime( &videoRate, nextVideoFrame );
         }
 
-        if( time == nextAudioTime && audioSource.funcs ) {
+        if( time == nextAudioTime && audioSource.source.funcs ) {
             //printf( "audio #%d\n", nextAudioSample );
             packet.stream_index = audio->index;
 
@@ -328,7 +328,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             audioInputFrame.currentMinSample = nextAudioSample;
             audioInputFrame.currentMaxSample = nextAudioSample + sampleCount - 1;
 
-            audioSource.funcs->getFrame( audioSource.source, &audioInputFrame );
+            audioSource.source.funcs->getFrame( audioSource.source.obj, &audioInputFrame );
 
             // TODO: Handle incomplete returned frame
             // TODO: Handle other sample types
@@ -385,7 +385,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         }
 
         if( videoSource.source.funcs ) {
-            if( audioSource.funcs )
+            if( audioSource.source.funcs )
                 time = (nextAudioTime < nextVideoTime) ? nextAudioTime : nextVideoTime;
             else
                 time = nextVideoTime;
@@ -444,7 +444,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         av_free( video );
     }
 
-    if( audioSource.funcs ) {
+    if( audioSource.source.funcs ) {
         avcodec_close( audio->codec );
         g_slice_free1( outSampleBufSize, outSampleBuf );
         g_slice_free1( sizeof(float) * sampleCount * audioChannels, audioInputFrame.frameData );

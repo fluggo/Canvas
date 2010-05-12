@@ -163,24 +163,24 @@ EXPORT bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder ) {
 }
 
 EXPORT bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder ) {
-    Py_CLEAR( holder->source );
+    Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
-    holder->funcs = NULL;
+    holder->source.funcs = NULL;
 
     if( source == NULL || source == Py_None )
         return true;
 
     Py_INCREF( source );
-    holder->source = source;
+    holder->source.obj = source;
     holder->csource = PyObject_GetAttrString( source, AUDIO_FRAME_SOURCE_FUNCS );
 
     if( holder->csource == NULL ) {
-        Py_CLEAR( holder->source );
+        Py_CLEAR( holder->source.obj );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " AUDIO_FRAME_SOURCE_FUNCS " attribute." );
         return false;
     }
 
-    holder->funcs = (AudioFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->source.funcs = (AudioFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
 
     return true;
 }
@@ -460,7 +460,7 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
     }
 
     // Fetch the data
-    source.funcs->getFrame( source.source, &frame );
+    source.source.funcs->getFrame( source.source.obj, &frame );
 
     // Clear the references we took
     py_audio_takeSource( NULL, &source );

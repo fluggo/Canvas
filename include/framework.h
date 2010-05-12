@@ -229,7 +229,7 @@ typedef struct {
     int currentMinSample, currentMaxSample;
 } AudioFrame;
 
-typedef void (*audio_getFrameFunc)( PyObject *self, AudioFrame *frame );
+typedef void (*audio_getFrameFunc)( void *self, AudioFrame *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero
@@ -237,9 +237,13 @@ typedef struct {
 } AudioFrameSourceFuncs;
 
 typedef struct {
-    PyObject *source;
-    PyObject *csource;
+    void *obj;
     AudioFrameSourceFuncs *funcs;
+} audio_source;
+
+typedef struct {
+    audio_source source;
+    PyObject *csource;
 } AudioSourceHolder;
 
 bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder );

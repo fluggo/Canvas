@@ -43,13 +43,13 @@ AudioPassThroughFilter_init( py_obj_AudioPassThroughFilter *self, PyObject *args
 
 static void
 AudioPassThroughFilter_getFrame( py_obj_AudioPassThroughFilter *self, AudioFrame *frame ) {
-    if( !self->source.source ) {
+    if( !self->source.source.funcs ) {
         // No result
         frame->currentMaxSample = frame->currentMinSample - 1;
         return;
     }
 
-    self->source.funcs->getFrame( self->source.source, frame );
+    self->source.source.funcs->getFrame( self->source.source.obj, frame );
 }
 
 static void
@@ -60,11 +60,12 @@ AudioPassThroughFilter_dealloc( py_obj_AudioPassThroughFilter *self ) {
 
 static PyObject *
 AudioPassThroughFilter_getSource( py_obj_AudioPassThroughFilter *self ) {
-    if( self->source.source == NULL )
+    if( self->source.source.obj == NULL )
         Py_RETURN_NONE;
 
-    Py_INCREF(self->source.source);
-    return self->source.source;
+    PyObject *obj = (PyObject *) self->source.source.obj;
+    Py_INCREF(obj);
+    return obj;
 }
 
 static PyObject *

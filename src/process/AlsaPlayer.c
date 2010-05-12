@@ -107,7 +107,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
         g_mutex_unlock( self->mutex );
 
-        self->audioSource.funcs->getFrame( self->audioSource.source, &frame );
+        self->audioSource.source.funcs->getFrame( self->audioSource.source.obj, &frame );
 
         // Convert speed differences
         if( speed.n == 1 && speed.d == 1 ) {
@@ -354,8 +354,7 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
     else
         self->quit = true;
 
-    Py_CLEAR( self->audioSource.csource );
-    Py_CLEAR( self->audioSource.source );
+    py_audio_takeSource( NULL, &self->audioSource );
 
     if( self->playbackThread != NULL )
         g_thread_join( self->playbackThread );

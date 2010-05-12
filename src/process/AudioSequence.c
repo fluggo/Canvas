@@ -90,8 +90,8 @@ AudioSequence_getFrame( PyObject *self, AudioFrame *frame ) {
         tempFrame.frameData = frame->frameData +
             (tempFrame.fullMinSample - frame->fullMinSample) * frame->channelCount;
 
-        if( elem.source.funcs ) {
-            elem.source.funcs->getFrame( elem.source.source, &tempFrame );
+        if( elem.source.source.funcs ) {
+            elem.source.source.funcs->getFrame( elem.source.source.obj, &tempFrame );
         }
         else {
             // No result, fill with zeros
@@ -150,7 +150,7 @@ static int
 _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
     PyObject *sourceObj;
     int length, offset;
-    AudioSourceHolder source = { NULL };
+    AudioSourceHolder source = { { NULL } };
 
     // Parse everything and make sure it's okay
     if( !PyArg_ParseTuple( v, "Oii", &sourceObj, &offset, &length ) )
