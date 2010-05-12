@@ -227,7 +227,7 @@ video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_s
     }
 
     if( factors.x == 1.0f && factors.y == 1.0f && target_point.x == source_point.x && target_point.y == source_point.y ) {
-        getFrame_f32( source, frame, target );
+        video_getFrame_f32( source, frame, target );
         return;
     }
 
@@ -247,7 +247,7 @@ video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_s
     temp_frame.frameData = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
     temp_frame.stride = size.x;
 
-    getFrame_f32( source, frame, &temp_frame );
+    video_getFrame_f32( source, frame, &temp_frame );
     video_scale_bilinear_f32( target, target_point, &temp_frame, source_point, factors );
 
     g_slice_free1( sizeof(rgba_f32) * size.y * size.x, temp_frame.frameData );

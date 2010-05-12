@@ -245,7 +245,7 @@ playbackThread( widget_gl_context *self ) {
         frame.currentDataWindow = target->fullDataWindow;
 
         if( funcs != NULL ) {
-            getFrame_f16( &self->frameSource, nextFrame, &frame );
+            video_getFrame_f16( &self->frameSource, nextFrame, &frame );
         }
         else {
             // No result
@@ -528,7 +528,7 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
         .currentDataWindow = self->displayWindow
     };
 
-    getFrame_gl( &self->frameSource, frameIndex, &frame );
+    video_getFrame_gl( &self->frameSource, frameIndex, &frame );
 
     self->hardTextureId = frame.texture;
     self->lastHardFrame = frameIndex;

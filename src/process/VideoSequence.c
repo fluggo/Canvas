@@ -92,7 +92,7 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) 
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    getFrame_f16( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
+    video_getFrame_f16( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static void
@@ -110,7 +110,7 @@ VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame 
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    getFrame_f32( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
+    video_getFrame_f32( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static void
@@ -128,7 +128,7 @@ VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame )
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    getFrame_gl( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
+    video_getFrame_gl( &elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static Py_ssize_t
