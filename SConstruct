@@ -58,8 +58,7 @@ if True:
     sip_action = Action('$SIPCOM', '$SIPCOMSTR')
 
     def emitter(target, source, env):
-        (target_dir, module) = os.path.split(str(target[0]))
-        (module, tmp) = os.path.splitext(module)
+        module = str(target[0])
 
         sip_targets = [env.File('$SIPSRCDIR/sip' + module + 'cmodule.cpp')]
         sip_sources = []
@@ -81,8 +80,6 @@ if True:
         env.SideEffect(header, sip_targets)
         env.Clean(sip_targets, header)
 
-        env.SharedLibrary(target[0], module_sources)
-
         return (sip_targets, sip_sources)
 
     sip_builder = Builder(action=sip_action, emitter=emitter, source_scanner=SCons.Defaults.CScan)
@@ -90,12 +87,14 @@ if True:
     qt_env.Append(BUILDERS={'SipModule': sip_builder}, CPPPATH=['src/qt'], LIBS=[process])
     qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl glib-2.0')
 
-    qt = qt_env.SipModule('fluggo/media/qt.so', env.Glob('src/qt/*.sip') + env.Glob('src/qt/*.cpp'))
+    qt_sip = qt_env.SipModule('qt', env.Glob('src/qt/*.sip') + env.Glob('src/qt/*.cpp'))
+    qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip)
+
     qt_env.Clean(qt, 'build/qt')
 
     Alias('qt', qt)
     Alias('all', 'qt')
-    Default('qt')
+    Default(qt)
 
 # Tests
 testenv = env.Clone()

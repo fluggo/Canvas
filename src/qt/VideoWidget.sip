@@ -39,7 +39,7 @@ public:
 
     void setVideoSource( SIP_PYOBJECT );
 %MethodCode
-        bool result = takeVideoSource( a0, &sipCpp->_sourceHolder );
+        bool result = py_video_takeSource( a0, &sipCpp->_sourceHolder );
 
         if( !result )
             sipIsErr = 1;
