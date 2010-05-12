@@ -6,7 +6,7 @@ assembly = ARGUMENTS.get('assembly', 0)
 profile = ARGUMENTS.get('profile', 0)
 
 env = Environment(CPPPATH=['include'],
-    CCFLAGS = ['-fno-strict-aliasing', '-Wall', '-D_POSIX_C_SOURCE=200112L', '-Werror'],
+    CCFLAGS = ['-Wall', '-D_POSIX_C_SOURCE=200112L', '-Werror'],
     CFLAGS=['-std=c99'])
 
 if int(debug):
@@ -19,15 +19,21 @@ else:
     env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-fno-tree-vectorize'])
 
 python_env = env.Clone(SHLIBPREFIX='')
-python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()])
+python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()], CCFLAGS=['-fno-strict-aliasing'])
 
 half = Command('src/process/halftab.c', 'src/process/genhalf.py', 'python $SOURCE > $TARGET')
+
+cprocess_env = env.Clone()
+cprocess_env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gl glib-2.0 gthread-2.0')
+cprocess_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
+
+cprocess = [cprocess_env.SharedObject(None, node) for node in env.Glob('src/process/*.c')]
+Depends(cprocess, half)
 
 process_env = python_env.Clone()
 process_env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gl glib-2.0 gthread-2.0')
 process_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
-process = process_env.SharedLibrary('fluggo/media/process.so', env.Glob('src/process/*.c') + env.Glob('src/pyprocess/*.c'))
-Depends(process, half)
+process = process_env.SharedLibrary('fluggo/media/process.so', env.Glob('src/pyprocess/*.c') + cprocess)
 
 Alias('process', process)
 Alias('all', 'process')
