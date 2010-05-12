@@ -21,9 +21,9 @@
 #if !defined(fluggo_pyframework)
 #define fluggo_pyframework
 
+#include <Python.h>
 #include "framework.h"
 #include "clock.h"
-#include <Python.h>
 
 #if defined(__cplusplus)
 extern "C" {

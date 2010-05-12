@@ -73,14 +73,9 @@ if True:
         for s in source:
             (root, ext) = os.path.splitext(os.path.basename(str(s)))
 
-            if ext == '.sip':
-                file = env.File('$SIPSRCDIR/sip' + module + root + '.cpp')
-                sip_targets.append(file)
-                sip_sources.append(s)
-            else:
-                module_sources.append(s)
-
-        module_sources.extend(sip_targets)
+            file = env.File('$SIPSRCDIR/sip' + module + root + '.cpp')
+            sip_targets.append(file)
+            sip_sources.append(s)
 
         header = '$SIPSRCDIR/sipAPI' + module + '.h'
         env.SideEffect(header, sip_targets)
@@ -93,8 +88,8 @@ if True:
     qt_env.Append(BUILDERS={'SipModule': sip_builder}, CPPPATH=['src/qt'], LIBS=[process])
     qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl glib-2.0')
 
-    qt_sip = qt_env.SipModule('qt', env.Glob('src/qt/*.sip') + env.Glob('src/qt/*.cpp'))
-    qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip)
+    qt_sip = qt_env.SipModule('qt', env.Glob('src/qt/*.sip'))
+    qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip + env.Glob('src/qt/*.cpp'))
 
     qt_env.Clean(qt, 'build/qt')
 
