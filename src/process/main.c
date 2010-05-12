@@ -20,9 +20,8 @@
 
 #include <stdint.h>
 
-#include <Python.h>
+#include "pyframework.h"
 #include <structmember.h>
-#include "framework.h"
 #include "clock.h"
 #include <time.h>
 

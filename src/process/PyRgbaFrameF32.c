@@ -18,7 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "framework.h"
+#include "pyframework.h"
 #include "video_mix.h"
 
 static PyTypeObject *py_type_Sequence;

@@ -1,4 +1,5 @@
 
+#include "pyframework.h"
 #include "widget_gl.h"
 #include <qobject.h>
 #include <QGLWidget>

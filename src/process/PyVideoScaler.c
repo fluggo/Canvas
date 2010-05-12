@@ -18,7 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "framework.h"
+#include "pyframework.h"
 #include "video_scale.h"
 
 static PyObject *pysourceFuncs;

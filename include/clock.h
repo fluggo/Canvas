@@ -55,15 +55,7 @@ typedef struct {
     PresentationClockFuncs *funcs;
 } presentation_clock;
 
-typedef struct {
-    presentation_clock source;
-    PyObject *csource;
-} PresentationClockHolder;
-
-bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
 int64_t gettime();
-
-#define PRESENTATION_CLOCK_FUNCS "_presentation_clock_funcs"
 
 #if defined(__cplusplus)
 }

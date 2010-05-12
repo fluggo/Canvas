@@ -18,6 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "pyframework.h"
 #include "video_mix.h"
 
 #define FOREACH_PIXEL_BEGIN(frame,pixel) \

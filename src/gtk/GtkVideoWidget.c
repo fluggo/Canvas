@@ -22,10 +22,8 @@
 
 #include <pygobject.h>
 #include <pygtk/pygtk.h>
-#include <Python.h>
+#include "pyframework.h"
 #include <structmember.h>
-#include "framework.h"
-#include "clock.h"
 #include "widget_gl.h"
 
 #include <gtk/gtk.h>

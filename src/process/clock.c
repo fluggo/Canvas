@@ -18,8 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "framework.h"
-#include "clock.h"
+#include "pyframework.h"
 
 typedef struct __tag_callback_info {
     void *data;

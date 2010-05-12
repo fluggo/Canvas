@@ -21,8 +21,6 @@
 #if !defined(fluggo_framework)
 #define fluggo_framework
 
-#include <Python.h>
-
 #include <stdint.h>
 #include <stdbool.h>
 #include "half.h"
@@ -133,13 +131,6 @@ G_GNUC_CONST static inline float clampf( float value, float min, float max ) {
 
 int64_t getFrameTime( const rational *frameRate, int frame );
 int getTimeFrame( const rational *frameRate, int64_t time );
-bool parseRational( PyObject *in, rational *out );
-PyObject *makeFraction( rational *in );
-
-PyObject *py_make_box2f( box2f *box );
-PyObject *py_make_box2i( box2i *box );
-PyObject *py_make_v2f( v2f *v );
-PyObject *py_make_v2i( v2i *v );
 
 /************* Video *******/
 typedef struct {
@@ -198,12 +189,6 @@ typedef struct {
     VideoFrameSourceFuncs *funcs;
 } video_source;
 
-typedef struct {
-    video_source source;
-    PyObject *csource;
-} VideoSourceHolder;
-
-bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder );
 void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame );
 void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame );
 void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame );
@@ -217,8 +202,6 @@ void __gl_checkError(const char *file, const unsigned long line);
 void gl_printShaderErrors( GLhandleARB shader );
 void gl_renderToTexture( rgba_frame_gl *frame );
 void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );
-
-#define VIDEO_FRAME_SOURCE_FUNCS "_video_frame_source_funcs"
 
 /************* Audio *******/
 
@@ -240,69 +223,6 @@ typedef struct {
     void *obj;
     AudioFrameSourceFuncs *funcs;
 } audio_source;
-
-typedef struct {
-    audio_source source;
-    PyObject *csource;
-} AudioSourceHolder;
-
-bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder );
-
-#define AUDIO_FRAME_SOURCE_FUNCS "_audio_frame_source_funcs"
-
-/*********** Frame functions *****/
-
-typedef enum _CONST_TYPE {
-    CONST_TYPE_INT32,
-    CONST_TYPE_FLOAT32,
-} const_type;
-
-// Frame functions: Given an array of *count* frame indexes in *frames*,
-// produce an equivalent array of *outValues* to use (allocated by the caller).
-// Each frame index is divided by *div* to support subframe calculations.
-
-typedef void (*framefunc_getValues_i32_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, int *outValues );
-typedef void (*framefunc_getValues_f32_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, float *outValues );
-typedef void (*framefunc_getValues_v2i_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, v2i *outValues );
-typedef void (*framefunc_getValues_v2f_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, v2f *outValues );
-typedef void (*framefunc_getValues_box2i_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, box2i *outValues );
-typedef void (*framefunc_getValues_box2f_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, box2f *outValues );
-
-typedef struct {
-    int flags;
-    framefunc_getValues_i32_func getValues_i32;
-    framefunc_getValues_f32_func getValues_f32;
-    framefunc_getValues_v2i_func getValues_v2i;
-    framefunc_getValues_v2f_func getValues_v2f;
-    framefunc_getValues_box2i_func getValues_box2i;
-    framefunc_getValues_box2f_func getValues_box2f;
-} FrameFunctionFuncs;
-
-typedef struct {
-    PyObject *source;
-    PyObject *csource;
-    FrameFunctionFuncs *funcs;
-    union {
-        int const_i32;
-        v2i const_v2i;
-        box2i const_box2i;
-        int const_i32_array[4];
-
-        float const_f32;
-        v2f const_v2f;
-        box2f const_box2f;
-        float const_f32_array[4];
-    } constant;
-    const_type constant_type;
-} FrameFunctionHolder;
-
-bool py_frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder );
-int frameFunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
-float frameFunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
-void frameFunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f *result );
-void frameFunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, box2i *result );
-
-#define FRAME_FUNCTION_FUNCS "_frame_function_funcs"
 
 #if defined(__cplusplus)
 }

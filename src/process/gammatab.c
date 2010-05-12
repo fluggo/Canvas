@@ -1,5 +1,6 @@
 
 #include "framework.h"
+#include <math.h>
 #include "half.h"
 
 uint8_t gamma45[65536];
