@@ -231,6 +231,7 @@ static PyTypeObject py_type_Pulldown23RemovalFilter = {
     "fluggo.media.process.Pulldown23RemovalFilter",    // tp_name
     sizeof(py_obj_Pulldown23RemovalFilter),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) Pulldown23RemovalFilter_dealloc,
     .tp_init = (initproc) Pulldown23RemovalFilter_init,

@@ -221,6 +221,7 @@ static PyTypeObject py_type_VideoMixFilter = {
     "fluggo.media.process.VideoMixFilter",    // tp_name
     sizeof(py_obj_VideoMixFilter),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) VideoMixFilter_dealloc,
     .tp_init = (initproc) VideoMixFilter_init,

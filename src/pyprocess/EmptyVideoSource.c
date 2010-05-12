@@ -82,6 +82,7 @@ static PyTypeObject py_type_EmptyVideoSource = {
     "fluggo.media.process.EmptyVideoSource",    // tp_name
     sizeof(PyObject),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) EmptyVideoSource_dealloc,
     .tp_init = (initproc) EmptyVideoSource_init,

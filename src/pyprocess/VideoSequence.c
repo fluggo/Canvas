@@ -21,7 +21,6 @@
 #include "pyframework.h"
 
 static PyObject *pysourceFuncs;
-static PyTypeObject *py_type_MutableSequence;
 
 typedef struct {
     PyObject *tuple;
@@ -36,14 +35,11 @@ typedef struct {
     int lastElement;
 } VideoSequence_private;
 
-#define PRIV(obj)              ((VideoSequence_private*)(((void *) obj) + (py_type_MutableSequence->tp_basicsize)))
+#define PRIV(obj)              ((VideoSequence_private*)(((void *) obj) + py_type_VideoSource.tp_basicsize))
 #define SEQINDEX(self, i)    g_array_index( PRIV(self)->sequence, Element, i )
 
 static int
 VideoSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
-    if( py_type_MutableSequence->tp_init( (PyObject *) self, args, kwds ) < 0 )
-        return -1;
-
     PRIV(self)->sequence = g_array_new( false, true, sizeof(Element) );
     PRIV(self)->mutex = g_mutex_new();
     PRIV(self)->lastElement = 0;
@@ -221,13 +217,7 @@ VideoSequence_setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
 }
 
 static PyObject *
-VideoSequence_insert( PyObject *self, PyObject *args ) {
-    Py_ssize_t i;
-    PyObject *v;
-
-    if( !PyArg_ParseTuple( args, "nO", &i, &v ) )
-        return NULL;
-
+VideoSequence_insert_impl( PyObject *self, Py_ssize_t i, PyObject *v ) {
     if( i < 0 )
         i += PRIV(self)->sequence->len;
 
@@ -253,6 +243,27 @@ VideoSequence_insert( PyObject *self, PyObject *args ) {
 
     g_mutex_unlock( PRIV(self)->mutex );
     Py_RETURN_NONE;
+}
+
+static PyObject *
+VideoSequence_insert( PyObject *self, PyObject *args ) {
+    Py_ssize_t i;
+    PyObject *v;
+
+    if( !PyArg_ParseTuple( args, "nO", &i, &v ) )
+        return NULL;
+
+    return VideoSequence_insert_impl( self, i, v );
+}
+
+static PyObject *
+VideoSequence_append( PyObject *self, PyObject *args ) {
+    PyObject *v;
+
+    if( !PyArg_ParseTuple( args, "O", &v ) )
+        return NULL;
+
+    return VideoSequence_insert_impl( self, PRIV(self)->sequence->len, v );
 }
 
 static void
@@ -296,6 +307,8 @@ static PySequenceMethods VideoSequence_sequence = {
 static PyMethodDef VideoSequence_methods[] = {
     { "insert", (PyCFunction) VideoSequence_insert, METH_VARARGS,
         "Inserts a new element into the sequence." },
+    { "append", (PyCFunction) VideoSequence_append, METH_VARARGS,
+        "Adds an element at the end of the sequence." },
     { "get_start_frame", (PyCFunction) VideoSequence_getStartFrame, METH_VARARGS,
         "Gets the starting frame for an element." },
     { NULL }
@@ -305,6 +318,8 @@ static PyTypeObject py_type_VideoSequence = {
     PyObject_HEAD_INIT(NULL)
     .tp_name = "fluggo.media.process.VideoSequence",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_VideoSource,
+    .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) VideoSequence_dealloc,
     .tp_init = (initproc) VideoSequence_init,
     .tp_getset = VideoSequence_getsetters,
@@ -313,14 +328,7 @@ static PyTypeObject py_type_VideoSequence = {
 };
 
 void init_VideoSequence( PyObject *module ) {
-    PyObject *collections = PyImport_ImportModule( "collections" );
-    py_type_MutableSequence = (PyTypeObject*) PyObject_GetAttrString( collections, "MutableSequence" );
-
-    Py_CLEAR( collections );
-
-    py_type_VideoSequence.tp_base = py_type_MutableSequence;
-    py_type_VideoSequence.tp_basicsize = py_type_MutableSequence->tp_basicsize +
-        sizeof(VideoSequence_private);
+    py_type_VideoSequence.tp_basicsize = py_type_VideoSource.tp_basicsize + sizeof(VideoSequence_private);
 
     if( PyType_Ready( &py_type_VideoSequence ) < 0 )
         return;

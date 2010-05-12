@@ -107,6 +107,7 @@ static PyTypeObject py_type_VideoScaler = {
     "fluggo.media.process.VideoScaler",    // tp_name
     sizeof(py_obj_VideoScaler),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) VideoScaler_dealloc,
     .tp_init = (initproc) VideoScaler_init,

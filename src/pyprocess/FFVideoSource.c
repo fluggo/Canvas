@@ -657,6 +657,7 @@ static PyTypeObject py_type_FFVideoSource = {
     "fluggo.media.process.FFVideoSource",    // tp_name
     sizeof(py_obj_FFVideoSource),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) FFVideoSource_dealloc,
     .tp_init = (initproc) FFVideoSource_init,

@@ -11,7 +11,7 @@ pulldown = process.Pulldown23RemovalFilter(videro, 0);
 red = process.SolidColorVideoSource((1.0, 0.0, 0.0, 0.25), (20, 20, 318, 277))
 green = process.SolidColorVideoSource((0.0, 1.0, 0.0, 0.75), (200, 200, 518, 477))
 
-frame = process.get_frame_f32(pulldown, 0, (200, 100, 519, 278))
+frame = pulldown.get_frame_f32(0, (200, 100, 519, 278))
 
 workspace = process.Workspace()
 workspace_item = workspace.add(source=pulldown, x=0, width=100, z=0)
@@ -280,12 +280,12 @@ class TimelineItem(QGraphicsItem):
         painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
         painter.drawText(rect, Qt.TextSingleLine, self.name)
 
-        frame = process.get_frame_f16(self.item.source, 0, (0, 0, 199, 199))
-        img_str = frame.to_argb32_string()
+#        frame = self.item.source.get_frame_f16(0, (0, 0, 199, 199))
+#        img_str = frame.to_argb32_string()
 
-        image = QImage(img_str, 200, 200, QImage.Format_ARGB32_Premultiplied)
+#        image = QImage(img_str, 200, 200, QImage.Format_ARGB32_Premultiplied)
 
-        painter.drawImage(rect.x(), rect.y(), image, sw=30, sh=30)
+#        painter.drawImage(rect.x(), rect.y(), image, sw=30, sh=30)
 
         painter.restore()
 
@@ -327,6 +327,8 @@ class MainWindow(QMainWindow):
         self.video_widget.setPixelAspectRatio(640.0/704.0)
         self.video_widget.setPresentationClock(clock)
         self.video_widget.setVideoSource(workspace)
+
+        clock.seek(0)
 
         self.addDockWidget(Qt.BottomDockWidgetArea, self.video_dock)
 

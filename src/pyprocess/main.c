@@ -313,8 +313,6 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 }
 
 PyObject *py_writeVideo( PyObject *self, PyObject *args, PyObject *kw );
-PyObject *py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw );
-PyObject *py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw );
 PyObject *py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw );
 
 static PyMethodDef module_methods[] = {
@@ -328,14 +326,6 @@ static PyMethodDef module_methods[] = {
         "timeGetFrame(source, min_frame, max_frame, data_window=(0,0,1,1)): Retrieves min_frame through max_frame from the source and returns the time it took in nanoseconds." },
     { "write_video", (PyCFunction) py_writeVideo, METH_VARARGS | METH_KEYWORDS,
         "TBD" },
-    { "get_frame_f16", (PyCFunction) py_get_frame_f16, METH_VARARGS | METH_KEYWORDS,
-        "Get a frame of video from a video source.\n"
-        "\n"
-        "(RgbaFrameF16) frame = get_frame_f16(source, frame, data_window)" },
-    { "get_frame_f32", (PyCFunction) py_get_frame_f32, METH_VARARGS | METH_KEYWORDS,
-        "Get a frame of video from a video source.\n"
-        "\n"
-        "(RgbaFrameF32) frame = get_frame_f32(source, frame, data_window)" },
     { "frame_func_get", (PyCFunction) py_frame_func_get, METH_VARARGS | METH_KEYWORDS,
         "Get a list of values from a frame function.\n"
         "\n"
@@ -347,6 +337,7 @@ static PyMethodDef module_methods[] = {
     { NULL }
 };
 
+void init_VideoSource( PyObject *module );
 void init_FFVideoSource( PyObject *module );
 void init_FFAudioSource( PyObject *module );
 void init_FFContainer( PyObject *module );
@@ -379,6 +370,7 @@ initprocess() {
     Py_CLEAR( fractions );
 
     init_half();
+    init_VideoSource( m );
     init_FFVideoSource( m );
     init_FFAudioSource( m );
     init_FFContainer( m );

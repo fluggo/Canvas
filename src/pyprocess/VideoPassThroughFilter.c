@@ -133,6 +133,7 @@ static PyTypeObject py_type_VideoPassThroughFilter = {
     "fluggo.media.process.VideoPassThroughFilter",    // tp_name
     sizeof(py_obj_VideoPassThroughFilter),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) VideoPassThroughFilter_dealloc,
     .tp_init = (initproc) VideoPassThroughFilter_init,

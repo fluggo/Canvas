@@ -21,7 +21,6 @@
 #include "pyframework.h"
 #include "workspace.h"
 
-static PyTypeObject *py_type_Sequence;
 static PyObject *pysource_funcs;
 
 typedef struct {
@@ -29,7 +28,7 @@ typedef struct {
     video_source source;
 } Workspace_private;
 
-#define PRIV(obj)        ((Workspace_private*)(((void *) obj) + (py_type_Sequence->tp_basicsize)))
+#define PRIV(obj)        ((Workspace_private*)(((void *) obj) + py_type_VideoSource.tp_basicsize))
 
 typedef struct {
     PyObject_HEAD
@@ -361,6 +360,8 @@ static PyTypeObject py_type_Workspace = {
     PyObject_HEAD_INIT(NULL)
     .tp_name = "fluggo.media.process.Workspace",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_VideoSource,
+    .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) Workspace_dealloc,
     .tp_init = (initproc) Workspace_init,
     .tp_getset = Workspace_getsetters,
@@ -369,14 +370,7 @@ static PyTypeObject py_type_Workspace = {
 };
 
 void init_Workspace( PyObject *module ) {
-    PyObject *collections = PyImport_ImportModule( "collections" );
-    py_type_Sequence = (PyTypeObject*) PyObject_GetAttrString( collections, "Sequence" );
-
-    Py_CLEAR( collections );
-
-    py_type_Workspace.tp_base = py_type_Sequence;
-    py_type_Workspace.tp_basicsize = py_type_Sequence->tp_basicsize +
-        sizeof(Workspace_private);
+    py_type_Workspace.tp_basicsize = py_type_VideoSource.tp_basicsize + sizeof(Workspace_private);
 
     if( PyType_Ready( &py_type_Workspace ) < 0 )
         return;

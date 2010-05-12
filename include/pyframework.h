@@ -46,6 +46,8 @@ typedef struct {
 
 bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder );
 
+extern PyTypeObject py_type_VideoSource;
+
 #define VIDEO_FRAME_SOURCE_FUNCS "_video_frame_source_funcs"
 
 /**** Audio **/

@@ -21,11 +21,9 @@
 #include "pyframework.h"
 #include "video_mix.h"
 
-static PyTypeObject *py_type_Sequence;
 static PyObject *pysource_funcs;
-static Py_ssize_t base_basicsize;
 
-#define PRIV(obj)        ((rgba_frame_f16*)(((void *) obj) + base_basicsize))
+#define PRIV(obj)        ((rgba_frame_f16*)(((void *) obj) + py_type_VideoSource.tp_basicsize))
 
 static void
 RgbaFrameF16_getFrame_f16( PyObject *self, int frame_index, rgba_frame_f16 *frame ) {
@@ -163,6 +161,8 @@ static PyTypeObject py_type_RgbaFrameF16 = {
     PyObject_HEAD_INIT(NULL)
     .tp_name = "fluggo.media.process.RgbaFrameF16",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_base = &py_type_VideoSource,
     .tp_dealloc = (destructor) RgbaFrameF16_dealloc,
     .tp_getset = RgbaFrameF16_getsetters,
     .tp_methods = RgbaFrameF16_methods,
@@ -195,12 +195,6 @@ py_RgbaFrameF16_new( box2i *full_data_window, rgba_frame_f16 **frame ) {
         return NULL;
     }
 
-    if( py_type_Sequence->tp_init( result, tuple, dict ) < 0 ) {
-        Py_CLEAR(tuple);
-        Py_CLEAR(dict);
-        return NULL;
-    }
-
     Py_CLEAR(tuple);
     Py_CLEAR(dict);
 
@@ -225,13 +219,14 @@ py_RgbaFrameF16_new( box2i *full_data_window, rgba_frame_f16 **frame ) {
 
 PyObject *
 py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw ) {
-    PyObject *window_tuple = NULL, *source_obj;
+    // This function is now actually a member of the VideoSource base class
+    PyObject *window_tuple = NULL;
     int frame_index;
 
-    static char *kwlist[] = { "source", "frame", "data_window", NULL };
+    static char *kwlist[] = { "frame", "data_window", NULL };
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "OiO", kwlist,
-            &source_obj, &frame_index, &window_tuple ) )
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "iO", kwlist,
+            &frame_index, &window_tuple ) )
         return NULL;
 
     box2i window;
@@ -246,7 +241,7 @@ py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw ) {
 
     VideoSourceHolder source = { .csource = NULL };
 
-    if( !py_video_takeSource( source_obj, &source ) ) {
+    if( !py_video_takeSource( self, &source ) ) {
         Py_DECREF(result);
         PyMem_Free( PRIV(result)->frameData );
         return NULL;
@@ -264,15 +259,7 @@ py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw ) {
 }
 
 void init_RgbaFrameF16( PyObject *module ) {
-    PyObject *collections = PyImport_ImportModule( "collections" );
-    py_type_Sequence = (PyTypeObject*) PyObject_GetAttrString( collections, "Sequence" );
-    base_basicsize = py_type_Sequence->tp_basicsize;
-
-    Py_CLEAR( collections );
-
-    py_type_RgbaFrameF16.tp_base = py_type_Sequence;
-    py_type_RgbaFrameF16.tp_basicsize = py_type_Sequence->tp_basicsize +
-        sizeof(rgba_frame_f16);
+    py_type_RgbaFrameF16.tp_basicsize = py_type_VideoSource.tp_basicsize + sizeof(rgba_frame_f16);
 
     if( PyType_Ready( &py_type_RgbaFrameF16 ) < 0 )
         return;
