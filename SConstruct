@@ -26,7 +26,7 @@ half = Command('src/process/halftab.c', 'src/process/genhalf.py', 'python $SOURC
 process_env = python_env.Clone()
 process_env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gl glib-2.0 gthread-2.0')
 process_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
-process = process_env.SharedLibrary('fluggo/media/process.so', env.Glob('src/process/*.c'))
+process = process_env.SharedLibrary('fluggo/media/process.so', env.Glob('src/process/*.c') + env.Glob('src/pyprocess/*.c'))
 Depends(process, half)
 
 Alias('process', process)
