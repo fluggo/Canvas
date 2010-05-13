@@ -35,6 +35,7 @@ typedef struct {
     float colorMatrix[3][3];
     bool allKeyframes;
     int currentVideoFrame;
+    GStaticMutex mutex;
 } py_obj_FFVideoSource;
 
 typedef struct {
@@ -124,6 +125,8 @@ FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds )
       strcmp( self->codecContext->codec->name, "rawvideo" ) &&
       strcmp( self->codecContext->codec->name, "dvvideo" ));
 
+    g_static_mutex_init( &self->mutex );
+
     if( !self->allKeyframes ) {
         // Prime the pump for MPEG so we get frame accuracy (otherwise we seem to start a few frames in)
         FFVideoSource_getFrame( self, 0, NULL );
@@ -144,6 +147,8 @@ FFVideoSource_dealloc( py_obj_FFVideoSource *self ) {
         av_close_input_file( self->context );
         self->context = NULL;
     }
+
+    g_static_mutex_free( &self->mutex );
 
     self->ob_type->tp_free( (PyObject*) self );
 }
@@ -194,8 +199,9 @@ read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
     // are not in presentation order
     for( ;; ) {
         //printf( "Reading frame\n" );
-        if( av_read_frame( self->context, &packet ) < 0 )
+        if( av_read_frame( self->context, &packet ) < 0 ) {
             return false;
+        }
 
         if( packet.stream_index != self->firstVideoStream ) {
             //printf( "Not the right stream\n" );
@@ -236,56 +242,48 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
     AVFrame avFrame;
     avcodec_get_frame_defaults( &avFrame );
 
-    int inputBufferSize = avpicture_get_size(
-        self->codecContext->pix_fmt,
-        self->codecContext->width,
-        self->codecContext->height );
-
-    uint8_t *inputBuffer;
-
-    if( (inputBuffer = (uint8_t*) g_slice_alloc( inputBufferSize )) == NULL ) {
-        printf( "Could not allocate output buffer\n" );
-
-        if( frame )
-            box2i_setEmpty( &frame->currentDataWindow );
-
-        return;
-    }
-
-    avpicture_fill( (AVPicture *) &avFrame, inputBuffer,
-        self->codecContext->pix_fmt,
-        self->codecContext->width,
-        self->codecContext->height );
+    g_static_mutex_lock( &self->mutex );
 
     if( !read_frame( self, frameIndex, &avFrame ) ) {
-        printf( "Could not read the frame.\n" );
+        g_print( "Could not read the frame.\n" );
 
         if( frame )
             box2i_setEmpty( &frame->currentDataWindow );
-
-        g_slice_free1( inputBufferSize, inputBuffer );
     }
 
     if( !frame ) {
-        g_slice_free1( inputBufferSize, inputBuffer );
+        g_static_mutex_unlock( &self->mutex );
         return;
     }
 
+    // Offset the frame so that line zero is part of the first field
     v2i picOffset = { 0, 0 };
 
-    // Offset the frame so that line zero is part of the first field
     if( avFrame.interlaced_frame && !avFrame.top_field_first )
         picOffset.y = -1;
 
-    // Now convert to halfs
+    //printf( "pix_fmt: %d\n", self->codecContext->pix_fmt );
+
+    // Dupe the input planes, because FFmpeg will reuse them
+    uint8_t *yplane, *cbplane, *crplane;
+    uint8_t *yrow, *cbrow, *crrow;
+
+    size_t linesize[3] = { avFrame.linesize[0], avFrame.linesize[1], avFrame.linesize[2] };
+
+    yplane = g_slice_copy( linesize[0] * self->codecContext->height, avFrame.data[0] );
+    cbplane = g_slice_copy( linesize[1] * self->codecContext->height, avFrame.data[1] );
+    crplane = g_slice_copy( linesize[2] * self->codecContext->height, avFrame.data[2] );
+
+    g_static_mutex_unlock( &self->mutex );
+
+    // Set up the current window
     box2i_set( &frame->currentDataWindow,
         max( picOffset.x, frame->fullDataWindow.min.x ),
         max( picOffset.y, frame->fullDataWindow.min.y ),
         min( self->codecContext->width + picOffset.x - 1, frame->fullDataWindow.max.x ),
         min( self->codecContext->height + picOffset.y - 1, frame->fullDataWindow.max.y ) );
 
-    //printf( "pix_fmt: %d\n", self->codecContext->pix_fmt );
-
+    // Set up subsample support
     int subX;
     float subOffsetX;
 
@@ -308,13 +306,10 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
         default:
             // TEMP: Wimp out if we don't know the format
             box2i_setEmpty( &frame->currentDataWindow );
-            g_slice_free1( inputBufferSize, inputBuffer );
             return;
     }
 
     // BJC: What follows is the horizontal-subsample-only case
-    uint8_t *yplane, *cbplane, *crplane;
-
     fir_filter triangleFilter = { NULL };
     filter_createTriangle( subX, subOffsetX, &triangleFilter );
 
@@ -322,24 +317,18 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
     rgba_f32 *tempRow = g_slice_alloc( sizeof(rgba_f32) * self->codecContext->width );
     cbcr_f32 *tempChroma = g_slice_alloc( sizeof(cbcr_f32) * self->codecContext->width );
 
-    if( !tempRow ) {
-        printf( "Failed to allocate row\n" );
-        g_slice_free1( inputBufferSize, inputBuffer );
-        box2i_setEmpty( &frame->currentDataWindow );
-        return;
-    }
-
+    // Turn into half RGB
     for( int row = frame->currentDataWindow.min.y - picOffset.y; row <= frame->currentDataWindow.max.y - picOffset.y; row++ ) {
-        yplane = avFrame.data[0] + (row * avFrame.linesize[0]);
-        cbplane = avFrame.data[1] + (row * avFrame.linesize[1]);
-        crplane = avFrame.data[2] + (row * avFrame.linesize[2]);
+        yrow = yplane + (row * linesize[0]);
+        cbrow = cbplane + (row * linesize[1]);
+        crrow = crplane + (row * linesize[2]);
 
         memset( tempChroma, 0, sizeof(cbcr_f32) * self->codecContext->width );
 
         int startx = 0, endx = (self->codecContext->width - 1) / subX;
 
         for( int x = startx; x <= endx; x++ ) {
-            float cb = cbplane[x] - 128.0f, cr = crplane[x] - 128.0f;
+            float cb = cbrow[x] - 128.0f, cr = crrow[x] - 128.0f;
 
             for( int i = max(frame->currentDataWindow.min.x - picOffset.x, x * subX - triangleFilter.center );
                     i <= min(frame->currentDataWindow.max.x - picOffset.x, x * subX + (triangleFilter.width - triangleFilter.center - 1)); i++ ) {
@@ -350,7 +339,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
         }
 
         for( int x = frame->currentDataWindow.min.x; x <= frame->currentDataWindow.max.x; x++ ) {
-            float y = yplane[x - picOffset.x] - 16.0f;
+            float y = yrow[x - picOffset.x] - 16.0f;
 
             tempRow[x].r = y * self->colorMatrix[0][0] +
                 tempChroma[x - picOffset.x].cb * self->colorMatrix[0][1] +
@@ -377,7 +366,9 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
     filter_free( &triangleFilter );
     g_slice_free1( sizeof(rgba_f32) * self->codecContext->width, tempRow );
     g_slice_free1( sizeof(cbcr_f32) * self->codecContext->width, tempChroma );
-    g_slice_free1( inputBufferSize, inputBuffer );
+    g_slice_free1( linesize[0] * self->codecContext->height, yplane );
+    g_slice_free1( linesize[1] * self->codecContext->height, cbplane );
+    g_slice_free1( linesize[2] * self->codecContext->height, crplane );
 
 #if 0
     else if( self->codecContext->pix_fmt == PIX_FMT_YUV420P ) {
@@ -485,62 +476,10 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
         return;
     }
 
-    // Allocate data structures for reading
-    AVFrame avFrame;
-    avcodec_get_frame_defaults( &avFrame );
-
-    int inputBufferSize = avpicture_get_size(
-        self->codecContext->pix_fmt,
-        self->codecContext->width,
-        self->codecContext->height );
-
-    uint8_t *inputBuffer;
-
-    if( (inputBuffer = (uint8_t*) g_slice_alloc( inputBufferSize )) == NULL ) {
-        printf( "Could not allocate output buffer\n" );
-
-        if( frame )
-            box2i_setEmpty( &frame->currentDataWindow );
-
-        return;
-    }
-
-    avpicture_fill( (AVPicture *) &avFrame, inputBuffer,
-        self->codecContext->pix_fmt,
-        self->codecContext->width,
-        self->codecContext->height );
-
-    if( !read_frame( self, frameIndex, &avFrame ) ) {
-        printf( "Could not read the frame.\n" );
-
-        if( frame )
-            box2i_setEmpty( &frame->currentDataWindow );
-
-        g_slice_free1( inputBufferSize, inputBuffer );
-    }
-
-    if( !frame ) {
-        g_slice_free1( inputBufferSize, inputBuffer );
-        return;
-    }
-
     if( self->codecContext->pix_fmt != PIX_FMT_YUV411P ) {
-        puts( "We don't have an implementation for anything but YUV 4:1:1 yet." );
-        g_slice_free1( inputBufferSize, inputBuffer );
+        g_print( "We don't have an implementation for anything but YUV 4:1:1 yet.\n" );
         return;
     }
-
-    v2i picOffset = { 0, 0 };
-
-    // Offset the frame so that line zero is part of the first field
-    if( avFrame.interlaced_frame && !avFrame.top_field_first )
-        picOffset.y = -1;
-
-    box2i_set( &frame->currentDataWindow,
-        max( picOffset.x, frame->fullDataWindow.min.x ),
-        max( picOffset.y, frame->fullDataWindow.min.y ),
-        min( self->codecContext->width + picOffset.x - 1, frame->fullDataWindow.max.x ),
-        min( self->codecContext->height + picOffset.y - 1, frame->fullDataWindow.max.y ) );
 
     // Now set up the texture to render to
     v2i frameSize;
@@ -574,6 +513,35 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
         GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
     gl_checkError();
 
+    // Allocate data structures for reading
+    AVFrame avFrame;
+    avcodec_get_frame_defaults( &avFrame );
+
+    g_static_mutex_lock( &self->mutex );
+    if( !read_frame( self, frameIndex, &avFrame ) ) {
+        g_print( "Could not read the frame.\n" );
+
+        if( frame )
+            box2i_setEmpty( &frame->currentDataWindow );
+    }
+
+    if( !frame ) {
+        g_static_mutex_unlock( &self->mutex );
+        return;
+    }
+
+    // Offset the frame so that line zero is part of the first field
+    v2i picOffset = { 0, 0 };
+
+    if( avFrame.interlaced_frame && !avFrame.top_field_first )
+        picOffset.y = -1;
+
+    box2i_set( &frame->currentDataWindow,
+        max( picOffset.x, frame->fullDataWindow.min.x ),
+        max( picOffset.y, frame->fullDataWindow.min.y ),
+        min( self->codecContext->width + picOffset.x - 1, frame->fullDataWindow.max.x ),
+        min( self->codecContext->height + picOffset.y - 1, frame->fullDataWindow.max.y ) );
+
     // Set up the input textures
     glActiveTexture( GL_TEXTURE0 );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[0] );
@@ -597,7 +565,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
     glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
-    g_slice_free1( inputBufferSize, inputBuffer );
+    g_static_mutex_unlock( &self->mutex );
 
     glUseProgramObjectARB( shader->program );
     glUniform1iARB( shader->texY, 0 );

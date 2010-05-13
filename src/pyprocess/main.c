@@ -388,6 +388,9 @@ initprocess() {
     init_RgbaFrameF16( m );
     init_RgbaFrameF32( m );
     init_VideoScaler( m );
+
+    if( !g_thread_supported() )
+        g_thread_init( NULL );
 }
 
 #if 0
