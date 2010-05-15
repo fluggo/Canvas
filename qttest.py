@@ -6,8 +6,17 @@ from fluggo.media import process, timecode, qt
 from fluggo.media.basetypes import *
 import sys, fractions, array
 
+class VideoClip(process.VideoPassThroughFilter):
+    def __init__(self, source, length, pixel_aspect_ratio, thumbnail_box):
+        process.VideoPassThroughFilter.__init__(self, source)
+        self.thumbnail_box = thumbnail_box
+        self.pixel_aspect_ratio = pixel_aspect_ratio
+        self.length = length
+
 videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;03;21;24.avi')
 pulldown = process.Pulldown23RemovalFilter(videro, 0);
+
+clip = VideoClip(pulldown, 300, fractions.Fraction(640, 704), box2i(0, -1, 719, 478))
 
 red = process.SolidColorVideoSource(rgba(1.0, 0.0, 0.0, 0.25), box2i(20, 20, 318, 277))
 green = process.SolidColorVideoSource(rgba(0.0, 1.0, 0.0, 0.75), box2i(200, 200, 518, 477))
@@ -15,7 +24,7 @@ green = process.SolidColorVideoSource(rgba(0.0, 1.0, 0.0, 0.75), box2i(200, 200,
 frame = pulldown.get_frame_f32(0, box2i(200, 100, 519, 278))
 
 workspace = process.Workspace()
-workspace_item = workspace.add(source=pulldown, x=0, width=100, z=0)
+workspace_item = workspace.add(source=clip, x=0, width=100, z=0)
 workspace.add(source=red, x=50, width=100, z=1)
 workspace.add(source=green, x=75, width=100, z=2)
 workspace.add(source=frame, x=125, width=100, z=0, offset=500)
@@ -259,19 +268,42 @@ class TimelineView(QGraphicsView):
 
 class TimelineItem(QGraphicsItem):
     def __init__(self, item, name):
+        # BJC: This class currently has both the model and the view,
+        # so it will need to be split
         QGraphicsItem.__init__(self)
-        self.height = 30.0
+        self.height = 40.0
         self._y = 0.0
         self.item = item
         self.name = name
         self.setPos(self.item.x, self._y)
-        self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable)
+        self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable |
+            QGraphicsItem.ItemUsesExtendedStyleOption)
+        self.thumbnails = []
+        self.thumbnail_indexes = []
+        self.thumbnail_width = 1.0
+
+    def _create_thumbnails(self, total_width):
+        # Calculate how many thumbnails fit
+        box = self.item.source.thumbnail_box
+        aspect = self.item.source.pixel_aspect_ratio
+        start_frame = self.item.offset
+        frame_count = self.item.width
+
+        self.thumbnail_width = (self.height * float(box.width()) * float(aspect)) / float(box.height())
+        count = min(max(int(total_width / self.thumbnail_width), 1), frame_count)
+
+        if len(self.thumbnails) == count:
+            return
+
+        self.thumbnails = [None for a in range(count)]
+        self.thumbnail_indexes = [start_frame + int(float(a) * frame_count / (count - 1)) for a in range(count)]
 
     def boundingRect(self):
         return QRectF(0.0, 0.0, self.item.width, self.height)
 
     def paint(self, painter, option, widget):
         rect = painter.transform().mapRect(self.boundingRect())
+        clip_rect = painter.transform().mapRect(option.exposedRect)
 
         painter.save()
         painter.resetTransform()
@@ -281,12 +313,37 @@ class TimelineItem(QGraphicsItem):
         painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
         painter.drawText(rect, Qt.TextSingleLine, self.name)
 
-        frame = self.item.source.get_frame_f16(0, box2i(0, 0, 199, 199))
-        img_str = frame.to_argb32_string()
+        # Figure out which thumbnails belong here and paint them
+        # The thumbnail lefts are at (i * (rect.width - thumbnail_width) / (len(thumbnails) - 1)) + rect.x()
+        # Rights are at left + thumbnail_width
+        self._create_thumbnails(rect.width())
+        box = self.item.source.thumbnail_box
 
-        image = QImage(img_str, 200, 200, QImage.Format_ARGB32_Premultiplied)
+        left_nail = int((clip_rect.x() - self.thumbnail_width - rect.x()) *
+            (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width))
+        right_nail = int((clip_rect.x() + clip_rect.width() - rect.x()) *
+            (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width)) + 1
+        left_nail = max(0, left_nail)
+        right_nail = min(len(self.thumbnails), right_nail)
 
-        painter.drawImage(rect.x(), rect.y(), image, sw=30, sh=30)
+        scale = process.VideoScaler(self.item.source,
+            target_point=v2f(0, 0), source_point=box.min,
+            scale_factors=v2f(rect.height() * float(self.item.source.pixel_aspect_ratio) / box.height(),
+                rect.height() / box.height()),
+            source_rect=box)
+
+        for i in range(left_nail, right_nail):
+            # Later we'll delegate this to another thread
+            if not self.thumbnails[i]:
+                frame = scale.get_frame_f16(
+                    self.thumbnail_indexes[i], self.item.source.thumbnail_box)
+                size = frame.current_data_window.size()
+                img_str = frame.to_argb32_string()
+
+                self.thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
+
+            painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
+                rect.y(), self.thumbnails[i])
 
         painter.restore()
 
