@@ -490,7 +490,7 @@ AlsaPlayer_set( py_obj_AlsaPlayer *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "OL", &rateObj, &time ) )
         return NULL;
 
-    if( !parseRational( rateObj, &rate ) )
+    if( !py_parse_rational( rateObj, &rate ) )
         return NULL;
 
     _set( self, time, &rate );
@@ -580,7 +580,7 @@ AlsaPlayer_play( py_obj_AlsaPlayer *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "O", &rateObj ) )
         return NULL;
 
-    if( !parseRational( rateObj, &rate ) )
+    if( !py_parse_rational( rateObj, &rate ) )
         return NULL;
 
     _set( self, _getPresentationTime_nolock( self ), &rate );

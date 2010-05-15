@@ -34,12 +34,17 @@ static int
 SolidColorVideoSource_init( py_obj_SolidColorVideoSource *self, PyObject *args, PyObject *kwds ) {
     box2i window;
     rgba_f32 color;
+    PyObject *window_obj = NULL, *color_obj;
+
+    if( !PyArg_ParseTuple( args, "O|O", &color_obj, &window_obj ) )
+        return -1;
+
+    if( !py_parse_rgba_f32( color_obj, &color ) )
+        return -1;
 
     box2i_set( &window, INT_MIN, INT_MIN, INT_MAX, INT_MAX );
 
-    if( !PyArg_ParseTuple( args, "(ffff)|(iiii)",
-            &color.r, &color.g, &color.b, &color.a,
-            &window.min.x, &window.min.y, &window.max.x, &window.max.y ) )
+    if( window_obj && !py_parse_box2i( window_obj, &window ) )
         return -1;
 
     self->window = window;

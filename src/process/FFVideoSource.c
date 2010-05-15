@@ -610,7 +610,8 @@ static PyGetSetDef FFVideoSource_getsetters[] = {
 
 static PyObject *
 FFVideoSource_size( py_obj_FFVideoSource *self ) {
-    return Py_BuildValue( "(ii)", self->codecContext->width, self->codecContext->height );
+    v2i size = { self->codecContext->width, self->codecContext->height };
+    return py_make_v2i( &size );
 }
 
 static PyMethodDef FFVideoSource_methods[] = {

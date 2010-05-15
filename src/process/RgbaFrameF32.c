@@ -49,13 +49,13 @@ RgbaFrameF32_get_funcs( PyObject *self, void *closure ) {
 static PyObject *
 RgbaFrameF32_get_full_data_window( PyObject *self, void *closure ) {
     box2i *window = &PRIV(self)->fullDataWindow;
-    return Py_BuildValue( "iiii", window->min.x, window->min.y, window->max.x, window->max.y );
+    return py_make_box2i( window );
 }
 
 static PyObject *
 RgbaFrameF32_get_current_data_window( PyObject *self, void *closure ) {
     box2i *window = &PRIV(self)->currentDataWindow;
-    return Py_BuildValue( "iiii", window->min.x, window->min.y, window->max.x, window->max.y );
+    return py_make_box2i( window );
 }
 
 static PyGetSetDef RgbaFrameF32_getsetters[] = {
@@ -75,11 +75,6 @@ RgbaFrameF32_size( PyObject *self ) {
 }
 
 static PyObject *
-color_to_python( rgba_f32 *color ) {
-    return Py_BuildValue( "ffff", color->r, color->g, color->b, color->a );
-}
-
-static PyObject *
 RgbaFrameF32_get_item( PyObject *self, Py_ssize_t i ) {
     v2i size;
     box2i_getSize( &PRIV(self)->fullDataWindow, &size );
@@ -89,7 +84,7 @@ RgbaFrameF32_get_item( PyObject *self, Py_ssize_t i ) {
         return NULL;
     }
 
-    return color_to_python( &PRIV(self)->frameData[i] );
+    return py_make_rgba_f32( &PRIV(self)->frameData[i] );
 }
 
 static PySequenceMethods RgbaFrameF32_sequence = {
@@ -109,7 +104,7 @@ RgbaFrameF32_pixel( PyObject *self, PyObject *args ) {
     if( x < window->min.x || x > window->max.x || y < window->min.y || y > window->max.y )
         Py_RETURN_NONE;
 
-    return color_to_python( getPixel_f32( PRIV(self), x, y ) );
+    return py_make_rgba_f32( getPixel_f32( PRIV(self), x, y ) );
 }
 
 static PyMethodDef RgbaFrameF32_methods[] = {
@@ -130,28 +125,36 @@ static PyTypeObject py_type_RgbaFrameF32 = {
     .tp_as_sequence = &RgbaFrameF32_sequence
 };
 
+/*
+    Function: py_RgbaFrameF32_new
+        Creates an RgbaFrameF32 and gets a pointer to its rgba_frame_f32 structure.
+        Internal use only.
+
+    Parameters:
+        full_data_window - The full data window for the frame.
+        frame - Optional pointer to a variable to receive the actual frame.
+            Everything but the current data window will be set.
+
+    Returns:
+        A reference to the new object if successful, or NULL on an error (an
+        exception will be set).
+*/
 PyObject *
-py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw ) {
-    // This is now a member of the VideoSource base class
-    PyObject *window_tuple = NULL;
-    int frame_index;
+py_RgbaFrameF32_new( box2i *full_data_window, rgba_frame_f32 **frame ) {
+    PyObject *tuple = PyTuple_New( 0 ), *dict = PyDict_New();
 
-    static char *kwlist[] = { "frame", "data_window", NULL };
+    PyObject *result = py_type_RgbaFrameF32.tp_new( &py_type_RgbaFrameF32, tuple, dict );
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "iO", kwlist,
-            &frame_index, &window_tuple ) )
-        return NULL;
-
-    PyObject *result = _PyObject_GC_New( &py_type_RgbaFrameF32 );
-
-    if( !PyArg_ParseTuple( window_tuple, "iiii",
-        &PRIV(result)->fullDataWindow.min.x,
-        &PRIV(result)->fullDataWindow.min.y,
-        &PRIV(result)->fullDataWindow.max.x,
-        &PRIV(result)->fullDataWindow.max.y ) ) {
-        Py_DECREF(result);
+    if( !result ) {
+        Py_CLEAR(tuple);
+        Py_CLEAR(dict);
         return NULL;
     }
+
+    Py_CLEAR(tuple);
+    Py_CLEAR(dict);
+
+    PRIV(result)->fullDataWindow = *full_data_window;
 
     v2i size;
     box2i_getSize( &PRIV(result)->fullDataWindow, &size );
@@ -163,6 +166,34 @@ py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw ) {
         Py_DECREF(result);
         return PyErr_NoMemory();
     }
+
+    if( frame )
+        *frame = PRIV(result);
+
+    return result;
+}
+
+PyObject *
+py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw ) {
+    // This function is now actually a member of the VideoSource base class
+    PyObject *window_tuple = NULL;
+    int frame_index;
+
+    static char *kwlist[] = { "frame", "data_window", NULL };
+
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "iO", kwlist,
+            &frame_index, &window_tuple ) )
+        return NULL;
+
+    box2i window;
+
+    if( !py_parse_box2i( window_tuple, &window ) )
+        return NULL;
+
+    PyObject *result = py_RgbaFrameF32_new( &window, NULL );
+
+    if( !result )
+        return NULL;
 
     VideoSourceHolder source = { .csource = NULL };
 

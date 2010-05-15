@@ -13,10 +13,9 @@ public:
 
     void setDisplayWindow( SIP_PYTUPLE );
 %MethodCode
-        // Python people expect to pass a 4-tuple.
         box2i window;
 
-        if( !PyArg_ParseTuple( a0, "iiii", &window.min.x, &window.min.y, &window.max.x, &window.max.y ) ) {
+        if( !py_parse_box2i( a0, &window ) ) {
             sipIsErr = 1;
         }
         else if( box2i_isEmpty( &window ) ) {
@@ -33,8 +32,7 @@ public:
         box2i window;
         sipCpp->getDisplayWindow( &window );
 
-        sipRes = Py_BuildValue( "(iiii)", window.min.x, window.min.y,
-            window.max.x, window.max.y );
+        sipRes = py_make_box2i( &window );
 %End
 
     void setVideoSource( SIP_PYOBJECT );

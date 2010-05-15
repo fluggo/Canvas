@@ -158,15 +158,18 @@ GtkVideoWidget_getDisplayWindow( py_obj_GtkVideoWidget *self ) {
     box2i window;
     widget_gl_get_display_window( self->context, &window );
 
-    return Py_BuildValue( "(iiii)", window.min.x, window.min.y,
-        window.max.x, window.max.y );
+    return py_make_box2i( &window );
 }
 
 static PyObject *
 GtkVideoWidget_setDisplayWindow( py_obj_GtkVideoWidget *self, PyObject *args ) {
+    PyObject *window_obj = NULL;
     box2i window;
 
-    if( !PyArg_ParseTuple( args, "(iiii)", &window.min.x, &window.min.y, &window.max.x, &window.max.y ) )
+    if( !PyArg_ParseTuple( args, "O", &window_obj ) )
+        return NULL;
+
+    if( !py_parse_box2i( window_obj, &window ) )
         return NULL;
 
     if( box2i_isEmpty( &window ) ) {

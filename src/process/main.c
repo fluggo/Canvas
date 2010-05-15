@@ -71,77 +71,6 @@ EXPORT bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder ) {
     return true;
 }
 
-static PyObject *fraction;
-
-EXPORT bool parseRational( PyObject *in, rational *out ) {
-    // Accept integers as rationals
-    if( PyInt_Check( in ) ) {
-        out->n = PyInt_AsLong( in );
-        out->d = 1;
-
-        return true;
-    }
-
-    PyObject *numerator = PyObject_GetAttrString( in, "numerator" );
-
-    if( numerator == NULL )
-        return false;
-
-    long n = PyInt_AsLong( numerator );
-    Py_DECREF(numerator);
-
-    if( n == -1 && PyErr_Occurred() != NULL )
-        return false;
-
-    PyObject *denominator = PyObject_GetAttrString( in, "denominator" );
-
-    if( denominator == NULL )
-        return false;
-
-    long d = PyInt_AsLong( denominator );
-    Py_DECREF(denominator);
-
-    if( d == -1 && PyErr_Occurred() != NULL )
-        return false;
-
-    out->n = (int) n;
-    out->d = (unsigned int) d;
-
-    return true;
-}
-
-EXPORT PyObject *makeFraction( rational *in ) {
-    PyObject *args = Py_BuildValue( "iI", in->n, in->d );
-    PyObject *result = PyObject_CallObject( fraction, args );
-
-    Py_CLEAR( args );
-    return result;
-}
-
-EXPORT PyObject *
-py_make_box2f( box2f *box ) {
-    // TODO: Probably make a named tuple out of this
-    return Py_BuildValue( "ffff", box->min.x, box->min.y, box->max.x, box->max.y );
-}
-
-EXPORT PyObject *
-py_make_box2i( box2i *box ) {
-    // TODO: Probably make a named tuple out of this
-    return Py_BuildValue( "iiii", box->min.x, box->min.y, box->max.x, box->max.y );
-}
-
-EXPORT PyObject *
-py_make_v2f( v2f *v ) {
-    // TODO: Probably make a named tuple out of this
-    return Py_BuildValue( "ff", v->x, v->y );
-}
-
-EXPORT PyObject *
-py_make_v2i( v2i *v ) {
-    // TODO: Probably make a named tuple out of this
-    return Py_BuildValue( "ii", v->x, v->y );
-}
-
 PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
     PyObject *frameRateObj;
     rational frameRate;
@@ -150,7 +79,7 @@ PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "Oi", &frameRateObj, &frame ) )
         return NULL;
 
-    if( !parseRational( frameRateObj, &frameRate ) )
+    if( !py_parse_rational( frameRateObj, &frameRate ) )
         return NULL;
 
     return Py_BuildValue( "L", getFrameTime( &frameRate, frame ) );
@@ -164,7 +93,7 @@ PyObject *py_getTimeFrame( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "OL", &frameRateObj, &time ) )
         return NULL;
 
-    if( !parseRational( frameRateObj, &frameRate ) )
+    if( !py_parse_rational( frameRateObj, &frameRate ) )
         return NULL;
 
     return Py_BuildValue( "i", getTimeFrame( &frameRate, time ) );
@@ -337,6 +266,7 @@ static PyMethodDef module_methods[] = {
     { NULL }
 };
 
+void init_basetypes( PyObject *module );
 void init_VideoSource( PyObject *module );
 void init_FFVideoSource( PyObject *module );
 void init_FFAudioSource( PyObject *module );
@@ -361,15 +291,8 @@ initprocess() {
     PyObject *m = Py_InitModule3( "process", module_methods,
         "The Fluggo media processing library for Python." );
 
-    PyObject *fractions = PyImport_ImportModule( "fractions" );
-
-    if( fractions == NULL )
-        Py_FatalError( "Could not find the fractions module." );
-
-    fraction = PyObject_GetAttrString( fractions, "Fraction" );
-    Py_CLEAR( fractions );
-
     init_half();
+    init_basetypes( m );
     init_VideoSource( m );
     init_FFVideoSource( m );
     init_FFAudioSource( m );

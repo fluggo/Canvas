@@ -231,7 +231,7 @@ py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw ) {
 
     box2i window;
 
-    if( !PyArg_ParseTuple( window_tuple, "iiii", &window.min.x, &window.min.y, &window.max.x, &window.max.y ) )
+    if( !py_parse_box2i( window_tuple, &window ) )
         return NULL;
 
     PyObject *result = py_RgbaFrameF16_new( &window, NULL );

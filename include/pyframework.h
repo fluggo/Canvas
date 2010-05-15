@@ -29,13 +29,20 @@
 extern "C" {
 #endif
 
-bool parseRational( PyObject *in, rational *out );
-PyObject *makeFraction( rational *in );
+bool py_parse_rational( PyObject *in, rational *out );
+PyObject *py_make_rational( rational *in );
 
+PyObject *py_make_rgba_f32( rgba_f32 *color );
 PyObject *py_make_box2f( box2f *box );
 PyObject *py_make_box2i( box2i *box );
 PyObject *py_make_v2f( v2f *v );
 PyObject *py_make_v2i( v2i *v );
+
+bool py_parse_rgba_f32( PyObject *obj, rgba_f32 *color );
+bool py_parse_box2f( PyObject *obj, box2f *box );
+bool py_parse_box2i( PyObject *obj, box2i *box );
+bool py_parse_v2f( PyObject *obj, v2f *v );
+bool py_parse_v2i( PyObject *obj, v2i *v );
 
 /**** Video **/
 

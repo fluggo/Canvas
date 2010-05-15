@@ -190,7 +190,7 @@ SystemPresentationClock_set( py_obj_SystemPresentationClock *self, PyObject *arg
     if( !PyArg_ParseTuple( args, "OL", &rateObj, &time ) )
         return NULL;
 
-    if( !parseRational( rateObj, &rate ) )
+    if( !py_parse_rational( rateObj, &rate ) )
         return NULL;
 
     _set( self, time, &rate );
@@ -206,7 +206,7 @@ SystemPresentationClock_play( py_obj_SystemPresentationClock *self, PyObject *ar
     if( !PyArg_ParseTuple( args, "O", &rateObj ) )
         return NULL;
 
-    if( !parseRational( rateObj, &rate ) )
+    if( !py_parse_rational( rateObj, &rate ) )
         return NULL;
 
     _set( self, _getPresentationTime( self ), &rate );

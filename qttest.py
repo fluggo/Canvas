@@ -3,15 +3,16 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
 from fluggo.media import process, timecode, qt
+from fluggo.media.basetypes import *
 import sys, fractions, array
 
 videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;03;21;24.avi')
 pulldown = process.Pulldown23RemovalFilter(videro, 0);
 
-red = process.SolidColorVideoSource((1.0, 0.0, 0.0, 0.25), (20, 20, 318, 277))
-green = process.SolidColorVideoSource((0.0, 1.0, 0.0, 0.75), (200, 200, 518, 477))
+red = process.SolidColorVideoSource(rgba(1.0, 0.0, 0.0, 0.25), box2i(20, 20, 318, 277))
+green = process.SolidColorVideoSource(rgba(0.0, 1.0, 0.0, 0.75), box2i(200, 200, 518, 477))
 
-frame = pulldown.get_frame_f32(0, (200, 100, 519, 278))
+frame = pulldown.get_frame_f32(0, box2i(200, 100, 519, 278))
 
 workspace = process.Workspace()
 workspace_item = workspace.add(source=pulldown, x=0, width=100, z=0)
@@ -280,7 +281,7 @@ class TimelineItem(QGraphicsItem):
         painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
         painter.drawText(rect, Qt.TextSingleLine, self.name)
 
-        frame = self.item.source.get_frame_f16(0, (0, 0, 199, 199))
+        frame = self.item.source.get_frame_f16(0, box2i(0, 0, 199, 199))
         img_str = frame.to_argb32_string()
 
         image = QImage(img_str, 200, 200, QImage.Format_ARGB32_Premultiplied)
@@ -322,7 +323,7 @@ class MainWindow(QMainWindow):
         self.video_dock = QDockWidget('Preview')
         self.video_dock.setWidget(self.video_widget)
 
-        self.video_widget.setDisplayWindow((0, -1, 719, 478))
+        self.video_widget.setDisplayWindow(box2i(0, -1, 719, 478))
 
         self.video_widget.setPixelAspectRatio(640.0/704.0)
         self.video_widget.setPresentationClock(clock)

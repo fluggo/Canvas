@@ -160,7 +160,7 @@ static PyGetSetDef FFContainer_getsetters[] = {
 static PyObject *
 FFStream_timeBase( py_obj_FFStream *self, void *closure ) {
     rational result = { .n = self->stream->time_base.num, .d = self->stream->time_base.den };
-    return makeFraction( &result );
+    return py_make_rational( &result );
 }
 
 static PyObject *
@@ -170,7 +170,7 @@ FFStream_realFrameRate( py_obj_FFStream *self, void *closure ) {
     if( result.n == 0 )
         Py_RETURN_NONE;
 
-    return makeFraction( &result );
+    return py_make_rational( &result );
 }
 
 static PyObject *
@@ -184,7 +184,7 @@ FFStream_sampleAspectRatio( py_obj_FFStream *self, void *closure ) {
         Py_RETURN_NONE;
 
     rational result = { .n = sar.num, .d = sar.den };
-    return makeFraction( &result );
+    return py_make_rational( &result );
 }
 
 static PyObject *pixFmtLookup[PIX_FMT_NB];

@@ -6,6 +6,7 @@ import gtk.glade
 from fractions import Fraction
 
 from fluggo.media import process
+from fluggo.media.basetypes import *
 import fluggo.media.gtk
 
 gtk.gdk.threads_init()
@@ -64,8 +65,8 @@ class MainWindow(object):
         videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;03;21;24.avi')
         pulldown = process.Pulldown23RemovalFilter(videro, 0);
 
-        red = process.SolidColorVideoSource((1.0, 0.0, 0.0, 0.25), (20, 20, 318, 277))
-        green = process.SolidColorVideoSource((0.0, 1.0, 0.0, 0.75), (200, 200, 518, 477))
+        red = process.SolidColorVideoSource(rgba(1.0, 0.0, 0.0, 0.25), box2i(20, 20, 318, 277))
+        green = process.SolidColorVideoSource(rgba(0.0, 1.0, 0.0, 0.75), box2i(200, 200, 518, 477))
 
         workspace = process.Workspace()
         workspace.add(source=pulldown, x=0, width=100, z=0)
@@ -74,7 +75,7 @@ class MainWindow(object):
         workspace.add(source=pulldown, x=125, width=100, z=0, offset=500)
 
         size = videro.size()
-        self.video_widget.set_display_window((0, -1, size[0] - 1, size[1] - 2))
+        self.video_widget.set_display_window(box2i(0, -1, size[0] - 1, size[1] - 2))
         #self.video_widget.set_hardware_accel(False)
         #self.video_widget.set_source(av)
 
@@ -89,7 +90,7 @@ class MainWindow(object):
         #mix = VideoMixFilter(src_a=pulldown, src_b=SolidColorVideoSource((1.0, 0.0, 0.0, 0.5), (50, 50, 100, 100)), mix_b=LinearFrameFunc(a=1/300.0, b=0))
         #mix = VideoMixFilter(src_a=pulldown, src_b=seq, mix_b=LinearFrameFunc(a=1/300.0, b=0))
         #mix = process.VideoMixFilter(src_a=process.SolidColorVideoSource((1.0, 0.0, 0.0, 0.25), (1, 0, 718, 477)), src_b=process.SolidColorVideoSource((0.0, 1.0, 0.0, 0.75), (2, 1, 717, 476)), mix_b=process.LinearFrameFunc(a=1/300.0, b=0))
-        mix = process.VideoScaler(source=pulldown, source_point=(320, 120), target_point=(320, 120), scale_factors=process.LerpFunc((0.25, 0.25), (4.0, 4.0), length=1000), source_rect=(0, -1, size[0] - 1, size[1] - 2))
+        mix = process.VideoScaler(source=pulldown, source_point=v2i(320, 120), target_point=v2i(320, 120), scale_factors=process.LerpFunc(v2f(0.25, 0.25), v2f(4.0, 4.0), length=1000), source_rect=box2i(0, -1, size[0] - 1, size[1] - 2))
 
         self.video_widget.set_source(mix)
         clock.stop()
