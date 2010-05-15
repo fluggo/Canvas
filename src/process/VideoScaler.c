@@ -101,6 +101,31 @@ static PyGetSetDef VideoScaler_getsetters[] = {
     { NULL }
 };
 
+static PyObject *
+VideoScaler_source( py_obj_VideoScaler *self, PyObject *dummy ) {
+    if( !self->source.source.obj )
+        Py_RETURN_NONE;
+
+    Py_INCREF(self->source.source.obj);
+    return self->source.source.obj;
+}
+
+static PyObject *
+VideoScaler_set_source( py_obj_VideoScaler *self, PyObject *pysource ) {
+    if( !py_video_takeSource( pysource, &self->source ) )
+        return NULL;
+
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef VideoScaler_methods[] = {
+    { "source", (PyCFunction) VideoScaler_source, METH_NOARGS,
+        "Gets the source for the scaler." },
+    { "set_source", (PyCFunction) VideoScaler_set_source, METH_O,
+        "Sets the source for the scaler." },
+    { NULL }
+};
+
 static PyTypeObject py_type_VideoScaler = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
@@ -111,7 +136,8 @@ static PyTypeObject py_type_VideoScaler = {
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) VideoScaler_dealloc,
     .tp_init = (initproc) VideoScaler_init,
-    .tp_getset = VideoScaler_getsetters
+    .tp_getset = VideoScaler_getsetters,
+    .tp_methods = VideoScaler_methods,
 };
 
 void init_VideoScaler( PyObject *module ) {
