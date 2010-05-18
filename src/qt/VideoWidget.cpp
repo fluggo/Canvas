@@ -40,6 +40,14 @@ float VideoWidget::pixelAspectRatio() {
     return widget_gl_get_pixel_aspect_ratio( _context );
 }
 
+void VideoWidget::setRenderingIntent( float renderingIntent ) {
+    widget_gl_set_rendering_intent( _context, renderingIntent );
+}
+
+float VideoWidget::renderingIntent() {
+    return widget_gl_get_rendering_intent( _context );
+}
+
 void VideoWidget::paintGL() {
     QSize mySize = size();
     v2i glSize = { mySize.width(), mySize.height() };

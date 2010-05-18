@@ -58,6 +58,9 @@ public:
     void setPixelAspectRatio( float pixelAspectRatio );
     float pixelAspectRatio();
 
+    void setRenderingIntent( float renderingIntent );
+    float renderingIntent();
+
     virtual QSize sizeHint() const;
 
 protected:

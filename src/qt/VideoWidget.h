@@ -17,6 +17,9 @@ public:
     void setPixelAspectRatio( float pixelAspectRatio );
     float pixelAspectRatio();
 
+    void setRenderingIntent( float renderingIntent );
+    float renderingIntent();
+
     // BJC: I'd rather these be protected at worst, but right
     // now I don't know a better place to put them (they support the SIP code)
     PresentationClockHolder _clockHolder;
