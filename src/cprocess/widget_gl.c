@@ -568,6 +568,18 @@ static const char *gammaShader =
 "    gl_FragColor.rgba = pow( color.rgba, vec4(0.45, 0.45, 0.45, 0.45) );"
 "}";
 
+/*
+    Function: widget_gl_draw
+    Paint the widget with the current GL context.
+
+    Parameters:
+    self - The widget_gl_context.
+    widget_size - The current size of the widget.
+
+    Remarks:
+    Call this function inside your widget's expose function after
+    setting up the GL context. This function will set up everything else.
+*/
 EXPORT void
 widget_gl_draw( widget_gl_context *self, v2i widget_size ) {
     widget_gl_initialize( self );
@@ -671,6 +683,19 @@ widget_gl_draw( widget_gl_context *self, v2i widget_size ) {
     }
 }
 
+/*
+    Function: widget_gl_set_invalidate_func
+    Set the function to be called when the widget needs to be repainted.
+
+    Parameters:
+    self - The widget_gl_context.
+    func - The function to be called.
+    closure - Argument to pass to func.
+
+    Remarks:
+    The proper thing to do when *func* is called is probably invalidate
+    the widget.
+*/
 EXPORT void
 widget_gl_set_invalidate_func( widget_gl_context *self, invalidate_func func, void *closure ) {
     self->invalidate_func = func;
@@ -682,6 +707,16 @@ widget_gl_get_hard_mode_enabled( widget_gl_context *self ) {
     return !self->hardModeDisable && self->hardModeSupported;
 }
 
+/*
+    Function: widget_gl_get_hard_mode_supported
+    Determine whether hard mode is supported.
+
+    Parameters:
+    self - The widget_gl_context.
+
+    Remarks:
+    This will return false until widget_gl_draw has been called for the first time.
+*/
 EXPORT gboolean
 widget_gl_get_hard_mode_supported( widget_gl_context *self ) {
     return self->hardModeSupported;
