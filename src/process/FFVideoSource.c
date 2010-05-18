@@ -22,6 +22,7 @@
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 #include "filter.h"
+#include "color.h"
 
 static GQuark q_recon411Shader;
 
@@ -96,26 +97,26 @@ FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds )
         return -1;
     }
 
-    // Rec. 601 weights courtesy of http://www.poynton.com/notes/colour_and_gamma/ColorFAQ.html
-/*    self->colorMatrix[0][0] = 1.0f / 219.0f;    // Y -> R
-    self->colorMatrix[0][1] = 0.0f;    // Pb -> R, and so on
-    self->colorMatrix[0][2] = 1.402f / 244.0f;
-    self->colorMatrix[1][0] = 1.0f / 219.0f;
-    self->colorMatrix[1][1] = -0.344136f / 244.0f;
-    self->colorMatrix[1][2] = -0.714136f / 244.0f;
-    self->colorMatrix[2][0] = 1.0f / 219.0f;
-    self->colorMatrix[2][1] = 1.772f / 244.0f;
+    // Rec. 709 YCbCr->RGB matrix in Poynton, p. 316:
+/*    self->colorMatrix[0][0] = 1.0f;
+    self->colorMatrix[0][1] = 0.0f;
+    self->colorMatrix[0][2] = 1.5748f;
+    self->colorMatrix[1][0] = 1.0f;
+    self->colorMatrix[1][1] = -0.187324f;
+    self->colorMatrix[1][2] = -0.468124f;
+    self->colorMatrix[2][0] = 1.0f;
+    self->colorMatrix[2][1] = 1.8556f;
     self->colorMatrix[2][2] = 0.0f;*/
 
-    // Naturally, this page disappeared soon after I referenced it, these are from intersil AN9717
+    // Rec. 601 YCbCr->RGB matrix in Poynton, p. 305:
     self->colorMatrix[0][0] = 1.0f;
     self->colorMatrix[0][1] = 0.0f;
-    self->colorMatrix[0][2] = 1.371f;
+    self->colorMatrix[0][2] = 1.402f;
     self->colorMatrix[1][0] = 1.0f;
-    self->colorMatrix[1][1] = -0.336f;
-    self->colorMatrix[1][2] = -0.698f;
+    self->colorMatrix[1][1] = -0.344136f;
+    self->colorMatrix[1][2] = -0.714136f;
     self->colorMatrix[2][0] = 1.0f;
-    self->colorMatrix[2][1] = 1.732f;
+    self->colorMatrix[2][1] = 1.772f;
     self->colorMatrix[2][2] = 0.0f;
 
     self->currentVideoFrame = 0;
@@ -328,7 +329,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
         int startx = 0, endx = (self->codecContext->width - 1) / subX;
 
         for( int x = startx; x <= endx; x++ ) {
-            float cb = cbrow[x] - 128.0f, cr = crrow[x] - 128.0f;
+            float cb = (cbrow[x] - 128.0f) / 224.0f, cr = (crrow[x] - 128.0f) / 224.0f;
 
             for( int i = max(frame->currentDataWindow.min.x - picOffset.x, x * subX - triangleFilter.center );
                     i <= min(frame->currentDataWindow.max.x - picOffset.x, x * subX + (triangleFilter.width - triangleFilter.center - 1)); i++ ) {
@@ -339,7 +340,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
         }
 
         for( int x = frame->currentDataWindow.min.x; x <= frame->currentDataWindow.max.x; x++ ) {
-            float y = yrow[x - picOffset.x] - 16.0f;
+            float y = (yrow[x - picOffset.x] - 16.0f) / 219.0f;
 
             tempRow[x].r = y * self->colorMatrix[0][0] +
                 tempChroma[x - picOffset.x].cb * self->colorMatrix[0][1] +
@@ -350,7 +351,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
             tempRow[x].b = y * self->colorMatrix[2][0] +
                 tempChroma[x - picOffset.x].cb * self->colorMatrix[2][1] +
                 tempChroma[x - picOffset.x].cr * self->colorMatrix[2][2];
-            tempRow[x].a = 255.0f;
+            tempRow[x].a = 1.0f;
         }
 
         half *out = &frame->frameData[
@@ -359,7 +360,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
 
         half_convert_from_float( (float*)(tempRow + frame->currentDataWindow.min.x - picOffset.x), out,
             (sizeof(rgba_f16) / sizeof(half)) * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
-        half_lookup( gamma22, out, out,
+        video_transfer_rec709_to_linear_scene( out, out,
             (sizeof(rgba_f16) / sizeof(half)) * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
     }
 

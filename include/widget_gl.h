@@ -29,6 +29,9 @@ void widget_gl_set_pixel_aspect_ratio( widget_gl_context *self, float pixel_aspe
 void widget_gl_draw( widget_gl_context *self, v2i widget_size );
 void widget_gl_set_invalidate_func( widget_gl_context *self, invalidate_func func, void *closure );
 
+float widget_gl_get_rendering_intent( widget_gl_context *self );
+void widget_gl_set_rendering_intent( widget_gl_context *self, float rendering_intent );
+
 #if defined(__cplusplus)
 }
 #endif

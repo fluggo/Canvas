@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "widget_gl.h"
+#include "color.h"
 
 #define SOFT_MODE_BUFFERS    4
 #define HARD_MODE_BUFFERS    2
@@ -71,6 +72,9 @@ struct __tag_widget_gl_context {
     bool quit;
     GThread *renderThread;
     void *clock_callback_handle;
+
+    uint8_t *gamma_ramp;
+    float rendering_intent;
 };
 
 static gboolean
@@ -276,12 +280,15 @@ playbackThread( widget_gl_context *self ) {
 
         target->currentDataWindow = frame.currentDataWindow;
 
-        // Convert the results to floating-point
-        const uint8_t *gamma45 = video_get_gamma45_ramp();
+        // Convert the results to 8-bit
+        const uint8_t *gamma45 = self->gamma_ramp;
 
         for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
-            rgba_u8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride];
-            rgba_f16 *sourceData = &frame.frameData[(y - frame.fullDataWindow.min.y) * frame.stride];
+            rgba_u8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride - frame.fullDataWindow.min.x];
+            rgba_f16 *sourceData = &frame.frameData[(y - frame.fullDataWindow.min.y) * frame.stride - frame.fullDataWindow.min.x];
+            video_transfer_linear_to_sRGB( &sourceData[frame.currentDataWindow.min.x].r,
+                &sourceData[frame.currentDataWindow.min.x].r,
+                (frame.currentDataWindow.max.x - frame.currentDataWindow.min.x + 1) * 4 );
 
             for( int x = frame.currentDataWindow.min.x; x <= frame.currentDataWindow.max.x; x++ ) {
                 targetData[x].r = gamma45[sourceData[x].r];
@@ -416,6 +423,10 @@ widget_gl_new() {
     }
 
     self->renderThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
+
+    self->gamma_ramp = (uint8_t *) g_malloc( HALF_COUNT );
+    self->rendering_intent = 0.0f;
+    widget_gl_set_rendering_intent( self, 1.25f );
 
     return self;
 }
@@ -829,5 +840,50 @@ widget_gl_set_pixel_aspect_ratio( widget_gl_context *self, float pixel_aspect_ra
 
     if( self->invalidate_func )
         self->invalidate_func( self->invalidate_closure );
+}
+
+/*
+    Function: widget_gl_get_rendering_intent
+    Gets the current rendering intent (additional gamma).
+
+    Parameters:
+    self - The widget_gl_context.
+
+    Remarks:
+    The default rendering intent is 1.25.
+*/
+EXPORT float
+widget_gl_get_rendering_intent( widget_gl_context *self ) {
+    return self->rendering_intent;
+}
+
+/*
+    Function: widget_gl_get_rendering_intent
+    Sets the rendering intent (additional gamma).
+
+    Parameters:
+    self - The widget_gl_context.
+    rendering_intent - The new rendering intent.
+*/
+EXPORT void
+widget_gl_set_rendering_intent( widget_gl_context *self, float rendering_intent ) {
+    if( rendering_intent == self->rendering_intent )
+        return;
+
+    self->rendering_intent = rendering_intent;
+
+    half *h = g_malloc( sizeof(half) * HALF_COUNT );
+    float *f = g_malloc( sizeof(float) * HALF_COUNT );
+
+    for( int i = 0; i < HALF_COUNT; i++ )
+        h[i] = (half) i;
+
+    half_convert_to_float( h, f, HALF_COUNT );
+    g_free( h );
+
+    for( int i = 0; i < HALF_COUNT; i++ )
+        self->gamma_ramp[i] = (uint8_t) lrint( clampf( powf( f[i], rendering_intent ) * 255.0f, 0.0f, 255.0f ) );
+
+    g_free( f );
 }
 
