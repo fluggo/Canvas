@@ -24,6 +24,7 @@
 #define fluggo_half
 
 typedef uint16_t half;
+#define HALF_COUNT 65536
 
 void init_half();
 
