@@ -137,32 +137,30 @@ workspace_fix_leftiter( workspace_t *self ) {
 
     if( item->x > self->current_frame ) {
         // Iterate backwards to see if there's one closer to current_frame
-        iter = g_sequence_iter_prev( iter );
-
         while( !g_sequence_iter_is_begin( iter ) ) {
+            iter = g_sequence_iter_prev( iter );
             item = (workspace_item_t *) g_sequence_get( iter );
 
             if( item->x > self->current_frame )
                 self->leftiter = iter;
             else
                 break;
-
-            iter = g_sequence_iter_prev( iter );
         }
     }
     else {
         // Move forwards until we're after current_frame
-        iter = g_sequence_iter_next( iter );
-
         while( !g_sequence_iter_is_end( iter ) ) {
+            iter = g_sequence_iter_next( iter );
+
+            if( g_sequence_iter_is_end( iter ) )
+                break;
+
             item = (workspace_item_t *) g_sequence_get( iter );
 
             if( item->x > self->current_frame ) {
                 self->leftiter = iter;
                 break;
             }
-
-            iter = g_sequence_iter_next( iter );
         }
     }
 }
@@ -192,9 +190,8 @@ workspace_fix_rightiter( workspace_t *self ) {
 
     if( (item->x + item->width) <= self->current_frame ) {
         // Iterate backwards to see if there's one closer to current_frame
-        iter = g_sequence_iter_prev( iter );
-
         while( !g_sequence_iter_is_begin( iter ) ) {
+            iter = g_sequence_iter_prev( iter );
             item = (workspace_item_t *) g_sequence_get( iter );
 
             if( (item->x + item->width) <= self->current_frame )
@@ -207,9 +204,12 @@ workspace_fix_rightiter( workspace_t *self ) {
     }
     else {
         // Move forwards until we're before current_frame
-        iter = g_sequence_iter_next( iter );
-
         while( !g_sequence_iter_is_end( iter ) ) {
+            iter = g_sequence_iter_next( iter );
+
+            if( g_sequence_iter_is_end( iter ) )
+                break;
+
             item = (workspace_item_t *) g_sequence_get( iter );
 
             if( (item->x + item->width) <= self->current_frame ) {
