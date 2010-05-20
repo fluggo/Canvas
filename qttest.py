@@ -5,6 +5,7 @@ from PyQt4.QtOpenGL import *
 from fluggo.media import process, timecode, qt
 from fluggo.media.basetypes import *
 import sys, fractions, array
+from fluggo.editor.ui import canvas
 
 class VideoClip(process.VideoPassThroughFilter):
     def __init__(self, source, length, pixel_aspect_ratio, thumbnail_box):
@@ -13,18 +14,21 @@ class VideoClip(process.VideoPassThroughFilter):
         self.pixel_aspect_ratio = pixel_aspect_ratio
         self.length = length
 
-videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;03;21;24.avi')
+videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;17;55;12.avi')
 pulldown = process.Pulldown23RemovalFilter(videro, 0);
 
 clip = VideoClip(pulldown, 300, fractions.Fraction(640, 704), box2i(0, -1, 719, 478))
 
+#videro = process.FFVideoSource('/home/james/Videos/tape-1999-uil-football-fame.dv')
+#clip = VideoClip(videro, 300, fractions.Fraction(640, 704), box2i(0, -1, 719, 478))
+
 red = process.SolidColorVideoSource(rgba(1.0, 0.0, 0.0, 0.25), box2i(20, 20, 318, 277))
 green = process.SolidColorVideoSource(rgba(0.0, 1.0, 0.0, 0.75), box2i(200, 200, 518, 477))
 
-frame = pulldown.get_frame_f32(0, box2i(200, 100, 519, 278))
+frame = videro.get_frame_f32(0, box2i(200, 100, 519, 278))
 
 workspace = process.Workspace()
-workspace_item = workspace.add(source=clip, x=0, width=100, z=0)
+workspace_item = workspace.add(source=clip, x=0, width=100, z=0, offset=0)
 workspace.add(source=red, x=50, width=100, z=1)
 workspace.add(source=green, x=75, width=100, z=2)
 workspace.add(source=frame, x=125, width=100, z=0, offset=500)
@@ -36,342 +40,18 @@ clock = player
 
 NS_PER_SEC = fractions.Fraction(1000000000L, 1)
 
-class TimeRuler(QWidget):
-    SMALL_TICK_THRESHOLD = 2
-    current_frame_changed = pyqtSignal(float, name='currentFrameChanged')
-
-    def __init__(self, parent=None, timecode=timecode.Frames(), scale=fractions.Fraction(1), frame_rate=fractions.Fraction(30, 1)):
-        QWidget.__init__(self, parent)
-        self.frame_rate = fractions.Fraction(frame_rate)
-        self.set_timecode(timecode)
-        self.set_scale(scale)
-        self.left_frame = 0
-        self.current_frame = 0
-
-    def sizeHint(self):
-        return QSize(60, 30)
-
-    def set_left_frame(self, left_frame):
-        left_frame = int(left_frame)
-
-        if left_frame != self.left_frame:
-            self.left_frame = left_frame
-            self.update()
-
-    def set_current_frame(self, frame):
-        frame = int(frame)
-
-        if self.current_frame != frame:
-            self.current_frame = frame
-            self.current_frame_changed.emit(frame)
-            self.update()
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            frame = long(fractions.Fraction(event.x()) / self.scale) + self.left_frame
-            self.set_current_frame(frame)
-
-    def mouseMoveEvent(self, event):
-        frame = long(fractions.Fraction(event.x()) / self.scale) + self.left_frame
-        self.set_current_frame(frame)
-
-    def scale(self):
-        return self.scale
-
-    def set_scale(self, scale):
-        '''
-        Set the scale, in pixels per frame.
-
-        '''
-        self.scale = fractions.Fraction(scale)
-
-        if len(self.ticks) < 3:
-            self.minor_tick = None
-            self.medium_tick = self.ticks[0]
-            self.major_tick = self.ticks[-1]
-        else:
-            for minor, medium, major in zip(self.ticks[0:], self.ticks[1:], self.ticks[2:]):
-                if fractions.Fraction(minor) * scale > TimeRuler.SMALL_TICK_THRESHOLD:
-                    self.minor_tick, self.medium_tick, self.major_tick = minor, medium, major
-                    break
-
-        self.update()
-
-    def set_timecode(self, timecode):
-        self.timecode = timecode
-        major_ticks = self.timecode.get_major_ticks()
-
-        # Expand the major tick list with extra divisions
-        last_tick = 1
-        self.ticks = [1]
-
-        for major_tick in major_ticks:
-            for div in (10, 2):
-                (divend, rem) = divmod(major_tick, div)
-
-                if rem == 0 and divend > last_tick:
-                    self.ticks.append(divend)
-
-        self.update()
-
-    def frame_to_pixel(self, frame):
-        return float(fractions.Fraction(frame - self.left_frame) * self.scale) + 0.5
-
-    def paintEvent(self, event):
-        paint = QPainter(self)
-
-        paint.setPen(QColor(0, 0, 0))
-
-        major_ticks = self.timecode.get_major_ticks()
-
-        start_frame = long(self.left_frame)
-        width_frames = long(float(fractions.Fraction(self.width()) / self.scale))
-        height = self.height()
-
-        if self.minor_tick:
-            for frame in range(start_frame - start_frame % self.minor_tick, start_frame + width_frames, self.minor_tick):
-                x = self.frame_to_pixel(frame)
-                paint.drawLine(x, height - 5, x, height)
-
-        for frame in range(start_frame - start_frame % self.medium_tick, start_frame + width_frames, self.medium_tick):
-            x = self.frame_to_pixel(frame)
-            paint.drawLine(x, height - 10, x, height)
-
-        for frame in range(start_frame - start_frame % self.major_tick, start_frame + width_frames, self.major_tick):
-            x = self.frame_to_pixel(frame)
-            paint.drawLine(x, height - 15, x, height)
-
-        prev_right = None
-
-        for frame in range(start_frame - start_frame % self.major_tick, start_frame + width_frames, self.major_tick):
-            x = self.frame_to_pixel(frame)
-
-            if prev_right is None or x > prev_right:
-                text = self.timecode.format(frame)
-                rect = paint.drawText(QRectF(), Qt.TextSingleLine, text)
-
-                prev_right = x + rect.width() + 5.0
-                paint.drawText(x + 2.5, 0.0, rect.width(), rect.height(), Qt.TextSingleLine, text)
-
-        # Draw the pointer
-        x = self.frame_to_pixel(self.current_frame)
-
-        paint.setPen(Qt.NoPen)
-        paint.setBrush(QColor.fromRgbF(1.0, 0.0, 0.0))
-        paint.drawConvexPolygon(QPoint(x, height), QPoint(x + 5, height - 15), QPoint(x - 5, height - 15))
-
-class TimelineScene(QGraphicsScene):
-    frame_range_changed = pyqtSignal(int, int, name='frameRangeChanged')
-
-    def __init__(self):
-        QGraphicsScene.__init__(self)
-
-    def update_frames(self, min_frame, max_frame):
-        self.frame_range_changed.emit(min_frame, max_frame)
-
-class TimelineView(QGraphicsView):
-    black_pen = QPen(QColor.fromRgbF(0.0, 0.0, 0.0))
-    white_pen = QPen(QColor.fromRgbF(1.0, 1.0, 1.0))
-
-    def __init__(self, scene, clock):
-        QGraphicsView.__init__(self, scene)
-        self.setViewportMargins(0, 30, 0, 0)
-        self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-
-        self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
-        self.ruler.move(self.frameWidth(), self.frameWidth())
-
-        self.clock = clock
-        self.frame_rate = fractions.Fraction(24000, 1001)
-
-        self.white = False
-        self.frame = 0
-        self.set_current_frame(0)
-        self.startTimer(1000)
-
-        scene.sceneRectChanged.connect(self.handle_scene_rect_changed)
-        scene.frame_range_changed.connect(self.handle_update_frames)
-        self.ruler.current_frame_changed.connect(self.handle_ruler_current_frame_changed)
-
-        self.scale_x = fractions.Fraction(1)
-        self.scale_y = fractions.Fraction(1)
-
-        self.scale(4, 1)
-
-    def scale(self, sx, sy):
-        self.scale_x = fractions.Fraction(sx)
-        self.scale_y = fractions.Fraction(sy)
-
-        self.ruler.set_scale(sx)
-
-        self.resetTransform()
-        QGraphicsView.scale(self, float(sx), float(sy))
-
-    def set_current_frame(self, frame):
-        '''
-        view.set_current_frame(frame)
-
-        Moves the view's current frame marker.
-        '''
-        self._invalidate_marker(self.frame)
-        self.frame = frame
-        self._invalidate_marker(frame)
-
-        self.ruler.set_current_frame(frame)
-        self.clock.seek(process.get_frame_time(self.frame_rate, int(frame)))
-
-    def resizeEvent(self, event):
-        self.ruler.resize(self.width() - self.frameWidth(), 30)
-
-    def handle_scene_rect_changed(self, rect):
-        left = self.mapToScene(0, 0).x()
-        self.ruler.set_left_frame(left)
-
-    def handle_update_frames(self, min_frame, max_frame):
-        # If the current frame was in this set, re-seek to it
-        # TODO: Verify that the clock isn't playing first
-        if self.frame >= min_frame and self.frame <= max_frame:
-            self.clock.seek(process.get_frame_time(self.frame_rate, int(self.frame)))
-
-    def handle_ruler_current_frame_changed(self, frame):
-        self.set_current_frame(frame)
-
-    def updateSceneRect(self, rect):
-        QGraphicsView.updateSceneRect(self, rect)
-
-        left = self.mapToScene(0, 0).x()
-        self.ruler.setLeftFrame(left)
-
-    def scrollContentsBy(self, dx, dy):
-        QGraphicsView.scrollContentsBy(self, dx, dy)
-
-        if dx:
-            left = self.mapToScene(0, 0).x()
-            self.ruler.set_left_frame(left)
-
-    def _invalidate_marker(self, frame):
-        # BJC: No, for some reason, invalidateScene() did not work here
-        self.scene().invalidate(QRectF(frame - 0.5, -20000.0, 1.0, 40000.0), QGraphicsScene.ForegroundLayer)
-
-    def timerEvent(self, event):
-        self.white = not self.white
-        self._invalidate_marker(self.frame)
-
-    def drawForeground(self, painter, rect):
-        '''
-        Draws the marker in the foreground.
-        '''
-        QGraphicsView.drawForeground(self, painter, rect)
-
-        painter.setPen(self.white_pen if self.white else self.black_pen)
-        painter.drawLine(self.frame, rect.y(), self.frame, rect.y() + rect.height())
-
-class TimelineItem(QGraphicsItem):
-    def __init__(self, item, name):
-        # BJC: This class currently has both the model and the view,
-        # so it will need to be split
-        QGraphicsItem.__init__(self)
-        self.height = 40.0
-        self._y = 0.0
-        self.item = item
-        self.name = name
-        self.setPos(self.item.x, self._y)
-        self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable |
-            QGraphicsItem.ItemUsesExtendedStyleOption)
-        self.thumbnails = []
-        self.thumbnail_indexes = []
-        self.thumbnail_width = 1.0
-
-    def _create_thumbnails(self, total_width):
-        # Calculate how many thumbnails fit
-        box = self.item.source.thumbnail_box
-        aspect = self.item.source.pixel_aspect_ratio
-        start_frame = self.item.offset
-        frame_count = self.item.width
-
-        self.thumbnail_width = (self.height * float(box.width()) * float(aspect)) / float(box.height())
-        count = min(max(int(total_width / self.thumbnail_width), 1), frame_count)
-
-        if len(self.thumbnails) == count:
-            return
-
-        self.thumbnails = [None for a in range(count)]
-        self.thumbnail_indexes = [start_frame + int(float(a) * frame_count / (count - 1)) for a in range(count)]
-
-    def boundingRect(self):
-        return QRectF(0.0, 0.0, self.item.width, self.height)
-
-    def paint(self, painter, option, widget):
-        rect = painter.transform().mapRect(self.boundingRect())
-        clip_rect = painter.transform().mapRect(option.exposedRect)
-
-        painter.save()
-        painter.resetTransform()
-
-        painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QColor.fromRgbF(0.9, 0.9, 0.8))
-
-        painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
-        painter.drawText(rect, Qt.TextSingleLine, self.name)
-
-        # Figure out which thumbnails belong here and paint them
-        # The thumbnail lefts are at (i * (rect.width - thumbnail_width) / (len(thumbnails) - 1)) + rect.x()
-        # Rights are at left + thumbnail_width
-        self._create_thumbnails(rect.width())
-        box = self.item.source.thumbnail_box
-
-        left_nail = int((clip_rect.x() - self.thumbnail_width - rect.x()) *
-            (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width))
-        right_nail = int((clip_rect.x() + clip_rect.width() - rect.x()) *
-            (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width)) + 1
-        left_nail = max(0, left_nail)
-        right_nail = min(len(self.thumbnails), right_nail)
-
-        scale = process.VideoScaler(self.item.source,
-            target_point=v2f(0, 0), source_point=box.min,
-            scale_factors=v2f(rect.height() * float(self.item.source.pixel_aspect_ratio) / box.height(),
-                rect.height() / box.height()),
-            source_rect=box)
-
-        for i in range(left_nail, right_nail):
-            # Later we'll delegate this to another thread
-            if not self.thumbnails[i]:
-                frame = scale.get_frame_f16(
-                    self.thumbnail_indexes[i], self.item.source.thumbnail_box)
-                size = frame.current_data_window.size()
-                img_str = frame.to_argb32_string()
-
-                self.thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
-
-            painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
-                rect.y(), self.thumbnails[i])
-
-        painter.restore()
-
-    def mouseMoveEvent(self, event):
-        # There's a drag operation of some kind going on
-        old_x = self.pos().x()
-
-        QGraphicsItem.mouseMoveEvent(self, event)
-
-        pos = self.pos()
-        pos.setX(round(pos.x()))
-        self.setPos(pos)
-
-        self.scene().update_frames(min(old_x, pos.x()), max(old_x, pos.x()) + self.item.width - 1)
-        self.item.update(x=int(pos.x()))
-
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
 
-        self.scene = TimelineScene()
+        self.scene = canvas.Scene()
 
-        self.view = TimelineView(self.scene, clock)
+        self.view = canvas.View(self.scene, clock)
         #self.view.setViewport(QGLWidget())
         self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
         self.setCentralWidget(self.view)
 
-        item = TimelineItem(workspace_item, 'Clip')
+        item = canvas.VideoItem(workspace_item, 'Clip')
         self.scene.addItem(item)
         item.setSelected(True)
 
@@ -382,6 +62,7 @@ class MainWindow(QMainWindow):
 
         self.video_widget.setDisplayWindow(box2i(0, -1, 719, 478))
 
+        self.video_widget.setRenderingIntent(1.5)
         self.video_widget.setPixelAspectRatio(640.0/704.0)
         self.video_widget.setPresentationClock(clock)
         self.video_widget.setVideoSource(workspace)
