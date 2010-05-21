@@ -218,6 +218,15 @@ class _LeftHandle(_Handle):
             self.parentItem()._update(x=self.original_x + self.original_width - 1, width=1,
                 offset=self.original_offset + self.original_width - 1)
 
+class _RightHandle(_Handle):
+    def drag_move(self, abs_pos, rel_pos):
+        x = int(rel_pos.x())
+
+        if self.original_width > -x:
+            self.parentItem()._update(width=self.original_width + x)
+        else:
+            self.parentItem()._update(width=1)
+
 class VideoItem(QGraphicsItem):
     def __init__(self, item, name):
         # BJC: This class currently has both the model and the view,
@@ -235,6 +244,9 @@ class VideoItem(QGraphicsItem):
 
         self.left_handle = _LeftHandle(QRectF(0.0, 0.0, 10.0, self.height), self)
         self.left_handle.setCursor(Qt.SizeHorCursor)
+        self.right_handle = _RightHandle(QRectF(-10.0, 0.0, 10.0, self.height), self)
+        self.right_handle.setPos(self.item.x + self.item.width, 0.0)
+        self.right_handle.setCursor(Qt.SizeHorCursor)
 
     def _update(self, **kw):
         '''
@@ -255,6 +267,7 @@ class VideoItem(QGraphicsItem):
             self.item.update(x=kw.get('x', self.item.x),
                 width=kw.get('width', self.item.width),
                 offset=kw.get('offset', self.item.offset))
+            self.right_handle.setPos(self.item.x + self.item.width, 0.0)
             self.thumbnails = []
 
             # Update the currently displayed frame if it's in a changed region
