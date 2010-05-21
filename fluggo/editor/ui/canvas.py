@@ -130,21 +130,147 @@ class View(QGraphicsView):
         painter.setPen(self.white_pen if self.white else self.black_pen)
         painter.drawLine(self.frame, rect.y(), self.frame, rect.y() + rect.height())
 
+class Draggable(object):
+    DRAG_START_DISTANCE = 2
+
+    def __init__(self):
+        self.drag_active = False
+        self.drag_down = False
+        self.drag_start_pos = None
+        self.drag_start_screen_pos = None
+
+    def drag_start(self):
+        pass
+
+    def drag_move(self, abs_pos, rel_pos):
+        pass
+
+    def drag_end(self, abs_pos, rel_pos):
+        pass
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.drag_down = True
+            self.drag_start_pos = event.scenePos()
+            self.drag_start_screen_pos = event.screenPos()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            if self.drag_active:
+                pos = event.scenePos()
+                self.drag_end(pos, pos - self.drag_start_pos)
+                self.drag_active = False
+
+            self.drag_down = False
+
+    def mouseMoveEvent(self, event):
+        if not self.drag_down:
+            return
+
+        pos = event.scenePos()
+        screen_pos = event.screenPos()
+
+        if not self.drag_active:
+            if abs(screen_pos.x() - self.drag_start_screen_pos.x()) >= self.DRAG_START_DISTANCE or \
+                    abs(screen_pos.y() - self.drag_start_screen_pos.y()) >= self.DRAG_START_DISTANCE:
+                self.drag_active = True
+                self.drag_start()
+            else:
+                return
+
+        self.drag_move(pos, pos - self.drag_start_pos)
+
+class _Handle(QGraphicsRectItem, Draggable):
+    invisibrush = QBrush(QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
+
+    def __init__(self, rect, parent):
+        QGraphicsRectItem.__init__(self, rect, parent)
+        Draggable.__init__(self)
+        self.brush = QBrush(QColor.fromRgbF(0.0, 1.0, 0.0))
+        self.setFlags(QGraphicsItem.ItemIgnoresTransformations)
+        self.setAcceptHoverEvents(True)
+        self.setOpacity(0.45)
+        self.setBrush(self.invisibrush)
+        self.setPen(QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
+        self.original_x = None
+        self.original_width = None
+        self.original_offset = None
+
+    def drag_start(self):
+        self.original_x = int(self.parentItem().pos().x())
+        self.original_width = self.parentItem().item.width
+        self.original_offset = self.parentItem().item.offset
+
+    def hoverEnterEvent(self, event):
+        self.setBrush(self.brush)
+
+    def hoverLeaveEvent(self, event):
+        self.setBrush(self.invisibrush)
+
+class _LeftHandle(_Handle):
+    def drag_move(self, abs_pos, rel_pos):
+        x = int(rel_pos.x())
+
+        if self.original_width > x:
+            self.parentItem()._update(x=self.original_x + x, width=self.original_width - x,
+                offset=self.original_offset + x)
+        else:
+            self.parentItem()._update(x=self.original_x + self.original_width - 1, width=1,
+                offset=self.original_offset + self.original_width - 1)
+
 class VideoItem(QGraphicsItem):
     def __init__(self, item, name):
         # BJC: This class currently has both the model and the view,
         # so it will need to be split
         QGraphicsItem.__init__(self)
         self.height = 40.0
-        self._y = 0.0
         self.item = item
         self.name = name
-        self.setPos(self.item.x, self._y)
+        self.setPos(self.item.x, 0.0)
         self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable |
             QGraphicsItem.ItemUsesExtendedStyleOption)
         self.thumbnails = []
         self.thumbnail_indexes = []
         self.thumbnail_width = 1.0
+
+        self.left_handle = _LeftHandle(QRectF(0.0, 0.0, 10.0, self.height), self)
+        self.left_handle.setCursor(Qt.SizeHorCursor)
+
+    def _update(self, **kw):
+        '''
+        Called by handles to update the item's properties all at once.
+        '''
+        # Changes in item position
+        pos = self.pos()
+
+        if 'x' in kw or 'y' in kw:
+            self.setPos(kw.get('x', pos.x()), kw.get('y', pos.y()))
+
+        # Changes to the underlying workspace item
+        if 'x' in kw or 'width' in kw or 'offset' in kw:
+            old_x, old_width, old_offset = self.item.x, self.item.width, self.item.offset
+            new_x, new_width, new_offset = kw.get('x', old_x), kw.get('width', old_width), kw.get('offset', old_offset)
+            old_right, new_right = old_x + old_width, new_x + new_width
+
+            self.item.update(x=kw.get('x', self.item.x),
+                width=kw.get('width', self.item.width),
+                offset=kw.get('offset', self.item.offset))
+            self.thumbnails = []
+
+            # Update the currently displayed frame if it's in a changed region
+            if old_x != new_x:
+                self.scene().update_frames(min(old_x, new_x), max(old_x, new_x) - 1)
+
+            if old_right != new_right:
+                self.scene().update_frames(min(old_right, new_right), max(old_right, new_right) - 1)
+
+            if old_x - old_offset != new_x - new_offset:
+                self.scene().update_frames(max(old_x, new_x), min(old_right, new_right) - 1)
+
+        # Changes in item size
+        if 'width' in kw or 'height' in kw:
+            self.height = kw.get('height', self.height)
+            self.prepareGeometryChange()
 
     def _create_thumbnails(self, total_width):
         # Calculate how many thumbnails fit
@@ -185,6 +311,7 @@ class VideoItem(QGraphicsItem):
         # The thumbnail lefts are at (i * (rect.width - thumbnail_width) / (len(thumbnails) - 1)) + rect.x()
         # Rights are at left + thumbnail_width
         self._create_thumbnails(rect.width())
+
         box = self.item.source.thumbnail_box
 
         left_nail = int((clip_rect.x() - self.thumbnail_width - rect.x()) *
