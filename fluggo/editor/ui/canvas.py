@@ -26,9 +26,17 @@ from . import ruler
 
 class Scene(QGraphicsScene):
     frame_range_changed = pyqtSignal(int, int, name='frameRangeChanged')
+    handle_width = 10.0
 
-    def __init__(self):
+    def __init__(self, view):
         QGraphicsScene.__init__(self)
+        self.view = view
+
+    def addItem(self, item):
+        QGraphicsScene.addItem(self, item)
+
+        if item.view_scale_changed:
+            item.view_scale_changed()
 
     def update_frames(self, min_frame, max_frame):
         self.frame_range_changed.emit(min_frame, max_frame)
@@ -37,8 +45,9 @@ class View(QGraphicsView):
     black_pen = QPen(QColor.fromRgbF(0.0, 0.0, 0.0))
     white_pen = QPen(QColor.fromRgbF(1.0, 1.0, 1.0))
 
-    def __init__(self, scene, clock):
-        QGraphicsView.__init__(self, scene)
+    def __init__(self, clock):
+        QGraphicsView.__init__(self)
+        self.setScene(Scene(self))
         self.setViewportMargins(0, 30, 0, 0)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
@@ -53,8 +62,8 @@ class View(QGraphicsView):
         self.set_current_frame(0)
         self.startTimer(1000)
 
-        scene.sceneRectChanged.connect(self.handle_scene_rect_changed)
-        scene.frame_range_changed.connect(self.handle_update_frames)
+        self.scene().sceneRectChanged.connect(self.handle_scene_rect_changed)
+        self.scene().frame_range_changed.connect(self.handle_update_frames)
         self.ruler.current_frame_changed.connect(self.handle_ruler_current_frame_changed)
 
         self.scale_x = fractions.Fraction(1)
@@ -182,24 +191,30 @@ class Draggable(object):
 
 class _Handle(QGraphicsRectItem, Draggable):
     invisibrush = QBrush(QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
+    horizontal = True
 
     def __init__(self, rect, parent):
         QGraphicsRectItem.__init__(self, rect, parent)
         Draggable.__init__(self)
         self.brush = QBrush(QColor.fromRgbF(0.0, 1.0, 0.0))
-        self.setFlags(QGraphicsItem.ItemIgnoresTransformations)
         self.setAcceptHoverEvents(True)
         self.setOpacity(0.45)
         self.setBrush(self.invisibrush)
         self.setPen(QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
+        self.setCursor(self.horizontal and Qt.SizeHorCursor or Qt.SizeVerCursor)
+
         self.original_x = None
         self.original_width = None
         self.original_offset = None
+        self.original_y = None
+        self.original_height = None
 
     def drag_start(self):
         self.original_x = int(self.parentItem().pos().x())
         self.original_width = self.parentItem().item.width
         self.original_offset = self.parentItem().item.offset
+        self.original_y = self.parentItem().pos().y()
+        self.original_height = self.parentItem().height
 
     def hoverEnterEvent(self, event):
         self.setBrush(self.brush)
@@ -227,6 +242,28 @@ class _RightHandle(_Handle):
         else:
             self.parentItem()._update(width=1)
 
+class _TopHandle(_Handle):
+    horizontal = False
+
+    def drag_move(self, abs_pos, rel_pos):
+        y = rel_pos.y()
+
+        if self.original_height > y:
+            self.parentItem()._update(y=self.original_y + y, height=self.original_height - y)
+        else:
+            self.parentItem()._update(y=self.original_y + self.original_height - 1, height=1)
+
+class _BottomHandle(_Handle):
+    horizontal = False
+
+    def drag_move(self, abs_pos, rel_pos):
+        y = rel_pos.y()
+
+        if self.original_height > -y:
+            self.parentItem()._update(height=self.original_height + y)
+        else:
+            self.parentItem()._update(height=1)
+
 class VideoItem(QGraphicsItem):
     def __init__(self, item, name):
         # BJC: This class currently has both the model and the view,
@@ -242,11 +279,23 @@ class VideoItem(QGraphicsItem):
         self.thumbnail_indexes = []
         self.thumbnail_width = 1.0
 
-        self.left_handle = _LeftHandle(QRectF(0.0, 0.0, 10.0, self.height), self)
-        self.left_handle.setCursor(Qt.SizeHorCursor)
-        self.right_handle = _RightHandle(QRectF(-10.0, 0.0, 10.0, self.height), self)
-        self.right_handle.setPos(self.item.x + self.item.width, 0.0)
-        self.right_handle.setCursor(Qt.SizeHorCursor)
+        self.left_handle = _LeftHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.right_handle = _RightHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.right_handle.setPos(self.item.width, 0.0)
+        self.top_handle = _TopHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.bottom_handle = _BottomHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.bottom_handle.setPos(0.0, self.height)
+
+    def view_scale_changed(self):
+        # BJC I tried to keep it view-independent, but the handles need to have different sizes
+        # depending on the level of zoom in the view (not to mention separate sets of thumbnails)
+        hx = self.scene().handle_width / float(self.scene().view.scale_x)
+        hy = self.scene().handle_width / float(self.scene().view.scale_y)
+
+        self.left_handle.setRect(QRectF(0.0, 0.0, hx, self.height))
+        self.right_handle.setRect(QRectF(-hx, 0.0, hx, self.height))
+        self.top_handle.setRect(QRectF(0.0, 0.0, self.item.width, hy))
+        self.bottom_handle.setRect(QRectF(0.0, -hy, self.item.width, hy))
 
     def _update(self, **kw):
         '''
@@ -267,7 +316,6 @@ class VideoItem(QGraphicsItem):
             self.item.update(x=kw.get('x', self.item.x),
                 width=kw.get('width', self.item.width),
                 offset=kw.get('offset', self.item.offset))
-            self.right_handle.setPos(self.item.x + self.item.width, 0.0)
             self.thumbnails = []
 
             # Update the currently displayed frame if it's in a changed region
@@ -283,7 +331,15 @@ class VideoItem(QGraphicsItem):
         # Changes in item size
         if 'width' in kw or 'height' in kw:
             self.height = kw.get('height', self.height)
+
+            self.right_handle.setPos(self.item.width, 0.0)
+            self.bottom_handle.setPos(0.0, self.height)
+            self.view_scale_changed()
+
             self.prepareGeometryChange()
+
+            if 'height' in kw:
+                self.thumbnails = []
 
     def _create_thumbnails(self, total_width):
         # Calculate how many thumbnails fit
@@ -350,6 +406,7 @@ class VideoItem(QGraphicsItem):
 
                 self.thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
 
+            # TODO: Scale existing thumbnails to fit (removing last thumbnails = [] in _update)
             if len(self.thumbnails) == 1:
                 painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width)),
                     rect.y(), self.thumbnails[i])

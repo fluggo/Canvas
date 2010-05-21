@@ -44,15 +44,13 @@ class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
 
-        self.scene = canvas.Scene()
-
-        self.view = canvas.View(self.scene, clock)
+        self.view = canvas.View(clock)
         #self.view.setViewport(QGLWidget())
         self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
         self.setCentralWidget(self.view)
 
         item = canvas.VideoItem(workspace_item, 'Clip')
-        self.scene.addItem(item)
+        self.view.scene().addItem(item)
         item.setSelected(True)
 
         format = QGLFormat()
