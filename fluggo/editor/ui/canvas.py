@@ -160,7 +160,11 @@ class VideoItem(QGraphicsItem):
             return
 
         self.thumbnails = [None for a in range(count)]
-        self.thumbnail_indexes = [start_frame + int(float(a) * frame_count / (count - 1)) for a in range(count)]
+
+        if count == 1:
+            self.thumbnail_indexes = [start_frame]
+        else:
+            self.thumbnail_indexes = [start_frame + int(float(a) * frame_count / (count - 1)) for a in range(count)]
 
     def boundingRect(self):
         return QRectF(0.0, 0.0, self.item.width, self.height)
@@ -206,8 +210,12 @@ class VideoItem(QGraphicsItem):
 
                 self.thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
 
-            painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
-                rect.y(), self.thumbnails[i])
+            if len(self.thumbnails) == 1:
+                painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width)),
+                    rect.y(), self.thumbnails[i])
+            else:
+                painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
+                    rect.y(), self.thumbnails[i])
 
         painter.restore()
 
