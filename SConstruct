@@ -118,7 +118,7 @@ Alias('all', 'test')
 
 # Documentation
 if env.WhereIs('naturaldocs'):
-    Command('docs/html/index.html', Glob('src/process/*.c'), '@naturaldocs -i src -o HTML docs/html -p docs/natural -ro')
+    Command('docs/html/index.html', Glob('src/cprocess/*.c') + Glob('src/gtk/*.c') + Glob('src/process/*.c'), '@naturaldocs -i src -o HTML docs/html -p docs/natural -ro')
     Alias('docs', 'docs/html/index.html')
     Clean('docs', Glob('docs/html/*'))
     Alias('all', 'docs')
