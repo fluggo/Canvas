@@ -24,6 +24,8 @@ from fluggo.media import process, timecode
 from fluggo.media.basetypes import *
 from . import ruler
 
+_queue = process.VideoPullQueue()
+
 class Scene(QGraphicsScene):
     frame_range_changed = pyqtSignal(int, int, name='frameRangeChanged')
 
@@ -262,6 +264,8 @@ class _BottomHandle(_Handle):
         else:
             self.parentItem()._update(height=1)
 
+_PLACEHOLDER = object()
+
 class VideoItem(QGraphicsItem):
     def __init__(self, item, name):
         # BJC: This class currently has both the model and the view,
@@ -398,23 +402,33 @@ class VideoItem(QGraphicsItem):
                 rect.height() / box.height()),
             source_rect=box)
 
+        def callback(frame_index, frame, user_data):
+            (thumbnails, i) = user_data
+
+            size = frame.current_data_window.size()
+            img_str = frame.to_argb32_string()
+
+            thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
+
+            # TODO: limit to thumbnail's area
+            self.update()
+
         for i in range(left_nail, right_nail):
             # Later we'll delegate this to another thread
             if not self.thumbnails[i]:
-                frame = scale.get_frame_f16(
-                    self.thumbnail_indexes[i], self.item.source.thumbnail_box)
-                size = frame.current_data_window.size()
-                img_str = frame.to_argb32_string()
-
-                self.thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
+                self.thumbnails[i] = _PLACEHOLDER
+                _queue.enqueue(source=scale, frame_index=self.thumbnail_indexes[i],
+                    window=self.item.source.thumbnail_box,
+                    callback=callback, user_data=(self.thumbnails, i))
 
             # TODO: Scale existing thumbnails to fit (removing last thumbnails = [] in _update)
-            if len(self.thumbnails) == 1:
-                painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width)),
-                    rect.y(), self.thumbnails[i])
-            else:
-                painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
-                    rect.y(), self.thumbnails[i])
+            if self.thumbnails[i] is not _PLACEHOLDER:
+                if len(self.thumbnails) == 1:
+                    painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width)),
+                        rect.y(), self.thumbnails[i])
+                else:
+                    painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
+                        rect.y(), self.thumbnails[i])
 
         painter.restore()
 
