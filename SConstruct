@@ -21,11 +21,11 @@ conf.Finish()
 if int(debug):
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
 elif int(profile):
-    env.Append(CCFLAGS = ['-g'])
+    env.Append(CCFLAGS = ['-ggdb3', '-O3'])
 elif int(assembly):
     env.Append(CCFLAGS = ['-g', '-S', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno'])
 else:
-    env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-fno-tree-vectorize'])
+    env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno'])
 
 python_env = env.Clone(SHLIBPREFIX='')
 python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()], CCFLAGS=['-fno-strict-aliasing'])
