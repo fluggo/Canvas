@@ -264,8 +264,6 @@ class _BottomHandle(_Handle):
         else:
             self.parentItem()._update(height=1)
 
-_PLACEHOLDER = object()
-
 class VideoItem(QGraphicsItem):
     def __init__(self, item, name):
         # BJC: This class currently has both the model and the view,
@@ -323,6 +321,11 @@ class VideoItem(QGraphicsItem):
             self.item.update(x=kw.get('x', self.item.x),
                 width=kw.get('width', self.item.width),
                 offset=kw.get('offset', self.item.offset))
+
+            for frame in self.thumbnails:
+                if hasattr(frame, 'cancel'):
+                    frame.cancel()
+
             self.thumbnails = []
 
             # Update the currently displayed frame if it's in a changed region
@@ -345,6 +348,10 @@ class VideoItem(QGraphicsItem):
             self.prepareGeometryChange()
 
             if 'height' in kw:
+                for frame in self.thumbnails:
+                    if hasattr(frame, 'cancel'):
+                        frame.cancel()
+
                 self.thumbnails = []
 
     def _create_thumbnails(self, total_width):
@@ -416,13 +423,12 @@ class VideoItem(QGraphicsItem):
         for i in range(left_nail, right_nail):
             # Later we'll delegate this to another thread
             if not self.thumbnails[i]:
-                self.thumbnails[i] = _PLACEHOLDER
-                _queue.enqueue(source=scale, frame_index=self.thumbnail_indexes[i],
+                self.thumbnails[i] = _queue.enqueue(source=scale, frame_index=self.thumbnail_indexes[i],
                     window=self.item.source.thumbnail_box,
                     callback=callback, user_data=(self.thumbnails, i))
 
             # TODO: Scale existing thumbnails to fit (removing last thumbnails = [] in _update)
-            if self.thumbnails[i] is not _PLACEHOLDER:
+            if isinstance(self.thumbnails[i], QImage):
                 if len(self.thumbnails) == 1:
                     painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width)),
                         rect.y(), self.thumbnails[i])
