@@ -39,22 +39,48 @@ PyObject *py_RgbaFrameF16_new( box2i *full_data_window, rgba_frame_f16 **frame )
     For now, the pull queue will only pull back 16-bit frames.
 */
 
-typedef struct _tag_queue_item {
+typedef struct {
+    PyObject_HEAD
     PyObject *callback, *user_data, *pyframe, *owner;
     VideoSourceHolder source;
     int frame_index;
     rgba_frame_f16 *frame;
-} queue_item;
+    volatile bool active;
+} py_obj_VideoPullQueueItem;
+
+static PyObject *
+VideoPullQueueItem_cancel( py_obj_VideoPullQueueItem *self, PyObject *args ) {
+    self->active = false;
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef VideoPullQueueItem_methods[] = {
+    { "cancel", (PyCFunction) VideoPullQueueItem_cancel, METH_NOARGS,
+        "Cancels the frame grab." },
+    { NULL }
+};
+
+static PyTypeObject py_type_VideoPullQueueItem = {
+    PyObject_HEAD_INIT(NULL)
+    .tp_name = "fluggo.media.process.VideoPullQueueItem",
+    .tp_basicsize = sizeof(py_obj_VideoPullQueueItem),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_methods = VideoPullQueueItem_methods,
+};
 
 static gboolean
-_timeout_callback( queue_item *item ) {
+_timeout_callback( py_obj_VideoPullQueueItem *item ) {
     // We're back on solid land, but we need to get Python's permission to proceed
     PyGILState_STATE state = PyGILState_Ensure();
 
-    PyObject *result = PyObject_CallFunction( item->callback, "iOO", item->frame_index, item->pyframe, item->user_data );
+    if( item->active ) {
+        PyObject *result = PyObject_CallFunction( item->callback, "iOO",
+            item->frame_index, item->pyframe, item->user_data );
+        Py_DECREF(result);
+    }
 
-    // Clean up
-    Py_CLEAR( result );
+    // Clean up (do this immediately, because we may inadvertently be holding a ref to ourself)
     Py_CLEAR( item->callback );
     Py_CLEAR( item->user_data );
     Py_CLEAR( item->pyframe );
@@ -62,15 +88,17 @@ _timeout_callback( queue_item *item ) {
 
     py_video_takeSource( NULL, &item->source );
 
+    Py_DECREF(item);
     PyGILState_Release( state );
-    g_slice_free1( sizeof(queue_item), item );
 
     return false;
 }
 
 static void
-_thread_func( queue_item *item, py_obj_VideoPullQueue *self ) {
-    video_getFrame_f16( &item->source.source, item->frame_index, item->frame );
+_thread_func( py_obj_VideoPullQueueItem *item, py_obj_VideoPullQueue *self ) {
+    if( item->active )
+        video_getFrame_f16( &item->source.source, item->frame_index, item->frame );
+
     g_timeout_add_full( G_PRIORITY_DEFAULT, 0, (GSourceFunc) _timeout_callback, item, NULL );
 }
 
@@ -98,18 +126,29 @@ VideoPullQueue_enqueue( py_obj_VideoPullQueue *self, PyObject *args, PyObject *k
     if( !py_parse_box2i( window_obj, &window ) )
         return NULL;
 
-    queue_item *item = g_slice_alloc0( sizeof(queue_item) );
+    PyObject *tuple = PyTuple_New( 0 ), *dict = PyDict_New();
+    py_obj_VideoPullQueueItem *item = (py_obj_VideoPullQueueItem *)
+        py_type_VideoPullQueueItem.tp_new( &py_type_VideoPullQueueItem, tuple, dict );
+
+    if( !item ) {
+        Py_CLEAR(tuple);
+        Py_CLEAR(dict);
+        return NULL;
+    }
+
+    Py_CLEAR(tuple);
+    Py_CLEAR(dict);
 
     item->pyframe = py_RgbaFrameF16_new( &window, &item->frame );
 
     if( !item->pyframe ) {
-        g_slice_free1( sizeof(queue_item), item );
+        Py_DECREF( item );
         return NULL;
     }
 
     if( !py_video_takeSource( source_obj, &item->source ) ) {
         Py_DECREF( item->pyframe );
-        g_slice_free1( sizeof(queue_item), item );
+        Py_DECREF( item );
 
         return NULL;
     }
@@ -122,10 +161,14 @@ VideoPullQueue_enqueue( py_obj_VideoPullQueue *self, PyObject *args, PyObject *k
     item->user_data = user_data_obj;
     item->owner = (PyObject *) self;
     item->frame_index = frame_index;
+    item->active = true;
 
     g_thread_pool_push( self->pool, item, NULL );
 
-    Py_RETURN_NONE;
+    // Increment the item's ref one more time; the queue holds a reference
+    // and the caller can hold a reference
+    Py_INCREF(item);
+    return (PyObject *) item;
 }
 
 static void
@@ -168,5 +211,8 @@ void init_VideoPullQueue( PyObject *module ) {
 
     Py_INCREF( (PyObject*) &py_type_VideoPullQueue );
     PyModule_AddObject( module, "VideoPullQueue", (PyObject *) &py_type_VideoPullQueue );
+
+    if( PyType_Ready( &py_type_VideoPullQueueItem ) < 0 )
+        return;
 }
 
