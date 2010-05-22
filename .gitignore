@@ -4,6 +4,8 @@
 /docs/html
 /docs/natural/Data
 /build
+/config.log
+/.sconf_temp
 *.pyc
 *.os
 *.so
