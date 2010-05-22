@@ -9,6 +9,15 @@ env = Environment(CPPPATH=['include'],
     CCFLAGS = ['-Wall', '-D_POSIX_C_SOURCE=200112L', '-Werror'],
     CFLAGS=['-std=c99'])
 
+# Check to see if we can use clang
+check_env = Environment(CC='clang')
+conf = Configure(check_env)
+
+if conf.CheckCC():
+    env['CC'] = 'clang'
+
+conf.Finish()
+
 if int(debug):
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
 elif int(profile):
