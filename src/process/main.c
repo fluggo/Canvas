@@ -285,6 +285,7 @@ void init_Workspace( PyObject *module );
 void init_RgbaFrameF16( PyObject *module );
 void init_RgbaFrameF32( PyObject *module );
 void init_VideoScaler( PyObject *module );
+void init_VideoPullQueue( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
 initprocess() {
@@ -311,6 +312,7 @@ initprocess() {
     init_RgbaFrameF16( m );
     init_RgbaFrameF32( m );
     init_VideoScaler( m );
+    init_VideoPullQueue( m );
 
     if( !g_thread_supported() )
         g_thread_init( NULL );
