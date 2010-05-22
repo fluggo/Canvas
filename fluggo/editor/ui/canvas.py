@@ -26,17 +26,6 @@ from . import ruler
 
 class Scene(QGraphicsScene):
     frame_range_changed = pyqtSignal(int, int, name='frameRangeChanged')
-    handle_width = 10.0
-
-    def __init__(self, view):
-        QGraphicsScene.__init__(self)
-        self.view = view
-
-    def addItem(self, item):
-        QGraphicsScene.addItem(self, item)
-
-        if item.view_scale_changed:
-            item.view_scale_changed()
 
     def update_frames(self, min_frame, max_frame):
         self.frame_range_changed.emit(min_frame, max_frame)
@@ -44,10 +33,11 @@ class Scene(QGraphicsScene):
 class View(QGraphicsView):
     black_pen = QPen(QColor.fromRgbF(0.0, 0.0, 0.0))
     white_pen = QPen(QColor.fromRgbF(1.0, 1.0, 1.0))
+    handle_width = 10.0
 
     def __init__(self, clock):
         QGraphicsView.__init__(self)
-        self.setScene(Scene(self))
+        self.setScene(Scene())
         self.setViewportMargins(0, 30, 0, 0)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
@@ -95,6 +85,14 @@ class View(QGraphicsView):
 
     def resizeEvent(self, event):
         self.ruler.resize(self.width() - self.frameWidth(), 30)
+
+    def wheelEvent(self, event):
+        if event.delta() > 0:
+            factor = 2 ** (event.delta() / 120)
+            self.scale(self.scale_x * factor, self.scale_y)
+        else:
+            factor = 2 ** (-event.delta() / 120)
+            self.scale(self.scale_x / factor, self.scale_y)
 
     def handle_scene_rect_changed(self, rect):
         left = self.mapToScene(0, 0).x()
@@ -275,6 +273,7 @@ class VideoItem(QGraphicsItem):
         self.setPos(self.item.x, 0.0)
         self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable |
             QGraphicsItem.ItemUsesExtendedStyleOption)
+        self.setAcceptHoverEvents(True)
         self.thumbnails = []
         self.thumbnail_indexes = []
         self.thumbnail_width = 1.0
@@ -286,16 +285,20 @@ class VideoItem(QGraphicsItem):
         self.bottom_handle = _BottomHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.bottom_handle.setPos(0.0, self.height)
 
-    def view_scale_changed(self):
+    def view_scale_changed(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes
         # depending on the level of zoom in the view (not to mention separate sets of thumbnails)
-        hx = self.scene().handle_width / float(self.scene().view.scale_x)
-        hy = self.scene().handle_width / float(self.scene().view.scale_y)
+        hx = view.handle_width / float(view.scale_x)
+        hy = view.handle_width / float(view.scale_y)
 
         self.left_handle.setRect(QRectF(0.0, 0.0, hx, self.height))
         self.right_handle.setRect(QRectF(-hx, 0.0, hx, self.height))
         self.top_handle.setRect(QRectF(0.0, 0.0, self.item.width, hy))
         self.bottom_handle.setRect(QRectF(0.0, -hy, self.item.width, hy))
+
+    def hoverEnterEvent(self, event):
+        view = event.widget().parentWidget()
+        self.view_scale_changed(view)
 
     def _update(self, **kw):
         '''
@@ -334,7 +337,6 @@ class VideoItem(QGraphicsItem):
 
             self.right_handle.setPos(self.item.width, 0.0)
             self.bottom_handle.setPos(0.0, self.height)
-            self.view_scale_changed()
 
             self.prepareGeometryChange()
 
