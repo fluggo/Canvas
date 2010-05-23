@@ -132,7 +132,8 @@ _getPresentationTime( py_obj_SystemPresentationClock *self ) {
 
     int64_t currentTime = seekTime + elapsed;
 
-    if( self->speed.n > 0 ) {
+    // BJC: This code is broken and will need to be fixed
+/*    if( self->speed.n > 0 ) {
         if( currentTime > self->regions.playbackMax ) {
             self->baseTime = gettime();
             self->seekTime = self->regions.playbackMax;
@@ -162,7 +163,7 @@ _getPresentationTime( py_obj_SystemPresentationClock *self ) {
                     elapsed % (self->regions.loopMax - self->regions.loopMin + 1);
             }
         }
-    }
+    }*/
 
     g_mutex_unlock( self->mutex );
 
