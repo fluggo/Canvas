@@ -21,11 +21,18 @@ class test_SystemPresentationClock(unittest.TestCase):
         time = results[1][1]
 
         clock.play(fractions.Fraction(-1, 2))
-
         self.assertEqual((fractions.Fraction(-1, 2), time), results[2])
+
+        clock.seek(200)
+        self.assertEqual((fractions.Fraction(-1, 2), 200), results[3])
 
         handle.unregister()
 
         clock.stop()
-        self.assertEqual(len(results), 3)
+        self.assertEqual(len(results), 4)
 
+    def test_seek(self):
+        clock = process.SystemPresentationClock()
+
+        clock.seek(100)
+        self.assertEqual(100, clock.get_presentation_time())

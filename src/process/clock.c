@@ -67,7 +67,7 @@ static PyTypeObject py_type_ClockCallbackHandle = {
 
 static PyObject *
 PresentationClock_get_presentation_time( PyObject *self, PyObject *args ) {
-    PresentationClockHolder holder;
+    PresentationClockHolder holder = { { NULL } };
 
     if( !takePresentationClock( self, &holder ) )
         return NULL;
@@ -460,6 +460,9 @@ static PyTypeObject py_type_SystemPresentationClock = {
 
 
 void init_SystemPresentationClock( PyObject *module ) {
+    if( PyType_Ready( &py_type_PresentationClock ) < 0 )
+        return;
+
     if( PyType_Ready( &py_type_SystemPresentationClock ) < 0 )
         return;
 
@@ -467,9 +470,6 @@ void init_SystemPresentationClock( PyObject *module ) {
     PyModule_AddObject( module, "SystemPresentationClock", (PyObject *) &py_type_SystemPresentationClock );
 
     pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
-
-    if( PyType_Ready( &py_type_PresentationClock ) < 0 )
-        return;
 
     if( PyType_Ready( &py_type_ClockCallbackHandle ) < 0 )
         return;
