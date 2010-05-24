@@ -35,10 +35,6 @@ static PyMethodDef VideoSource_methods[] = {
     { NULL }
 };
 
-struct base_type {
-    PyObject_HEAD
-};
-
 PyTypeObject py_type_VideoSource = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
