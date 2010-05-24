@@ -63,9 +63,13 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.view)
 
         transport_toolbar = QToolBar(self)
-        transport_toolbar.addAction(self.transport_play_action)
-        transport_toolbar.addAction(self.transport_pause_action)
+
+        for action in self.transport_group.actions():
+            transport_toolbar.addAction(action)
+
         layout.addWidget(transport_toolbar)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
         center_widget.setLayout(layout)
 
         self.setCentralWidget(center_widget)
@@ -80,12 +84,18 @@ class MainWindow(QMainWindow):
         self.view_video_preview.setText('Video &Preview')
 
         self.transport_group = QActionGroup(self)
+        self.transport_rewind_action = QAction('Rewind', self.transport_group,
+            statusTip='Play the current timeline backwards', triggered=self.transport_rewind,
+            icon=self.style().standardIcon(QStyle.SP_MediaSeekBackward), checkable=True)
         self.transport_play_action = QAction('Play', self.transport_group,
             statusTip='Play the current timeline', triggered=self.transport_play,
-            icon=self.style().standardIcon(QStyle.SP_MediaPlay))
+            icon=self.style().standardIcon(QStyle.SP_MediaPlay), checkable=True)
         self.transport_pause_action = QAction('Pause', self.transport_group,
             statusTip='Pause the current timeline', triggered=self.transport_pause,
-            icon=self.style().standardIcon(QStyle.SP_MediaPause))
+            icon=self.style().standardIcon(QStyle.SP_MediaPause), checked=True, checkable=True)
+        self.transport_fastforward_action = QAction('Rewind', self.transport_group,
+            statusTip='Play the current timeline at double speed', triggered=self.transport_fastforward,
+            icon=self.style().standardIcon(QStyle.SP_MediaSeekForward), checkable=True)
 
     def create_menus(self):
         self.file_menu = self.menuBar().addMenu('&File')
@@ -108,9 +118,19 @@ class MainWindow(QMainWindow):
 
     def transport_play(self):
         self.clock.play(1)
+        self.transport_play_action.setChecked(True)
 
     def transport_pause(self):
         self.clock.stop()
+        self.transport_pause_action.setChecked(True)
+
+    def transport_fastforward(self):
+        self.clock.play(2)
+        self.transport_fastforward_action.setChecked(True)
+
+    def transport_rewind(self):
+        self.clock.play(-2)
+        self.transport_rewind_action.setChecked(True)
 
 app = QApplication(sys.argv)
 
