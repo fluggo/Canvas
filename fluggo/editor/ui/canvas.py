@@ -46,13 +46,20 @@ class View(QGraphicsView):
         self.ruler = ruler.TimeRuler(self, timecode=timecode.NtscDropFrame())
         self.ruler.move(self.frameWidth(), self.frameWidth())
 
+        # A warning: clock and clock_callback_handle will create a pointer cycle here,
+        # which probably won't be freed unless the callback handle is explicitly
+        # destroyed with self.clock_callback_handle.unregister() and self.clock = None
+        self.playback_timer = None
         self.clock = clock
+        self.clock_callback_handle = self.clock.register_callback(self._clock_changed, None)
+        self.clock_frame = 0
+
         self.frame_rate = fractions.Fraction(24000, 1001)
 
         self.white = False
         self.frame = 0
         self.set_current_frame(0)
-        self.startTimer(1000)
+        self.blink_timer = self.startTimer(1000)
 
         self.scene().sceneRectChanged.connect(self.handle_scene_rect_changed)
         self.scene().frame_range_changed.connect(self.handle_update_frames)
@@ -62,6 +69,15 @@ class View(QGraphicsView):
         self.scale_y = fractions.Fraction(1)
 
         self.scale(4, 1)
+
+    def _clock_changed(self, speed, time, data):
+        if speed.numerator and self.playback_timer is None:
+            self.playback_timer = self.startTimer(20)
+        elif not speed.numerator and self.playback_timer is not None:
+            self.killTimer(self.playback_timer)
+            self.playback_timer = None
+
+        self._update_clock_frame(time)
 
     def scale(self, sx, sy):
         self.scale_x = fractions.Fraction(sx)
@@ -84,6 +100,23 @@ class View(QGraphicsView):
 
         self.ruler.set_current_frame(frame)
         self.clock.seek(process.get_frame_time(self.frame_rate, int(frame)))
+
+    def _update_clock_frame(self, time=None):
+        if not time:
+            time = self.clock.get_presentation_time()
+
+        frame = process.get_time_frame(self.frame_rate, time)
+        self._set_clock_frame(frame)
+
+    def _set_clock_frame(self, frame):
+        '''
+        view._set_clock_frame(frame)
+
+        Moves the view's current clock frame marker.
+        '''
+        self._invalidate_marker(self.clock_frame)
+        self.clock_frame = frame
+        self._invalidate_marker(frame)
 
     def resizeEvent(self, event):
         self.ruler.resize(self.width() - self.frameWidth(), 30)
@@ -127,8 +160,11 @@ class View(QGraphicsView):
         self.scene().invalidate(QRectF(frame - 0.5, -20000.0, 1.0, 40000.0), QGraphicsScene.ForegroundLayer)
 
     def timerEvent(self, event):
-        self.white = not self.white
-        self._invalidate_marker(self.frame)
+        if event.timerId() == self.blink_timer:
+            self.white = not self.white
+            self._invalidate_marker(self.frame)
+        elif event.timerId() == self.playback_timer:
+            self._update_clock_frame()
 
     def drawForeground(self, painter, rect):
         '''
@@ -136,6 +172,11 @@ class View(QGraphicsView):
         '''
         QGraphicsView.drawForeground(self, painter, rect)
 
+        # Clock frame line
+        painter.setPen(self.black_pen)
+        painter.drawLine(self.clock_frame, rect.y(), self.clock_frame, rect.y() + rect.height())
+
+        # Current frame line, which blinks
         painter.setPen(self.white_pen if self.white else self.black_pen)
         painter.drawLine(self.frame, rect.y(), self.frame, rect.y() + rect.height())
 
