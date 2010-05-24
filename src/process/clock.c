@@ -20,6 +20,146 @@
 
 #include "pyframework.h"
 
+typedef struct {
+    PyObject_HEAD
+    PresentationClockHolder holder;
+    PyObject *callable, *data;
+    void *handle;
+} py_obj_ClockCallbackHandle;
+
+static PyObject *
+ClockCallbackHandle_unregister( py_obj_ClockCallbackHandle *self, PyObject *args ) {
+    self->holder.source.funcs->unregister_callback( self->holder.source.obj, self->handle );
+
+    Py_CLEAR( self->callable );
+    Py_CLEAR( self->data );
+
+    takePresentationClock( NULL, &self->holder );
+
+    Py_RETURN_NONE;
+}
+
+static void
+ClockCallbackHandle_dealloc( py_obj_ClockCallbackHandle *self ) {
+    Py_CLEAR( self->callable );
+    Py_CLEAR( self->data );
+
+    takePresentationClock( NULL, &self->holder );
+
+    self->ob_type->tp_free( (PyObject*) self );
+}
+
+static PyMethodDef ClockCallbackHandle_methods[] = {
+    { "unregister", (PyCFunction) ClockCallbackHandle_unregister, METH_NOARGS,
+        "Unregister this callback." },
+    { NULL }
+};
+
+static PyTypeObject py_type_ClockCallbackHandle = {
+    PyObject_HEAD_INIT(NULL)
+    0,            // ob_size
+    "fluggo.media.process.ClockCallbackHandle",    // tp_name
+    sizeof(py_obj_ClockCallbackHandle),    // tp_basicsize
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_methods = ClockCallbackHandle_methods,
+    .tp_dealloc = (destructor) ClockCallbackHandle_dealloc,
+};
+
+static PyObject *
+PresentationClock_get_presentation_time( PyObject *self, PyObject *args ) {
+    PresentationClockHolder holder;
+
+    if( !takePresentationClock( self, &holder ) )
+        return NULL;
+
+    PyObject *result = Py_BuildValue( "L", holder.source.funcs->getPresentationTime( holder.source.obj ) );
+    takePresentationClock( NULL, &holder );
+
+    return result;
+}
+
+static void
+ClockCallbackHandle_callback( py_obj_ClockCallbackHandle *self, rational *speed, int64_t time ) {
+    // Make sure we've got the GIL before we proceed
+    PyGILState_STATE state = PyGILState_Ensure();
+
+    PyObject *speed_obj = py_make_rational( speed );
+
+    PyObject *result = PyObject_CallFunction( self->callable, "OLO",
+        speed_obj, time, self->data );
+
+    Py_DECREF(speed_obj);
+
+    if( result )
+        Py_DECREF(result);
+    else
+        PyErr_Print();
+
+    PyGILState_Release( state );
+}
+
+static void
+ClockCallbackHandle_deref( py_obj_ClockCallbackHandle *self ) {
+    Py_DECREF(self);
+}
+
+static PyObject *
+PresentationClock_register_callback( PyObject *self, PyObject *args, PyObject *kw ) {
+    static char *kwlist[] = { "func", "data", NULL };
+    PyObject *callback, *data;
+
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "OO", kwlist,
+            &callback, &data ) )
+        return NULL;
+
+    py_obj_ClockCallbackHandle *handle = PyObject_New( py_obj_ClockCallbackHandle, &py_type_ClockCallbackHandle );
+
+    if( !handle )
+        return NULL;
+
+    handle->holder.source.obj = NULL;
+    handle->holder.csource = NULL;
+
+    if( !takePresentationClock( self, &handle->holder ) ) {
+        Py_DECREF(handle);
+        return NULL;
+    }
+
+    Py_INCREF(callback);
+    Py_INCREF(data);
+
+    handle->callable = callback;
+    handle->data = data;
+    handle->handle = handle->holder.source.funcs->register_callback( handle->holder.source.obj,
+        (clock_callback_func) ClockCallbackHandle_callback, handle, (GDestroyNotify) ClockCallbackHandle_deref );
+
+    return (PyObject *) handle;
+}
+
+static PyMethodDef PresentationClock_methods[] = {
+    { "get_presentation_time", (PyCFunction) PresentationClock_get_presentation_time, METH_NOARGS,
+        "Get the presentation time in nanoseconds.\n"
+        "\n"
+        "time = clock.get_presentation_time()" },
+    { "register_callback", (PyCFunction) PresentationClock_register_callback, METH_VARARGS | METH_KEYWORDS,
+        "Register a clock-notification callback.\n"
+        "\n"
+        "handle = clock.register_callback(func, data)\n"
+        "\n"
+        "func - Function to call, of the form func(speed, time, data)\n"
+        "data - Optional data to pass to the function." },
+    { NULL }
+};
+
+PyTypeObject py_type_PresentationClock = {
+    PyObject_HEAD_INIT(NULL)
+    0,            // ob_size
+    "fluggo.media.process.PresentationClock",    // tp_name
+    0,    // tp_basicsize
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_methods = PresentationClock_methods,
+};
+
 typedef struct __tag_callback_info {
     void *data;
     clock_callback_func callback;
@@ -170,11 +310,6 @@ _getPresentationTime( py_obj_SystemPresentationClock *self ) {
     return currentTime;
 }
 
-static PyObject *
-SystemPresentationClock_getPresentationTime( py_obj_SystemPresentationClock *self ) {
-    return Py_BuildValue( "L", _getPresentationTime( self ) );
-}
-
 static void
 _getSpeed( py_obj_SystemPresentationClock *self, rational *result ) {
     g_mutex_lock( self->mutex );
@@ -286,8 +421,6 @@ static PyMethodDef SystemPresentationClock_methods[] = {
         "Stops the clock." },
     { "seek", (PyCFunction) SystemPresentationClock_seek, METH_VARARGS,
         "Sets the current time." },
-    { "get_presentation_time", (PyCFunction) SystemPresentationClock_getPresentationTime, METH_NOARGS,
-        "Gets the current presentation time in nanoseconds." },
     { NULL }
 };
 
@@ -316,6 +449,7 @@ static PyTypeObject py_type_SystemPresentationClock = {
     0,            // ob_size
     "fluggo.media.process.SystemPresentationClock",    // tp_name
     sizeof(py_obj_SystemPresentationClock),    // tp_basicsize
+    .tp_base = &py_type_PresentationClock,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) SystemPresentationClock_dealloc,
@@ -333,5 +467,11 @@ void init_SystemPresentationClock( PyObject *module ) {
     PyModule_AddObject( module, "SystemPresentationClock", (PyObject *) &py_type_SystemPresentationClock );
 
     pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+
+    if( PyType_Ready( &py_type_PresentationClock ) < 0 )
+        return;
+
+    if( PyType_Ready( &py_type_ClockCallbackHandle ) < 0 )
+        return;
 }
 

@@ -131,6 +131,8 @@ typedef struct {
 
 bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
 
+extern PyTypeObject py_type_PresentationClock;
+
 #define PRESENTATION_CLOCK_FUNCS "_presentation_clock_funcs"
 
 #if defined(__cplusplus)

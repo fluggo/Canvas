@@ -560,11 +560,6 @@ static PyGetSetDef AlsaPlayer_getsetters[] = {
 };
 
 static PyObject *
-AlsaPlayer_getPresentationTime( py_obj_AlsaPlayer *self ) {
-    return Py_BuildValue( "L", _getPresentationTime( self ) );
-}
-
-static PyObject *
 AlsaPlayer_stop( py_obj_AlsaPlayer *self ) {
     rational speed = { 0, 1 };
     _set( self, _getPresentationTime_nolock( self ), &speed );
@@ -609,8 +604,6 @@ static PyMethodDef AlsaPlayer_methods[] = {
         "Plays audio from the source starting at the current spot." },
     { "stop", (PyCFunction) AlsaPlayer_stop, METH_NOARGS,
         "Stops playing audio from the source." },
-    { "get_presentation_time", (PyCFunction) AlsaPlayer_getPresentationTime, METH_NOARGS,
-        "Gets the current presentation time in nanoseconds." },
     { "set_config", (PyCFunction) AlsaPlayer_setConfig, METH_VARARGS | METH_KEYWORDS,
         "rate, channels = setConfig([rate = 48000, channels = 2]): Sets the configuration for this device." },
     { NULL }
@@ -621,6 +614,7 @@ static PyTypeObject py_type_AlsaPlayer = {
     0,            // ob_size
     "fluggo.media.process.AlsaPlayer",    // tp_name
     sizeof(py_obj_AlsaPlayer),    // tp_basicsize
+    .tp_base = &py_type_PresentationClock,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AlsaPlayer_dealloc,
