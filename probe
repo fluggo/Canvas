@@ -9,6 +9,7 @@ from fluggo.media.process import FFContainer
 c = FFContainer(sys.argv[1])
 
 print('Format: ', c.format_long_name, ' (', c.format_name, ')', sep='')
+print('Duration:', c.duration / 1000000.0)
 
 if c.mime_type:
 	print('MIME type:', c.mime_type)

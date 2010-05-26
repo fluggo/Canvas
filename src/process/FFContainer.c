@@ -147,6 +147,11 @@ FFContainer_streams( py_obj_FFContainer *self, void *closure ) {
     return self->streamList;
 }
 
+static PyObject *
+FFContainer_duration( py_obj_FFContainer *self, void *closure ) {
+    return PyLong_FromLongLong( self->format->duration );
+}
+
 static PyGetSetDef FFContainer_getsetters[] = {
     { "format_name", (getter) FFContainer_formatName, NULL, "The short name of the container format." },
     { "format_long_name", (getter) FFContainer_formatLongName, NULL, "A more descriptive name of the container format." },
@@ -154,6 +159,7 @@ static PyGetSetDef FFContainer_getsetters[] = {
     { "loop_count", (getter) FFContainer_loopCount, NULL, "The number of times the output should loop, or -1 for no looping or 0 for infinite looping." },
     { "streams", (getter) FFContainer_streams, NULL, "List of stream descriptors found in the container." },
     { "mime_type", (getter) FFContainer_mimeType, NULL, "The MIME type of the format, if known." },
+    { "duration", (getter) FFContainer_duration, NULL, "The file's (estimated) duration in microseconds." },
     { NULL }
 };
 
