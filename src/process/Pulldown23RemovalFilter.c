@@ -209,6 +209,41 @@ Pulldown23RemovalFilter_dealloc( py_obj_Pulldown23RemovalFilter *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
+static PyObject *
+Pulldown23RemovalFilter_get_new_length( py_obj_Pulldown23RemovalFilter *self, PyObject *args ) {
+    int old_length;
+
+    if( !PyArg_ParseTuple( args, "i", &old_length ) )
+        return NULL;
+
+    // Cadence offsets:
+
+    // 0 AA BB BC CD DD (0->0, 1->1, 3->4), (2->2b3a)
+    // 1 BB BC CD DD EE (0->0, 2->3, 3->4), (1->1b2a)
+    // 2 BC CD DD EE FF (1->2, 2->3, 3->4), (0->0b1a)
+    // 3 CD DD EE FF FG (0->1, 1->2, 2->3), (3->4b5a) (same as 4 with 1st frame discarded)
+    // 4 DD EE FF FG GH (0->0, 1->1, 2->2), (3->3b4a)
+
+    int complete_sequences = old_length / 5;
+    int new_length = complete_sequences * 4;
+
+    int partial = old_length % 5;
+
+    // Only one frame is useless: BC/FG
+    if( self->offset == 0 && partial > 2 )
+        partial--;
+    else if( self->offset == 1 && partial > 1 )
+        partial--;
+    else if( self->offset == 2 && partial > 0 )
+        partial--;
+    else if( self->offset == 3 && partial > 4 )
+        partial--;
+    else if( self->offset == 4 && partial > 3 )
+        partial--;
+
+    return Py_BuildValue( "i", new_length + partial );
+}
+
 static VideoFrameSourceFuncs sourceFuncs = {
     .getFrame = (video_getFrameFunc) Pulldown23RemovalFilter_getFrame,
     .getFrameGL = (video_getFrameGLFunc) Pulldown23RemovalFilter_getFrameGL
@@ -225,6 +260,14 @@ static PyGetSetDef Pulldown23RemovalFilter_getsetters[] = {
     { NULL }
 };
 
+static PyMethodDef Pulldown23RemovalFilter_methods[] = {
+    { "get_new_length", (PyCFunction) Pulldown23RemovalFilter_get_new_length, METH_VARARGS,
+        "Calculate the new length of the video without pulldown.\n"
+        "\n"
+        "new_length = filter.get_length(old_length)" },
+    { NULL }
+};
+
 static PyTypeObject py_type_Pulldown23RemovalFilter = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
@@ -235,7 +278,8 @@ static PyTypeObject py_type_Pulldown23RemovalFilter = {
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) Pulldown23RemovalFilter_dealloc,
     .tp_init = (initproc) Pulldown23RemovalFilter_init,
-    .tp_getset = Pulldown23RemovalFilter_getsetters
+    .tp_getset = Pulldown23RemovalFilter_getsetters,
+    .tp_methods = Pulldown23RemovalFilter_methods,
 };
 
 void init_Pulldown23RemovalFilter( PyObject *module ) {
