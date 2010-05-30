@@ -2,7 +2,7 @@
 # This file is part of the Fluggo Media Library for high-quality
 # video and audio processing.
 #
-# Copyright 2009 Brian J. Crowell <brian@fluggo.com>
+# Copyright 2010 Brian J. Crowell <brian@fluggo.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,139 +18,145 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fractions
-import yaml
+from fluggo.media.basetypes import *
 
-(PD_NONE, PD_23, PD_2332) = range(3)
-_pd_names = {PD_NONE: 'none', PD_23: '2:3', PD_2332: '2:3:3:2'}
+PULLDOWN_NONE = 'None'
+PULLDOWN_23 = '2:3'
+PULLDOWN_2332 = '2:3:3:2'
 
-class VideoFormat(yaml.YAMLObject):
+class ContainerAttribute:
+    # A string identifying the muxer used to mux/demux this stream.
+    # For decode:
+    #   In the "detected" dictionary, this should be a generic muxer type that
+    #   can be used to find one of a number of muxers that can decode the stream.
+    #   In the 'override' dictionary, if specified, this should be a specific muxer.
+    # For encode:
+    #   A specific muxer used to encode. The dictionary should contain any parameters
+    #   the user has set for the muxer, each beginning with "muxer:".
+    MUXER = 'muxer'
+
+    # Set in the "detected" dictionary for a stream, this is a container-specific identifier that
+    # can be used to find the stream again
+    STREAM_ID = 'stream_id'
+
+class KnownMuxers:
+    AVI = 'video/x-msvideo'
+    DV = 'video/DV'
+
+class KnownVideoCodecs:
+    DV = 'video/DV'
+
+class VideoAttribute:
+    # Video frame rate (Fraction)
+    FRAME_RATE = 'frame_rate'
+
+    # Interlaced (bool)
+    INTERLACED = 'interlaced'
+
+    # Sample aspect ratio, x/y (Fraction)
+    SAMPLE_ASPECT_RATIO = 'sample_aspect_ratio'
+
+    # Pulldown type ('None', '2:3', '2:3:3:2', possibly more)
+    PULLDOWN_TYPE = 'pulldown_type'
+    PULLDOWN_PHASE = 'pulldown_phase'
+
+    # Color primaries: Either a 3-tuple of v2fs with xy coordinates of RGB chromaticities,
+    # or one of the names in the KnownColorPrimaries
+    COLOR_PRIMARIES = 'color_primaries'
+
+    # White point: Either a v2f with the xy coordinates of the white point,
+    # or one of the names in the KnownIlluminants
+    WHITE_POINT = 'white_point'
+
+    # Max data window: A box2i describing the maximum size of frames.
+    MAX_DATA_WINDOW = 'max_data_window'
+
+    # Window to use when generating thumbnails; if not set, this will default to the MAX_DATA_WINDOW
+    THUMBNAIL_WINDOW = 'thumbnail_window'
+
+    # A string identifying the codec used to encode/decode this stream.
+    # For decode:
+    #   In the "detected" dictionary, this should be a generic codec type that
+    #   can be used to find one of a number of codecs that can decode the stream.
+    #   In the 'override' dictionary, if specified, this should be a specific codec.
+    # For encode:
+    #   A specific codec used to encode. The dictionary should contain any parameters
+    #   the user has set for the codec, each beginning with "codec:".
+    CODEC = 'codec'
+
+class KnownColorPrimaries:
     '''
-    Properties we'll look at here:
+    Known RGB primary sets, aliases, and their colors in xy-space.
 
-    rate (Fraction) = video frame rate
-    interlaced (bool)
-    sample_aspect_ratio
-    pulldownType = PD_NONE, PD_23, PD_2332
-    pulldownPhase
-    colorPrimaries
-    whitePoint
-    frameSize
-
-    channels = RGB, YUV, Luma, Depth, Alpha
-
+    Each set is a three-tuple with the respective xy-coordinates for R, G, and B.
     '''
-    yaml_tag = u'!videoFormat'
+    AdobeRGB = (v2f(0.6400, 0.3300), v2f(0.2100, 0.7100), v2f(0.1500, 0.0600))
+    AppleRGB = (v2f(0.6250, 0.3400), v2f(0.2800, 0.5950), v2f(0.1550, 0.0700))
+    sRGB = (v2f(0.6400, 0.3300), v2f(0.3000, 0.6000), v2f(0.1500, 0.0600))
+    Rec709 = sRGB
 
-    def __init__(self, frame_rate, frame_rect, sample_aspect_ratio):
-        self.frame_rate = frame_rate
-        self.frame_rect = frame_rect
-        self.sample_aspect_ratio = sample_aspect_ratio
-        self.interlaced = None
-        self.pulldown_type = None
-        self.pulldown_phase = None
-        self.color_primaries = None
-        self.white_point = None
-
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        mapping = {'frame_rate': str(data.frame_rate), 'frame_rect': list(data.frame_rect),
-            'sample_aspect_ratio': str(data.sample_aspect_ratio)}
-
-        if data.interlaced:
-            mapping['interlaced'] = data.interlaced
-
-        return dumper.represent_mapping(cls.yaml_tag, mapping)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        mapping = loader.construct_mapping(node, deep=True)
-        result = cls(fractions.Fraction(mapping['frame_rate']), tuple(mapping['frame_size']),
-                fractions.Fraction(mapping['sample_aspect_ratio']))
-
-        result.interlaced = mapping.get('interlaced', None)
-
-        return result
-
-class EncodedVideoFormat(yaml.YAMLObject):
+class KnownIlluminants:
     '''
-    codec = 'ffmpeg/mpeg'
-    subsampling, siting, studio levels, input lut/lut3d, etc.
+    Known illuminants and their colors in xy-space. Where specified, these describe
+    the coordinates for the two-degree CIE standard observer.
 
-    transferFunction = ???
-    yuvToRgbMatrix
-
+    Source: http://en.wikipedia.org/w/index.php?title=Standard_illuminant&oldid=364143326#White_points_of_standard_illuminants
     '''
-    yaml_tag = u'!encodedVideoFormat'
+    D50 = v2f(0.34567, 0.35850)
+    D65 = v2f(0.31271, 0.32902)
 
-    def __init__(self, codec):
-        self.codec = codec
-
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        mapping = {'codec': data.codec}
-        return dumper.represent_mapping(cls.yaml_tag, mapping)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        mapping = loader.construct_mapping(node)
-        return cls(mapping['codec'])
-
-class AudioFormat(yaml.YAMLObject):
+class StreamFormat(object):
     '''
-    rate (fraction)
-    channelAssignment = [channel, ...] where channel in:
-        'FL'    Front Left
-        'FR'    Front Right
-        'FC'    Center
-        'CL'    Front left of center
-        'CR'    Front right of center
-        'SL'    Side left
-        'SR'    Side right
-        'RL'    Rear left
-        'RR'    Rear right
-        'LF'    Low frequency
-        'S'        Solo (no steering)
-        None    Ignored channel
+    Describes the format of a stream.
 
+    type - Type of the stream, such as "video" or "audio".
+    detected - This dictionary contains attributes that were detected
+        in the stream. The idea is to be able to re-detect the stream
+        and compare to find changes.
+    override - This dictionary contains attributes explicitly set on
+        the stream. These may be attributes that weren't detected or
+        for whatever reason were detected incorrectly.
+    length - Length of the stream in frames or samples.
     '''
-    yaml_tag = u'!audioFormat'
 
-    def __init__(self, sample_rate, channel_assignment):
-        self.sample_rate = sample_rate
-        self.channel_assignment = channel_assignment
+    def __init__(self, type_):
+        self.type = type_
+        self.detected = {}
+        self.override = {}
+        self.length = None
 
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        mapping = {'sample_rate': str(data.sample_rate), 'channel_assignment': data.channel_assignment}
-        return dumper.represent_mapping(cls.yaml_tag, mapping)
+    def get(self, property, default=None):
+        return self.override.get(property, self.detected.get(property, default))
 
-    @classmethod
-    def from_yaml(cls, loader, node):
-        mapping = loader.construct_mapping(node)
-        return cls(fractions.Fraction(mapping['sample_rate']), mapping['channel_assignment'])
+    @property
+    def id(self):
+        return self.get(ContainerAttribute.STREAM_ID)
 
-class EncodedAudioFormat(yaml.YAMLObject):
+class MediaContainer(object):
     '''
-    codec = 'ffmpeg/pcm_s16le'
-    bitRate, etc.
+    Describes the properties of a container.
 
+    path - Full path to the container file. In the future, we'll have to
+        come back and accomodate relative paths and multi-file containers.
+    streams - List of StreamFormats.
+    detected - Detected attributes of the container.
+    override - Overridden attributes of the container.
     '''
-    yaml_tag = u'!encodedAudioFormat'
 
-    def __init__(self, codec):
-        self.codec = codec
+    def __init__(self):
+        self.path = None
+        self.detected = {}
+        self.override = {}
+        self.streams = []
 
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        mapping = {'codec': data.codec}
-        return dumper.represent_mapping(cls.yaml_tag, mapping)
+    def get(self, property, default=None):
+        return self.override.get(property, self.detected.get(property, default))
 
-    @classmethod
-    def from_yaml(cls, loader, node):
-        mapping = loader.construct_mapping(node)
-        return cls(mapping['codec'])
+    @property
+    def muxer(self):
+        return self.get(ContainerAttribute.MUXER)
 
-channel_assignment_guesses = {
+_channel_assignment_guesses = {
     # Mono
     1: ['S'],
     # Stereo
@@ -165,7 +171,7 @@ channel_assignment_guesses = {
     6: ['FL', 'FC', 'FR', 'SL', 'SR', 'LF']
 }
 
-def guess_channel_assignment(channels):
+def _guess_channel_assignment(channels):
     if channels in channel_assignment_guesses:
         return channel_assignment_guesses[channels]
 

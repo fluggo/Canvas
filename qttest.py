@@ -2,30 +2,44 @@
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
-from fluggo.media import process, timecode, qt
+from fluggo.media import process, timecode, qt, formats
 from fluggo.media.basetypes import *
 import sys, fractions, array
 from fluggo.editor.ui import canvas
 
-class VideoClip(process.VideoPassThroughFilter):
-    def __init__(self, source, length, pixel_aspect_ratio, thumbnail_box):
-        process.VideoPassThroughFilter.__init__(self, source)
-        self.thumbnail_box = thumbnail_box
-        self.pixel_aspect_ratio = pixel_aspect_ratio
-        self.length = length
+from fluggo.media.muxers.ffmpeg import FFMuxPlugin
+
+muxers = (FFMuxPlugin,)
+
+def find_muxer(type_):
+    for muxer in muxers:
+        if type_ in muxer.supported_muxers:
+            return muxer
+
+    return None
 
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
 
         # BJC: This is the initial test code; as soon as load/save support is in, this goes away
-        videro = process.FFVideoSource('/home/james/Videos/Soft Boiled/Sources/softboiled01;17;55;12.avi')
-        pulldown = process.Pulldown23RemovalFilter(videro, 0);
+        path = '/home/james/Videos/Soft Boiled/Sources/softboiled01;17;55;12.avi'
+        container = None
 
-        clip = VideoClip(pulldown, 300, fractions.Fraction(640, 704), box2i(0, -1, 719, 478))
+        for muxer in muxers:
+            container = muxer.detect_container(path)
+
+            if container:
+                break
+
+        stream_format = container.streams[0]
+        stream_format.override[formats.VideoAttribute.PULLDOWN_TYPE] = formats.PULLDOWN_23
+        stream_format.override[formats.VideoAttribute.PULLDOWN_PHASE] = 3
+
+        source = find_muxer(container.muxer).get_stream(container, 0)
 
         workspace = process.Workspace()
-        workspace_item = workspace.add(source=clip, x=0, width=100, z=0, offset=0)
+        workspace_item = workspace.add(source=source, x=0, width=100, z=0, offset=0)
 
         # Set up canvas
         self.clock = process.SystemPresentationClock()
