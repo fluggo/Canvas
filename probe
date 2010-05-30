@@ -12,36 +12,37 @@ print('Format: ', c.format_long_name, ' (', c.format_name, ')', sep='')
 print('Duration:', c.duration / 1000000.0)
 
 if c.mime_type:
-	print('MIME type:', c.mime_type)
+    print('MIME type:', c.mime_type)
 
 for stream in c.streams:
-	print()
-	print('Stream #', str(stream.index), ' (', stream.type, ')', sep='')
-	print('Time base:', stream.time_base)
-	
-	if stream.start_time:
-		print('Start time:', stream.start_time)
-	if stream.duration:
-		print('Duration:', stream.duration)
+    print()
+    print('Stream #', str(stream.index), ' (', stream.type, ')', sep='')
+    print('Stream ID:', str(stream.id))
+    print('Time base:', stream.time_base)
 
-	if stream.frame_count:
-		print('Frames:', stream.frame_count)
-	if stream.real_frame_rate:
-		print('Frame rate (guess):', stream.real_frame_rate)
-	if stream.encoding:
-		print('Encoding:', stream.encoding)
-	print('Codec:', stream.codec)
-	
-	if stream.bit_rate:
-		print('Bit rate:', stream.bit_rate)
-	
-	if stream.type == 'video':
-		print('Pixel format:', stream.pixel_format)
-		print('Frame size:', stream.frame_size)
-	
-		if stream.sample_aspect_ratio:
-			print('Sample aspect ratio:', stream.sample_aspect_ratio)
-	elif stream.type == 'audio':
-		print('Sample rate:', stream.sample_rate, 'Hz')
-		print('Channels:', stream.channels)
+    if stream.start_time:
+        print('Start time:', stream.start_time)
+    if stream.duration:
+        print('Duration:', stream.duration)
+
+    if stream.frame_count:
+        print('Frames:', stream.frame_count)
+    if stream.real_frame_rate:
+        print('Frame rate (guess):', stream.real_frame_rate)
+    if stream.encoding:
+        print('Encoding:', stream.encoding)
+    print('Codec:', stream.codec)
+
+    if stream.bit_rate:
+        print('Bit rate:', stream.bit_rate)
+
+    if stream.type == 'video':
+        print('Pixel format:', stream.pixel_format)
+        print('Frame size:', stream.frame_size)
+
+        if stream.sample_aspect_ratio:
+            print('Sample aspect ratio:', stream.sample_aspect_ratio)
+    elif stream.type == 'audio':
+        print('Sample rate:', stream.sample_rate, 'Hz')
+        print('Channels:', stream.channels)
 
