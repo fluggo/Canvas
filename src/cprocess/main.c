@@ -58,18 +58,20 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
 
     source->funcs->getFrame32( source->obj, frameIndex, &tempFrame );
 
-    // Convert to f16
-    int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
-    int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
+    if( !box2i_isEmpty( &tempFrame.currentDataWindow ) ) {
+        // Convert to f16
+        int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
+        int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
 
-    if( countX > 0 ) {
-        for( int y = tempFrame.currentDataWindow.min.y - tempFrame.fullDataWindow.min.y;
-            y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
+        if( countX > 0 ) {
+            for( int y = tempFrame.currentDataWindow.min.y - tempFrame.fullDataWindow.min.y;
+                y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
 
-            half_convert_from_float(
-                &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
-                &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
-                countX * 4 );
+                half_convert_from_float(
+                    &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
+                    &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
+                    countX * 4 );
+            }
         }
     }
 
