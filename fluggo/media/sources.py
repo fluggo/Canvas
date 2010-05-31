@@ -21,6 +21,21 @@ import fractions
 import process
 from formats import *
 
+class SourceList(dict):
+    def __init__(self, muxers):
+        dict.__init__(self)
+        self.muxers = muxers
+        # TODO: Add signals for list changes, renames, etc.
+
+    def get_stream(self, name, stream_id):
+        container = self.get(name)
+
+        for muxer in self.muxers:
+            if container.muxer in muxer.supported_muxers:
+                return muxer.get_stream(container, stream_id)
+
+        return None
+
 class VideoSource(process.VideoPassThroughFilter):
     def __init__(self, source, format):
         self.format = format

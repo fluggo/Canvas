@@ -3,7 +3,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
 from fluggo import signal
-from fluggo.media import process, timecode, qt, formats
+from fluggo.media import process, timecode, qt, formats, sources
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
 from fluggo.editor import ui, canvas
@@ -79,22 +79,6 @@ class VideoWorkspaceManager(object):
 
 muxers = (FFMuxPlugin,)
 
-def find_muxer(type_):
-    for muxer in muxers:
-        if type_ in muxer.supported_muxers:
-            return muxer
-
-    return None
-
-class SourceList(dict):
-    def __init__(self, *args, **kw):
-        dict.__init__(self, *args, **kw)
-        # TODO: Add signals for list changes, renames, etc.
-
-    def get_stream(self, name, stream_id):
-        container = self.get(name)
-        return find_muxer(container.muxer).get_stream(container, stream_id)
-
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
@@ -113,7 +97,7 @@ class MainWindow(QMainWindow):
         stream_format.override[formats.VideoAttribute.PULLDOWN_TYPE] = formats.PULLDOWN_23
         stream_format.override[formats.VideoAttribute.PULLDOWN_PHASE] = 3
 
-        self.source_list = SourceList()
+        self.source_list = sources.SourceList(muxers)
         self.source_list['softboiled01;17;55;12.avi'] = container
 
         clip = canvas.Clip('video')
