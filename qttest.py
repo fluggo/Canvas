@@ -2,12 +2,80 @@
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
+from fluggo import signal
 from fluggo.media import process, timecode, qt, formats
 from fluggo.media.basetypes import *
-import sys, fractions, array
-from fluggo.editor.ui import canvas
+import sys, fractions, array, collections
+from fluggo.editor import ui, canvas
 
 from fluggo.media.muxers.ffmpeg import FFMuxPlugin
+
+class VideoWorkspaceManager(object):
+    class ItemWatcher(object):
+        def __init__(self, owner, canvas_item, workspace_item):
+            self.owner = owner
+            self.canvas_item = canvas_item
+            self.workspace_item = workspace_item
+            self.canvas_item.updated.connect(self.handle_updated)
+
+        def handle_updated(self, **kw):
+            new_kw = {}
+
+            # Raise the frames_updated signal if the content of frames changed
+            if 'x' in kw or 'width' in kw or 'offset' in kw or 'z' in kw:
+                old_x, old_width, old_offset, old_z = self.workspace_item.x, self.workspace_item.width, self.workspace_item.offset, self.workspace_item.z
+                new_x, new_width, new_offset = kw.get('x', old_x), kw.get('width', old_width), kw.get('offset', old_offset)
+                old_right, new_right = old_x + old_width, new_x + new_width
+
+                self.workspace_item.update(
+                    x=kw.get('x', old_x),
+                    z=kw.get('z', old_z),
+                    width=kw.get('width', old_width),
+                    offset=kw.get('offset', old_offset)
+                )
+
+                # Update the currently displayed frame if it's in a changed region
+                if old_x != new_x:
+                    self.owner.frames_updated(min(old_x, new_x), max(old_x, new_x) - 1)
+
+                if old_right != new_right:
+                    self.owner.frames_updated(min(old_right, new_right), max(old_right, new_right) - 1)
+
+                if old_x - old_offset != new_x - new_offset:
+                    self.owner.frames_updated(max(old_x, new_x), min(old_right, new_right) - 1)
+
+        def unwatch(self):
+            self.canvas_item.updated.disconnect(self.handle_updated)
+
+    def __init__(self, canvas_space, source_list):
+        self.workspace = process.Workspace()
+        self.canvas_space = canvas_space
+        self.canvas_space.item_added.connect(self.handle_item_added)
+        self.canvas_space.item_removed.connect(self.handle_item_removed)
+        self.source_list = source_list
+        self.frames_updated = signal.Signal()
+        self.watchers = {}
+
+        for item in canvas_space:
+            if item.type() == 'video':
+                self.handle_item_added(item)
+
+    def handle_item_added(self, item):
+        if item.type() != 'video':
+            return
+
+        source = self.source_list.get_stream(item.source_name, item.source_stream_id)
+
+        workspace_item = self.workspace.add(x=item.x, width=item.width, z=item.z, offset=item.offset, source=source)
+
+        self.watchers[id(item)] = self.ItemWatcher(self, item, workspace_item)
+
+    def handle_item_removed(self, item):
+        if item.type() != 'video':
+            return
+
+        watcher = self.watchers.pop(id(item))
+        watcher.unwatch()
 
 muxers = (FFMuxPlugin,)
 
@@ -17,6 +85,15 @@ def find_muxer(type_):
             return muxer
 
     return None
+
+class SourceList(dict):
+    def __init__(self, *args, **kw):
+        dict.__init__(self, *args, **kw)
+        # TODO: Add signals for list changes, renames, etc.
+
+    def get_stream(self, name, stream_id):
+        container = self.get(name)
+        return find_muxer(container.muxer).get_stream(container, stream_id)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -36,21 +113,28 @@ class MainWindow(QMainWindow):
         stream_format.override[formats.VideoAttribute.PULLDOWN_TYPE] = formats.PULLDOWN_23
         stream_format.override[formats.VideoAttribute.PULLDOWN_PHASE] = 3
 
-        source = find_muxer(container.muxer).get_stream(container, 0)
+        self.source_list = SourceList()
+        self.source_list['softboiled01;17;55;12.avi'] = container
 
-        workspace = process.Workspace()
-        workspace_item = workspace.add(source=source, x=0, width=100, z=0, offset=0)
+        clip = canvas.Clip('video')
+        clip.update(x=30, width=100, offset=0, y=30.0, height=40.0)
+        clip._source_name = 'softboiled01;17;55;12.avi'
+        clip._source_stream_id = 0
+
+        # Only one space for now, we'll do multiple later
+        self.space = canvas.Space()
+        self.space.append(clip)
+
+        self.workspace_manager = VideoWorkspaceManager(self.space, self.source_list)
+        self.workspace_manager.frames_updated.connect(self.handle_update_frames)
 
         # Set up canvas
         self.clock = process.SystemPresentationClock()
+        self.frame_rate = fractions.Fraction(24000, 1001)
 
-        self.view = canvas.View(self.clock)
+        self.view = ui.canvas.View(self.clock, self.space, self.source_list)
         #self.view.setViewport(QGLWidget())
         self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
-
-        item = canvas.VideoItem(workspace_item, 'Clip')
-        self.view.scene().addItem(item)
-        item.setSelected(True)
 
         format = QGLFormat()
         self.video_dock = QDockWidget('Video Preview', self)
@@ -62,7 +146,7 @@ class MainWindow(QMainWindow):
         self.video_widget.setRenderingIntent(1.5)
         self.video_widget.setPixelAspectRatio(640.0/704.0)
         self.video_widget.setPresentationClock(self.clock)
-        self.video_widget.setVideoSource(workspace)
+        self.video_widget.setVideoSource(self.workspace_manager.workspace)
 
         self.clock.seek(0)
 
@@ -120,15 +204,24 @@ class MainWindow(QMainWindow):
         self.view_menu = self.menuBar().addMenu('&View')
         self.view_menu.addAction(self.view_video_preview)
 
+    def handle_update_frames(self, min_frame, max_frame):
+        # If the current frame was in this set, re-seek to it
+        speed = self.clock.get_speed()
+
+        if speed.numerator:
+            return
+
+        time = self.clock.get_presentation_time()
+        frame = process.get_time_frame(self.frame_rate, time)
+
+        # FIXME: There's a race condition here where we might request
+        # a repaint multiple times, but get one of the states in the middle,
+        # not the final state
+        if frame >= min_frame and frame <= max_frame:
+            self.clock.seek(process.get_frame_time(self.frame_rate, int(frame)))
+
     def add_clip(self):
-        file_name = str(QFileDialog.getOpenFileName(self, 'Add Clip'))
-
-        videro = process.FFVideoSource(file_name)
-
-        clip = VideoClip(videro, 300, fractions.Fraction(640, 704), box2i(0, -1, 719, 478))
-        workspace_item = workspace.add(source=clip, x=0, width=100, z=0, offset=0)
-        item = canvas.VideoItem(workspace_item, 'Clip')
-        self.view.scene().addItem(item)
+        raise NotImplementedError
 
     def transport_play(self):
         self.clock.play(1)

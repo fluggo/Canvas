@@ -27,24 +27,44 @@ from . import ruler
 _queue = process.VideoPullQueue()
 
 class Scene(QGraphicsScene):
-    frame_range_changed = pyqtSignal(int, int, name='frameRangeChanged')
+    def __init__(self, space, source_list):
+        QGraphicsScene.__init__(self)
+        self.source_list = source_list
+        self.space = space
+        self.space.item_added.connect(self.handle_item_added)
+        self.space.item_removed.connect(self.handle_item_removed)
 
-    def update_frames(self, min_frame, max_frame):
-        self.frame_range_changed.emit(min_frame, max_frame)
+        for item in self.space:
+            self.handle_item_added(item)
+
+    def handle_item_added(self, item):
+        if item.type() != 'video':
+            return
+
+        ui_item = VideoItem(item, 'Clip')
+        self.addItem(ui_item)
+
+    def handle_item_removed(self, item):
+        if item.type() != 'video':
+            return
+
+        raise NotImplementedError
 
 class View(QGraphicsView):
     black_pen = QPen(QColor.fromRgbF(0.0, 0.0, 0.0))
     white_pen = QPen(QColor.fromRgbF(1.0, 1.0, 1.0))
     handle_width = 10.0
 
-    def __init__(self, clock):
+    def __init__(self, clock, space, source_list):
         QGraphicsView.__init__(self)
-        self.setScene(Scene())
+        self.setScene(Scene(space, source_list))
         self.setViewportMargins(0, 30, 0, 0)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         self.ruler = ruler.TimeRuler(self, timecode=timecode.NtscDropFrame())
         self.ruler.move(self.frameWidth(), self.frameWidth())
+        left = self.mapToScene(0, 0).x()
+        self.ruler.set_left_frame(left)
 
         # A warning: clock and clock_callback_handle will create a pointer cycle here,
         # which probably won't be freed unless the callback handle is explicitly
@@ -62,7 +82,6 @@ class View(QGraphicsView):
         self.blink_timer = self.startTimer(1000)
 
         self.scene().sceneRectChanged.connect(self.handle_scene_rect_changed)
-        self.scene().frame_range_changed.connect(self.handle_update_frames)
         self.ruler.current_frame_changed.connect(self.handle_ruler_current_frame_changed)
 
         self.scale_x = fractions.Fraction(1)
@@ -132,12 +151,6 @@ class View(QGraphicsView):
     def handle_scene_rect_changed(self, rect):
         left = self.mapToScene(0, 0).x()
         self.ruler.set_left_frame(left)
-
-    def handle_update_frames(self, min_frame, max_frame):
-        # If the current frame was in this set, re-seek to it
-        # TODO: Verify that the clock isn't playing first
-        if self.frame >= min_frame and self.frame <= max_frame:
-            self.clock.seek(process.get_frame_time(self.frame_rate, int(self.frame)))
 
     def handle_ruler_current_frame_changed(self, frame):
         self.set_current_frame(frame)
@@ -255,7 +268,7 @@ class _Handle(QGraphicsRectItem, Draggable):
         self.original_width = self.parentItem().item.width
         self.original_offset = self.parentItem().item.offset
         self.original_y = self.parentItem().pos().y()
-        self.original_height = self.parentItem().height
+        self.original_height = self.parentItem().item.height
 
     def hoverEnterEvent(self, event):
         self.setBrush(self.brush)
@@ -267,21 +280,26 @@ class _LeftHandle(_Handle):
     def drag_move(self, abs_pos, rel_pos):
         x = int(rel_pos.x())
 
-        if self.original_width > x:
-            self.parentItem()._update(x=self.original_x + x, width=self.original_width - x,
+        if self.original_offset + x < 0:
+            self.parentItem().item.update(x=self.original_x - self.original_offset, width=self.original_width + self.original_offset,
+                offset=0)
+        elif self.original_width > x:
+            self.parentItem().item.update(x=self.original_x + x, width=self.original_width - x,
                 offset=self.original_offset + x)
         else:
-            self.parentItem()._update(x=self.original_x + self.original_width - 1, width=1,
+            self.parentItem().item.update(x=self.original_x + self.original_width - 1, width=1,
                 offset=self.original_offset + self.original_width - 1)
 
 class _RightHandle(_Handle):
     def drag_move(self, abs_pos, rel_pos):
         x = int(rel_pos.x())
 
-        if self.original_width > -x:
-            self.parentItem()._update(width=self.original_width + x)
+        if self.original_width + x > self.parentItem().source.length:
+            self.parentItem().item.update(width=self.parentItem().source.length)
+        elif self.original_width > -x:
+            self.parentItem().item.update(width=self.original_width + x)
         else:
-            self.parentItem()._update(width=1)
+            self.parentItem().item.update(width=1)
 
 class _TopHandle(_Handle):
     horizontal = False
@@ -290,9 +308,9 @@ class _TopHandle(_Handle):
         y = rel_pos.y()
 
         if self.original_height > y:
-            self.parentItem()._update(y=self.original_y + y, height=self.original_height - y)
+            self.parentItem().item.update(y=self.original_y + y, height=self.original_height - y)
         else:
-            self.parentItem()._update(y=self.original_y + self.original_height - 1, height=1)
+            self.parentItem().item.update(y=self.original_y + self.original_height - 1, height=1)
 
 class _BottomHandle(_Handle):
     horizontal = False
@@ -301,32 +319,43 @@ class _BottomHandle(_Handle):
         y = rel_pos.y()
 
         if self.original_height > -y:
-            self.parentItem()._update(height=self.original_height + y)
+            self.parentItem().item.update(height=self.original_height + y)
         else:
-            self.parentItem()._update(height=1)
+            self.parentItem().item.update(height=1)
 
 class VideoItem(QGraphicsItem):
     def __init__(self, item, name):
         # BJC: This class currently has both the model and the view,
         # so it will need to be split
         QGraphicsItem.__init__(self)
-        self.height = 40.0
         self.item = item
+        self.item.updated.connect(self._update)
+
         self.name = name
-        self.setPos(self.item.x, 0.0)
+        self.setPos(self.item.x, self.item.y)
         self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable |
             QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
         self.thumbnails = []
         self.thumbnail_indexes = []
         self.thumbnail_width = 1.0
+        self._source = None
 
         self.left_handle = _LeftHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.right_handle = _RightHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.right_handle.setPos(self.item.width, 0.0)
         self.top_handle = _TopHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.bottom_handle = _BottomHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
-        self.bottom_handle.setPos(0.0, self.height)
+        self.bottom_handle.setPos(0.0, self.item.height)
+
+        self.view_reset_needed = False
+
+    @property
+    def source(self):
+        if not self._source:
+            self._source = self.scene().source_list.get_stream(self.item.source_name, self.item.source_stream_id)
+
+        return self._source
 
     def view_scale_changed(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes
@@ -334,14 +363,20 @@ class VideoItem(QGraphicsItem):
         hx = view.handle_width / float(view.scale_x)
         hy = view.handle_width / float(view.scale_y)
 
-        self.left_handle.setRect(QRectF(0.0, 0.0, hx, self.height))
-        self.right_handle.setRect(QRectF(-hx, 0.0, hx, self.height))
+        self.left_handle.setRect(QRectF(0.0, 0.0, hx, self.item.height))
+        self.right_handle.setRect(QRectF(-hx, 0.0, hx, self.item.height))
         self.top_handle.setRect(QRectF(0.0, 0.0, self.item.width, hy))
         self.bottom_handle.setRect(QRectF(0.0, -hy, self.item.width, hy))
 
     def hoverEnterEvent(self, event):
         view = event.widget().parentWidget()
         self.view_scale_changed(view)
+
+    def hoverMoveEvent(self, event):
+        if self.view_reset_needed:
+            view = event.widget().parentWidget()
+            self.view_scale_changed(view)
+            self.view_reset_needed = False
 
     def _update(self, **kw):
         '''
@@ -353,38 +388,19 @@ class VideoItem(QGraphicsItem):
         if 'x' in kw or 'y' in kw:
             self.setPos(kw.get('x', pos.x()), kw.get('y', pos.y()))
 
-        # Changes to the underlying workspace item
-        if 'x' in kw or 'width' in kw or 'offset' in kw:
-            old_x, old_width, old_offset = self.item.x, self.item.width, self.item.offset
-            new_x, new_width, new_offset = kw.get('x', old_x), kw.get('width', old_width), kw.get('offset', old_offset)
-            old_right, new_right = old_x + old_width, new_x + new_width
-
-            self.item.update(x=kw.get('x', self.item.x),
-                width=kw.get('width', self.item.width),
-                offset=kw.get('offset', self.item.offset))
-
+        # Changes requiring a reset of the thumbnails
+        if self.item.width != kw.get('width', self.item.width) or self.item.offset != kw.get('offset', self.item.offset):
             for frame in self.thumbnails:
                 if hasattr(frame, 'cancel'):
                     frame.cancel()
 
             self.thumbnails = []
 
-            # Update the currently displayed frame if it's in a changed region
-            if old_x != new_x:
-                self.scene().update_frames(min(old_x, new_x), max(old_x, new_x) - 1)
-
-            if old_right != new_right:
-                self.scene().update_frames(min(old_right, new_right), max(old_right, new_right) - 1)
-
-            if old_x - old_offset != new_x - new_offset:
-                self.scene().update_frames(max(old_x, new_x), min(old_right, new_right) - 1)
-
         # Changes in item size
         if 'width' in kw or 'height' in kw:
-            self.height = kw.get('height', self.height)
-
             self.right_handle.setPos(self.item.width, 0.0)
-            self.bottom_handle.setPos(0.0, self.height)
+            self.bottom_handle.setPos(0.0, self.item.height)
+            self.view_reset_needed = True
 
             self.prepareGeometryChange()
 
@@ -397,12 +413,12 @@ class VideoItem(QGraphicsItem):
 
     def _create_thumbnails(self, total_width):
         # Calculate how many thumbnails fit
-        box = self.item.source.thumbnail_box
-        aspect = self.item.source.pixel_aspect_ratio
+        box = self.source.thumbnail_box
+        aspect = self.source.pixel_aspect_ratio
         start_frame = self.item.offset
         frame_count = self.item.width
 
-        self.thumbnail_width = (self.height * float(box.width()) * float(aspect)) / float(box.height())
+        self.thumbnail_width = (self.item.height * float(box.width()) * float(aspect)) / float(box.height())
         count = min(max(int(total_width / self.thumbnail_width), 1), frame_count)
 
         if len(self.thumbnails) == count:
@@ -416,7 +432,7 @@ class VideoItem(QGraphicsItem):
             self.thumbnail_indexes = [start_frame + int(float(a) * frame_count / (count - 1)) for a in range(count)]
 
     def boundingRect(self):
-        return QRectF(0.0, 0.0, self.item.width, self.height)
+        return QRectF(0.0, 0.0, self.item.width, self.item.height)
 
     def paint(self, painter, option, widget):
         rect = painter.transform().mapRect(self.boundingRect())
@@ -435,7 +451,7 @@ class VideoItem(QGraphicsItem):
         # Rights are at left + thumbnail_width
         self._create_thumbnails(rect.width())
 
-        box = self.item.source.thumbnail_box
+        box = self.source.thumbnail_box
 
         left_nail = int((clip_rect.x() - self.thumbnail_width - rect.x()) *
             (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width))
@@ -444,9 +460,9 @@ class VideoItem(QGraphicsItem):
         left_nail = max(0, left_nail)
         right_nail = min(len(self.thumbnails), right_nail)
 
-        scale = process.VideoScaler(self.item.source,
+        scale = process.VideoScaler(self.source,
             target_point=v2f(0, 0), source_point=box.min,
-            scale_factors=v2f(rect.height() * float(self.item.source.pixel_aspect_ratio) / box.height(),
+            scale_factors=v2f(rect.height() * float(self.source.pixel_aspect_ratio) / box.height(),
                 rect.height() / box.height()),
             source_rect=box)
 
@@ -465,7 +481,7 @@ class VideoItem(QGraphicsItem):
             # Later we'll delegate this to another thread
             if not self.thumbnails[i]:
                 self.thumbnails[i] = _queue.enqueue(source=scale, frame_index=self.thumbnail_indexes[i],
-                    window=self.item.source.thumbnail_box,
+                    window=self.source.thumbnail_box,
                     callback=callback, user_data=(self.thumbnails, i))
 
             # TODO: Scale existing thumbnails to fit (removing last thumbnails = [] in _update)
@@ -489,6 +505,5 @@ class VideoItem(QGraphicsItem):
         pos.setX(round(pos.x()))
         self.setPos(pos)
 
-        self.scene().update_frames(min(old_x, pos.x()), max(old_x, pos.x()) + self.item.width - 1)
         self.item.update(x=int(pos.x()))
 
