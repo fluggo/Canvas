@@ -78,6 +78,20 @@ PresentationClock_get_presentation_time( PyObject *self, PyObject *args ) {
     return result;
 }
 
+static PyObject *
+PresentationClock_get_speed( PyObject *self, PyObject *args ) {
+    PresentationClockHolder holder = { { NULL } };
+
+    if( !takePresentationClock( self, &holder ) )
+        return NULL;
+
+    rational result;
+    holder.source.funcs->getSpeed( holder.source.obj, &result );
+    takePresentationClock( NULL, &holder );
+
+    return py_make_rational( &result );
+}
+
 static void
 ClockCallbackHandle_callback( py_obj_ClockCallbackHandle *self, rational *speed, int64_t time ) {
     // Make sure we've got the GIL before we proceed
@@ -141,6 +155,10 @@ static PyMethodDef PresentationClock_methods[] = {
         "Get the presentation time in nanoseconds.\n"
         "\n"
         "time = clock.get_presentation_time()" },
+    { "get_speed", (PyCFunction) PresentationClock_get_speed, METH_NOARGS,
+        "Get the current speed of the clock as a fraction.\n"
+        "\n"
+        "speed = clock.get_speed()" },
     { "register_callback", (PyCFunction) PresentationClock_register_callback, METH_VARARGS | METH_KEYWORDS,
         "Register a clock-notification callback.\n"
         "\n"
