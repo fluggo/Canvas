@@ -136,11 +136,9 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(center_widget)
 
-        self.open_file('test.yaml')
-
     def create_actions(self):
-        self.add_clip_action = QAction('&Add Clip...', self,
-            statusTip='Add a new clip to the canvas', triggered=self.add_clip)
+        self.open_space_action = QAction('&Open...', self,
+            statusTip='Open a Canvas file', triggered=self.open_space)
         self.quit_action = QAction('&Quit', self, shortcut=QKeySequence.Quit,
             statusTip='Quit the application', triggered=self.close, menuRole=QAction.QuitRole)
 
@@ -163,7 +161,7 @@ class MainWindow(QMainWindow):
 
     def create_menus(self):
         self.file_menu = self.menuBar().addMenu('&File')
-        self.file_menu.addAction(self.add_clip_action)
+        self.file_menu.addAction(self.open_space_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.quit_action)
 
@@ -186,8 +184,11 @@ class MainWindow(QMainWindow):
         if frame >= min_frame and frame <= max_frame:
             self.clock.seek(process.get_frame_time(self.frame_rate, int(frame)))
 
-    def add_clip(self):
-        raise NotImplementedError
+    def open_space(self):
+        path = QFileDialog.getOpenFileName(self, "Open File", filter='YAML Files (*.yaml)')
+
+        if path:
+            self.open_file(path)
 
     def open_file(self, path):
         sources, space = None, None
