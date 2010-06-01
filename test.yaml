@@ -1,0 +1,20 @@
+softboiled01;17;55;12.avi: !MediaContainer
+  detected: {muxer: video/x-msvideo}
+  override: {}
+  path: /home/james/Videos/Soft Boiled/Sources/softboiled01;17;55;12.avi
+  streams:
+  - !StreamFormat
+    detected:
+      codec: video/DV
+      frame_rate: !rational [30000, 1001]
+      max_data_window: !box2i [!v2i '(0, -1)', !v2i '(719, 478)']
+      sample_aspect_ratio: !rational [10, 11]
+      stream_id: 0
+    length: 8736
+    override: {pulldown_phase: 3, pulldown_type: '2:3'}
+    type: video
+--- !CanvasSpace
+items:
+- !CanvasClip {height: 40.0, offset: 0, source_name: softboiled01;17;55;12.avi, source_stream_id: 0,
+  type: video, width: 100, x: 30, y: 30.0, z: 0}
+

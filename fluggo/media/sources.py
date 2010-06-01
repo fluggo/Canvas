@@ -19,16 +19,17 @@
 
 import fractions
 import process
+import yaml
 from formats import *
 
-class SourceList(dict):
-    def __init__(self, muxers):
-        dict.__init__(self)
+class SourceList(object):
+    def __init__(self, muxers, sources=None):
         self.muxers = muxers
+        self.sources = sources or {}
         # TODO: Add signals for list changes, renames, etc.
 
     def get_stream(self, name, stream_id):
-        container = self.get(name)
+        container = self.sources.get(name)
 
         for muxer in self.muxers:
             if container.muxer in muxer.supported_muxers:

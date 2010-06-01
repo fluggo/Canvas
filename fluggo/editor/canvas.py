@@ -16,9 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import yaml
 from fluggo import ezlist, signal
 
 class Space(ezlist.EZList):
+    yaml_tag = u'!CanvasSpace'
+
     def __init__(self):
         self.item_added = signal.Signal()
         self.item_removed = signal.Signal()
@@ -48,16 +51,44 @@ class Space(ezlist.EZList):
         for item in items:
             self.item_added(item)
 
-class Item(object):
-    def __init__(self):
+def _space_represent(dumper, data):
+    return dumper.represent_mapping(u'!CanvasSpace', {'items': data._items})
+
+def _space_construct(loader, node):
+    mapping = loader.construct_mapping(node)
+    result = Space()
+    result._items = mapping['items']
+    return result
+
+yaml.add_representer(Space, _space_represent)
+yaml.add_constructor(u'!CanvasSpace', _space_construct)
+
+
+class Item(yaml.YAMLObject):
+    def __init__(self, x=0, y=0.0, z=0, width=1, height=1.0, offset=0):
         self._scene = None
-        self._offset = 0
-        self._x = 0
-        self._y = 0.0
-        self._height = 1.0
-        self._width = 1
-        self._z = 0
+        self._offset = offset
+        self._x = x
+        self._y = y
+        self._height = height
+        self._width = width
+        self._z = z
         self.updated = signal.Signal()
+
+    def _create_repr_dict(self):
+        return {
+            'x': self._x, 'y': self._y, 'z': self._z,
+            'width': self._width, 'height': self._height,
+            'offset': self._offset
+        }
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        return dumper.represent_mapping(cls.yaml_tag, data._create_repr_dict())
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return cls(**loader.construct_mapping(node))
 
     @property
     def x(self):
@@ -111,11 +142,21 @@ class Clip(Item):
     '''
     A freestanding video or audio clip.
     '''
-    def __init__(self, type_):
-        Item.__init__(self)
-        self._type = type_
-        self._source_name = None
-        self._source_stream_id = None
+    yaml_tag = u'!CanvasClip'
+
+    def __init__(self, type=None, source_name=None, source_stream_id=None, **kw):
+        Item.__init__(self, **kw)
+        self._type = type
+        self._source_name = source_name
+        self._source_stream_id = source_stream_id
+
+    def _create_repr_dict(self):
+        dict = Item._create_repr_dict(self)
+        dict['source_name'] = self._source_name
+        dict['source_stream_id'] = self._source_stream_id
+        dict['type'] = self._type
+
+        return dict
 
     @property
     def source_name(self):

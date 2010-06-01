@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import fractions
+import fractions, yaml
 from fluggo.media.basetypes import *
 
 PULLDOWN_NONE = 'None'
@@ -105,7 +105,7 @@ class KnownIlluminants:
     D50 = v2f(0.34567, 0.35850)
     D65 = v2f(0.31271, 0.32902)
 
-class StreamFormat(object):
+class StreamFormat(yaml.YAMLObject):
     '''
     Describes the format of a stream.
 
@@ -118,6 +118,7 @@ class StreamFormat(object):
         for whatever reason were detected incorrectly.
     length - Length of the stream in frames or samples.
     '''
+    yaml_tag = u'!StreamFormat'
 
     def __init__(self, type_):
         self.type = type_
@@ -132,7 +133,7 @@ class StreamFormat(object):
     def id(self):
         return self.get(ContainerAttribute.STREAM_ID)
 
-class MediaContainer(object):
+class MediaContainer(yaml.YAMLObject):
     '''
     Describes the properties of a container.
 
@@ -142,6 +143,7 @@ class MediaContainer(object):
     detected - Detected attributes of the container.
     override - Overridden attributes of the container.
     '''
+    yaml_tag = u'!MediaContainer'
 
     def __init__(self):
         self.path = None

@@ -83,31 +83,11 @@ class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
 
-        # BJC: This is the initial test code; as soon as load/save support is in, this goes away
-        path = '/home/james/Videos/Soft Boiled/Sources/softboiled01;17;55;12.avi'
-        container = None
-
-        for muxer in muxers:
-            container = muxer.detect_container(path)
-
-            if container:
-                break
-
-        stream_format = container.streams[0]
-        stream_format.override[formats.VideoAttribute.PULLDOWN_TYPE] = formats.PULLDOWN_23
-        stream_format.override[formats.VideoAttribute.PULLDOWN_PHASE] = 3
-
         self.source_list = sources.SourceList(muxers)
-        self.source_list['softboiled01;17;55;12.avi'] = container
-
-        clip = canvas.Clip('video')
-        clip.update(x=30, width=100, offset=0, y=30.0, height=40.0)
-        clip._source_name = 'softboiled01;17;55;12.avi'
-        clip._source_stream_id = 0
 
         # Only one space for now, we'll do multiple later
         self.space = canvas.Space()
-        self.space.append(clip)
+        #self.space.append(clip)
 
         self.workspace_manager = VideoWorkspaceManager(self.space, self.source_list)
         self.workspace_manager.frames_updated.connect(self.handle_update_frames)
@@ -155,6 +135,8 @@ class MainWindow(QMainWindow):
         center_widget.setLayout(layout)
 
         self.setCentralWidget(center_widget)
+
+        self.open_file('test.yaml')
 
     def create_actions(self):
         self.add_clip_action = QAction('&Add Clip...', self,
@@ -206,6 +188,18 @@ class MainWindow(QMainWindow):
 
     def add_clip(self):
         raise NotImplementedError
+
+    def open_file(self, path):
+        sources, space = None, None
+
+        with file(path) as stream:
+            (sources, space) = yaml.load_all(stream)
+
+        self.space[:] = []
+        self.source_list.sources.clear()
+        self.source_list.sources.update(sources)
+        self.space[:] = space[:]
+        print space[:]
 
     def transport_play(self):
         self.clock.play(1)
