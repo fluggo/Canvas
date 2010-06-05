@@ -194,8 +194,6 @@ class View(QGraphicsView):
         painter.drawLine(self.frame, rect.y(), self.frame, rect.y() + rect.height())
 
 class Draggable(object):
-    DRAG_START_DISTANCE = 2
-
     def __init__(self):
         self.drag_active = False
         self.drag_down = False
@@ -234,8 +232,8 @@ class Draggable(object):
         screen_pos = event.screenPos()
 
         if not self.drag_active:
-            if abs(screen_pos.x() - self.drag_start_screen_pos.x()) >= self.DRAG_START_DISTANCE or \
-                    abs(screen_pos.y() - self.drag_start_screen_pos.y()) >= self.DRAG_START_DISTANCE:
+            if abs(screen_pos.x() - self.drag_start_screen_pos.x()) >= QApplication.startDragDistance() or \
+                    abs(screen_pos.y() - self.drag_start_screen_pos.y()) >= QApplication.startDragDistance():
                 self.drag_active = True
                 self.drag_start()
             else:
