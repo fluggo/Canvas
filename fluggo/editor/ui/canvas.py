@@ -21,18 +21,22 @@ import fractions
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from fluggo.media import process, timecode
+from fluggo.editor import canvas
 from fluggo.media.basetypes import *
 from . import ruler
 
 _queue = process.VideoPullQueue()
 
 class Scene(QGraphicsScene):
+    DEFAULT_HEIGHT = 40
+
     def __init__(self, space, source_list):
         QGraphicsScene.__init__(self)
         self.source_list = source_list
         self.space = space
         self.space.item_added.connect(self.handle_item_added)
         self.space.item_removed.connect(self.handle_item_removed)
+        self.drag_items = None
 
         for item in self.space:
             self.handle_item_added(item)
@@ -49,6 +53,50 @@ class Scene(QGraphicsScene):
             return
 
         raise NotImplementedError
+
+    def _lay_out_drag_items(self, pos):
+        '''
+        Arrange the drag items in the scene.
+
+        pos - Position of the cursor in scene coordinates.
+        '''
+        # TODO: Handle multiple items
+        self.drag_items[0].setPos(pos.x(), pos.y() - self.drag_items[0].height / 2.0)
+
+    def dragEnterEvent(self, event):
+        data = event.mimeData()
+
+        if hasattr(data, 'source_name'):
+            event.accept()
+            source_name = data.source_name
+            default_streams = self.source_list.get_default_streams(source_name)
+
+            self.drag_items = [PlaceholderItem(source_name, stream_format, 0, 0, self.DEFAULT_HEIGHT) for stream_format in default_streams]
+
+            for placeholder in self.drag_items:
+                self.addItem(placeholder)
+
+            self._lay_out_drag_items(event.scenePos())
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        self._lay_out_drag_items(event.scenePos())
+
+    def dragLeaveEvent(self, event):
+        if self.drag_items:
+            for item in self.drag_items:
+                self.removeItem(item)
+
+            self.drag_items = None
+
+    def dropEvent(self, event):
+        # Turn them into real boys and girls
+        for item in self.drag_items:
+            self.space.append(canvas.Clip(item.stream_format.type, item.source_name, item.stream_format.id,
+                x=item.pos().x(), y=item.pos().y(), width=item.width, height=item.height))
+
+            self.removeItem(item)
 
 class View(QGraphicsView):
     black_pen = QPen(QColor.fromRgbF(0.0, 0.0, 0.0))
@@ -504,4 +552,30 @@ class VideoItem(QGraphicsItem):
         self.setPos(pos)
 
         self.item.update(x=int(pos.x()))
+
+class PlaceholderItem(QGraphicsItem):
+    def __init__(self, source_name, stream_format, x, y, height):
+        QGraphicsItem.__init__(self)
+
+        self.source_name = source_name
+        self.stream_format = stream_format
+        self.height = height
+        self.width = self.stream_format.length
+        self.setPos(x, y)
+
+    def boundingRect(self):
+        return QRectF(0.0, 0.0, self.width, self.height)
+
+    def paint(self, painter, option, widget):
+        WIDTH = 3.0
+        rect = painter.transform().mapRect(self.boundingRect())
+        clip_rect = painter.transform().mapRect(option.exposedRect)
+
+        painter.save()
+        painter.resetTransform()
+
+        painter.setPen(QPen(QColor.fromRgbF(1.0, 1.0, 1.0), WIDTH))
+        painter.drawRect(QRectF(rect.x() + WIDTH/2, rect.y() + WIDTH/2, rect.width() - WIDTH, rect.height() - WIDTH))
+
+        painter.restore()
 
