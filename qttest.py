@@ -197,10 +197,9 @@ class MainWindow(QMainWindow):
             (sources, space) = yaml.load_all(stream)
 
         self.space[:] = []
-        self.source_list.sources.clear()
-        self.source_list.sources.update(sources)
+        self.source_list.clear()
+        self.source_list.update(sources)
         self.space[:] = space[:]
-        print space[:]
 
     def transport_play(self):
         self.clock.play(1)
