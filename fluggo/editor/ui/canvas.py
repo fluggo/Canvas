@@ -337,7 +337,7 @@ class VideoItem(QGraphicsItem):
         self.thumbnails = []
         self.thumbnail_indexes = []
         self.thumbnail_width = 1.0
-        self._source = None
+        self._stream = None
 
         self.left_handle = _LeftHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.right_handle = _RightHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
@@ -349,11 +349,11 @@ class VideoItem(QGraphicsItem):
         self.view_reset_needed = False
 
     @property
-    def source(self):
-        if not self._source:
-            self._source = self.scene().source_list.get_stream(self.item.source_name, self.item.source_stream_id)
+    def stream(self):
+        if not self._stream:
+            self._stream = self.scene().source_list.get_stream(self.item.source_name, self.item.source_stream_id)
 
-        return self._source
+        return self._stream
 
     def view_scale_changed(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes
@@ -411,8 +411,8 @@ class VideoItem(QGraphicsItem):
 
     def _create_thumbnails(self, total_width):
         # Calculate how many thumbnails fit
-        box = self.source.thumbnail_box
-        aspect = self.source.pixel_aspect_ratio
+        box = self.stream.format.thumbnail_box
+        aspect = self.stream.format.pixel_aspect_ratio
         start_frame = self.item.offset
         frame_count = self.item.width
 
@@ -449,7 +449,7 @@ class VideoItem(QGraphicsItem):
         # Rights are at left + thumbnail_width
         self._create_thumbnails(rect.width())
 
-        box = self.source.thumbnail_box
+        box = self.stream.format.thumbnail_box
 
         left_nail = int((clip_rect.x() - self.thumbnail_width - rect.x()) *
             (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width))
@@ -458,9 +458,9 @@ class VideoItem(QGraphicsItem):
         left_nail = max(0, left_nail)
         right_nail = min(len(self.thumbnails), right_nail)
 
-        scale = process.VideoScaler(self.source,
+        scale = process.VideoScaler(self.stream,
             target_point=v2f(0, 0), source_point=box.min,
-            scale_factors=v2f(rect.height() * float(self.source.pixel_aspect_ratio) / box.height(),
+            scale_factors=v2f(rect.height() * float(self.stream.format.pixel_aspect_ratio) / box.height(),
                 rect.height() / box.height()),
             source_rect=box)
 
@@ -479,7 +479,7 @@ class VideoItem(QGraphicsItem):
             # Later we'll delegate this to another thread
             if not self.thumbnails[i]:
                 self.thumbnails[i] = _queue.enqueue(source=scale, frame_index=self.thumbnail_indexes[i],
-                    window=self.source.thumbnail_box,
+                    window=self.stream.format.thumbnail_box,
                     callback=callback, user_data=(self.thumbnails, i))
 
             # TODO: Scale existing thumbnails to fit (removing last thumbnails = [] in _update)

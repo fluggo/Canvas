@@ -133,6 +133,32 @@ class StreamFormat(yaml.YAMLObject):
     def id(self):
         return self.get(ContainerAttribute.STREAM_ID)
 
+    @property
+    def pixel_aspect_ratio(self):
+        return (
+            self.override.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or
+            self.detected.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or '')
+
+    @property
+    def pulldown_type(self):
+        return (
+            self.override.get(VideoAttribute.PULLDOWN_TYPE) or
+            self.detected.get(VideoAttribute.PULLDOWN_TYPE) or '')
+
+    @property
+    def pulldown_phase(self):
+        return (
+            self.override.get(VideoAttribute.PULLDOWN_PHASE) or
+            self.detected.get(VideoAttribute.PULLDOWN_PHASE) or 0)
+
+    @property
+    def thumbnail_box(self):
+        return (
+            self.override.get(VideoAttribute.THUMBNAIL_WINDOW) or
+            self.override.get(VideoAttribute.MAX_DATA_WINDOW) or
+            self.detected.get(VideoAttribute.THUMBNAIL_WINDOW) or
+            self.detected.get(VideoAttribute.MAX_DATA_WINDOW))
+
 class MediaContainer(yaml.YAMLObject):
     '''
     Describes the properties of a container.

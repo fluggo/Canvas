@@ -79,35 +79,9 @@ class VideoSource(process.VideoPassThroughFilter):
         self.format = format
         self.length = self.format.length
 
-        if self.pulldown_type == PULLDOWN_23:
-            source = process.Pulldown23RemovalFilter(source, self.pulldown_phase);
+        if self.format.pulldown_type == PULLDOWN_23:
+            source = process.Pulldown23RemovalFilter(source, self.format.pulldown_phase);
             self.length = source.get_new_length(self.length)
 
         process.VideoPassThroughFilter.__init__(self, source)
-
-    @property
-    def pixel_aspect_ratio(self):
-        return (
-            self.format.override.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or
-            self.format.detected.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or '')
-
-    @property
-    def pulldown_type(self):
-        return (
-            self.format.override.get(VideoAttribute.PULLDOWN_TYPE) or
-            self.format.detected.get(VideoAttribute.PULLDOWN_TYPE) or '')
-
-    @property
-    def pulldown_phase(self):
-        return (
-            self.format.override.get(VideoAttribute.PULLDOWN_PHASE) or
-            self.format.detected.get(VideoAttribute.PULLDOWN_PHASE) or 0)
-
-    @property
-    def thumbnail_box(self):
-        return (
-            self.format.override.get(VideoAttribute.THUMBNAIL_WINDOW) or
-            self.format.override.get(VideoAttribute.MAX_DATA_WINDOW) or
-            self.format.detected.get(VideoAttribute.THUMBNAIL_WINDOW) or
-            self.format.detected.get(VideoAttribute.MAX_DATA_WINDOW))
 
