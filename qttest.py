@@ -77,6 +77,88 @@ class VideoWorkspaceManager(object):
         watcher = self.watchers.pop(id(item))
         watcher.unwatch()
 
+class SourceSearchModel(QAbstractTableModel):
+    def __init__(self, source_list):
+        QAbstractTableModel.__init__(self)
+        self.source_list = source_list
+        self.current_list = []
+        self.source_list.added.connect(self._item_added)
+        self.source_list.removed.connect(self._item_removed)
+        self.setSupportedDragActions(Qt.LinkAction)
+
+        self.search_string = None
+        self.search('')
+
+    def _item_added(self, name):
+        print 'Added ' + name
+        if self._match(name):
+            length = len(self.current_list)
+            self.beginInsertRows(QModelIndex(), length, length)
+            self.current_list.append(name)
+            self.endInsertRows()
+
+    def _item_removed(self, name):
+        print 'Removed ' + name
+        if self._match(name):
+            index = self.current_list.index(name)
+            self.beginRemoveRows(QModelIndex(), index, index)
+            del self.current_list[index]
+            self.endRemoveRows()
+
+    def _match(self, name):
+        return self.search_string in name.lower()
+
+    def search(self, search_string):
+        self.search_string = search_string.lower()
+
+        self.beginResetModel()
+        self.current_list = [name for name in self.source_list.iterkeys() if self._match(name)]
+        self.endResetModel()
+
+    def data(self, index, role=Qt.DisplayRole):
+        if role == Qt.DisplayRole:
+            if index.column() == 0:
+                return self.current_list[index.row()]
+
+    def mimeData(self, indexes):
+        index = indexes[0]
+        data = QMimeData()
+        data.source_name = self.current_list[index.row()]
+
+        return data
+
+    def flags(self, index):
+        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled
+
+    def rowCount(self, parent):
+        if parent.isValid():
+            return 0
+
+        return len(self.current_list)
+
+    def columnCount(self, parent):
+        if parent.isValid():
+            return 0
+
+        return 1
+
+class SourceSearchWidget(QDockWidget):
+    def __init__(self, source_list):
+        QDockWidget.__init__(self, 'Sources')
+        self.source_list = source_list
+        self.model = SourceSearchModel(source_list)
+
+        widget = QWidget()
+
+        self.view = QListView(self)
+        self.view.setModel(self.model)
+        self.view.setDragEnabled(True)
+
+        layout = QVBoxLayout(widget)
+        layout.addWidget(self.view)
+
+        self.setWidget(widget)
+
 muxers = (FFMuxPlugin,)
 
 class MainWindow(QMainWindow):
@@ -116,6 +198,9 @@ class MainWindow(QMainWindow):
 
         self.addDockWidget(Qt.BottomDockWidgetArea, self.video_dock)
 
+        self.search_dock = SourceSearchWidget(self.source_list)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.search_dock)
+
         # Set up UI
         self.create_actions()
         self.create_menus()
@@ -136,6 +221,9 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(center_widget)
 
+        # FOR TESTING
+        #self.open_file('test.yaml')
+
     def create_actions(self):
         self.open_space_action = QAction('&Open...', self,
             statusTip='Open a Canvas file', triggered=self.open_space)
@@ -144,6 +232,8 @@ class MainWindow(QMainWindow):
 
         self.view_video_preview = self.video_dock.toggleViewAction()
         self.view_video_preview.setText('Video &Preview')
+        self.view_source_list = self.search_dock.toggleViewAction()
+        self.view_source_list.setText('&Sources')
 
         self.transport_group = QActionGroup(self)
         self.transport_rewind_action = QAction('Rewind', self.transport_group,
@@ -166,6 +256,7 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(self.quit_action)
 
         self.view_menu = self.menuBar().addMenu('&View')
+        self.view_menu.addAction(self.view_source_list)
         self.view_menu.addAction(self.view_video_preview)
 
     def handle_update_frames(self, min_frame, max_frame):
