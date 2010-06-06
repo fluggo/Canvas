@@ -19,7 +19,19 @@
 import collections, bisect
 
 class SortedList(collections.Sequence):
-    def __init__(self, iterable=None, keyfunc=None):
+    def __init__(self, iterable=None, keyfunc=None, cmpfunc=None):
+        if cmpfunc:
+            class Key(object):
+                __slots__ = ('item')
+
+                def __init__(self, item):
+                    self.item = item
+
+                def __cmp__(self, other):
+                    return cmpfunc(self.item, other.item)
+
+            keyfunc = Key
+
         if iterable:
             self.list = list(iterable)
             self.list.sort(key=keyfunc)
