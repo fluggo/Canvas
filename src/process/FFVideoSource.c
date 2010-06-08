@@ -20,7 +20,6 @@
 
 #include "pyframework.h"
 #include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
 #include "filter.h"
 #include "color.h"
 
