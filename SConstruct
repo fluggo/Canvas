@@ -10,13 +10,8 @@ env = Environment(CPPPATH=['include'],
     CFLAGS=['-std=c99'])
 
 # Check to see if we can use clang
-check_env = Environment(CC='clang')
-conf = Configure(check_env)
-
-if conf.CheckCC():
+if WhereIs('clang'):
     env['CC'] = 'clang'
-
-conf.Finish()
 
 if int(debug):
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
@@ -33,14 +28,14 @@ python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()], CCFLAGS=['-fno
 half = Command('src/cprocess/halftab.c', 'src/cprocess/genhalf.py', 'python $SOURCE > $TARGET')
 
 cprocess_env = env.Clone()
-cprocess_env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gl glib-2.0 gthread-2.0')
+cprocess_env.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
 cprocess_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
 
 cprocess = [cprocess_env.SharedObject(None, node) for node in env.Glob('src/cprocess/*.c')]
 Depends(cprocess, half)
 
 process_env = python_env.Clone()
-process_env.ParseConfig('pkg-config --libs --cflags libavformat alsa OpenEXR libswscale gl glib-2.0 gthread-2.0')
+process_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale alsa gl glib-2.0 gthread-2.0')
 process_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
 process = process_env.SharedLibrary('fluggo/media/process.so', env.Glob('src/process/*.c') + cprocess)
 
@@ -48,16 +43,19 @@ Alias('process', process)
 Alias('all', 'process')
 Default('process')
 
-gtk_env = python_env.Clone()
-gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
-gtk_env.Append(LIBS=['GLEW', process], CCFLAGS=['-fvisibility=hidden'])
-gtk = gtk_env.SharedLibrary('fluggo/media/gtk.so', ['src/gtk/GtkVideoWidget.c'])
+if not Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
+    gtk_env = python_env.Clone()
+    gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
+    gtk_env.Append(LIBS=['GLEW', process], CCFLAGS=['-fvisibility=hidden'])
+    gtk = gtk_env.SharedLibrary('fluggo/media/gtk.so', ['src/gtk/GtkVideoWidget.c'])
 
-Alias('gtk', gtk)
-Alias('all', 'gtk')
-Default('gtk')
+    Alias('gtk', gtk)
+    Alias('all', 'gtk')
+    Default('gtk')
+else:
+    print 'Skipping GTK build'
 
-if True:
+try:
     import PyQt4.pyqtconfig
     config = PyQt4.pyqtconfig.Configuration()
 
@@ -105,6 +103,8 @@ if True:
     Alias('qt', qt)
     Alias('all', 'qt')
     Default(qt)
+except Exception as ex:
+    print 'Skipping Qt4 build: ' + str(ex)
 
 # Tests
 testenv = env.Clone()
