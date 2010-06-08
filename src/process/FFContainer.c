@@ -317,7 +317,7 @@ static PyGetSetDef FFStream_getsetters[] = {
     { "pixel_format", (getter) FFStream_pixelFormat, NULL, "FFmpeg's pixel format for this stream, or None if there isn't one." },
     { "type", (getter) FFStream_type, NULL, "The type of stream, one of 'video', 'audio', 'data', 'subtitle', or 'attachment', or None if unknown." },
     { "index", (getter) FFStream_index, NULL, "The index of this stream." },
-    { "id", (getter) FFStream_index, NULL, "The format-specific ID of this stream." },
+    { "id", (getter) FFStream_id, NULL, "The format-specific ID of this stream." },
     { "bit_rate", (getter) FFStream_bitRate, NULL, "The bit rate of this stream." },
     { "frame_size", (getter) FFStream_frameSize, NULL, "The size of the frame in the video stream." },
     { "real_frame_rate", (getter) FFStream_realFrameRate, NULL, "A guess at the real frame rate of the stream." },
