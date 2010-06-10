@@ -340,8 +340,8 @@ class _RightHandle(_Handle):
     def drag_move(self, abs_pos, rel_pos):
         x = int(rel_pos.x())
 
-        if self.original_width + x > self.parentItem().source.length:
-            self.parentItem().item.update(width=self.parentItem().source.length)
+        if self.original_width + x > self.parentItem().max_length:
+            self.parentItem().item.update(width=self.parentItem().max_length)
         elif self.original_width > -x:
             self.parentItem().item.update(width=self.original_width + x)
         else:
@@ -402,6 +402,10 @@ class VideoItem(QGraphicsItem):
             self._stream = self.scene().source_list.get_stream(self.item.source_name, self.item.source_stream_id)
 
         return self._stream
+
+    @property
+    def max_length(self):
+        return self.stream.length
 
     def view_scale_changed(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes
