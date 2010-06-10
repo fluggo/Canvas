@@ -19,7 +19,7 @@
 import collections, bisect
 
 class SortedList(collections.Sequence):
-    def __init__(self, iterable=None, keyfunc=None, cmpfunc=None):
+    def __init__(self, iterable=None, keyfunc=None, cmpfunc=None, store_indexes=False):
         if cmpfunc:
             class Key(object):
                 __slots__ = ('item')
@@ -32,6 +32,8 @@ class SortedList(collections.Sequence):
 
             keyfunc = Key
 
+        self.store_indexes = store_indexes
+
         if iterable:
             self.list = list(iterable)
             self.list.sort(key=keyfunc)
@@ -40,6 +42,10 @@ class SortedList(collections.Sequence):
                 self.keys = [keyfunc(item) for item in self.list]
             else:
                 self.keys = self.list[:]
+
+            if store_indexes:
+                for i in range(len(self.list)):
+                    self.list[i].index = i
         else:
             self.list = []
             self.keys = []
@@ -56,7 +62,14 @@ class SortedList(collections.Sequence):
         self.list.insert(index, item)
         self.keys.insert(index, key)
 
+        if self.store_indexes:
+            for i in range(len(self.list) - 1, index - 1, -1):
+                self.list[i].index = i
+
     def index(self, item):
+        if self.store_indexes:
+            return item.index
+
         key = item
 
         if self.keyfunc:
@@ -100,19 +113,38 @@ class SortedList(collections.Sequence):
 
         # Shift everything to make room for the item's new spot
         if new_index > index:
+            # Shift down
+            new_index -= 1
+
             self.list[index:new_index] = self.list[index + 1:new_index + 1]
             self.keys[index:new_index] = self.keys[index + 1:new_index + 1]
-        else:
-            self.list[index + 1:new_index + 1] = self.list[index:new_index]
-            self.keys[index + 1:new_index + 1] = self.keys[index:new_index]
+
+            if self.store_indexes:
+                for i in range(*slice(index, new_index).indices(len(self.list))):
+                    self.list[i].index = i
+        elif index > new_index:
+            # Shift up
+            self.list[new_index + 1:index + 1] = self.list[new_index:index]
+            self.keys[new_index + 1:index + 1] = self.keys[new_index:index]
+
+            if self.store_indexes:
+                for i in range(*slice(index, new_index, -1).indices(len(self.list))):
+                    self.list[i].index = i
 
         self.list[new_index] = item
         self.keys[new_index] = key
+
+        if self.store_indexes:
+            self.list[new_index].index = new_index
 
     def __getitem__(self, index):
         return self.list[index]
 
     def __delitem__(self, index):
+        if self.store_indexes:
+            for i in range(index + 1, len(self.list)):
+                self.list[i].index = i - 1
+
         del self.list[index]
         del self.keys[index]
 
