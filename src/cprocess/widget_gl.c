@@ -263,6 +263,9 @@ playbackThread( widget_gl_context *self ) {
 
         VideoFrameSourceFuncs *funcs = self->frameSource.funcs;
 
+        bool wasRenderOneFrame = self->renderOneFrame;
+        self->renderOneFrame = false;
+
         g_mutex_unlock( self->frameReadMutex );
 
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
@@ -333,16 +336,11 @@ playbackThread( widget_gl_context *self ) {
             self->writeBuffer = self->readBuffer;
         }
 
-        if( self->renderOneFrame ) {
+        if( wasRenderOneFrame ) {
             // Draw the frame at the next opportunity
             self->readBuffer = writeBuffer;
             self->drawOneFrame = true;
             g_timeout_add_full( G_PRIORITY_DEFAULT, 0, (GSourceFunc) playSingleFrame, self, NULL );
-
-            if( self->nextToRenderFrame == nextFrame ) {
-                // We're done here
-                self->renderOneFrame = false;
-            }
 
             // Otherwise, loop around and do it again
         }
