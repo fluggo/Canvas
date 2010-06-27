@@ -20,6 +20,7 @@
 import fractions
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+from fluggo import sortlist
 from fluggo.media import process, timecode
 from fluggo.editor import canvas
 from fluggo.media.basetypes import *
@@ -37,6 +38,7 @@ class Scene(QGraphicsScene):
         self.space.item_added.connect(self.handle_item_added)
         self.space.item_removed.connect(self.handle_item_removed)
         self.drag_items = None
+        self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z_sort_key(), index_attr='z_order')
 
         for item in self.space:
             self.handle_item_added(item)
@@ -47,12 +49,16 @@ class Scene(QGraphicsScene):
 
         ui_item = VideoItem(item, 'Clip')
         self.addItem(ui_item)
+        self.sort_list.add(ui_item)
 
     def handle_item_removed(self, item):
         if item.type() != 'video':
             return
 
         raise NotImplementedError
+
+    def resort_item(self, item):
+        self.sort_list.move(item.z_order)
 
     def _lay_out_drag_items(self, pos):
         '''
@@ -407,6 +413,17 @@ class VideoItem(QGraphicsItem):
     def max_length(self):
         return self.stream.length
 
+    @property
+    def z_order(self):
+        return self._z_order
+
+    @z_order.setter
+    def z_order(self, value):
+        self._z_order = value
+
+        if value != self.zValue():
+            self.setZValue(value)
+
     def view_scale_changed(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes
         # depending on the level of zoom in the view (not to mention separate sets of thumbnails)
@@ -432,6 +449,9 @@ class VideoItem(QGraphicsItem):
         '''
         Called by handles to update the item's properties all at once.
         '''
+        # Alter the apparent Z-order of the item
+        self.scene().resort_item(self)
+
         # Changes in item position
         pos = self.pos()
 
@@ -547,15 +567,13 @@ class VideoItem(QGraphicsItem):
 
     def mouseMoveEvent(self, event):
         # There's a drag operation of some kind going on
-        old_x = self.pos().x()
-
         QGraphicsItem.mouseMoveEvent(self, event)
 
         pos = self.pos()
         pos.setX(round(pos.x()))
         self.setPos(pos)
 
-        self.item.update(x=int(pos.x()))
+        self.item.update(x=int(pos.x()), y=pos.y())
 
 class PlaceholderItem(QGraphicsItem):
     def __init__(self, source_name, stream_format, x, y, height):
