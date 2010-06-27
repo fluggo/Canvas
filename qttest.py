@@ -2,7 +2,7 @@
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
-from fluggo import signal
+from fluggo import signal, sortlist
 from fluggo.media import process, timecode, qt, formats, sources
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
@@ -17,19 +17,20 @@ class VideoWorkspaceManager(object):
             self.canvas_item = canvas_item
             self.workspace_item = workspace_item
             self.canvas_item.updated.connect(self.handle_updated)
+            self._z_order = 0
 
         def handle_updated(self, **kw):
             new_kw = {}
 
+
             # Raise the frames_updated signal if the content of frames changed
-            if 'x' in kw or 'width' in kw or 'offset' in kw or 'z' in kw:
-                old_x, old_width, old_offset, old_z = self.workspace_item.x, self.workspace_item.width, self.workspace_item.offset, self.workspace_item.z
+            if 'x' in kw or 'width' in kw or 'offset' in kw:
+                old_x, old_width, old_offset = self.workspace_item.x, self.workspace_item.width, self.workspace_item.offset
                 new_x, new_width, new_offset = kw.get('x', old_x), kw.get('width', old_width), kw.get('offset', old_offset)
                 old_right, new_right = old_x + old_width, new_x + new_width
 
                 self.workspace_item.update(
                     x=kw.get('x', old_x),
-                    z=kw.get('z', old_z),
                     width=kw.get('width', old_width),
                     offset=kw.get('offset', old_offset)
                 )
@@ -44,6 +45,21 @@ class VideoWorkspaceManager(object):
                 if old_x - old_offset != new_x - new_offset:
                     self.owner.frames_updated(max(old_x, new_x), min(old_right, new_right) - 1)
 
+            if 'y' in kw or 'z' in kw:
+                self.owner.watchers_sorted.move(self.z_order)
+
+        @property
+        def z_order(self):
+            return self._z_order
+
+        @z_order.setter
+        def z_order(self, value):
+            self._z_order = value
+
+            if value != self.workspace_item.z:
+                self.workspace_item.update(z=value)
+                self.owner.frames_updated(self.workspace_item.x, self.workspace_item.x + self.workspace_item.width - 1)
+
         def unwatch(self):
             self.canvas_item.updated.disconnect(self.handle_updated)
 
@@ -55,6 +71,7 @@ class VideoWorkspaceManager(object):
         self.source_list = source_list
         self.frames_updated = signal.Signal()
         self.watchers = {}
+        self.watchers_sorted = sortlist.SortedList(keyfunc=lambda a: a.canvas_item.z_sort_key(), index_attr='z_order')
 
         for item in canvas_space:
             if item.type() == 'video':
@@ -68,7 +85,9 @@ class VideoWorkspaceManager(object):
 
         workspace_item = self.workspace.add(x=item.x, width=item.width, z=item.z, offset=item.offset, source=source)
 
+        watcher = self.ItemWatcher(self, item, workspace_item)
         self.watchers[id(item)] = self.ItemWatcher(self, item, workspace_item)
+        self.watchers_sorted.add(watcher)
 
     def handle_item_removed(self, item):
         if item.type() != 'video':
@@ -76,6 +95,7 @@ class VideoWorkspaceManager(object):
 
         watcher = self.watchers.pop(id(item))
         watcher.unwatch()
+        self.watchers_sorted.remove(watcher)
 
 class SourceSearchModel(QAbstractTableModel):
     def __init__(self, source_list):
