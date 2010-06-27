@@ -73,9 +73,11 @@ class box2i(_box2i):
 
         return _box2i.__new__(class_, v2i(min), v2i(max))
 
+    @property
     def width(self):
         return max(0, self.max.x - self.min.x + 1)
 
+    @property
     def height(self):
         return max(0, self.max.y - self.min.y + 1)
 

@@ -468,7 +468,7 @@ class VideoItem(QGraphicsItem):
         start_frame = self.item.offset
         frame_count = self.item.width
 
-        self.thumbnail_width = (self.item.height * float(box.width()) * float(aspect)) / float(box.height())
+        self.thumbnail_width = (self.item.height * float(box.width) * float(aspect)) / float(box.height)
         count = min(max(int(total_width / self.thumbnail_width), 1), frame_count)
 
         if len(self.thumbnails) == count:
@@ -512,8 +512,8 @@ class VideoItem(QGraphicsItem):
 
         scale = process.VideoScaler(self.stream,
             target_point=v2f(0, 0), source_point=box.min,
-            scale_factors=v2f(rect.height() * float(self.stream.format.pixel_aspect_ratio) / box.height(),
-                rect.height() / box.height()),
+            scale_factors=v2f(rect.height() * float(self.stream.format.pixel_aspect_ratio) / box.height,
+                rect.height() / box.height),
             source_rect=box)
 
         def callback(frame_index, frame, user_data):
