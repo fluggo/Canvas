@@ -64,6 +64,24 @@ yaml.add_representer(Space, _space_represent)
 yaml.add_constructor(u'!CanvasSpace', _space_construct)
 
 
+class _ZSortKey(object):
+    __slots__ = ('z', 'y')
+
+    def __init__(self, item):
+        self.z = item.z
+        self.y = item.y
+
+    def __cmp__(self, other):
+        result = cmp(self.z, other.z)
+
+        if result:
+            return result
+
+        return -cmp(self.y, other.y)
+
+    def __str__(self):
+        return 'key(y={0.y}, z={0.z})'.format(self)
+
 class Item(yaml.YAMLObject):
     def __init__(self, x=0, y=0.0, z=0, width=1, height=1.0, offset=0):
         self._scene = None
@@ -113,6 +131,9 @@ class Item(yaml.YAMLObject):
     @property
     def offset(self):
         return self._offset
+
+    def z_sort_key(self):
+        return _ZSortKey(self)
 
     def update(self, **kw):
         if 'x' in kw:
