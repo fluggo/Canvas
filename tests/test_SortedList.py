@@ -58,18 +58,18 @@ class TestSortedList(unittest.TestCase):
                 self.value = value
 
             @property
-            def index(self):
+            def indx(self):
                 return self._index
 
-            @index.setter
-            def index(self, value):
+            @indx.setter
+            def indx(self, value):
                 self._index = value
 
         def check(l):
             for i in range(len(l)):
-                self.assertEquals(l[i].index, i)
+                self.assertEquals(l[i].indx, i)
 
-        l = SortedList([Item(v) for v in [9,7,1,3,6,2]], keyfunc=lambda a: a.value, store_indexes=True)
+        l = SortedList([Item(v) for v in [9,7,1,3,6,2]], keyfunc=lambda a: a.value, index_attr='indx')
         check(l)
 
         l.add(Item(5))

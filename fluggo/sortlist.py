@@ -19,7 +19,21 @@
 import collections, bisect
 
 class SortedList(collections.Sequence):
-    def __init__(self, iterable=None, keyfunc=None, cmpfunc=None, store_indexes=False):
+    def __init__(self, iterable=None, keyfunc=None, cmpfunc=None, index_attr=None):
+        '''
+        Create a sorted list.
+
+        iterable - Optional initial items to sort.
+        keyfunc - Optional function that produces sortable keys. The function
+            should accept one argument, a list item, and produce an object that
+            can be compared with other keys. Keys must be immutable; if SortedList
+            suspects that the item has changed, it will call keyfunc to request
+            a new key.
+        cmpfunc - Optional function that compares two items, like the cmp() function.
+            This overrides keyfunc.
+        index_attr - If a string, store the item's index on the item as an attribute
+            with this name.
+        '''
         if cmpfunc:
             class Key(object):
                 __slots__ = ('item')
@@ -32,7 +46,7 @@ class SortedList(collections.Sequence):
 
             keyfunc = Key
 
-        self.store_indexes = store_indexes
+        self.index_attr = index_attr
 
         if iterable:
             self.list = list(iterable)
@@ -43,9 +57,9 @@ class SortedList(collections.Sequence):
             else:
                 self.keys = self.list[:]
 
-            if store_indexes:
+            if index_attr:
                 for i in range(len(self.list)):
-                    self.list[i].index = i
+                    setattr(self.list[i], index_attr, i)
         else:
             self.list = []
             self.keys = []
@@ -62,13 +76,13 @@ class SortedList(collections.Sequence):
         self.list.insert(index, item)
         self.keys.insert(index, key)
 
-        if self.store_indexes:
+        if self.index_attr:
             for i in range(len(self.list) - 1, index - 1, -1):
-                self.list[i].index = i
+                setattr(self.list[i], self.index_attr, i)
 
     def index(self, item):
-        if self.store_indexes:
-            return item.index
+        if self.index_attr:
+            return getattr(item, self.index_attr)
 
         key = item
 
@@ -119,31 +133,31 @@ class SortedList(collections.Sequence):
             self.list[index:new_index] = self.list[index + 1:new_index + 1]
             self.keys[index:new_index] = self.keys[index + 1:new_index + 1]
 
-            if self.store_indexes:
+            if self.index_attr:
                 for i in range(*slice(index, new_index).indices(len(self.list))):
-                    self.list[i].index = i
+                    setattr(self.list[i], self.index_attr, i)
         elif index > new_index:
             # Shift up
             self.list[new_index + 1:index + 1] = self.list[new_index:index]
             self.keys[new_index + 1:index + 1] = self.keys[new_index:index]
 
-            if self.store_indexes:
+            if self.index_attr:
                 for i in range(*slice(index, new_index, -1).indices(len(self.list))):
-                    self.list[i].index = i
+                    setattr(self.list[i], self.index_attr, i)
 
         self.list[new_index] = item
         self.keys[new_index] = key
 
-        if self.store_indexes:
-            self.list[new_index].index = new_index
+        if self.index_attr:
+            setattr(self.list[new_index], self.index_attr, new_index)
 
     def __getitem__(self, index):
         return self.list[index]
 
     def __delitem__(self, index):
-        if self.store_indexes:
+        if self.index_attr:
             for i in range(index + 1, len(self.list)):
-                self.list[i].index = i - 1
+                setattr(self.list[i], self.index_attr, i - 1)
 
         del self.list[index]
         del self.keys[index]
