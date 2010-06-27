@@ -40,12 +40,6 @@ class Space(ezlist.EZList):
         for item in old_items:
             self.item_removed(item)
 
-        for i in range(len(items)):
-            items[i].update(z=start + i)
-
-        for i in range(start, len(self._items)):
-            self._items[i].update(z=i + len(items))
-
         self._items[start:start] = items
 
         for item in items:
