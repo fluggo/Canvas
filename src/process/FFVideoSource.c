@@ -453,7 +453,7 @@ static const char *recon411Text =
 
 "    vec3 ycbcr = vec3(y, cb, cr);"
 
-"    gl_FragColor.rgb = pow(ycbcr * yuv2rgb, vec3(2.2, 2.2, 2.2));"
+"    gl_FragColor.rgb = pow(max(vec3(0.0, 0.0, 0.0), ycbcr * yuv2rgb), vec3(2.2, 2.2, 2.2));"
 "    gl_FragColor.a = 1.0;"
 "}";
 
