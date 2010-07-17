@@ -47,6 +47,11 @@ WorkspaceItem_init( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kwds )
 
 static PyObject *
 WorkspaceItem_get_x( py_obj_WorkspaceItem *self, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return NULL;
+    }
+
     int64_t x;
     workspace_get_item_pos( self->item, &x, NULL, NULL );
 
@@ -55,6 +60,11 @@ WorkspaceItem_get_x( py_obj_WorkspaceItem *self, void *closure ) {
 
 static PyObject *
 WorkspaceItem_get_width( py_obj_WorkspaceItem *self, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return NULL;
+    }
+
     int64_t width;
     workspace_get_item_pos( self->item, NULL, &width, NULL );
 
@@ -63,6 +73,11 @@ WorkspaceItem_get_width( py_obj_WorkspaceItem *self, void *closure ) {
 
 static PyObject *
 WorkspaceItem_get_z( py_obj_WorkspaceItem *self, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return NULL;
+    }
+
     int64_t z;
     workspace_get_item_pos( self->item, NULL, NULL, &z );
 
@@ -71,6 +86,11 @@ WorkspaceItem_get_z( py_obj_WorkspaceItem *self, void *closure ) {
 
 static int
 WorkspaceItem_set_z( py_obj_WorkspaceItem *self, PyObject *value, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return -1;
+    }
+
     PyObject *as_long = PyNumber_Long( value );
 
     if( !as_long )
@@ -85,6 +105,11 @@ WorkspaceItem_set_z( py_obj_WorkspaceItem *self, PyObject *value, void *closure 
 
 static PyObject *
 WorkspaceItem_get_offset( py_obj_WorkspaceItem *self, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return NULL;
+    }
+
     int64_t offset = workspace_get_item_offset( self->item );
 
     return Py_BuildValue( "L", offset );
@@ -92,6 +117,11 @@ WorkspaceItem_get_offset( py_obj_WorkspaceItem *self, void *closure ) {
 
 static int
 WorkspaceItem_set_offset( py_obj_WorkspaceItem *self, PyObject *value, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return -1;
+    }
+
     PyObject *as_long = PyNumber_Long( value );
 
     if( !as_long )
@@ -106,6 +136,11 @@ WorkspaceItem_set_offset( py_obj_WorkspaceItem *self, PyObject *value, void *clo
 
 static PyObject *
 WorkspaceItem_get_source( py_obj_WorkspaceItem *self, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return NULL;
+    }
+
     video_source *source = workspace_get_item_source( self->item );
     PyObject *result = source->obj;
 
@@ -115,6 +150,11 @@ WorkspaceItem_get_source( py_obj_WorkspaceItem *self, void *closure ) {
 
 static int
 WorkspaceItem_set_source( py_obj_WorkspaceItem *self, PyObject *value, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return -1;
+    }
+
     VideoSourceHolder *holder = workspace_get_item_source( self->item );
 
     if( !py_video_takeSource( value, holder ) )
@@ -125,6 +165,11 @@ WorkspaceItem_set_source( py_obj_WorkspaceItem *self, PyObject *value, void *clo
 
 static PyObject *
 WorkspaceItem_get_tag( py_obj_WorkspaceItem *self, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return NULL;
+    }
+
     PyObject *tag = workspace_get_item_tag( self->item );
 
     if( tag ) {
@@ -137,6 +182,11 @@ WorkspaceItem_get_tag( py_obj_WorkspaceItem *self, void *closure ) {
 
 static int
 WorkspaceItem_set_tag( py_obj_WorkspaceItem *self, PyObject *value, void *closure ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return -1;
+    }
+
     PyObject *tag = workspace_get_item_tag( self->item );
 
     Py_INCREF(value);
@@ -158,6 +208,11 @@ static PyGetSetDef WorkspaceItem_getsetters[] = {
 
 static PyObject *
 WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw ) {
+    if( !self->item ) {
+        PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
+        return NULL;
+    }
+
     VideoSourceHolder *holder = workspace_get_item_source( self->item );
     PyObject *old_tag = (PyObject *) workspace_get_item_tag( self->item );
 
@@ -345,6 +400,28 @@ Workspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
     return item_to_python( self, workspace_add_item( PRIV(self)->workspace, &holder->source, x, width, offset, z, tag ) );
 }
 
+static PyObject *
+Workspace_remove( PyObject *self, PyObject *args ) {
+    py_obj_WorkspaceItem *item;
+
+    if( !PyArg_ParseTuple( args, "O!", &py_type_WorkspaceItem, &item ) )
+        return NULL;
+
+    VideoSourceHolder *holder = (VideoSourceHolder *) workspace_get_item_source( item->item );
+    py_video_takeSource( NULL, holder );
+
+    PyObject *tag = (PyObject *) workspace_get_item_tag( item->item );
+
+    if( tag )
+        Py_DECREF(tag);
+
+    Py_CLEAR( item->workspace );
+    workspace_remove_item( item->item );
+
+    item->item = NULL;
+    Py_RETURN_NONE;
+}
+
 static PySequenceMethods Workspace_sequence = {
     .sq_length = (lenfunc) Workspace_size,
     .sq_item = (ssizeargfunc) Workspace_getItem,
@@ -353,6 +430,8 @@ static PySequenceMethods Workspace_sequence = {
 static PyMethodDef Workspace_methods[] = {
     { "add", (PyCFunction) Workspace_add, METH_VARARGS | METH_KEYWORDS,
         "Add a new item to the workspace." },
+    { "remove", (PyCFunction) Workspace_remove, METH_VARARGS,
+        "Remove an item from the workspace." },
     { NULL }
 };
 
