@@ -109,47 +109,13 @@ class SortedList(collections.Sequence):
     def move(self, index):
         '''
         Check the key on the item at index and move it to its correct sort position.
-
-        Use this to re-sort a single item after its key has changed.
-        This method does the re-sort in-place, so it's faster than removing the item
-        and adding it again.
         '''
-        item = self.list[index]
-        key = item
+        # BJC: The original algorithm was incredibly error-prone, so until the need arises to write a new one,
+        # this is what we've got.
+        item = self.list.pop(index)
+        del self.keys[index]
 
-        if self.keyfunc:
-            key = self.keyfunc(item)
-
-        if self.keys[index] == key:
-            return
-
-        new_index = bisect.bisect_left(self.keys, key)
-
-        # Shift everything to make room for the item's new spot
-        if new_index > index:
-            # Shift down
-            new_index -= 1
-
-            self.list[index:new_index] = self.list[index + 1:new_index + 1]
-            self.keys[index:new_index] = self.keys[index + 1:new_index + 1]
-
-            if self.index_attr:
-                for i in range(*slice(index, new_index).indices(len(self.list))):
-                    setattr(self.list[i], self.index_attr, i)
-        elif index > new_index:
-            # Shift up
-            self.list[new_index + 1:index + 1] = self.list[new_index:index]
-            self.keys[new_index + 1:index + 1] = self.keys[new_index:index]
-
-            if self.index_attr:
-                for i in range(*slice(index, new_index, -1).indices(len(self.list))):
-                    setattr(self.list[i], self.index_attr, i)
-
-        self.list[new_index] = item
-        self.keys[new_index] = key
-
-        if self.index_attr:
-            setattr(self.list[new_index], self.index_attr, new_index)
+        self.add(item)
 
     def __getitem__(self, index):
         return self.list[index]
