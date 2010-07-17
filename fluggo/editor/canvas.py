@@ -45,6 +45,42 @@ class Space(ezlist.EZList):
         for item in items:
             self.item_added(item)
 
+    def find_overlaps(self, item):
+        '''Find all items that directly overlap the given item (but not including the given item).'''
+        return [other for other in self._items if item is not other and item.overlaps(other)]
+
+    def find_overlaps_recursive(self, start_item):
+        '''
+        Find all items that indirectly overlap the given item.
+
+        Indirect items are items that touch items that touch the original items (to whatever
+        level needed) but only in either direction (the stack must go straight up or straight down).
+        '''
+        first_laps = self.find_overlaps(start_item)
+        up_items = set(x for x in first_laps if x.z > start_item.z)
+        down_items = set(x for x in first_laps if x.z < start_item.z)
+        result = up_items | down_items
+
+        while up_items:
+            current_overlaps = set()
+
+            for item in up_items:
+                current_overlaps |= frozenset(x for x in self.find_overlaps(item) if x.z > item.z) - result
+                result |= current_overlaps
+
+            up_items = current_overlaps
+
+        while down_items:
+            current_overlaps = set()
+
+            for item in down_items:
+                current_overlaps |= frozenset(x for x in self.find_overlaps(item) if x.z < item.z) - result
+                result |= current_overlaps
+
+            down_items = current_overlaps
+
+        return result
+
 def _space_represent(dumper, data):
     return dumper.represent_mapping(u'!CanvasSpace', {'items': data._items})
 
@@ -128,6 +164,15 @@ class Item(yaml.YAMLObject):
 
     def z_sort_key(self):
         return _ZSortKey(self)
+
+    def overlaps(self, other):
+        if self.x >= (other.x + other.width) or (self.x + self.width) <= other.x:
+            return False
+
+        if self.y >= (other.y + other.height) or (self.y + self.height) <= other.y:
+            return False
+
+        return True
 
     def update(self, **kw):
         if 'x' in kw:
