@@ -131,6 +131,12 @@ class SortedList(collections.Sequence):
     def __len__(self):
         return len(self.list)
 
+    def __str__(self):
+        return '[' + ', '.join(str(item) for item in self) + ']'
+
+    def __repr__(self):
+        return '[' + ', '.join(repr(item) for item in self) + ']'
+
     def find(self, min_key=None, max_key=None):
         min_index = 0
         max_index = len(self.list)
