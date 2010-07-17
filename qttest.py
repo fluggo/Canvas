@@ -225,6 +225,13 @@ class MainWindow(QMainWindow):
 
         center_widget = QWidget(self)
         layout = QVBoxLayout(center_widget)
+
+        top_toolbar = QToolBar(self)
+
+        for action in self.canvas_group.actions():
+            top_toolbar.addAction(action)
+
+        layout.addWidget(top_toolbar)
         layout.addWidget(self.view)
 
         transport_toolbar = QToolBar(self)
@@ -266,6 +273,14 @@ class MainWindow(QMainWindow):
         self.transport_fastforward_action = QAction('Rewind', self.transport_group,
             statusTip='Play the current timeline at double speed', triggered=self.transport_fastforward,
             icon=self.style().standardIcon(QStyle.SP_MediaSeekForward), checkable=True)
+
+        self.canvas_group = QActionGroup(self)
+        self.canvas_bring_forward_action = QAction('Bring Forward', self.canvas_group,
+            statusTip='Bring the current item(s) forward', triggered=self.canvas_bring_forward,
+            icon=self.style().standardIcon(QStyle.SP_ArrowUp))
+        self.canvas_send_backward_action = QAction('Send Backward', self.canvas_group,
+            statusTip='Bring the current item(s) forward', triggered=self.canvas_send_backward,
+            icon=self.style().standardIcon(QStyle.SP_ArrowDown))
 
     def create_menus(self):
         self.file_menu = self.menuBar().addMenu('&File')
@@ -325,6 +340,50 @@ class MainWindow(QMainWindow):
     def transport_rewind(self):
         self.clock.play(-2)
         self.transport_rewind_action.setChecked(True)
+
+    def canvas_bring_forward(self):
+        for item in self.view.selected_items():
+            key = item.z_sort_key()
+            overlaps = item.overlap_items()
+            above_items = [x for x in overlaps if x.z_sort_key() > key]
+
+            if not above_items:
+                continue
+
+            bottom_item = min(above_items)
+
+            self.space.remove(item)
+            self.space.insert(bottom_item.z + 1, item)
+
+            if False:
+                z1 = item.z
+                z2 = bottom_item.z
+
+                temp_items = self.space[z1:z2 + 1]
+
+                temp_items[0] = bottom_item
+                temp_items[-1] = item
+                self.space[z1:z2 + 1] = temp_items
+
+    def canvas_send_backward(self):
+        for item in self.view.selected_items():
+            key = item.z_sort_key()
+            overlaps = item.overlap_items()
+            below_items = [x for x in overlaps if x.z_sort_key() < key]
+
+            if not below_items:
+                continue
+
+            top_item = max(below_items)
+
+            z1 = top_item.z
+            z2 = item.z
+
+            temp_items = self.space[z1:z2 + 1]
+
+            temp_items[0] = item
+            temp_items[-1] = top_item
+            self.space[z1:z2 + 1] = temp_items
 
 app = QApplication(sys.argv)
 
