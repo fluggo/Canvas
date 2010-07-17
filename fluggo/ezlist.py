@@ -54,7 +54,7 @@ class EZList(collections.MutableSequence):
             start, stop, step = key.indices(len(self))
             items = value
         else:
-            start, stop, step = key, key, 1
+            start, stop, step = key, key + 1, 1
             items = [value]
 
         if step == 1:
