@@ -51,6 +51,9 @@ class Scene(QGraphicsScene):
         self.addItem(ui_item)
         self.sort_list.add(ui_item)
 
+    def selected_items(self):
+        return [item.item for item in self.selectedItems() if isinstance(item, VideoItem)]
+
     def handle_item_removed(self, item):
         if item.type() != 'video':
             return
@@ -151,6 +154,9 @@ class View(QGraphicsView):
             self.playback_timer = None
 
         self._update_clock_frame(time)
+
+    def selected_items(self):
+        return self.scene().selected_items()
 
     def scale(self, sx, sy):
         self.scale_x = fractions.Fraction(sx)
