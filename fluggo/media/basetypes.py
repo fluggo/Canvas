@@ -34,6 +34,8 @@ yaml.add_constructor(u'!rational', _rational_construct)
 _v2i = collections.namedtuple('_v2i', 'x y')
 
 class v2i(_v2i):
+    __slots__ = ()
+
     def __new__(class_, x=0, y=0):
         if isinstance(x, tuple):
             (x, y) = x
@@ -64,6 +66,8 @@ yaml.add_constructor(u'!v2i', _v2i_construct)
 _box2i = collections.namedtuple('_box2i', 'min max')
 
 class box2i(_box2i):
+    __slots__ = ()
+
     def __new__(class_, min=v2i(0, 0), max=v2i(-1, -1), max_x=None, max_y=None):
         if max_x is not None and max_y is not None:
             min = v2i(min, max)
@@ -109,6 +113,8 @@ yaml.add_constructor(u'!box2i', _box2i_construct)
 _v2f = collections.namedtuple('_v2f', 'x y')
 
 class v2f(_v2f):
+    __slots__ = ()
+
     def __new__(class_, x=0, y=0):
         if isinstance(x, tuple):
             (x, y) = x
@@ -139,6 +145,8 @@ yaml.add_constructor(u'!v2f', _v2f_construct)
 _box2f = collections.namedtuple('_box2f', 'min max')
 
 class box2f(_box2f):
+    __slots__ = ()
+
     def __new__(class_, min=v2f(0, 0), max=v2f(-1, -1)):
         return _box2i.__new__(class_, v2f(min), v2f(max))
 
@@ -176,6 +184,8 @@ yaml.add_constructor(u'!box2f', _box2f_construct)
 _rgba = collections.namedtuple('_rgba', 'r g b a')
 
 class rgba(_rgba):
+    __slots__ = ()
+
     def __new__(class_, r=0.0, g=0.0, b=0.0, a=1.0):
         return _rgba.__new__(class_, float(r), float(g), float(b), float(a))
 
