@@ -86,7 +86,7 @@ class VideoWorkspaceManager(object):
         workspace_item = self.workspace.add(x=item.x, width=item.width, z=item.z, offset=item.offset, source=source)
 
         watcher = self.ItemWatcher(self, item, workspace_item)
-        self.watchers[id(item)] = self.ItemWatcher(self, item, workspace_item)
+        self.watchers[id(item)] = watcher
         self.watchers_sorted.add(watcher)
 
     def handle_item_removed(self, item):
