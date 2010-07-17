@@ -587,10 +587,7 @@ class VideoItem(QGraphicsItem):
         QGraphicsItem.mouseMoveEvent(self, event)
 
         pos = self.pos()
-        pos.setX(round(pos.x()))
-        self.setPos(pos)
-
-        self.item.update(x=int(pos.x()), y=pos.y())
+        self.item.update(x=round(pos.x()), y=pos.y())
 
 class PlaceholderItem(QGraphicsItem):
     def __init__(self, source_name, stream_format, x, y, height):
