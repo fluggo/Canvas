@@ -98,19 +98,20 @@ def _space_construct(loader, node):
 yaml.add_representer(Space, _space_represent)
 yaml.add_constructor(u'!CanvasSpace', _space_construct)
 
+class _ZSortKey():
+    __slots__ = ('item', 'overlaps', 'y', 'z')
 
-class _ZSortKey(object):
-    __slots__ = ('z', 'y')
-
-    def __init__(self, item):
-        self.z = item.z
-        self.y = item.y
+    def __init__(self, item, overlaps, y, z):
+        self.item = item
+        self.y = y
+        self.z = z
 
     def __cmp__(self, other):
-        result = cmp(self.z, other.z)
+        if other.item in self.item.overlap_items():
+            result = cmp(self.z, other.z)
 
-        if result:
-            return result
+            if result:
+                return result
 
         return -cmp(self.y, other.y)
 
@@ -168,8 +169,19 @@ class Item(yaml.YAMLObject):
     def offset(self):
         return self._offset
 
-    def z_sort_key(self):
-        return _ZSortKey(self)
+    def z_sort_key(self, y=None, z=None):
+        '''
+        Get an object that can be used to sort items by Z-order.
+
+        Supply a Z parameter to alter the key.
+        '''
+        return _ZSortKey(self, self.overlap_items(), self._y if y is None else y, self._z if z is None else z)
+
+    def __cmp__(self, other):
+        if self is other:
+            return 0
+
+        return cmp(self.z_sort_key(), other.z_sort_key())
 
     def overlaps(self, other):
         if self.x >= (other.x + other.width) or (self.x + self.width) <= other.x:
