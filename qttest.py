@@ -20,9 +20,6 @@ class VideoWorkspaceManager(object):
             self._z_order = 0
 
         def handle_updated(self, **kw):
-            new_kw = {}
-
-
             # Raise the frames_updated signal if the content of frames changed
             if 'x' in kw or 'width' in kw or 'offset' in kw:
                 old_x, old_width, old_offset = self.workspace_item.x, self.workspace_item.width, self.workspace_item.offset
