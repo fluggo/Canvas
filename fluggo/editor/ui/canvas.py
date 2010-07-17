@@ -58,7 +58,12 @@ class Scene(QGraphicsScene):
         if item.type() != 'video':
             return
 
-        raise NotImplementedError
+        for ui_item in self.sort_list:
+            if ui_item.item is not item:
+                continue
+
+            self.removeItem(ui_item)
+            self.sort_list.remove(ui_item)
 
     def resort_item(self, item):
         self.sort_list.move(item.z_order)
