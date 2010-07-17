@@ -96,6 +96,7 @@ class VideoWorkspaceManager(object):
         watcher = self.watchers.pop(id(item))
         watcher.unwatch()
         self.watchers_sorted.remove(watcher)
+        self.workspace.remove(watcher.workspace_item)
 
 class SourceSearchModel(QAbstractTableModel):
     def __init__(self, source_list):
