@@ -113,19 +113,19 @@ class _ZSortKey(object):
         return 'key(y={0.y}, z={0.z})'.format(self)
 
 class Item(yaml.YAMLObject):
-    def __init__(self, x=0, y=0.0, z=0, width=1, height=1.0, offset=0):
+    def __init__(self, x=0, y=0.0, width=1, height=1.0, offset=0):
         self._scene = None
         self._offset = offset
         self._x = x
         self._y = y
+        self._z = 0
         self._height = height
         self._width = width
-        self._z = z
         self.updated = signal.Signal()
 
     def _create_repr_dict(self):
         return {
-            'x': self._x, 'y': self._y, 'z': self._z,
+            'x': self._x, 'y': self._y,
             'width': self._width, 'height': self._height,
             'offset': self._offset
         }
