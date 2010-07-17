@@ -563,6 +563,12 @@ class VideoItem(QGraphicsItem):
                     painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
                         rect.y(), self.thumbnails[i])
 
+        if self.isSelected():
+            painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0, 0.5))
+
+        painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
+        painter.drawText(rect, Qt.TextSingleLine, self.name)
+
         painter.restore()
 
     def mouseMoveEvent(self, event):
