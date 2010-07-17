@@ -217,7 +217,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self.video_dock)
 
         self.search_dock = SourceSearchWidget(self.source_list)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.search_dock)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.search_dock)
 
         # Set up UI
         self.create_actions()
