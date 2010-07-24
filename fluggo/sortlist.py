@@ -112,9 +112,8 @@ class SortedList(collections.Sequence):
         '''
         # BJC: The original algorithm was incredibly error-prone, so until the need arises to write a new one,
         # this is what we've got.
-        item = self.list.pop(index)
-        del self.keys[index]
-
+        item = self.list[index]
+        del self[index]
         self.add(item)
 
     def __getitem__(self, index):
