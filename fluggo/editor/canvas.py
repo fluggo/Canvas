@@ -127,7 +127,6 @@ class Item(yaml.YAMLObject):
         self._z = 0
         self._height = height
         self._width = width
-        self._overlap_items = None
         self.updated = signal.Signal()
 
     def _create_repr_dict(self):
@@ -211,40 +210,13 @@ class Item(yaml.YAMLObject):
         if 'z' in kw:
             self._z = int(kw['z'])
 
-        # Update the overlap_items list (if we have one)
-        if self._overlap_items is not None:
-            old_overlaps = self._overlap_items
-            self._overlap_items = self._scene.find_overlaps_recursive(self)
-
-            for old_item in old_overlaps - self._overlap_items:
-                if old_item._overlap_items is not None and self in old_item._overlap_items:
-                    old_item._overlap_items.remove(self)
-
-            for new_item in self._overlap_items - old_overlaps:
-                if new_item._overlap_items is not None:
-                    new_item._overlap_items.add(self)
-        else:
-            # Start from scratch
-            self._overlap_items = self._scene.find_overlaps_recursive(self)
-
-            for overlap_item in self._overlap_items:
-                if overlap_item._overlap_items is not None:
-                    overlap_item._overlap_items.add(self)
-
         self.updated(**kw)
 
     def overlap_items(self):
-        if self._overlap_items is None:
-            self._overlap_items = self._scene.find_overlaps_recursive(self)
-
-        return self._overlap_items
+        return self._scene.find_overlaps_recursive(self)
 
     def kill(self):
         self._scene = None
-
-        for item in self._overlap_items:
-            if item._overlap_items is not None:
-                item._overlap_items.remove(self)
 
     def type(self):
         raise NotImplementedError
