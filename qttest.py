@@ -352,18 +352,14 @@ class MainWindow(QMainWindow):
 
             bottom_item = min(above_items)
 
-            self.space.remove(item)
-            self.space.insert(bottom_item.z + 1, item)
+            z1 = item.z
+            z2 = bottom_item.z
 
-            if False:
-                z1 = item.z
-                z2 = bottom_item.z
+            temp_items = self.space[z1:z2 + 1]
 
-                temp_items = self.space[z1:z2 + 1]
-
-                temp_items[0] = bottom_item
-                temp_items[-1] = item
-                self.space[z1:z2 + 1] = temp_items
+            temp_items[0] = bottom_item
+            temp_items[-1] = item
+            self.space[z1:z2 + 1] = temp_items
 
     def canvas_send_backward(self):
         for item in self.view.selected_items():
