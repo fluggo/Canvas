@@ -43,12 +43,25 @@ class Space(ezlist.EZList):
 
         self._items[start:stop] = items
 
-        for i, item in enumerate(items, start):
+        for i, item in enumerate(self._items[start:], start):
             item._scene = self
-            item.update(z=i)
+            item._z = i
 
-            if item not in old_item_set:
-                self.item_added(item)
+        if len(old_item_set) > len(new_item_set):
+            # We can renumber going forwards
+            for i, item in enumerate(self._items[start:], start):
+                item.update(z=i)
+        elif len(new_item_set) > len(old_item_set):
+            # We must renumber backwards to avoid conflicts
+            for i, item in reversed(list(enumerate(self._items[start:], start))):
+                item.update(z=i)
+        else:
+            # We only have to renumber the items themselves
+            for i, item in enumerate(self._items[start:stop], start):
+                item.update(z=i)
+
+        for item in (new_item_set - old_item_set):
+            self.item_added(item)
 
     def find_overlaps(self, item):
         '''Find all items that directly overlap the given item (but not including the given item).'''
