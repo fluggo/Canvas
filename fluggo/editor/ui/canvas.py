@@ -112,6 +112,14 @@ class Scene(QGraphicsScene):
 
             self.removeItem(item)
 
+    @property
+    def scene_top(self):
+        return -20000.0
+
+    @property
+    def scene_bottom(self):
+        return 20000.0
+
 class View(QGraphicsView):
     black_pen = QPen(QColor.fromRgbF(0.0, 0.0, 0.0))
     white_pen = QPen(QColor.fromRgbF(1.0, 1.0, 1.0))
@@ -235,7 +243,13 @@ class View(QGraphicsView):
 
     def _invalidate_marker(self, frame):
         # BJC: No, for some reason, invalidateScene() did not work here
-        self.scene().invalidate(QRectF(frame - 0.5, -20000.0, 1.0, 40000.0), QGraphicsScene.ForegroundLayer)
+        top = self.mapFromScene(frame, self.scene().scene_top)
+        bottom = self.mapFromScene(frame, self.scene().scene_bottom)
+
+        top = self.mapToScene(top.x() - 1, top.y())
+        bottom = self.mapToScene(bottom.x() + 1, bottom.y())
+
+        self.scene().invalidate(QRectF(top, bottom), QGraphicsScene.ForegroundLayer)
 
     def timerEvent(self, event):
         if event.timerId() == self.blink_timer:
