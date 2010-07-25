@@ -272,6 +272,19 @@ class View(QGraphicsView):
         painter.setPen(self.white_pen if self.white else self.black_pen)
         painter.drawLine(self.frame, rect.y(), self.frame, rect.y() + rect.height())
 
+    @property
+    def snap_distance(self):
+        return 4.0
+
+    def find_snap_items_vertical(self, frame):
+        top = self.mapFromScene(frame, self.scene().scene_top)
+        bottom = self.mapFromScene(frame, self.scene().scene_bottom)
+
+        items = self.items(QRect(top.x() - self.snap_distance, top.y(), self.snap_distance * 2, bottom.y() - top.y()), Qt.IntersectsItemBoundingRect)
+
+        # TODO: Return something more generic than video items
+        return [item for item in items if isinstance(item, VideoItem)]
+
 class Draggable(object):
     def __init__(self):
         self.drag_active = False
@@ -626,6 +639,28 @@ class PlaceholderItem(QGraphicsItem):
 
         painter.setPen(QPen(QColor.fromRgbF(1.0, 1.0, 1.0), WIDTH))
         painter.drawRect(QRectF(rect.x() + WIDTH/2, rect.y() + WIDTH/2, rect.width() - WIDTH, rect.height() - WIDTH))
+
+        painter.restore()
+
+class VerticalSnapMarker(QGraphicsItem):
+    def __init__(self, frame, width):
+        QGraphicsItem.__init__(self)
+
+        self.frame = frame
+        self.width = width
+
+        self.setPos(frame, 0.0)
+
+    def boundingRect(self):
+        return QRectF(-width / 2.0, self.scene().scene_top, width / 2.0, self.scene().scene_bottom - self.scene().scene_top)
+
+    def paint(self, painter, option, widget):
+        rect = painter.transform().mapRect(self.boundingRect())
+
+        painter.save()
+        painter.resetTransform()
+
+        # TODO: Set up gradient
 
         painter.restore()
 
