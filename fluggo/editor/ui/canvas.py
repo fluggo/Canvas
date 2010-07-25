@@ -222,24 +222,24 @@ class View(QGraphicsView):
             self.scale(self.scale_x / factor, self.scale_y)
 
     def handle_scene_rect_changed(self, rect):
-        left = self.mapToScene(0, 0).x()
-        self.ruler.set_left_frame(left)
+        self._reset_ruler_scroll()
 
     def handle_ruler_current_frame_changed(self, frame):
         self.set_current_frame(frame)
 
     def updateSceneRect(self, rect):
         QGraphicsView.updateSceneRect(self, rect)
-
-        left = self.mapToScene(0, 0).x()
-        self.ruler.setLeftFrame(left)
+        self._reset_ruler_scroll()
 
     def scrollContentsBy(self, dx, dy):
         QGraphicsView.scrollContentsBy(self, dx, dy)
 
         if dx:
-            left = self.mapToScene(0, 0).x()
-            self.ruler.set_left_frame(left)
+            self._reset_ruler_scroll()
+
+    def _reset_ruler_scroll(self):
+        left = self.mapToScene(0, 0).x()
+        self.ruler.set_left_frame(left)
 
     def _invalidate_marker(self, frame):
         # BJC: No, for some reason, invalidateScene() did not work here
