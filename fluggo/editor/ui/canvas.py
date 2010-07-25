@@ -179,6 +179,7 @@ class View(QGraphicsView):
 
         self.resetTransform()
         QGraphicsView.scale(self, float(sx), float(sy))
+        self._reset_ruler_scroll()
 
     def set_current_frame(self, frame):
         '''
