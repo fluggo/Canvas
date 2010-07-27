@@ -342,7 +342,7 @@ class View(QGraphicsView):
         top = self.mapToScene(top.x() - 1, top.y())
         bottom = self.mapToScene(bottom.x() + 1, bottom.y())
 
-        self.scene().invalidate(QRectF(top, bottom), QGraphicsScene.ForegroundLayer)
+        self.updateScene([QRectF(top, bottom)])
 
     def timerEvent(self, event):
         if event.timerId() == self.blink_timer:
