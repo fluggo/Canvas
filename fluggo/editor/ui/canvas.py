@@ -650,25 +650,3 @@ class PlaceholderItem(QGraphicsItem):
 
         painter.restore()
 
-class VerticalSnapMarker(QGraphicsItem):
-    def __init__(self, frame, width):
-        QGraphicsItem.__init__(self)
-
-        self.frame = frame
-        self.width = width
-
-        self.setPos(frame, 0.0)
-
-    def boundingRect(self):
-        return QRectF(-width / 2.0, self.scene().scene_top, width / 2.0, self.scene().scene_bottom - self.scene().scene_top)
-
-    def paint(self, painter, option, widget):
-        rect = painter.transform().mapRect(self.boundingRect())
-
-        painter.save()
-        painter.resetTransform()
-
-        # TODO: Set up gradient
-
-        painter.restore()
-
