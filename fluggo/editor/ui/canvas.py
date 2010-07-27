@@ -141,8 +141,7 @@ class View(QGraphicsView):
 
         self.ruler = ruler.TimeRuler(self, timecode=timecode.NtscDropFrame())
         self.ruler.move(self.frameWidth(), self.frameWidth())
-        left = self.mapToScene(0, 0).x()
-        self.ruler.set_left_frame(left)
+        self._reset_ruler_scroll()
 
         # A warning: clock and clock_callback_handle will create a pointer cycle here,
         # which probably won't be freed unless the callback handle is explicitly
