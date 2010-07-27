@@ -20,7 +20,7 @@
 import fractions, math
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-from fluggo import sortlist
+from fluggo import sortlist, signal
 from fluggo.media import process, timecode
 from fluggo.editor import canvas
 from fluggo.media.basetypes import *
@@ -47,6 +47,9 @@ class Scene(QGraphicsScene):
         self.space.item_removed.connect(self.handle_item_removed)
         self.drag_items = None
         self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z_sort_key(), index_attr='z_order')
+        self.marker_added = signal.Signal()
+        self.marker_removed = signal.Signal()
+        self.markers = set()
 
         for item in self.space:
             self.handle_item_added(item)
@@ -84,6 +87,14 @@ class Scene(QGraphicsScene):
         '''
         # TODO: Handle multiple items
         self.drag_items[0].setPos(pos.x(), pos.y() - self.drag_items[0].height / 2.0)
+
+    def add_marker(self, marker):
+        self.markers.add(marker)
+        self.marker_added(marker)
+
+    def remove_marker(self, marker):
+        self.markers.remove(marker)
+        self.marker_removed(marker)
 
     def dragEnterEvent(self, event):
         data = event.mimeData()
