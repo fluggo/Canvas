@@ -203,6 +203,7 @@ class View(QGraphicsView):
     handle_width = 10.0
     snap_marker_color = QColor.fromRgbF(0.0, 1.0, 0.0)
     snap_marker_width = 5.0
+    snap_distance = 4.0
 
     def __init__(self, clock, space, source_list):
         QGraphicsView.__init__(self)
@@ -351,9 +352,6 @@ class View(QGraphicsView):
         painter.setPen(self.white_pen if self.white else self.black_pen)
         painter.drawLine(self.frame, rect.y(), self.frame, rect.y() + rect.height())
 
-    @property
-    def snap_distance(self):
-        return 4.0
 
     def find_snap_items_vertical(self, frame):
         top = self.mapFromScene(frame, self.scene().scene_top)
