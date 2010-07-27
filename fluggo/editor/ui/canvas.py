@@ -242,6 +242,8 @@ class View(QGraphicsView):
         self.blink_timer = self.startTimer(1000)
 
         self.scene().sceneRectChanged.connect(self.handle_scene_rect_changed)
+        self.scene().marker_added.connect(self._handle_marker_changed)
+        self.scene().marker_removed.connect(self._handle_marker_changed)
         self.ruler.current_frame_changed.connect(self.handle_ruler_current_frame_changed)
 
         self.scale_x = fractions.Fraction(1)
@@ -363,6 +365,12 @@ class View(QGraphicsView):
         painter.setPen(self.white_pen if self.white else self.black_pen)
         painter.drawLine(self.frame, rect.y(), self.frame, rect.y() + rect.height())
 
+        for marker in self.scene().markers:
+            marker.paint(self, painter, rect)
+
+    def _handle_marker_changed(self, marker):
+        rect = self.viewportTransform().inverted()[0].mapRect(marker.bounding_rect(self))
+        self.updateScene([rect])
 
     def find_snap_items_vertical(self, frame):
         top = self.mapFromScene(frame, self.scene().scene_top)
