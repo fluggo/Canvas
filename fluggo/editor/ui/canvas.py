@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import fractions
+import fractions, math
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from fluggo import sortlist
@@ -27,6 +27,14 @@ from fluggo.media.basetypes import *
 from . import ruler
 
 _queue = process.VideoPullQueue()
+
+def _rectf_to_rect(rect):
+    '''Finds the smallest QRect enclosing the given QRectF.'''
+    return QRect(
+        math.floor(rect.x()),
+        math.floor(rect.y()),
+        math.ceil(rect.width() + rect.x() - math.floor(rect.x())),
+        math.ceil(rect.height() + rect.y() - math.floor(rect.y())))
 
 class Scene(QGraphicsScene):
     DEFAULT_HEIGHT = 40
