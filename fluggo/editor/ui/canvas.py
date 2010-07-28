@@ -388,13 +388,13 @@ class Draggable(object):
         self.drag_start_pos = None
         self.drag_start_screen_pos = None
 
-    def drag_start(self):
+    def drag_start(self, view):
         pass
 
-    def drag_move(self, abs_pos, rel_pos):
+    def drag_move(self, view, abs_pos, rel_pos):
         pass
 
-    def drag_end(self, abs_pos, rel_pos):
+    def drag_end(self, view, abs_pos, rel_pos):
         pass
 
     def mousePressEvent(self, event):
@@ -406,8 +406,10 @@ class Draggable(object):
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
             if self.drag_active:
+                view = event.widget().parent()
                 pos = event.scenePos()
-                self.drag_end(pos, pos - self.drag_start_pos)
+
+                self.drag_end(view, pos, pos - self.drag_start_pos)
                 self.drag_active = False
 
             self.drag_down = False
@@ -416,6 +418,7 @@ class Draggable(object):
         if not self.drag_down:
             return
 
+        view = event.widget().parent()
         pos = event.scenePos()
         screen_pos = event.screenPos()
 
@@ -423,11 +426,11 @@ class Draggable(object):
             if abs(screen_pos.x() - self.drag_start_screen_pos.x()) >= QApplication.startDragDistance() or \
                     abs(screen_pos.y() - self.drag_start_screen_pos.y()) >= QApplication.startDragDistance():
                 self.drag_active = True
-                self.drag_start()
+                self.drag_start(view)
             else:
                 return
 
-        self.drag_move(pos, pos - self.drag_start_pos)
+        self.drag_move(view, pos, pos - self.drag_start_pos)
 
 class _Handle(QGraphicsRectItem, Draggable):
     invisibrush = QBrush(QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
@@ -449,7 +452,7 @@ class _Handle(QGraphicsRectItem, Draggable):
         self.original_y = None
         self.original_height = None
 
-    def drag_start(self):
+    def drag_start(self, view):
         self.original_x = int(self.parentItem().pos().x())
         self.original_width = self.parentItem().item.width
         self.original_offset = self.parentItem().item.offset
@@ -463,7 +466,7 @@ class _Handle(QGraphicsRectItem, Draggable):
         self.setBrush(self.invisibrush)
 
 class _LeftHandle(_Handle):
-    def drag_move(self, abs_pos, rel_pos):
+    def drag_move(self, view, abs_pos, rel_pos):
         x = int(rel_pos.x())
 
         if self.original_offset + x < 0:
@@ -477,7 +480,7 @@ class _LeftHandle(_Handle):
                 offset=self.original_offset + self.original_width - 1)
 
 class _RightHandle(_Handle):
-    def drag_move(self, abs_pos, rel_pos):
+    def drag_move(self, view, abs_pos, rel_pos):
         x = int(rel_pos.x())
 
         if self.original_width + x > self.parentItem().max_length:
@@ -490,7 +493,7 @@ class _RightHandle(_Handle):
 class _TopHandle(_Handle):
     horizontal = False
 
-    def drag_move(self, abs_pos, rel_pos):
+    def drag_move(self, view, abs_pos, rel_pos):
         y = rel_pos.y()
 
         if self.original_height > y:
@@ -501,7 +504,7 @@ class _TopHandle(_Handle):
 class _BottomHandle(_Handle):
     horizontal = False
 
-    def drag_move(self, abs_pos, rel_pos):
+    def drag_move(self, view, abs_pos, rel_pos):
         y = rel_pos.y()
 
         if self.original_height > -y:
