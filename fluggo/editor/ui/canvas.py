@@ -543,17 +543,18 @@ class _BottomHandle(_Handle):
         else:
             self.parentItem().item.update(height=1)
 
-class VideoItem(QGraphicsItem):
+class VideoItem(QGraphicsItem, Draggable):
     def __init__(self, item, name):
         # BJC: This class currently has both the model and the view,
         # so it will need to be split
         QGraphicsItem.__init__(self)
+        Draggable.__init__(self, QGraphicsItem)
         self.item = item
         self.item.updated.connect(self._update)
 
         self.name = name
         self.setPos(self.item.x, self.item.y)
-        self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemIsSelectable |
+        self.setFlags(QGraphicsItem.ItemIsSelectable |
             QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
         self.thumbnails = []
@@ -739,12 +740,15 @@ class VideoItem(QGraphicsItem):
 
         painter.restore()
 
-    def mouseMoveEvent(self, event):
-        # There's a drag operation of some kind going on
-        QGraphicsItem.mouseMoveEvent(self, event)
+    def drag_start(self, view):
+        self._drag_start_x = self.item.x
+        self._drag_start_y = self.item.y
 
-        pos = self.pos()
-        self.item.update(x=round(pos.x()), y=pos.y())
+    def drag_move(self, view, abs_pos, rel_pos):
+        pos_x = int(round(rel_pos.x())) + self._drag_start_x
+        pos_y = rel_pos.y() + self._drag_start_y
+
+        self.item.update(x=pos_x, y=pos_y)
 
 class PlaceholderItem(QGraphicsItem):
     def __init__(self, source_name, stream_format, x, y, height):
