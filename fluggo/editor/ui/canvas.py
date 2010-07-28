@@ -743,12 +743,56 @@ class VideoItem(QGraphicsItem, Draggable):
     def drag_start(self, view):
         self._drag_start_x = self.item.x
         self._drag_start_y = self.item.y
+        self._left_snap_marker = None
+        self._right_snap_marker = None
+
+    def _clear_snap_markers(self):
+        if self._left_snap_marker:
+            self.scene().remove_marker(self._left_snap_marker)
+            self._left_snap_marker = None
+
+        if self._right_snap_marker:
+            self.scene().remove_marker(self._right_snap_marker)
+            self._right_snap_marker = None
 
     def drag_move(self, view, abs_pos, rel_pos):
         pos_x = int(round(rel_pos.x())) + self._drag_start_x
         pos_y = rel_pos.y() + self._drag_start_y
 
+        self._clear_snap_markers()
+
+        left_snap = view.find_snap_items_horizontal(self, pos_x)
+        right_snap = view.find_snap_items_horizontal(self, pos_x + self.item.width)
+
+        if left_snap is not None:
+            if right_snap is not None:
+                if abs(left_snap - pos_x) < abs(right_snap - pos_x + self.item.width):
+                    self._left_snap_marker = VerticalSnapMarker(left_snap)
+                    self.scene().add_marker(self._left_snap_marker)
+                    pos_x = left_snap
+                elif abs(left_snap - pos_x) > abs(right_snap - pos_x + self.item.width):
+                    self._right_snap_marker = VerticalSnapMarker(right_snap)
+                    self.scene().add_marker(self._right_snap_marker)
+                    pos_x = right_snap - self.item.width
+                else:
+                    self._left_snap_marker = VerticalSnapMarker(left_snap)
+                    self.scene().add_marker(self._left_snap_marker)
+                    self._right_snap_marker = VerticalSnapMarker(right_snap)
+                    self.scene().add_marker(self._right_snap_marker)
+                    pos_x = left_snap
+            else:
+                self._left_snap_marker = VerticalSnapMarker(left_snap)
+                self.scene().add_marker(self._left_snap_marker)
+                pos_x = left_snap
+        elif right_snap is not None:
+            self._right_snap_marker = VerticalSnapMarker(right_snap)
+            self.scene().add_marker(self._right_snap_marker)
+            pos_x = right_snap - self.item.width
+
         self.item.update(x=pos_x, y=pos_y)
+
+    def drag_end(self, view, abs_pos, rel_pos):
+        self._clear_snap_markers()
 
 class PlaceholderItem(QGraphicsItem):
     def __init__(self, source_name, stream_format, x, y, height):
