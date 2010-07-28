@@ -214,7 +214,7 @@ class View(QGraphicsView):
     handle_width = 10.0
     snap_marker_color = QColor.fromRgbF(0.0, 1.0, 0.0)
     snap_marker_width = 5.0
-    snap_distance = 4.0
+    snap_distance = 8.0
 
     def __init__(self, clock, space, source_list):
         QGraphicsView.__init__(self)
