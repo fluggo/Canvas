@@ -382,11 +382,12 @@ class View(QGraphicsView):
         return [item for item in items if isinstance(item, VideoItem)]
 
 class Draggable(object):
-    def __init__(self):
+    def __init__(self, drag_base=None):
         self.drag_active = False
         self.drag_down = False
         self.drag_start_pos = None
         self.drag_start_screen_pos = None
+        self._drag_base = drag_base
 
     def drag_start(self, view):
         pass
@@ -398,12 +399,18 @@ class Draggable(object):
         pass
 
     def mousePressEvent(self, event):
+        if self._drag_base:
+            self._drag_base.mousePressEvent(self, event)
+
         if event.button() == Qt.LeftButton:
             self.drag_down = True
             self.drag_start_pos = event.scenePos()
             self.drag_start_screen_pos = event.screenPos()
 
     def mouseReleaseEvent(self, event):
+        if self._drag_base:
+            self._drag_base.mouseReleaseEvent(self, event)
+
         if event.button() == Qt.LeftButton:
             if self.drag_active:
                 view = event.widget().parent()
@@ -415,6 +422,9 @@ class Draggable(object):
             self.drag_down = False
 
     def mouseMoveEvent(self, event):
+        if self._drag_base:
+            self._drag_base.mouseMoveEvent(self, event)
+
         if not self.drag_down:
             return
 
