@@ -372,14 +372,35 @@ class View(QGraphicsView):
         rect = self.viewportTransform().inverted()[0].mapRect(marker.bounding_rect(self))
         self.updateScene([rect])
 
-    def find_snap_items_vertical(self, frame):
+    def find_snap_items_horizontal(self, item, frame):
+        '''
+        Find the nearest horizontal snap point for the given item and frame. (The
+        item is only used to avoid finding it as its own snap point.)
+        '''
         top = self.mapFromScene(frame, self.scene().scene_top)
         bottom = self.mapFromScene(frame, self.scene().scene_bottom)
 
         items = self.items(QRect(top.x() - self.snap_distance, top.y(), self.snap_distance * 2, bottom.y() - top.y()), Qt.IntersectsItemBoundingRect)
 
-        # TODO: Return something more generic than video items
-        return [item for item in items if isinstance(item, VideoItem)]
+        # TODO: Find something more generic than video items
+        items = [a.item for a in items if isinstance(a, VideoItem) and a is not item]
+
+        distance = int(math.floor(self.viewportTransform().inverted()[0].mapRect(QRectF(0.0, 0.0, self.snap_distance, 1.0)).width()))
+        x = None
+
+        if distance < 1:
+            distance = 1
+
+        for item in items:
+            if abs(item.x - frame) < distance:
+                x = item.x
+                distance = abs(x - frame)
+
+            if abs(item.x + item.width - frame) < distance:
+                x = item.x + item.width
+                distance = abs(x - frame)
+
+        return x
 
 class Draggable(object):
     def __init__(self, drag_base=None):
