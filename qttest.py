@@ -356,9 +356,8 @@ class MainWindow(QMainWindow):
             z2 = bottom_item.z
 
             temp_items = self.space[z1:z2 + 1]
+            temp_items.append(temp_items.pop(0))
 
-            temp_items[0] = bottom_item
-            temp_items[-1] = item
             self.space[z1:z2 + 1] = temp_items
 
     def canvas_send_backward(self):
@@ -376,9 +375,8 @@ class MainWindow(QMainWindow):
             z2 = item.z
 
             temp_items = self.space[z1:z2 + 1]
+            temp_items.insert(0, temp_items.pop())
 
-            temp_items[0] = item
-            temp_items[-1] = top_item
             self.space[z1:z2 + 1] = temp_items
 
 app = QApplication(sys.argv)
