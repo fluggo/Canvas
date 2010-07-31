@@ -135,6 +135,19 @@ extern PyTypeObject py_type_PresentationClock;
 
 #define PRESENTATION_CLOCK_FUNCS "_presentation_clock_funcs"
 
+/**** Codec packets **/
+
+typedef struct {
+    codec_packet_source source;
+    PyObject *csource;
+} CodecPacketSourceHolder;
+
+bool py_codecPacket_takeSource( PyObject *source, CodecPacketSourceHolder *holder );
+
+extern PyTypeObject py_type_CodecPacketSource;
+
+#define CODEC_PACKET_SOURCE_FUNCS "_codec_packet_source_funcs"
+
 #if defined(__cplusplus)
 }
 #endif

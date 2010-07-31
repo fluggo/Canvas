@@ -268,6 +268,7 @@ static PyMethodDef module_methods[] = {
 
 void init_basetypes( PyObject *module );
 void init_VideoSource( PyObject *module );
+void init_CodecPacketSource( PyObject *module );
 void init_FFVideoSource( PyObject *module );
 void init_FFAudioSource( PyObject *module );
 void init_FFContainer( PyObject *module );
@@ -295,6 +296,7 @@ initprocess() {
     init_half();
     init_basetypes( m );
     init_VideoSource( m );
+    init_CodecPacketSource( m );
     init_FFVideoSource( m );
     init_FFAudioSource( m );
     init_FFContainer( m );
