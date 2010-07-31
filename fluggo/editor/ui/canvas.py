@@ -616,7 +616,7 @@ class VideoItem(QGraphicsItem, Draggable):
 
     def _update(self, **kw):
         '''
-        Called by handles to update the item's properties all at once.
+        Called by the item model to update our appearance.
         '''
         # Alter the apparent Z-order of the item
         self.scene().resort_item(self)
