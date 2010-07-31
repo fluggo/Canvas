@@ -224,6 +224,32 @@ typedef struct {
     AudioFrameSourceFuncs *funcs;
 } audio_source;
 
+/************ Codec packet source ******/
+
+#define PACKET_TS_NONE      INT64_C(0x8000000000000000)
+
+typedef struct {
+    void *data;
+    int length;
+    int64_t pts, dts;
+
+    GFreeFunc free_func;
+} codec_packet;
+
+typedef codec_packet *(*codec_getNextPacketFunc)( void *self );
+typedef bool (*codec_seekFunc)( void *self, int frame );
+
+typedef struct {
+    int flags;          // Reserved, should be zero
+    codec_getNextPacketFunc getNextPacket;
+    codec_seekFunc seek;
+} codec_packet_source_funcs;
+
+typedef struct {
+    void *obj;
+    codec_packet_source_funcs *funcs;
+} codec_packet_source;
+
 #if defined(__cplusplus)
 }
 #endif
