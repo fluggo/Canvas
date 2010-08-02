@@ -237,7 +237,7 @@ typedef struct {
 } codec_packet;
 
 typedef codec_packet *(*codec_getNextPacketFunc)( void *self );
-typedef bool (*codec_seekFunc)( void *self, int frame );
+typedef bool (*codec_seekFunc)( void *self, int64_t frame );
 
 typedef struct {
     int flags;          // Reserved, should be zero
