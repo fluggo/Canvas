@@ -99,9 +99,39 @@ CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
     return result;
 }
 
+static PyObject *
+CodecPacketSource_seek( PyObject *self, PyObject *args ) {
+    CodecPacketSourceHolder holder = { { NULL } };
+    int64_t frame;
+
+    if( !PyArg_ParseTuple( args, "L", &frame ) )
+        return NULL;
+
+    if( !py_codecPacket_takeSource( self, &holder ) )
+        return NULL;
+
+    if( !holder.source.funcs->seek ) {
+        py_codecPacket_takeSource( NULL, &holder );
+        PyErr_SetNone( PyExc_NotImplementedError );
+        return NULL;
+    }
+
+    bool result = holder.source.funcs->seek( holder.source.obj, frame );
+    py_codecPacket_takeSource( NULL, &holder );
+
+    if( !result ) {
+        PyErr_SetString( PyExc_Exception, "Failed to seek to frame." );
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef CodecPacketSource_methods[] = {
     { "get_next_packet", (PyCFunction) CodecPacketSource_get_next_packet, METH_NOARGS,
         "Get the next codec packet from the source." },
+    { "seek", (PyCFunction) CodecPacketSource_seek, METH_VARARGS,
+        "Seek to the specified frame/sample." },
     { NULL }
 };
 
