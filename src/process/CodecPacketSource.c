@@ -53,6 +53,12 @@ CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
     if( !py_codecPacket_takeSource( self, &holder ) )
         return NULL;
 
+    if( !holder.source.funcs->getNextPacket ) {
+        py_codecPacket_takeSource( NULL, &holder );
+        PyErr_SetNone( PyExc_NotImplementedError );
+        return NULL;
+    }
+
     codec_packet *packet = holder.source.funcs->getNextPacket( holder.source.obj );
     py_codecPacket_takeSource( NULL, &holder );
 
