@@ -47,6 +47,48 @@ py_codecPacket_takeSource( PyObject *source, CodecPacketSourceHolder *holder ) {
 }
 
 static PyObject *
+CodecPacketSource_get_header( PyObject *self, PyObject *args ) {
+    CodecPacketSourceHolder holder = { { NULL } };
+
+    if( !py_codecPacket_takeSource( self, &holder ) )
+        return NULL;
+
+    if( !holder.source.funcs->getHeader ) {
+        py_codecPacket_takeSource( NULL, &holder );
+        PyErr_SetNone( PyExc_NotImplementedError );
+        return NULL;
+    }
+
+    int header_size = holder.source.funcs->getHeader( holder.source.obj, NULL );
+
+    if( !header_size ) {
+        py_codecPacket_takeSource( NULL, &holder );
+        Py_RETURN_NONE;
+    }
+
+    void *buffer = PyMem_Malloc( header_size );
+
+    if( !buffer ) {
+        py_codecPacket_takeSource( NULL, &holder );
+        return PyErr_NoMemory();
+    }
+
+    if( !holder.source.funcs->getHeader( holder.source.obj, buffer ) ) {
+        PyMem_Free( buffer );
+        py_codecPacket_takeSource( NULL, &holder );
+        PyErr_SetString( PyExc_Exception, "Couldn't retrieve the header." );
+    }
+
+    py_codecPacket_takeSource( NULL, &holder );
+
+    // TODO: In Python 3, return a bytes object (same for get_next_packet below)
+    PyObject *result = PyByteArray_FromStringAndSize( buffer, header_size );
+    PyMem_Free( buffer );
+
+    return result;
+}
+
+static PyObject *
 CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
     CodecPacketSourceHolder holder = { { NULL } };
 
@@ -128,6 +170,8 @@ CodecPacketSource_seek( PyObject *self, PyObject *args ) {
 }
 
 static PyMethodDef CodecPacketSource_methods[] = {
+    { "get_header", (PyCFunction) CodecPacketSource_get_header, METH_NOARGS,
+        "Get the global stream header, if any." },
     { "get_next_packet", (PyCFunction) CodecPacketSource_get_next_packet, METH_NOARGS,
         "Get the next codec packet from the source." },
     { "seek", (PyCFunction) CodecPacketSource_seek, METH_VARARGS,
