@@ -87,6 +87,8 @@ CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
 
     PyObject *result = PyObject_CallFunctionObjArgs( py_type_packet, data, dtsObj, ptsObj, NULL );
     Py_CLEAR( data );
+    Py_CLEAR( dtsObj );
+    Py_CLEAR( ptsObj );
 
     return result;
 }
