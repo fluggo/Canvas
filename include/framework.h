@@ -239,10 +239,23 @@ typedef struct {
 typedef codec_packet *(*codec_getNextPacketFunc)( void *self );
 typedef bool (*codec_seekFunc)( void *self, int64_t frame );
 
+/*
+    codec.getHeader:
+    Get the header data found in the source, if any.
+
+    buffer: Buffer in which to store header data. May be NULL.
+
+    If buffer is NULL, returns the size of the header in bytes, or
+    zero if there is no header.
+    If buffer is not NULL, returns 1 on success and 0 on failure.
+*/
+typedef int (*codec_getHeaderFunc)( void *self, void *buffer );
+
 typedef struct {
     int flags;          // Reserved, should be zero
     codec_getNextPacketFunc getNextPacket;
     codec_seekFunc seek;
+    codec_getHeaderFunc getHeader;
 } codec_packet_source_funcs;
 
 typedef struct {
