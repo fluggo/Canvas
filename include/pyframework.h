@@ -148,6 +148,19 @@ extern PyTypeObject py_type_CodecPacketSource;
 
 #define CODEC_PACKET_SOURCE_FUNCS "_codec_packet_source_funcs"
 
+/**** Coded images **/
+
+typedef struct {
+    coded_image_source source;
+    PyObject *csource;
+} CodedImageSourceHolder;
+
+bool py_codedImage_takeSource( PyObject *source, CodedImageSourceHolder *holder );
+
+extern PyTypeObject py_type_CodedImageSource;
+
+#define CODED_IMAGE_SOURCE_FUNCS "_coded_image_source_funcs"
+
 #if defined(__cplusplus)
 }
 #endif
