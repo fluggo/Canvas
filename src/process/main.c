@@ -271,6 +271,7 @@ void init_VideoSource( PyObject *module );
 void init_CodecPacketSource( PyObject *module );
 void init_FFVideoSource( PyObject *module );
 void init_FFAudioSource( PyObject *module );
+void init_FFDemuxer( PyObject *module );
 void init_FFContainer( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
@@ -299,6 +300,7 @@ initprocess() {
     init_CodecPacketSource( m );
     init_FFVideoSource( m );
     init_FFAudioSource( m );
+    init_FFDemuxer( m );
     init_FFContainer( m );
     init_Pulldown23RemovalFilter( m );
     init_SystemPresentationClock( m );
