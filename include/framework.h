@@ -263,6 +263,28 @@ typedef struct {
     codec_packet_source_funcs *funcs;
 } codec_packet_source;
 
+/************ Coded image source ******/
+
+typedef struct {
+    void *data[4];
+    int stride[4];
+    int line_count[4];
+
+    GFreeFunc free_func;
+} coded_image;
+
+typedef coded_image *(*coded_image_getFrameFunc)( void *self, int64_t frame );
+
+typedef struct {
+    int flags;
+    coded_image_getFrameFunc getFrame;
+} coded_image_source_funcs;
+
+typedef struct {
+    void *obj;
+    coded_image_source_funcs *funcs;
+} coded_image_source;
+
 #if defined(__cplusplus)
 }
 #endif
