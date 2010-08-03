@@ -271,6 +271,7 @@ void init_VideoSource( PyObject *module );
 void init_CodecPacketSource( PyObject *module );
 void init_CodedImageSource( PyObject *module );
 void init_FFVideoSource( PyObject *module );
+void init_FFVideoDecoder( PyObject *module );
 void init_FFAudioSource( PyObject *module );
 void init_FFDemuxer( PyObject *module );
 void init_FFContainer( PyObject *module );
@@ -301,6 +302,7 @@ initprocess() {
     init_CodecPacketSource( m );
     init_CodedImageSource( m );
     init_FFVideoSource( m );
+    init_FFVideoDecoder( m );
     init_FFAudioSource( m );
     init_FFDemuxer( m );
     init_FFContainer( m );
