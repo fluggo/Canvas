@@ -204,6 +204,7 @@ EXPORT bool takePresentationClock( PyObject *source, PresentationClockHolder *ho
     }
 
     holder->source.funcs = (PresentationClockFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    assert(holder->source.funcs);
 
     return true;
 }

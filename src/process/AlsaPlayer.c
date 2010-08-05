@@ -551,6 +551,7 @@ static PyObject *pysourceFuncs;
 
 static PyObject *
 AlsaPlayer_getFuncs( py_obj_AlsaPlayer *self, void *closure ) {
+    Py_INCREF(pysourceFuncs);
     return pysourceFuncs;
 }
 
