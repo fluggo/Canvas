@@ -571,10 +571,17 @@ static const char *gammaShader =
 "#extension GL_ARB_texture_rectangle : enable\n"
 "uniform sampler2DRect tex;"
 //"out vec4 gl_FragColor;"
+"const vec4 transition = vec4(0.0031308);"
+"const vec4 a = vec4(0.055);"
 ""
 "void main() {"
-"    vec4 color = texture2DRect( tex, gl_TexCoord[0].st );"
-"    gl_FragColor.rgba = pow( color.rgba, vec4(0.45, 0.45, 0.45, 0.45) );"
+"   // GL equivalent of linear_to_sRGB in gammatab.c\n"
+"   vec4 color = texture2DRect( tex, gl_TexCoord[0].st );"
+""
+"   gl_FragColor.rgba = mix("
+"       color.rgba * 12.92f,"
+"       (1.0f + a) * pow( color.rgba, vec4(1.0/2.4) ) - a,"
+"       greaterThan( color.rgba, transition ) );"
 "}";
 
 /*
