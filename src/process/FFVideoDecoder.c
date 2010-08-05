@@ -172,7 +172,7 @@ FFVideoDecoder_dealloc( py_obj_FFVideoDecoder *self ) {
 }
 
 static coded_image *
-FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int64_t frame ) {
+FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
     if( self->source.source.funcs->seek && (frame < self->current_frame || frame > self->current_frame + 12) ) {
         if( !self->source.source.funcs->seek( self->source.source.obj, frame ) )
             return NULL;
@@ -207,7 +207,7 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int64_t frame ) {
             continue;
 
         if( packet->dts < frame ) {
-            printf( "Too early (%ld vs %ld) (also %ld)\n", packet->dts, frame, av_frame.pts );
+            printf( "Too early (%ld vs %d) (also %ld)\n", packet->dts, frame, av_frame.pts );
             continue;
         }
 

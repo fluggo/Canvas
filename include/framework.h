@@ -273,7 +273,7 @@ typedef struct {
     GFreeFunc free_func;
 } coded_image;
 
-typedef coded_image *(*coded_image_getFrameFunc)( void *self, int64_t frame );
+typedef coded_image *(*coded_image_getFrameFunc)( void *self, int frame );
 
 typedef struct {
     int flags;

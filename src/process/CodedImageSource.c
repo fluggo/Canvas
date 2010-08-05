@@ -49,9 +49,9 @@ py_codedImage_takeSource( PyObject *source, CodedImageSourceHolder *holder ) {
 static PyObject *
 CodedImageSource_get_frame( PyObject *self, PyObject *args ) {
     CodedImageSourceHolder holder = { { NULL } };
-    int64_t frame;
+    int frame;
 
-    if( !PyArg_ParseTuple( args, "L", &frame ) )
+    if( !PyArg_ParseTuple( args, "i", &frame ) )
         return NULL;
 
     if( !py_codedImage_takeSource( self, &holder ) )
