@@ -29,6 +29,7 @@ extern "C" {
 
 void video_transfer_rec709_to_linear_scene( const half *in, half *out, size_t count );
 void video_transfer_rec709_to_linear_display( const half *in, half *out, size_t count );
+void video_transfer_linear_to_rec709( const half *in, half *out, size_t count );
 void video_transfer_linear_to_sRGB( const half *in, half *out, size_t count );
 
 #if defined(__cplusplus)
