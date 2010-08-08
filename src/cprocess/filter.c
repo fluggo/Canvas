@@ -63,21 +63,18 @@ filter_createTriangle( float sub, float offset, fir_filter *filter ) {
     if( !filter->coeff )
         filter->coeff = g_slice_alloc( sizeof(float) * filter->width );
 
-    if( down ) {
-        float sum = 0.0f;
+    float sum = 0.0f;
 
-        for( int i = 0; i < filter->width; i++ ) {
-            filter->coeff[i] = (1.0f - sub * fabsf((i - filter->center) - offset));
-            sum += filter->coeff[i];
-        }
+    for( int i = 0; i < filter->width; i++ ) {
+        filter->coeff[i] = 1.0f - fabsf( (1.0f / width) * ((i - filter->center) - offset) );
+        sum += filter->coeff[i];
+    }
 
+    if( sub < 1.0f && sum != 0.0f ) {
+        // Normalize to unity in the passband
         for( int i = 0; i < filter->width; i++ ) {
             filter->coeff[i] /= sum;
         }
-    }
-    else {
-        for( int i = 0; i < filter->width; i++ )
-            filter->coeff[i] = 1.0f - (1.0f / sub) * fabsf((i - filter->center) - offset);
     }
 }
 
