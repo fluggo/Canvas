@@ -43,7 +43,7 @@ studio_luma8_to_float( uint8_t luma ) {
 
     720x480 YCbCr
     4:1:1 subsampling, co-sited with left pixel
-    Rec 601 matrix
+    Rec 709 matrix
     Rec 709 transfer function
 */
 EXPORT void
@@ -51,10 +51,17 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
     const int full_width = 720, full_height = 480;
 
     // Rec. 601 YCbCr->RGB matrix in Poynton, p. 305:
-    const float colorMatrix[3][3] = {
+/*    const float colorMatrix[3][3] = {
         { 1.0f,  0.0f,       1.402f },
         { 1.0f, -0.344136f, -0.714136f },
         { 1.0f,  1.772f,     0.0f }
+    };*/
+
+    // Rec. 709 YCbCr->RGB matrix in Poynton, p. 316:
+    const float colorMatrix[3][3] = {
+        { 1.0f,  0.0f,       1.5748f },
+        { 1.0f, -0.187324f, -0.468124f },
+        { 1.0f,  1.8556f,    0.0f }
     };
 
     // Offset the frame so that line zero is part of the first field
