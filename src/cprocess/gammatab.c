@@ -62,7 +62,7 @@ linear_to_rec709( float in ) {
     if( in < __transition )
         return in * 4.5f;
 
-    return 1.099f * powf( in, 0.45f ) + 0.099f;
+    return 1.099f * powf( in, 0.45f ) - 0.099f;
 }
 
 /*
