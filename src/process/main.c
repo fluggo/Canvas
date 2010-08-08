@@ -276,6 +276,7 @@ void init_FFAudioSource( PyObject *module );
 void init_FFDemuxer( PyObject *module );
 void init_FFContainer( PyObject *module );
 void init_DVReconstructionFilter( PyObject *module );
+void init_DVSubsampleFilter( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
 void init_AlsaPlayer( PyObject *module );
@@ -308,6 +309,7 @@ initprocess() {
     init_FFDemuxer( m );
     init_FFContainer( m );
     init_DVReconstructionFilter( m );
+    init_DVSubsampleFilter( m );
     init_Pulldown23RemovalFilter( m );
     init_SystemPresentationClock( m );
     init_AlsaPlayer( m );
