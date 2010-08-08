@@ -63,12 +63,12 @@ CodedImageSource_get_frame( PyObject *self, PyObject *args ) {
     if( !image )
         Py_RETURN_NONE;
 
-    PyObject *data[4];
-    int stride[4];
-    int line_count[4];
+    PyObject *data[CODED_IMAGE_MAX_PLANES];
+    int stride[CODED_IMAGE_MAX_PLANES];
+    int line_count[CODED_IMAGE_MAX_PLANES];
     int count = 0;
 
-    for( int i = 0; i < 4; i++ ) {
+    for( int i = 0; i < CODED_IMAGE_MAX_PLANES; i++ ) {
         if( !image->data[i] )
             break;
 

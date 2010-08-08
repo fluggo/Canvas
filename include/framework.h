@@ -265,10 +265,12 @@ typedef struct {
 
 /************ Coded image source ******/
 
+#define CODED_IMAGE_MAX_PLANES 4
+
 typedef struct {
-    void *data[4];
-    int stride[4];
-    int line_count[4];
+    void *data[CODED_IMAGE_MAX_PLANES];
+    int stride[CODED_IMAGE_MAX_PLANES];
+    int line_count[CODED_IMAGE_MAX_PLANES];
 
     GFreeFunc free_func;
 } coded_image;
