@@ -79,6 +79,73 @@ filter_createTriangle( float sub, float offset, fir_filter *filter ) {
 }
 
 void
+filter_createLanczos( float sub, int kernel_size, float offset, fir_filter *filter ) {
+    assert(filter);
+    assert(sub > 0.0f);
+    assert(kernel_size > 0);
+
+    const bool down = sub < 1.0f;
+    const float width = down ? (1.0f / sub) : sub;
+
+    float leftEdge = ceilf(offset - kernel_size * width);
+    float rightEdge = floorf(offset + kernel_size * width);
+
+    if( G_UNLIKELY(leftEdge == offset - kernel_size * width) )
+        leftEdge++;
+
+    if( G_UNLIKELY(rightEdge == offset + kernel_size * width) )
+        rightEdge--;
+
+    const int full_width = (int) rightEdge - (int) leftEdge + 1;
+
+    // If they supplied a buffer and it's not big enough, tell them
+    if( filter->coeff && filter->width < full_width ) {
+        filter->width = full_width;
+        filter->center = -1;
+        return;
+    }
+
+    filter->width = full_width;
+    filter->center = - (int) leftEdge;
+
+    if( !filter->coeff )
+        filter->coeff = g_slice_alloc( sizeof(float) * filter->width );
+
+    float sum = 0.0f;
+
+    for( int i = 0; i < filter->width; i++ ) {
+        double x = (1.0 / width) * ((i - filter->center) - (double) offset);
+
+        if( G_UNLIKELY(x == 0.0) ) {
+            filter->coeff[i] = 1.0f;
+        }
+        else if( G_UNLIKELY(x <= -kernel_size || x >= kernel_size) ) {
+            filter->coeff[i] = 0.0f;
+        }
+        else {
+            double num = kernel_size * sin(G_PI * x) * sin(G_PI * x / kernel_size);
+            double den = G_PI * G_PI * x * x;
+
+            double result = num / den;
+
+            if( G_LIKELY(isfinite( result )) )
+                filter->coeff[i] = (float) result;
+            else
+                filter->coeff[i] = 1.0f;
+        }
+
+        sum += filter->coeff[i];
+    }
+
+    if( sub < 1.0f && sum != 0.0f ) {
+        // Normalize to unity in the passband
+        for( int i = 0; i < filter->width; i++ ) {
+            filter->coeff[i] /= sum;
+        }
+    }
+}
+
+void
 filter_free( fir_filter *filter ) {
     g_slice_free1( filter->width * sizeof(float), filter->coeff );
 }

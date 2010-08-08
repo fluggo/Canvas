@@ -37,6 +37,8 @@ typedef struct {
 */
 void filter_createTriangle( float sub, float offset, fir_filter *filter );
 
+void filter_createLanczos( float sub, int kernel_size, float offset, fir_filter *filter );
+
 /*
     Frees the coefficients
 */
