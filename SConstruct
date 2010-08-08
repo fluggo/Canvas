@@ -4,6 +4,7 @@ import SCons.Defaults
 debug = ARGUMENTS.get('debug', 0)
 assembly = ARGUMENTS.get('assembly', 0)
 profile = ARGUMENTS.get('profile', 0)
+test = ARGUMENTS.get('test', 0)
 
 env = Environment(CPPPATH=['include'],
     CCFLAGS = ['-Wall', '-D_POSIX_C_SOURCE=200112L', '-Werror'],
@@ -17,6 +18,8 @@ if int(debug):
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
 elif int(profile):
     env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG'])
+elif int(test):
+    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DDEBUG'])
 elif int(assembly):
     env.Append(CCFLAGS = ['-g', '-S', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno'])
 else:
