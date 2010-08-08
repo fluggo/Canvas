@@ -62,32 +62,64 @@ video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_fra
 
     // BJC: I'm going to go for the case where I only have to create one filter at a time, and that's
     // by zeroing out the output and going at it one input-row at a time
-    for( int sy = srect.min.y; sy <= srect.max.y; sy++ ) {
-        rgba_f32 *srow = getPixel_f32( source, xmin, sy );
+    if( factor > 1.0f ) {
+        for( int sy = srect.min.y; sy <= srect.max.y; sy++ ) {
+            rgba_f32 *srow = getPixel_f32( source, xmin, sy );
 
-        float target_center_f = (sy - symin) * factor + tymin;
-        int target_center = (int) floor( target_center_f );
+            float target_center_f = (sy - symin) * factor + tymin;
+            int target_center = (int) floor( target_center_f );
 
-        filter.width = filter_width;
-        filter_createTriangle( factor, target_center_f - target_center, &filter );
+            filter.width = filter_width;
+            filter_createTriangle( factor, target_center_f - target_center, &filter );
 
-        for( int fy = 0; fy < filter.width; fy++ ) {
-            int ty = target_center - filter.center + fy;
+            for( int fy = 0; fy < filter.width; fy++ ) {
+                int ty = target_center - filter.center + fy;
 
-            if( ty < trect.min.y || ty > trect.max.y )
-                continue;
+                if( ty < trect.min.y || ty > trect.max.y )
+                    continue;
 
+                rgba_f32 *trow = getPixel_f32( target, xmin, ty );
+
+                for( int x = 0; x < (xmax - xmin + 1); x++ ) {
+                    trow[x].r += srow[x].r * filter.coeff[fy];
+                    trow[x].g += srow[x].g * filter.coeff[fy];
+                    trow[x].b += srow[x].b * filter.coeff[fy];
+                    trow[x].a += srow[x].a * filter.coeff[fy];
+                }
+
+                ymin = min( ymin, ty );
+                ymax = max( ymax, ty );
+            }
+        }
+    }
+    else {
+        for( int ty = trect.min.y; ty <= trect.max.y; ty++ ) {
             rgba_f32 *trow = getPixel_f32( target, xmin, ty );
 
-            for( int x = 0; x < (xmax - xmin + 1); x++ ) {
-                trow[x].r += srow[x].r * filter.coeff[fy];
-                trow[x].g += srow[x].g * filter.coeff[fy];
-                trow[x].b += srow[x].b * filter.coeff[fy];
-                trow[x].a += srow[x].a * filter.coeff[fy];
-            }
+            float source_center_f = (ty - tymin) / factor + symin;
+            int source_center = (int) floor( source_center_f );
 
-            ymin = min( ymin, ty );
-            ymax = max( ymax, ty );
+            filter.width = filter_width;
+            filter_createTriangle( factor, source_center_f - source_center, &filter );
+
+            for( int fy = 0; fy < filter.width; fy++ ) {
+                int sy = source_center - filter.center + fy;
+
+                if( sy < srect.min.y || sy > srect.max.y )
+                    continue;
+
+                rgba_f32 *srow = getPixel_f32( source, xmin, sy );
+
+                for( int x = 0; x < (xmax - xmin + 1); x++ ) {
+                    trow[x].r += srow[x].r * filter.coeff[fy];
+                    trow[x].g += srow[x].g * filter.coeff[fy];
+                    trow[x].b += srow[x].b * filter.coeff[fy];
+                    trow[x].a += srow[x].a * filter.coeff[fy];
+                }
+
+                ymin = min( ymin, ty );
+                ymax = max( ymax, ty );
+            }
         }
     }
 
@@ -128,36 +160,72 @@ video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_f
 
     // BJC: I'm going to go for the case where I only have to create one filter at a time, and that's
     // by zeroing out the output and going at it one input-row at a time
-    for( int sx = srect.min.x; sx <= srect.max.x; sx++ ) {
-        float target_center_f = (sx - sxmin) * factor + txmin;
-        int target_center = (int) floor( target_center_f );
+    if( factor > 1.0f ) {
+        for( int sx = srect.min.x; sx <= srect.max.x; sx++ ) {
+            float target_center_f = (sx - sxmin) * factor + txmin;
+            int target_center = (int) floor( target_center_f );
 
-        filter.width = filter_width;
-        filter_createTriangle( factor, target_center_f - target_center, &filter );
+            filter.width = filter_width;
+            filter_createTriangle( factor, target_center_f - target_center, &filter );
 
-        for( int y = ymin; y <= ymax; y++ ) {
-            rgba_f32 *s = getPixel_f32( source, sx, y );
-            rgba_f32 *t = getPixel_f32( target, target_center - filter.center, y );
+            for( int y = ymin; y <= ymax; y++ ) {
+                rgba_f32 *s = getPixel_f32( source, sx, y );
+                rgba_f32 *t = getPixel_f32( target, target_center - filter.center, y );
 
-            for( int fx = 0; fx < filter.width; fx++ ) {
-                // BJC: Also, this is one naaaasty inner loop, so this will require some work
-                int tx = target_center - filter.center + fx;
+                for( int fx = 0; fx < filter.width; fx++ ) {
+                    // BJC: Also, this is one naaaasty inner loop, so this will require some work
+                    int tx = target_center - filter.center + fx;
 
-                if( tx < trect.min.x || tx > trect.max.x )
-                    continue;
+                    if( tx < trect.min.x || tx > trect.max.x )
+                        continue;
 
-                t[fx].r += s->r * filter.coeff[fx];
-                t[fx].g += s->g * filter.coeff[fx];
-                t[fx].b += s->b * filter.coeff[fx];
-                t[fx].a += s->a * filter.coeff[fx];
+                    t[fx].r += s->r * filter.coeff[fx];
+                    t[fx].g += s->g * filter.coeff[fx];
+                    t[fx].b += s->b * filter.coeff[fx];
+                    t[fx].a += s->a * filter.coeff[fx];
 
-                xmin = min( xmin, tx );
-                xmax = max( xmax, tx );
+                    xmin = min( xmin, tx );
+                    xmax = max( xmax, tx );
+                }
             }
         }
-    }
 
-    box2i_set( &target->currentDataWindow, xmin, ymin, xmax, ymax );
+        box2i_set( &target->currentDataWindow, xmin, ymin, xmax, ymax );
+    }
+    else {
+        for( int tx = trect.min.x; tx <= trect.max.x; tx++ ) {
+            float source_center_f = (tx - txmin) / factor + sxmin;
+            int source_center = (int) floor( source_center_f );
+
+            filter.width = filter_width;
+            filter_createTriangle( factor, source_center_f - source_center, &filter );
+
+            // TODO: We can skip the inner loop if the filter wouldn't touch any of the source pixels
+
+            for( int y = ymin; y <= ymax; y++ ) {
+                rgba_f32 *s = getPixel_f32( source, source_center - filter.center, y );
+                rgba_f32 *t = getPixel_f32( target, tx, y );
+
+                for( int fx = 0; fx < filter.width; fx++ ) {
+                    // BJC: Also, this is one naaaasty inner loop, so this will require some work
+                    int sx = source_center - filter.center + fx;
+
+                    if( sx < srect.min.x || sx > srect.max.x )
+                        continue;
+
+                    t[0].r += s[fx].r * filter.coeff[fx];
+                    t[0].g += s[fx].g * filter.coeff[fx];
+                    t[0].b += s[fx].b * filter.coeff[fx];
+                    t[0].a += s[fx].a * filter.coeff[fx];
+
+                    xmin = min( xmin, tx );
+                    xmax = max( xmax, tx );
+                }
+            }
+        }
+
+        box2i_set( &target->currentDataWindow, xmin, ymin, xmax, ymax );
+    }
 
     g_slice_free1( sizeof(float) * filter_width, filter.coeff );
 }
