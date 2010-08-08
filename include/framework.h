@@ -275,6 +275,38 @@ typedef struct {
     GFreeFunc free_func;
 } coded_image;
 
+/*
+    Function: coded_image_alloc
+    Allocates a coded_image, along with the storage for all of its planes.
+
+    Parameters:
+    strides - Pointer to an array containing the stride of each plane. Strides can be zero.
+    line_counts - Pointer to an array containing the number of lines in each plane. Can also be zero.
+    count - Number of planes in strides and line_counts. Should be less than or equal to CODED_IMAGE_MAX_PLANES.
+
+    Returns:
+    A pointer to a new coded_image, if successful.
+    The planes will be uninitialized.
+    Call free_func on the resulting image to free it.
+*/
+G_GNUC_MALLOC coded_image *coded_image_alloc( const int *strides, const int *line_counts, int count );
+
+/*
+    Function: coded_image_alloc
+    Allocates a coded_image and its planes and zeroes the memory.
+
+    Parameters:
+    strides - Pointer to an array containing the stride of each plane. Strides can be zero.
+    line_counts - Pointer to an array containing the number of lines in each plane. Can also be zero.
+    count - Number of planes in strides and line_counts. Should be less than or equal to CODED_IMAGE_MAX_PLANES.
+
+    Returns:
+    A pointer to a new coded_image, if successful.
+    The planes will be initialized with zeroes.
+    Call free_func on the resulting image to free it.
+*/
+G_GNUC_MALLOC coded_image *coded_image_alloc0( const int *strides, const int *line_counts, int count );
+
 typedef coded_image *(*coded_image_getFrameFunc)( void *self, int frame );
 
 typedef struct {

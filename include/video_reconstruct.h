@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 void video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame );
+coded_image *video_subsample_dv( rgba_frame_f16 *frame );
 
 #if defined(__cplusplus)
 }
