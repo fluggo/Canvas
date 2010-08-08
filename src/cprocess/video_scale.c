@@ -45,7 +45,7 @@ video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_fra
 
     video_fill_zero_f32( target );
 
-    if( factor == 1.0f ) {
+    if( factor == 1.0f && tymin == symin ) {
         video_copy_frame_alpha_f32( target, source, 1.0f );
         return;
     }
@@ -143,7 +143,7 @@ video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_f
 
     video_fill_zero_f32( target );
 
-    if( factor == 1.0f ) {
+    if( factor == 1.0f && txmin == sxmin ) {
         video_copy_frame_alpha_f32( target, source, 1.0f );
         return;
     }
@@ -241,7 +241,7 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
         video_scale_bilinear_vertical_f32( target, target_point.y, source, source_point.y, factors.y );
         return;
     }
-    else if( factors.y == 1.0f ) {
+    else if( factors.y == 1.0f && target_point.y == source_point.y ) {
         video_scale_bilinear_horizontal_f32( target, target_point.x, source, source_point.x, factors.x );
         return;
     }
