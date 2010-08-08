@@ -305,10 +305,10 @@ video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_s
     v2i size;
 
     box2i_set( &temp_frame.fullDataWindow,
-        (int)(source_point.x - (target_point.x - target->fullDataWindow.min.x) / factors.x),
-        (int)(source_point.y - (target_point.y - target->fullDataWindow.min.y) / factors.y),
-        (int)(source_point.x + (target->fullDataWindow.max.x - target_point.x) / factors.x),
-        (int)(source_point.y + (target->fullDataWindow.max.y - target_point.y) / factors.y) );
+        (int)(source_point.x - (target_point.x - target->fullDataWindow.min.x) / factors.x) - 1,
+        (int)(source_point.y - (target_point.y - target->fullDataWindow.min.y) / factors.y) - 1,
+        (int)(source_point.x + (target->fullDataWindow.max.x - target_point.x) / factors.x) + 1,
+        (int)(source_point.y + (target->fullDataWindow.max.y - target_point.y) / factors.y) + 1 );
 
     box2i_intersect( &temp_frame.fullDataWindow, &temp_frame.fullDataWindow, source_rect );
 
