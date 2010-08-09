@@ -116,7 +116,7 @@ FFDemuxer_seek( py_obj_FFDemuxer *self, int64_t frame ) {
         timestamp = (frame * self->frame_duration.n) / self->frame_duration.d;
 
     if( av_seek_frame( self->context, self->stream, timestamp, AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD ) < 0 ) {
-        printf( "Could not seek to frame %ld.\n", frame );
+        printf( "Could not seek to frame %" PRId64 ".\n", frame );
         return false;
     }
 

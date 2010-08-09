@@ -207,7 +207,7 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
             continue;
 
         if( packet->dts < frame ) {
-            printf( "Too early (%ld vs %d) (also %ld)\n", packet->dts, frame, av_frame.pts );
+            printf( "Too early (%" PRId64 " vs %d) (also %" PRId64 ")\n", packet->dts, frame, av_frame.pts );
             continue;
         }
 
