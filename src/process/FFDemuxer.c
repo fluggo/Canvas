@@ -177,6 +177,8 @@ FFDemuxer_get_next_packet( py_obj_FFDemuxer *self ) {
         packet->packet.pts = packet->packet.dts;
     }
 
+    packet->packet.keyframe = (packet->av_packet.flags & PKT_FLAG_KEY) ? true : false;
+
     // Convert timestamps from raw to frames/samples
     if( !self->raw_timestamps ) {
         if( packet->packet.dts != PACKET_TS_NONE )

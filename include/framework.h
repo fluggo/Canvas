@@ -232,6 +232,7 @@ typedef struct {
     void *data;
     int length;
     int64_t pts, dts;
+    bool keyframe;
 
     GFreeFunc free_func;
 } codec_packet;
