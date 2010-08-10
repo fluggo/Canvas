@@ -20,7 +20,6 @@
 
 #include <glib.h>
 #include <math.h>
-#include <assert.h>
 #include <stdbool.h>
 #include "filter.h"
 
@@ -33,8 +32,8 @@ filter_createTriangle( float sub, float offset, fir_filter *filter ) {
     // For downsampling (sub < 1), it's y(x) = 1.0f - sub * abs(x - offset) scaled to sum to unity
     // Upsample goes to zero at x = offset +/- sub, down at x = offset +- (1/sub)
 
-    assert(filter);
-    assert(sub > 0.0f);
+    g_assert(filter);
+    g_assert(sub > 0.0f);
 
     const bool down = sub < 1.0f;
     const float width = down ? (1.0f / sub) : sub;
@@ -80,9 +79,9 @@ filter_createTriangle( float sub, float offset, fir_filter *filter ) {
 
 void
 filter_createLanczos( float sub, int kernel_size, float offset, fir_filter *filter ) {
-    assert(filter);
-    assert(sub > 0.0f);
-    assert(kernel_size > 0);
+    g_assert(filter);
+    g_assert(sub > 0.0f);
+    g_assert(kernel_size > 0);
 
     const bool down = sub < 1.0f;
     const float width = down ? (1.0f / sub) : sub;

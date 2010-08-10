@@ -17,13 +17,13 @@ if WhereIs('clang'):
 if int(debug):
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
 elif int(profile):
-    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG'])
+    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 elif int(test):
     env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DDEBUG'])
 elif int(assembly):
     env.Append(CCFLAGS = ['-g', '-S', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno'])
 else:
-    env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG'])
+    env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 
 python_env = env.Clone(SHLIBPREFIX='')
 python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()], CCFLAGS=['-fno-strict-aliasing'])

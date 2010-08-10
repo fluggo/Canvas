@@ -19,14 +19,13 @@
 */
 
 #include <string.h>
-#include <assert.h>
 #include "video_reconstruct.h"
 #include "filter.h"
 #include "color.h"
 
 static void
 free_coded_image( coded_image *image ) {
-    assert(image);
+    g_assert(image);
 
     for( int i = 0; i < CODED_IMAGE_MAX_PLANES; i++ ) {
         if( image->data[i] )
@@ -38,15 +37,15 @@ free_coded_image( coded_image *image ) {
 
 static coded_image *
 coded_image_alloc_impl( const int *strides, const int *line_counts, int count, bool zero ) {
-    assert(strides);
-    assert(line_counts);
-    assert(count <= CODED_IMAGE_MAX_PLANES);
+    g_assert(strides);
+    g_assert(line_counts);
+    g_assert(count <= CODED_IMAGE_MAX_PLANES);
 
     coded_image *result = g_slice_new0( coded_image );
 
     for( int i = 0; i < count; i++ ) {
-        assert(strides[i] >= 0);
-        assert(line_counts[i] >= 0);
+        g_assert(strides[i] >= 0);
+        g_assert(line_counts[i] >= 0);
 
         result->stride[i] = strides[i];
         result->line_count[i] = line_counts[i];
