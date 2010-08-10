@@ -171,6 +171,12 @@ FFDemuxer_get_next_packet( py_obj_FFDemuxer *self ) {
     packet->packet.pts = packet->av_packet.pts;
     packet->packet.free_func = (GFreeFunc) my_packet_free;
 
+    // TODO: There are a lot of cases where this won't work
+    if( packet->packet.pts == PACKET_TS_NONE ) {
+        g_warning( "FFmpeg format did not supply pts, dts is %" PRId64 ".", packet->packet.dts );
+        packet->packet.pts = packet->packet.dts;
+    }
+
     // Convert timestamps from raw to frames/samples
     if( !self->raw_timestamps ) {
         if( packet->packet.dts != PACKET_TS_NONE )
