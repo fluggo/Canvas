@@ -115,7 +115,7 @@ typedef struct {
 
     CodecPacketSourceHolder source;
     AVCodecContext context;
-    int64_t current_frame;
+    int64_t next_frame;
 
     GStaticMutex mutex;
 } py_obj_FFVideoDecoder;
@@ -154,7 +154,7 @@ FFVideoDecoder_init( py_obj_FFVideoDecoder *self, PyObject *args, PyObject *kw )
 
     g_static_mutex_init( &self->mutex );
 
-    self->current_frame = 0;
+    self->next_frame = 0;
     self->context.get_buffer = counted_get_buffer;
     self->context.release_buffer = counted_release_buffer;
 
@@ -173,10 +173,12 @@ FFVideoDecoder_dealloc( py_obj_FFVideoDecoder *self ) {
 
 static coded_image *
 FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
-    if( self->source.source.funcs->seek && (frame < self->current_frame || frame > self->current_frame + 12) ) {
+    if( self->source.source.funcs->seek && (frame < self->next_frame || frame > self->next_frame + 12) ) {
         if( !self->source.source.funcs->seek( self->source.source.obj, frame ) )
             return NULL;
     }
+
+    self->next_frame = frame;
 
     AVFrame av_frame;
     avcodec_get_frame_defaults( &av_frame );
@@ -205,6 +207,8 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
 
         if( !got_picture )
             continue;
+
+        self->next_frame = packet->pts + 1;
 
         if( packet->pts < frame ) {
             printf( "Too early (%" PRId64 " vs %d) (also %" PRId64 ")\n", packet->pts, frame, av_frame.pts );
