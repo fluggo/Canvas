@@ -241,7 +241,6 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     return Py_BuildValue( "L", endTime - startTime );
 }
 
-PyObject *py_writeVideo( PyObject *self, PyObject *args, PyObject *kw );
 PyObject *py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw );
 
 static PyMethodDef module_methods[] = {
@@ -253,8 +252,6 @@ static PyMethodDef module_methods[] = {
         "min_sample, max_sample, data = getAudioData(source, min_sample, max_sample[, channels=2]): Gets raw audio data from the source." },
     { "time_get_frame", (PyCFunction) py_timeGetFrame, METH_VARARGS | METH_KEYWORDS,
         "timeGetFrame(source, min_frame, max_frame, data_window=(0,0,1,1)): Retrieves min_frame through max_frame from the source and returns the time it took in nanoseconds." },
-    { "write_video", (PyCFunction) py_writeVideo, METH_VARARGS | METH_KEYWORDS,
-        "TBD" },
     { "frame_func_get", (PyCFunction) py_frame_func_get, METH_VARARGS | METH_KEYWORDS,
         "Get a list of values from a frame function.\n"
         "\n"
@@ -270,13 +267,6 @@ void init_basetypes( PyObject *module );
 void init_VideoSource( PyObject *module );
 void init_CodecPacketSource( PyObject *module );
 void init_CodedImageSource( PyObject *module );
-void init_FFVideoSource( PyObject *module );
-void init_FFVideoDecoder( PyObject *module );
-void init_FFVideoEncoder( PyObject *module );
-void init_FFAudioSource( PyObject *module );
-void init_FFDemuxer( PyObject *module );
-void init_FFMuxer( PyObject *module );
-void init_FFContainer( PyObject *module );
 void init_DVReconstructionFilter( PyObject *module );
 void init_DVSubsampleFilter( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
@@ -305,13 +295,6 @@ initprocess() {
     init_VideoSource( m );
     init_CodecPacketSource( m );
     init_CodedImageSource( m );
-    init_FFVideoSource( m );
-    init_FFVideoDecoder( m );
-    init_FFVideoEncoder( m );
-    init_FFAudioSource( m );
-    init_FFDemuxer( m );
-    init_FFMuxer( m );
-    init_FFContainer( m );
     init_DVReconstructionFilter( m );
     init_DVSubsampleFilter( m );
     init_Pulldown23RemovalFilter( m );

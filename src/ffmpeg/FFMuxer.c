@@ -312,7 +312,7 @@ static PyMethodDef FFMuxer_methods[] = {
 static PyTypeObject py_type_FFMuxer = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.process.FFMuxer",    // tp_name
+    "fluggo.media.ffmpeg.FFMuxer",    // tp_name
     sizeof(py_obj_FFMuxer),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

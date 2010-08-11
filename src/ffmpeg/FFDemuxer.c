@@ -217,7 +217,7 @@ static PyMethodDef FFDemuxer_methods[] = {
 static PyTypeObject py_type_FFDemuxer = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.process.FFDemuxer",    // tp_name
+    "fluggo.media.ffmpeg.FFDemuxer",    // tp_name
     sizeof(py_obj_FFDemuxer),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodecPacketSource,

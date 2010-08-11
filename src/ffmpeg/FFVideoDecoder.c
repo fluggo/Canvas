@@ -189,6 +189,8 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
     // TODO: This also does not consider multiple frames in a single packet.
     // See http://www.inb.uni-luebeck.de/~boehme/using_libavcodec.html for example.
 
+    // TODO: Handle when we get to the end of the stream (keep passing NULL)
+
     codec_packet *packet = NULL;
 
     for( ;; ) {
@@ -203,6 +205,7 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
         int got_picture;
 
         //printf( "Decoding video\n" );
+        // TODO: Upgrade to avcodec_decode_video2
         avcodec_decode_video( &self->context, &av_frame, &got_picture, packet->data, packet->length );
 
         if( !got_picture )
@@ -249,7 +252,7 @@ static PyMethodDef FFVideoDecoder_methods[] = {
 static PyTypeObject py_type_FFVideoDecoder = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.process.FFVideoDecoder",    // tp_name
+    "fluggo.media.ffmpeg.FFVideoDecoder",    // tp_name
     sizeof(py_obj_FFVideoDecoder),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodedImageSource,

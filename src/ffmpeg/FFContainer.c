@@ -53,7 +53,7 @@ FFStream_dealloc( py_obj_FFStream *self ) {
 static PyTypeObject py_type_FFStream = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.FFStream",    // tp_name
+    "fluggo.media.ffmpeg.FFStream",    // tp_name
     sizeof(py_obj_FFStream),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
@@ -334,7 +334,7 @@ static PyGetSetDef FFStream_getsetters[] = {
 static PyTypeObject py_type_FFContainer = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.process.FFContainer",    // tp_name
+    "fluggo.media.ffmpeg.FFContainer",    // tp_name
     sizeof(py_obj_FFContainer),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

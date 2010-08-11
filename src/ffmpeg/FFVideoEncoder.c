@@ -246,7 +246,7 @@ static PyMethodDef FFVideoEncoder_methods[] = {
 static PyTypeObject py_type_FFVideoEncoder = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.process.FFVideoEncoder",    // tp_name
+    "fluggo.media.ffmpeg.FFVideoEncoder",    // tp_name
     sizeof(py_obj_FFVideoEncoder),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodecPacketSource,

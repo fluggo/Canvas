@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from fluggo.media import process, sources
+from fluggo.media import process, ffmpeg, sources
 from fluggo.media.formats import *
 
 _FF_MUXER_TO_STD = {
@@ -40,13 +40,13 @@ class FFMuxPlugin(object):
                 continue
 
             if stream.type == 'video':
-                return sources.VideoSource(process.FFVideoSource(container.path), stream)
+                return sources.VideoSource(ffmpeg.FFVideoSource(container.path), stream)
 
         raise RuntimeError('Stream ID {0} not found in {1}.'.format(id, container.path))
 
     @classmethod
     def detect_container(cls, path):
-        data = process.FFContainer(path)
+        data = ffmpeg.FFContainer(path)
 
         result = MediaContainer()
         result.detected[ContainerAttribute.MUXER] = _FF_MUXER_TO_STD.get(data.format_name, 'video/x-ffmpeg-' + data.format_name)
