@@ -35,7 +35,7 @@ static PyMethodDef VideoSource_methods[] = {
     { NULL }
 };
 
-PyTypeObject py_type_VideoSource = {
+EXPORT PyTypeObject py_type_VideoSource = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
     "fluggo.media.process.VideoSource",    // tp_name

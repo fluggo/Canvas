@@ -18,12 +18,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <glib.h>
 #include <math.h>
-#include <stdbool.h>
+#include "framework.h"
 #include "filter.h"
 
-void
+EXPORT void
 filter_createTriangle( float sub, float offset, fir_filter *filter ) {
     // sub = f'/f where f is the original sampling rate (you can assume 1) and f' is the new sampling rate
     // sub = 4/1 is upsampling by a factor of four, sub = 1/4 is downsampling by the same
@@ -77,7 +76,7 @@ filter_createTriangle( float sub, float offset, fir_filter *filter ) {
     }
 }
 
-void
+EXPORT void
 filter_createLanczos( float sub, int kernel_size, float offset, fir_filter *filter ) {
     g_assert(filter);
     g_assert(sub > 0.0f);
@@ -142,9 +141,14 @@ filter_createLanczos( float sub, int kernel_size, float offset, fir_filter *filt
             filter->coeff[i] /= sum;
         }
     }
+
+/*    for( int i = 0; i < filter->width; i++ ) {
+        g_print( "%f <- %f %s\n", filter->coeff[i], (float)((1.0 / width) * ((i - filter->center) - (double) offset)),
+            i == filter->center ? "<- center" : "" );
+    }*/
 }
 
-void
+EXPORT void
 filter_free( fir_filter *filter ) {
     g_slice_free1( filter->width * sizeof(float), filter->coeff );
 }

@@ -50,7 +50,7 @@ __gl_checkError(const char *file, const unsigned long line) {
     }
 }
 
-void *getCurrentGLContext() {
+EXPORT void *getCurrentGLContext() {
     return glXGetCurrentContext();
 }
 
@@ -67,7 +67,7 @@ void *getCurrentGLContext() {
     This function creates a GL texture for the frame and renders a quad
     with the current context settings to it.
 */
-void
+EXPORT void
 gl_renderToTexture( rgba_frame_gl *frame ) {
     v2i frameSize;
     box2i_getSize( &frame->fullDataWindow, &frameSize );
@@ -97,7 +97,7 @@ gl_renderToTexture( rgba_frame_gl *frame ) {
     glDeleteFramebuffersEXT( 1, &fbo );
 }
 
-void
+EXPORT void
 gl_printShaderErrors( GLhandleARB shader ) {
     int status;
     glGetObjectParameterivARB( shader, GL_OBJECT_COMPILE_STATUS_ARB, &status );

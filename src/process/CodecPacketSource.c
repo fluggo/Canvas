@@ -179,7 +179,7 @@ static PyMethodDef CodecPacketSource_methods[] = {
     { NULL }
 };
 
-PyTypeObject py_type_CodecPacketSource = {
+EXPORT PyTypeObject py_type_CodecPacketSource = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
     "fluggo.media.process.CodecPacketSource",    // tp_name

@@ -169,7 +169,7 @@ static PyMethodDef PresentationClock_methods[] = {
     { NULL }
 };
 
-PyTypeObject py_type_PresentationClock = {
+EXPORT PyTypeObject py_type_PresentationClock = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
     "fluggo.media.process.PresentationClock",    // tp_name
