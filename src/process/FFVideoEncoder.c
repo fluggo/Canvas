@@ -102,7 +102,7 @@ FFVideoEncoder_init( py_obj_FFVideoEncoder *self, PyObject *args, PyObject *kw )
 
     // Open the codec
     if( (error = avcodec_open( &self->context, codec )) != 0 ) {
-        PyErr_Format( PyExc_Exception, "Could not open the codec (%s).", strerror( -error ) );
+        PyErr_Format( PyExc_Exception, "Could not open the codec (%s).", g_strerror( -error ) );
         py_codedImage_takeSource( NULL, &self->source );
         return -1;
     }

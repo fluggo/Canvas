@@ -52,12 +52,12 @@ FFAudioSource_init( py_obj_FFAudioSource *self, PyObject *args, PyObject *kwds )
     av_register_all();
 
     if( (error = av_open_input_file( &self->context, filename, NULL, 0, NULL )) != 0 ) {
-        PyErr_Format( PyExc_Exception, "Could not open the file (%s).", strerror( -error ) );
+        PyErr_Format( PyExc_Exception, "Could not open the file (%s).", g_strerror( -error ) );
         return -1;
     }
 
     if( (error = av_find_stream_info( self->context )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Could not find the stream info (%s).", strerror( -error ) );
+        PyErr_Format( PyExc_Exception, "Could not find the stream info (%s).", g_strerror( -error ) );
         return -1;
     }
 
@@ -82,7 +82,7 @@ FFAudioSource_init( py_obj_FFAudioSource *self, PyObject *args, PyObject *kwds )
     }
 
     if( (error = avcodec_open( self->codecContext, self->codec )) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Could not open a codec (%s).", strerror( -error ) );
+        PyErr_Format( PyExc_Exception, "Could not open a codec (%s).", g_strerror( -error ) );
         return -1;
     }
 
