@@ -275,6 +275,7 @@ void init_FFVideoDecoder( PyObject *module );
 void init_FFVideoEncoder( PyObject *module );
 void init_FFAudioSource( PyObject *module );
 void init_FFDemuxer( PyObject *module );
+void init_FFMuxer( PyObject *module );
 void init_FFContainer( PyObject *module );
 void init_DVReconstructionFilter( PyObject *module );
 void init_DVSubsampleFilter( PyObject *module );
@@ -309,6 +310,7 @@ initprocess() {
     init_FFVideoEncoder( m );
     init_FFAudioSource( m );
     init_FFDemuxer( m );
+    init_FFMuxer( m );
     init_FFContainer( m );
     init_DVReconstructionFilter( m );
     init_DVSubsampleFilter( m );
