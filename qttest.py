@@ -255,6 +255,9 @@ class MainWindow(QMainWindow):
         self.quit_action = QAction('&Quit', self, shortcut=QKeySequence.Quit,
             statusTip='Quit the application', triggered=self.close, menuRole=QAction.QuitRole)
 
+        self.render_dv_action = QAction('&Render DV...', self,
+            statusTip='Render the entire canvas to a DV video', triggered=self.render_dv)
+
         self.view_video_preview = self.video_dock.toggleViewAction()
         self.view_video_preview.setText('Video &Preview')
         self.view_source_list = self.search_dock.toggleViewAction()
@@ -285,6 +288,7 @@ class MainWindow(QMainWindow):
     def create_menus(self):
         self.file_menu = self.menuBar().addMenu('&File')
         self.file_menu.addAction(self.open_space_action)
+        self.file_menu.addAction(self.render_dv_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.quit_action)
 
@@ -324,6 +328,43 @@ class MainWindow(QMainWindow):
         self.source_list.clear()
         self.source_list.update(sources)
         self.space[:] = space[:]
+
+    def render_dv(self):
+        if not len(self.space):
+            return
+
+        path = QFileDialog.getSaveFileName(self, "Render DV", filter='AVI Files (*.avi)')
+
+        if path:
+            # Create a private workspace for this render
+            # TODO: Changes to *filters* in the original workspace may alter this one, too
+            # Be sure to check for that before making this process asynchronous
+            workspace = process.Workspace()
+            items = sorted(self.space, key=lambda a: a.z_sort_key())
+
+            for i, item in enumerate(items):
+                source = self.source_list.get_stream(item.source_name, item.source_stream_id)
+                workspace.add(x=item.x, width=item.width, z=i, offset=item.offset, source=source)
+
+            from fluggo.media import ffmpeg
+
+            right = max(item.x + item.width for item in self.space)
+
+            # TODO: Put black at the bottom so that we always composite against it
+
+            packet_source = ffmpeg.FFVideoEncoder(process.DVSubsampleFilter(workspace),
+                'dvvideo', start_frame=0, end_frame=right - 1,
+                frame_size=v2i(720, 480), sample_aspect_ratio=fractions.Fraction(33, 40),
+                interlaced=True, top_field_first=False, frame_rate=fractions.Fraction(30000/1001))
+
+            muxer = ffmpeg.FFMuxer(str(path), 'avi')
+            muxer.add_video_stream(packet_source, 'dvvideo', frame_rate=fractions.Fraction(30000, 1001),
+                frame_size = v2i(720, 480), sample_aspect_ratio=fractions.Fraction(33, 40))
+
+            from fluggo.editor.ui.renderprogress import RenderProgressDialog
+
+            dialog = RenderProgressDialog(muxer, [packet_source])
+            dialog.exec_()
 
     def transport_play(self):
         self.clock.play(1)
