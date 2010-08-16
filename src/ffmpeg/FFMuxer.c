@@ -196,6 +196,7 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     self->context->pb = stream;
 
     // Seed the packet list
+    PyThreadState *_save = PyEval_SaveThread();
     stream_t *current = self->stream_list;
 
     while( current ) {
@@ -220,6 +221,7 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
 
     // Write format header
     if( (error = av_write_header( self->context )) < 0 ) {
+        PyEval_RestoreThread( _save );
         PyErr_Format( PyExc_Exception, "Failed to write the header (%s).", g_strerror( -error ) );
         return NULL;
     }
@@ -227,6 +229,7 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     // Write the packets
     for( ;; ) {
         if( PyErr_CheckSignals() ) {
+            PyEval_RestoreThread( _save );
             url_fclose( stream );
             return NULL;
         }
@@ -259,6 +262,7 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
             packet.flags |= PKT_FLAG_KEY;
 
         if( (error = av_interleaved_write_frame( self->context, &packet )) < 0 ) {
+            PyEval_RestoreThread( _save );
             PyErr_Format( PyExc_Exception, "Failed to write frame (%s).", g_strerror( -error ) );
             url_fclose( stream );
             return NULL;
@@ -276,6 +280,7 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
 
     // Close format
     if( (error = av_write_trailer( self->context )) < 0 ) {
+        PyEval_RestoreThread( _save );
         PyErr_Format( PyExc_Exception, "Failed to write format trailer (%s).", g_strerror( -error ) );
         url_fclose( stream );
         return NULL;
@@ -284,6 +289,7 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     // Close file
     url_fclose( stream );
 
+    PyEval_RestoreThread( _save );
     Py_RETURN_NONE;
 }
 
