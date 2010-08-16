@@ -41,6 +41,7 @@ typedef struct {
     AVOutputFormat *format;
     AVFormatContext *context;
     stream_t *stream_list;
+    volatile bool quit;
 } py_obj_FFMuxer;
 
 static int
@@ -188,6 +189,8 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     ByteIOContext *stream;
     int error;
 
+    self->quit = false;
+
     if( url_fopen( &stream, self->context->filename, URL_WRONLY ) < 0 ) {
         PyErr_SetString( PyExc_Exception, "Failed to open the file." );
         return NULL;
@@ -228,6 +231,12 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
 
     // Write the packets
     for( ;; ) {
+        if( self->quit ) {
+            PyEval_RestoreThread( _save );
+            url_fclose( stream );
+            Py_RETURN_NONE;
+        }
+
         if( PyErr_CheckSignals() ) {
             PyEval_RestoreThread( _save );
             url_fclose( stream );
@@ -293,6 +302,12 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     Py_RETURN_NONE;
 }
 
+static PyObject *
+FFMuxer_cancel( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
+    self->quit = true;
+    Py_RETURN_NONE;
+}
+
 static PyGetSetDef FFMuxer_getsetters[] = {
     { NULL }
 };
@@ -312,6 +327,8 @@ static PyMethodDef FFMuxer_methods[] = {
         "sample_aspect_ratio - The sample aspect ratio as a rational." },
     { "run", (PyCFunction) FFMuxer_run, METH_NOARGS,
         "Run the muxer and write the complete file." },
+    { "cancel", (PyCFunction) FFMuxer_cancel, METH_NOARGS,
+        "Cancel a current run() call." },
     { NULL }
 };
 
