@@ -30,7 +30,7 @@ typedef struct {
     AVCodecContext context;
     bool context_initialized;
     bool interlaced, top_field_first;
-    int current_frame, end_frame;
+    int start_frame, current_frame, end_frame;
 } py_obj_FFVideoEncoder;
 
 static int
@@ -48,6 +48,8 @@ FFVideoEncoder_init( py_obj_FFVideoEncoder *self, PyObject *args, PyObject *kw )
             &self->current_frame, &self->end_frame, &frame_rate_obj, &frame_size_obj, &sample_aspect_ratio_obj, &interlaced_obj,
             &global_header_obj, &top_field_first_obj ) )
         return -1;
+
+    self->start_frame = self->current_frame;
 
     // Parse and validate the arguments
     avcodec_register_all();
@@ -234,8 +236,20 @@ FFVideoEncoder_getFuncs( py_obj_FFVideoEncoder *self, void *closure ) {
     return pySourceFuncs;
 }
 
+static PyObject *
+FFVideoEncoder_get_progress( py_obj_FFVideoEncoder *self, void *closure ) {
+    return PyInt_FromLong( self->current_frame - self->start_frame );
+}
+
+static PyObject *
+FFVideoEncoder_get_progress_count( py_obj_FFVideoEncoder *self, void *closure ) {
+    return PyInt_FromLong( self->end_frame - self->start_frame );
+}
+
 static PyGetSetDef FFVideoEncoder_getsetters[] = {
     { CODEC_PACKET_SOURCE_FUNCS, (getter) FFVideoEncoder_getFuncs, NULL, "Codec packet source C API." },
+    { "progress", (getter) FFVideoEncoder_get_progress, NULL, "Encoder progress, from zero to progress_count." },
+    { "progress_count", (getter) FFVideoEncoder_get_progress_count, NULL, "Number of items to complete. Compare to progress." },
     { NULL }
 };
 
