@@ -52,7 +52,7 @@ AudioSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 }
 
 static void
-AudioSequence_getFrame( PyObject *self, AudioFrame *frame ) {
+AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
     g_mutex_lock( PRIV(self)->mutex );
     if( frame->fullMaxSample < 0 || PRIV(self)->sequence->len == 0 ) {
         // No result
@@ -80,7 +80,7 @@ AudioSequence_getFrame( PyObject *self, AudioFrame *frame ) {
     while( i < PRIV(self)->sequence->len ) {
         PRIV(self)->lastElement = i;
         Element elem = SEQINDEX(self, i);
-        AudioFrame tempFrame = {
+        audio_frame tempFrame = {
             .channelCount = frame->channelCount,
             .fullMinSample = max(elem.startSample, frame->fullMinSample),
             .fullMaxSample = min(elem.startSample + elem.length - 1, frame->fullMaxSample),

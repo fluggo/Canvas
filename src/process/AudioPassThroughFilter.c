@@ -42,7 +42,7 @@ AudioPassThroughFilter_init( py_obj_AudioPassThroughFilter *self, PyObject *args
 }
 
 static void
-AudioPassThroughFilter_getFrame( py_obj_AudioPassThroughFilter *self, AudioFrame *frame ) {
+AudioPassThroughFilter_getFrame( py_obj_AudioPassThroughFilter *self, audio_frame *frame ) {
     if( !self->source.source.funcs ) {
         // No result
         frame->currentMaxSample = frame->currentMinSample - 1;

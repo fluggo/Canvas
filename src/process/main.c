@@ -126,7 +126,7 @@ py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
     if( !py_audio_takeSource( sourceObj, &source ) )
         return NULL;
 
-    AudioFrame frame;
+    audio_frame frame;
     frame.frameData = PyMem_Malloc( channels * (maxSample - minSample + 1) * sizeof(float) );
     frame.channelCount = channels;
     frame.fullMinSample = minSample;

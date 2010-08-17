@@ -228,7 +228,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             video->codec->pix_fmt, frameSize.x, frameSize.y );
     }
 
-    AudioFrame audioInputFrame;
+    audio_frame audioInputFrame;
     void *outSampleBuf = NULL;
     int outSampleBufSize = 0, sampleCount = 0;
 

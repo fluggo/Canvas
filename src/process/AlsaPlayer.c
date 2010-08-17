@@ -87,7 +87,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         snd_pcm_uframes_t hwBufferSize, hwPeriodSize;
         snd_pcm_get_params( self->pcmDevice, &hwBufferSize, &hwPeriodSize );
 
-        AudioFrame frame;
+        audio_frame frame;
         frame.channelCount = self->channelCount;
         frame.frameData = self->inBuffer;
 

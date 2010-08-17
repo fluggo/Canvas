@@ -210,9 +210,9 @@ typedef struct {
     int channelCount;
     int fullMinSample, fullMaxSample;
     int currentMinSample, currentMaxSample;
-} AudioFrame;
+} audio_frame;
 
-typedef void (*audio_getFrameFunc)( void *self, AudioFrame *frame );
+typedef void (*audio_getFrameFunc)( void *self, audio_frame *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero

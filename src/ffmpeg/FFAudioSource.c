@@ -232,7 +232,7 @@ static int getSampleCount( int byteCount, enum SampleFormat sample_fmt, int chan
 }
 
 static void
-FFAudioSource_getFrame( py_obj_FFAudioSource *self, AudioFrame *frame ) {
+FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
 /*    if( frameIndex < 0 || frameIndex > self->context->streams[self->firstAudioStream]->duration ) {
         // No result
         frame->currentMaxSample = -1;
