@@ -22,8 +22,6 @@
 #include <asoundlib.h>
 #include "clock.h"
 
-#define F_PI 3.1415926535897932384626433832795f
-
 typedef struct __tag_callback_info {
     void *data;
     clock_callback_func callback;
