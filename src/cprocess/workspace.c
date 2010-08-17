@@ -28,17 +28,30 @@ struct workspace_t_tag {
     // on item->x, rightsort is sorted backwards on (item->x + item->width).
     GSequence *leftsort, *rightsort;
 
+    // This is a more generic workspace than the last iteration. In audio, we're concerned about
+    // the first and last *sample* to be composed at once, where in video we're only concerned about
+    // composing a single frame. They're really the same algorithm; audio is the more general case,
+    // and video is the case where start_frame == end_frame. Either way, the workspace logic is
+    // only around to maintain the composite_list (below) and it's up to the video- or audio-
+    // specific logic to compose the results.
+
     // leftiter and rightiter are references into leftsort and rightsort respectively.
     // They give us a way to quickly walk what should appear next when the current frame moves.
 
-    // leftiter sits on the first item for which item->x > current_frame.
-    // rightiter sits on the last item for which (item->x + item->width) <= current_frame.
+    // leftiter sits on the first item for which item->x > end_frame (that is, the next
+    // item to enter the composite_list if end_frame increases).
+
+    // rightiter sits on the last item for which (item->x + item->width) <= start_frame (that is,
+    // the next item to enter the composite_list if start_frame decreases).
+
+    // When start_frame increases or end_frame decreases, the composite_list is just scanned for
+    // items that don't belong anymore.
 
     // There are better ways to do this for random-access, most importantly the interval tree.
     // This is quick and dirty and works.
 
     GSequenceIter *leftiter, *rightiter;
-    int current_frame;
+    int start_frame, end_frame;
 
     GSequence *composite_list;
 };
@@ -97,7 +110,8 @@ workspace_create_video() {
     result->rightsort = g_sequence_new( NULL );
     result->leftiter = g_sequence_get_begin_iter( result->leftsort );
     result->rightiter = g_sequence_get_begin_iter( result->rightsort );
-    result->current_frame = 0;
+    result->start_frame = 0;
+    result->end_frame = 0;
     result->composite_list = g_sequence_new( NULL );
 
     return result;
@@ -113,7 +127,7 @@ workspace_get_length( workspace_t *self ) {
 }
 
 /*
-    Move leftiter to the correct position for the current_frame.
+    Move leftiter to the correct position for the end_frame.
 */
 static void
 workspace_fix_leftiter( workspace_t *self ) {
@@ -127,7 +141,8 @@ workspace_fix_leftiter( workspace_t *self ) {
         iter = g_sequence_iter_prev( iter );
         item = (workspace_item_t *) g_sequence_get( iter );
 
-        if( item->x <= self->current_frame )
+        // If the item is potentially "in-range" then it's definitely not next
+        if( item->x <= self->end_frame )
             return;
 
         self->leftiter = iter;
@@ -135,20 +150,20 @@ workspace_fix_leftiter( workspace_t *self ) {
 
     item = (workspace_item_t *) g_sequence_get( iter );
 
-    if( item->x > self->current_frame ) {
-        // Iterate backwards to see if there's one closer to current_frame
+    if( item->x > self->end_frame ) {
+        // Iterate backwards to see if there's one closer to end_frame
         while( !g_sequence_iter_is_begin( iter ) ) {
             iter = g_sequence_iter_prev( iter );
             item = (workspace_item_t *) g_sequence_get( iter );
 
-            if( item->x > self->current_frame )
+            if( item->x > self->end_frame )
                 self->leftiter = iter;
             else
                 break;
         }
     }
     else {
-        // Move forwards until we're after current_frame
+        // Move forwards until we're after end_frame
         while( !g_sequence_iter_is_end( iter ) ) {
             iter = g_sequence_iter_next( iter );
 
@@ -157,7 +172,7 @@ workspace_fix_leftiter( workspace_t *self ) {
 
             item = (workspace_item_t *) g_sequence_get( iter );
 
-            if( item->x > self->current_frame ) {
+            if( item->x > self->end_frame ) {
                 self->leftiter = iter;
                 break;
             }
@@ -166,7 +181,7 @@ workspace_fix_leftiter( workspace_t *self ) {
 }
 
 /*
-    Move rightiter to the correct position for the current_frame.
+    Move rightiter to the correct position for the start_frame.
 */
 static void
 workspace_fix_rightiter( workspace_t *self ) {
@@ -180,7 +195,8 @@ workspace_fix_rightiter( workspace_t *self ) {
         iter = g_sequence_iter_prev( iter );
         item = (workspace_item_t *) g_sequence_get( iter );
 
-        if( (item->x + item->width) > self->current_frame )
+        // If the item is potentially "in-range" then it's definitely not next
+        if( (item->x + item->width) > self->start_frame )
             return;
 
         self->rightiter = iter;
@@ -188,13 +204,13 @@ workspace_fix_rightiter( workspace_t *self ) {
 
     item = (workspace_item_t *) g_sequence_get( iter );
 
-    if( (item->x + item->width) <= self->current_frame ) {
+    if( (item->x + item->width) <= self->start_frame ) {
         // Iterate backwards to see if there's one closer to current_frame
         while( !g_sequence_iter_is_begin( iter ) ) {
             iter = g_sequence_iter_prev( iter );
             item = (workspace_item_t *) g_sequence_get( iter );
 
-            if( (item->x + item->width) <= self->current_frame )
+            if( (item->x + item->width) <= self->start_frame )
                 self->rightiter = iter;
             else
                 break;
@@ -212,7 +228,7 @@ workspace_fix_rightiter( workspace_t *self ) {
 
             item = (workspace_item_t *) g_sequence_get( iter );
 
-            if( (item->x + item->width) <= self->current_frame ) {
+            if( (item->x + item->width) <= self->start_frame ) {
                 self->rightiter = iter;
                 break;
             }
@@ -223,14 +239,14 @@ workspace_fix_rightiter( workspace_t *self ) {
 }
 
 /*
-    Update the composite list for this frame.
+    Update the composite list for this range.
 */
 static void
-workspace_move_it( workspace_t *self, int frame ) {
-    if( frame == self->current_frame )
+workspace_move_it( workspace_t *self, int start_frame, int end_frame ) {
+    if( start_frame == self->start_frame && end_frame == self->end_frame )
         return;
 
-    // Remove everything from the composite list that doesn't include this frame
+    // Remove everything from the composite list that doesn't include this range
     GSequenceIter *iter = g_sequence_get_begin_iter( self->composite_list );
 
     while( !g_sequence_iter_is_end( iter ) ) {
@@ -239,23 +255,24 @@ workspace_move_it( workspace_t *self, int frame ) {
 
         workspace_item_t *item = (workspace_item_t *) g_sequence_get( current );
 
-        if( frame < item->x || frame >= (item->x + item->width) ) {
+        if( end_frame < item->x || start_frame >= (item->x + item->width) ) {
             g_sequence_remove( current );
             item->compiter = NULL;
         }
     }
 
-    int old_frame = self->current_frame;
-    self->current_frame = frame;
+    int old_end_frame = self->end_frame, old_start_frame = self->start_frame;
+    self->start_frame = start_frame;
+    self->end_frame = end_frame;
 
-    if( frame > old_frame ) {
+    if( end_frame > old_end_frame ) {
         // Move forward
         while( !g_sequence_iter_is_end( self->leftiter ) ) {
             workspace_item_t *item = (workspace_item_t *) g_sequence_get( self->leftiter );
 
-            if( frame >= item->x ) {
+            if( end_frame >= item->x ) {
                 // See if this frame is in this item
-                if( frame < (item->x + item->width) )
+                if( start_frame < (item->x + item->width) )
                     item->compiter = g_sequence_insert_sorted( self->composite_list, item, cmpz, NULL );
 
                 // Move ahead for the next time we ask
@@ -264,16 +281,15 @@ workspace_move_it( workspace_t *self, int frame ) {
             else
                 break;        // Nobody to the right will have this frame
         }
-
-        workspace_fix_rightiter( self );
     }
-    else {
+
+    if( start_frame < old_start_frame ) {
         while( !g_sequence_iter_is_end( self->rightiter ) ) {
             workspace_item_t *item = (workspace_item_t *) g_sequence_get( self->rightiter );
 
-            if( frame < (item->x + item->width) ) {
+            if( start_frame < (item->x + item->width) ) {
                 // Add it to the composite list if the frame is in this item
-                if( frame >= item->x )
+                if( end_frame >= item->x )
                     item->compiter = g_sequence_insert_sorted( self->composite_list, item, cmpz, NULL );
 
                 // Move ahead for the next time we ask
@@ -282,9 +298,13 @@ workspace_move_it( workspace_t *self, int frame ) {
             else
                 break;        // Nobody to the left will have this frame
         }
-
-        workspace_fix_leftiter( self );
     }
+
+    if( end_frame < old_end_frame )
+        workspace_fix_leftiter( self );
+
+    if( start_frame > old_start_frame )
+        workspace_fix_rightiter( self );
 }
 
 EXPORT workspace_item_t *
@@ -309,7 +329,7 @@ workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t width
     workspace_fix_rightiter( self );
 
     // If necessary, add to composite_list
-    if( self->current_frame >= x && self->current_frame < (x + width) )
+    if( self->end_frame >= x && self->start_frame < (x + width) )
         item->compiter = g_sequence_insert_sorted( self->composite_list, item, cmpz, NULL );
     else
         item->compiter = NULL;
@@ -384,7 +404,7 @@ workspace_move_item_x( workspace_item_t *item, int64_t x, int64_t width ) {
     g_sequence_sort_changed( item->rightiter, cmp_right, NULL );
     workspace_fix_rightiter( self );
 
-    if( (self->current_frame >= x) && (self->current_frame < (x + width)) ) {
+    if( (self->end_frame >= x) && (self->start_frame < (x + width)) ) {
         if( !item->compiter )
             item->compiter = g_sequence_insert_sorted( self->composite_list, item, cmpz, NULL );
     }
@@ -455,7 +475,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
     g_static_mutex_lock( &self->mutex );
 
     // Update the composite list
-    workspace_move_it( self, frame_index );
+    workspace_move_it( self, frame_index, frame_index );
 
     // Now composite everything in it
     if( g_sequence_get_length( self->composite_list ) == 0 ) {
