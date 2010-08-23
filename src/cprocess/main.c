@@ -126,3 +126,15 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
     g_slice_free1( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
 }
 
+EXPORT void
+audio_get_frame( const audio_source *source, audio_frame *frame ) {
+    if( !source || !source->funcs || !source->funcs->getFrame ) {
+        frame->currentMinSample = 0;
+        frame->currentMaxSample = -1;
+        return;
+    }
+
+    source->funcs->getFrame( source->obj, frame );
+}
+
+

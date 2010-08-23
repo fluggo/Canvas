@@ -248,6 +248,8 @@ typedef struct {
     AudioFrameSourceFuncs *funcs;
 } audio_source;
 
+void audio_get_frame( const audio_source *source, audio_frame *frame );
+
 /************ Codec packet source ******/
 
 #define PACKET_TS_NONE      INT64_C(0x8000000000000000)
