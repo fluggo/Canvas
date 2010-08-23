@@ -233,6 +233,11 @@ typedef struct {
 
 typedef void (*audio_getFrameFunc)( void *self, audio_frame *frame );
 
+G_GNUC_PURE static inline float *
+audio_get_sample( const audio_frame *frame, int sample, int channel ) {
+    return &frame->frameData[(sample - frame->fullMinSample) * frame->channelCount + channel];
+}
+
 typedef struct {
     int flags;            // Reserved, should be zero
     audio_getFrameFunc getFrame;
