@@ -123,11 +123,17 @@ except Exception as ex:
 
 # Tests
 testenv = env.Clone()
-testenv.Append(ENV={'PYTHONPATH': env.Dir('.')})
+testenv.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
+testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=['GLEW', cprocess])
+
+test_cprocess = testenv.Program('tests/cprocess_test', env.Glob('src/tests/*.c'))
 
 for testfile in Glob('tests/test_*.py'):
     testenv.Alias('test', testenv.Command(None, testfile, '@python tests/testrunner.py $SOURCE.filebase'))
 
+testenv.Alias('test', testenv.Command('test_dummy', 'tests/cprocess_test', '@tests/cprocess_test'))
+
+Requires('test', test_cprocess)
 Requires('test', process)
 Alias('all', 'test')
 

@@ -3,10 +3,12 @@
 /src/qt/moc_VideoWidget.cc
 /docs/html
 /docs/natural/Data
+/tests/cprocess_test
 /build
 /config.log
 /.sconf_temp
 *.pyc
 *.os
 *.so
+*.o
 *~
