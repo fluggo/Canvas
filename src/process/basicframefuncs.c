@@ -198,13 +198,19 @@ py_frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder ) {
         holder->constant_type = CONST_TYPE_INT32;
         return true;
     }
-    else if( py_parse_box2f( source, &holder->constant.const_box2f ) ) {
+    else {
         PyErr_Clear();
+    }
+
+    if( py_parse_box2f( source, &holder->constant.const_box2f ) ) {
         holder->constant_type = CONST_TYPE_FLOAT32;
         return true;
     }
-    else if( PyTuple_Check( source ) ) {
+    else {
         PyErr_Clear();
+    }
+
+    if( PyTuple_Check( source ) ) {
         Py_ssize_t length = PyTuple_GET_SIZE( source );
 
         if( !length ) {
