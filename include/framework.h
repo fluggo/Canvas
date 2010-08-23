@@ -205,6 +205,25 @@ void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *ou
 
 /************* Audio *******/
 
+/*
+    Structure: audio_frame
+    A frame of audio, containing one or more audio samples.
+
+    frameData - Buffer where the sample data is stored. It is at least
+        sizeof(float) * channelCount * (fullMaxSample - fullMinSample + 1)
+        bytes. Channels are interleaved; a sample can be found at
+        frameData[(sample - fullMinSample) * channelCount + channel].
+    channelCount - The number of channels in the buffer. Note that this is
+        constant: An audio source should not set this to the number of channels
+        it can produce, but rather produce zero samples for channels it
+        does not have.
+    fullMinSample - The index of the sample found at frameData[0].
+    fullMaxSample - The index of the last possible sample in the buffer,
+        which is at frameData[(fullMaxSample - fullMinSample) * channelCount].
+    currentMinSample - The index of the first valid sample in the buffer.
+    currentMaxSample - The index of the last valid sample in the buffer.
+*/
+
 typedef struct {
     float *frameData;
     int channelCount;
