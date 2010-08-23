@@ -147,8 +147,14 @@ _box2f = collections.namedtuple('_box2f', 'min max')
 class box2f(_box2f):
     __slots__ = ()
 
-    def __new__(class_, min=v2f(0, 0), max=v2f(-1, -1)):
-        return _box2i.__new__(class_, v2f(min), v2f(max))
+    def __new__(class_, min=v2f(0, 0), max=v2f(-1, -1), max_x=None, max_y=None):
+        if max_x is not None and max_y is not None:
+            min = v2f(min, max)
+            max = v2f(max_x, max_y)
+        elif isinstance(min, box2f):
+            (min, max) = min
+
+        return _box2f.__new__(class_, v2f(min), v2f(max))
 
     def width(self):
         return max(0, self.max.x - self.min.x)
