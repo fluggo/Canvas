@@ -133,6 +133,7 @@ for testfile in Glob('tests/test_*.py'):
 
 testenv.Alias('test', testenv.Command('test_dummy', 'tests/cprocess_test', '@tests/cprocess_test'))
 
+Requires('test', cprocess)
 Requires('test', test_cprocess)
 Requires('test', process)
 Alias('all', 'test')
