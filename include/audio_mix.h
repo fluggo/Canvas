@@ -41,18 +41,33 @@ void audio_copy_frame( audio_frame *out, const audio_frame *in, int offset );
 
     out - Destination frame.
     in - Source frame.
+    factor - Factor to multiply input samples by. Specify 1.0 for a direct copy.
     offset - Offset, in samples, of the source frame relative to the destination frame.
         An offset of 500, for example, would copy source sample 500 to destination sample
         0, 501 to 1, and so on.
-    factor - Factor to multiply input samples by. Specify 1.0 for a direct copy.
 */
-void audio_copy_frame_attenuate( audio_frame *out, const audio_frame *in, int offset, float factor );
+void audio_copy_frame_attenuate( audio_frame *out, const audio_frame *in, float factor, int offset );
+
+/*
+    Function: audio_attenuate
+    Attenuate an existing frame.
+
+    frame - Frame to attenuate
+    factor - Factor to multiply input samples by.
+*/
+void audio_attenuate( audio_frame *frame, float factor );
 
 /*
     Function: audio_mix_add
     Adds two audio frames.
+
+    out - First frame to mix, and the frame to receive the result.
+    mix_out - Attenuation on the existing frame.
+    a - Second frame to mix.
+    mix_a - Attenuation on the second frame.
+    offset - Offset, in samples, of frame A relative to the destination frame.
 */
-void audio_mix_add( audio_frame *out, const audio_frame *a, float mix_a, const audio_frame *b, float mix_b );
+void audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_a, int offset );
 
 void audio_mix_add_pull( audio_frame *out, const audio_source *a, int offset_a, float mix_a, const audio_source *b, int offset_b, float mix_b );
 

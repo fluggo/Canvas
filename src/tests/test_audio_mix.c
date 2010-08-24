@@ -187,7 +187,7 @@ test_copy_frame_attenuate_basic_expand() {
         .channelCount = 1,
     };
 
-    audio_copy_frame_attenuate( &out, &in, 0, 0.5f );
+    audio_copy_frame_attenuate( &out, &in, 0.5f, 0 );
 
     // Check it
     g_assert_cmpint(out.fullMinSample, ==, 1);
@@ -223,7 +223,7 @@ test_copy_frame_attenuate_stereo_reduce_channels() {
         .channelCount = 1,
     };
 
-    audio_copy_frame_attenuate( &out, &in, 0, 0.5f );
+    audio_copy_frame_attenuate( &out, &in, 0.5f, 0 );
 
     // Check it
     g_assert_cmpint(out.fullMinSample, ==, 2);
@@ -263,7 +263,7 @@ test_copy_frame_attenuate_stereo_expand_channels() {
         .channelCount = 3,
     };
 
-    audio_copy_frame_attenuate( &out, &in, 0, 0.5f );
+    audio_copy_frame_attenuate( &out, &in, 0.5f, 0 );
 
     // Check it
     g_assert_cmpint(out.fullMinSample, ==, 2);
@@ -287,7 +287,7 @@ static void
 test_add_basic() {
     float a_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
     float b_data[5] = { 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
-    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+    float out_data[7] = { 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 9.0f };
 
     audio_frame a = {
         .frameData = a_data,
@@ -296,20 +296,14 @@ test_add_basic() {
         .channelCount = 1,
     };
 
-    audio_frame b = {
-        .frameData = b_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
+    audio_frame out = {
+        .frameData = out_data,
+        .fullMinSample = 1, .fullMaxSample = 7,
         .currentMinSample = 2, .currentMaxSample = 6,
         .channelCount = 1,
     };
 
-    audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .channelCount = 1,
-    };
-
-    audio_mix_add( &out, &a, 1.0f, &b, 1.0f );
+    audio_mix_add( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
     g_assert_cmpint(out.fullMinSample, ==, 1);
@@ -325,8 +319,7 @@ test_add_basic() {
 static void
 test_add_basic_offset() {
     float a_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
-    float b_data[5] = { 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
-    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+    float out_data[7] = { 9.0f, 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
 
     audio_frame a = {
         .frameData = a_data,
@@ -335,20 +328,14 @@ test_add_basic_offset() {
         .channelCount = 1,
     };
 
-    audio_frame b = {
-        .frameData = b_data,
-        .fullMinSample = 3, .fullMaxSample = 7,
+    audio_frame out = {
+        .frameData = out_data,
+        .fullMinSample = 1, .fullMaxSample = 7,
         .currentMinSample = 3, .currentMaxSample = 7,
         .channelCount = 1,
     };
 
-    audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .channelCount = 1,
-    };
-
-    audio_mix_add( &out, &a, 1.0f, &b, 1.0f );
+    audio_mix_add( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
     g_assert_cmpint(out.fullMinSample, ==, 1);
@@ -368,30 +355,23 @@ test_add_basic_offset() {
 static void
 test_add_basic_offset_attenuate() {
     float a_data[5] = { 0.5f, 1.0f, 2.0f, 3.0f, 4.0f };
-    float b_data[5] = { 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
-    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+    float out_data[7] = { 9.0f, 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
 
     audio_frame a = {
         .frameData = a_data,
-        .fullMinSample = 1, .fullMaxSample = 5,
-        .currentMinSample = 1, .currentMaxSample = 5,
-        .channelCount = 1,
-    };
-
-    audio_frame b = {
-        .frameData = b_data,
-        .fullMinSample = 3, .fullMaxSample = 7,
-        .currentMinSample = 3, .currentMaxSample = 7,
+        .fullMinSample = 6, .fullMaxSample = 10,
+        .currentMinSample = 6, .currentMaxSample = 10,
         .channelCount = 1,
     };
 
     audio_frame out = {
         .frameData = out_data,
         .fullMinSample = 1, .fullMaxSample = 7,
+        .currentMinSample = 3, .currentMaxSample = 7,
         .channelCount = 1,
     };
 
-    audio_mix_add( &out, &a, 0.5f, &b, 2.0f );
+    audio_mix_add( &out, 2.0f, &a, 0.5f, 5 );
 
     // Check it
     g_assert_cmpint(out.fullMinSample, ==, 1);
