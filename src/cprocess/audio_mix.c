@@ -179,14 +179,17 @@ audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_
 }
 
 EXPORT void
-audio_mix_add_pull( audio_frame *out, const audio_source *a, int offset_a, float mix_a, const audio_source *b, int offset_b, float mix_b ) {
+audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, float mix_a, int offset_a ) {
     g_assert( out );
+    g_assert( out->frameData );
 
-    if( mix_b == 0.0f ) {
-        if( mix_a == 0.0f )
+    if( mix_out == 0.0f || (out->currentMaxSample < out->currentMinSample) ) {
+        if( mix_a == 0.0f ) {
+            audio_attenuate( out, 0.0f );
             return;
+        }
 
-        // Adjust out's parameters
+        // We can skip allocations, just adjust out's parameters
         out->fullMinSample += offset_a;
         out->fullMaxSample += offset_a;
 
@@ -199,66 +202,28 @@ audio_mix_add_pull( audio_frame *out, const audio_source *a, int offset_a, float
 
         // Apply the mix factor directly
         audio_attenuate( out, mix_a );
+        return;
     }
-    else if( mix_a == 0.0f ) {
-        if( mix_b == 0.0f ) {
-            out->currentMinSample = 0;
-            out->currentMaxSample = -1;
-            return;
-        }
 
-        // Adjust out's parameters
-        out->fullMinSample += offset_b;
-        out->fullMaxSample += offset_b;
-
-        audio_get_frame( b, out );
-
-        out->fullMinSample -= offset_b;
-        out->fullMaxSample -= offset_b;
-        out->currentMinSample -= offset_b;
-        out->currentMaxSample -= offset_b;
-
-        // Apply the mix factor directly
-        audio_attenuate( out, mix_b );
+    if( mix_a == 0.0f ) {
+        audio_attenuate( out, mix_out );
+        return;
     }
-    else {
-        // Pull A directly into "out"
-        out->fullMinSample += offset_a;
-        out->fullMaxSample += offset_a;
 
-        audio_get_frame( a, out );
+    // Pull A into a temp frame
+    audio_frame temp_frame = {
+        .frameData = g_slice_alloc( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount ),
+        .fullMinSample = out->fullMinSample + offset_a,
+        .fullMaxSample = out->fullMaxSample + offset_a,
+        .channelCount = out->channelCount
+    };
 
-        out->fullMinSample -= offset_a;
-        out->fullMaxSample -= offset_a;
-        out->currentMinSample -= offset_a;
-        out->currentMaxSample -= offset_a;
+    audio_get_frame( a, &temp_frame );
 
-        if( mix_b == 0.0f ) {
-            // We can skip the rest, but first we need to attenuate 
-            audio_attenuate( out, mix_a );
-            return;
-        }
+    // Now mix
+    audio_mix_add( out, mix_out, &temp_frame, mix_a, offset_a );
 
-        // Pull B into a temp frame
-        audio_frame temp_frame = {
-            .frameData = g_slice_alloc( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount ),
-            .fullMinSample = out->fullMinSample + offset_b,
-            .fullMaxSample = out->fullMaxSample + offset_b,
-            .channelCount = out->channelCount
-        };
-
-        audio_get_frame( b, out );
-
-        temp_frame.fullMinSample -= offset_b;
-        temp_frame.fullMaxSample -= offset_b;
-        temp_frame.currentMinSample -= offset_b;
-        temp_frame.currentMaxSample -= offset_b;
-
-        // Now mix
-        audio_mix_add( out, mix_a, &temp_frame, mix_b, offset_b );
-
-        g_slice_free1( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount, temp_frame.frameData );
-    }
+    g_slice_free1( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount, temp_frame.frameData );
 }
 
 

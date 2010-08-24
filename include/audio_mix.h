@@ -69,7 +69,7 @@ void audio_attenuate( audio_frame *frame, float factor );
 */
 void audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_a, int offset );
 
-void audio_mix_add_pull( audio_frame *out, const audio_source *a, int offset_a, float mix_a, const audio_source *b, int offset_b, float mix_b );
+void audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, float mix_a, int offset_a );
 
 #endif
 
