@@ -106,14 +106,14 @@ audio_attenuate( audio_frame *frame, float factor ) {
 
 EXPORT void
 audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_a, int offset ) {
-    if( mix_out == 0.0f ) {
+    if( mix_out == 0.0f || (out->currentMaxSample < out->currentMinSample) ) {
         audio_copy_frame_attenuate( out, a, mix_a, offset );
         return;
     }
 
     audio_attenuate( out, mix_out );
 
-    if( mix_out == 0.0f )
+    if( mix_a == 0.0f || (a->currentMaxSample < a->currentMinSample) )
         return;
 
     g_assert( a );

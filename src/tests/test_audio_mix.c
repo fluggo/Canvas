@@ -317,6 +317,136 @@ test_add_basic() {
 }
 
 static void
+test_add_basic_empty_in() {
+    float dummy_data[5] = { 12.0f, 12.0f, 12.0f, 12.0f, 12.0f };
+    float test_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    float out_data[7] = { 9.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 9.0f };
+
+    audio_frame a = {
+        .frameData = dummy_data,
+        .fullMinSample = 2, .fullMaxSample = 6,
+        .currentMinSample = 4, .currentMaxSample = 3,
+        .channelCount = 1,
+    };
+
+    audio_frame out = {
+        .frameData = out_data,
+        .fullMinSample = 1, .fullMaxSample = 7,
+        .currentMinSample = 2, .currentMaxSample = 6,
+        .channelCount = 1,
+    };
+
+    audio_mix_add( &out, 1.0f, &a, 1.0f, 0 );
+
+    // Check it
+    g_assert_cmpint(out.fullMinSample, ==, 1);
+    g_assert_cmpint(out.fullMaxSample, ==, 7);
+    g_assert_cmpint(out.currentMinSample, ==, 2);
+    g_assert_cmpint(out.currentMaxSample, ==, 6);
+
+    for( int i = 0; i < 5; i++ ) {
+        g_assert_cmpfloat( test_data[i], ==, out_data[i + 1] );
+    }
+}
+
+static void
+test_add_basic_zero_in() {
+    float dummy_data[5] = { 12.0f, 12.0f, 12.0f, 12.0f, 12.0f };
+    float test_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    float out_data[7] = { 9.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 9.0f };
+
+    audio_frame a = {
+        .frameData = dummy_data,
+        .fullMinSample = 2, .fullMaxSample = 6,
+        .currentMinSample = 2, .currentMaxSample = 6,
+        .channelCount = 1,
+    };
+
+    audio_frame out = {
+        .frameData = out_data,
+        .fullMinSample = 1, .fullMaxSample = 7,
+        .currentMinSample = 2, .currentMaxSample = 6,
+        .channelCount = 1,
+    };
+
+    audio_mix_add( &out, 1.0f, &a, 0.0f, 0 );
+
+    // Check it
+    g_assert_cmpint(out.fullMinSample, ==, 1);
+    g_assert_cmpint(out.fullMaxSample, ==, 7);
+    g_assert_cmpint(out.currentMinSample, ==, 2);
+    g_assert_cmpint(out.currentMaxSample, ==, 6);
+
+    for( int i = 0; i < 5; i++ ) {
+        g_assert_cmpfloat( test_data[i], ==, out_data[i + 1] );
+    }
+}
+
+static void
+test_add_basic_empty_out() {
+    float a_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+
+    audio_frame a = {
+        .frameData = a_data,
+        .fullMinSample = 2, .fullMaxSample = 6,
+        .currentMinSample = 2, .currentMaxSample = 6,
+        .channelCount = 1,
+    };
+
+    audio_frame out = {
+        .frameData = out_data,
+        .fullMinSample = 1, .fullMaxSample = 7,
+        .currentMinSample = 5, .currentMaxSample = 4,
+        .channelCount = 1,
+    };
+
+    audio_mix_add( &out, 1.0f, &a, 1.0f, 0 );
+
+    // Check it
+    g_assert_cmpint(out.fullMinSample, ==, 1);
+    g_assert_cmpint(out.fullMaxSample, ==, 7);
+    g_assert_cmpint(out.currentMinSample, ==, 2);
+    g_assert_cmpint(out.currentMaxSample, ==, 6);
+
+    for( int i = 0; i < 5; i++ ) {
+        g_assert_cmpfloat( a_data[i], ==, out_data[i + 1] );
+    }
+}
+
+static void
+test_add_basic_zero_out() {
+    float a_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+
+    audio_frame a = {
+        .frameData = a_data,
+        .fullMinSample = 2, .fullMaxSample = 6,
+        .currentMinSample = 2, .currentMaxSample = 6,
+        .channelCount = 1,
+    };
+
+    audio_frame out = {
+        .frameData = out_data,
+        .fullMinSample = 1, .fullMaxSample = 7,
+        .currentMinSample = 2, .currentMaxSample = 6,
+        .channelCount = 1,
+    };
+
+    audio_mix_add( &out, 0.0f, &a, 1.0f, 0 );
+
+    // Check it
+    g_assert_cmpint(out.fullMinSample, ==, 1);
+    g_assert_cmpint(out.fullMaxSample, ==, 7);
+    g_assert_cmpint(out.currentMinSample, ==, 2);
+    g_assert_cmpint(out.currentMaxSample, ==, 6);
+
+    for( int i = 0; i < 5; i++ ) {
+        g_assert_cmpfloat( a_data[i], ==, out_data[i + 1] );
+    }
+}
+
+static void
 test_add_basic_offset() {
     float a_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
     float out_data[7] = { 9.0f, 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
@@ -399,6 +529,10 @@ test_setup_audio_mix() {
     g_test_add_func( "/audio/mix/copy_frame_attenuate/stereo_reduce_channels", test_copy_frame_attenuate_stereo_reduce_channels );
     g_test_add_func( "/audio/mix/copy_frame_attenuate/stereo_expand_channels", test_copy_frame_attenuate_stereo_expand_channels );
     g_test_add_func( "/audio/mix/add/basic", test_add_basic );
+    g_test_add_func( "/audio/mix/add/basic_empty_in", test_add_basic_empty_in );
+    g_test_add_func( "/audio/mix/add/basic_empty_out", test_add_basic_empty_out );
+    g_test_add_func( "/audio/mix/add/basic_zero_in", test_add_basic_zero_in );
+    g_test_add_func( "/audio/mix/add/basic_zero_out", test_add_basic_zero_out );
     g_test_add_func( "/audio/mix/add/basic_offset", test_add_basic_offset );
     g_test_add_func( "/audio/mix/add/basic_offset_attenuate", test_add_basic_offset_attenuate );
 }
