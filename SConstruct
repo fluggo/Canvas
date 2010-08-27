@@ -21,7 +21,7 @@ elif int(profile):
 elif int(test):
     env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DDEBUG'])
 elif int(assembly):
-    env.Append(CCFLAGS = ['-g', '-S', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno'])
+    env.Append(CCFLAGS = ['-S', '-O3', '-mtune=native', '-march=native', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 else:
     env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 
