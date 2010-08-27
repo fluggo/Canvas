@@ -190,6 +190,7 @@ FFVideoEncoder_get_next_packet( py_obj_FFVideoEncoder *self ) {
         packet->pts = self->context.coded_frame->pts;
         packet->dts = PACKET_TS_NONE;
         packet->keyframe = self->context.coded_frame->key_frame ? true : false;
+        packet->free_func = (GFreeFunc) my_packet_free;
 
         g_free( bit_bucket );
 
@@ -217,6 +218,7 @@ FFVideoEncoder_get_next_packet( py_obj_FFVideoEncoder *self ) {
     packet->pts = self->context.coded_frame->pts;
     packet->dts = PACKET_TS_NONE;
     packet->keyframe = self->context.coded_frame->key_frame ? true : false;
+    packet->free_func = (GFreeFunc) my_packet_free;
 
     g_free( bit_bucket );
 
