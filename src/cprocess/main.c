@@ -19,6 +19,7 @@
 */
 
 #include "framework.h"
+#include "audio_mix.h"
 
 EXPORT int64_t
 getFrameTime( const rational *frameRate, int frame ) {
@@ -125,6 +126,18 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
 
     g_slice_free1( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
 }
+
+
+/***** Audio support ***/
+
+static void
+audio_frame_as_source_get_frame( audio_frame *in, audio_frame *out ) {
+    audio_copy_frame( out, in, 0 );
+}
+
+EXPORT AudioFrameSourceFuncs audio_frame_as_source_funcs = {
+    .getFrame = (audio_getFrameFunc) audio_frame_as_source_get_frame,
+};
 
 EXPORT void
 audio_get_frame( const audio_source *source, audio_frame *frame ) {

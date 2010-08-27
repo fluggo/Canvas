@@ -250,6 +250,10 @@ typedef struct {
 
 void audio_get_frame( const audio_source *source, audio_frame *frame );
 
+extern AudioFrameSourceFuncs audio_frame_as_source_funcs;
+
+#define AUDIO_FRAME_AS_SOURCE(frame)  { .obj = frame, .funcs = &audio_frame_as_source_funcs }
+
 /************ Codec packet source ******/
 
 #define PACKET_TS_NONE      INT64_C(0x8000000000000000)
