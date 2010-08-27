@@ -116,8 +116,8 @@ video_subsample_dv( rgba_frame_f16 *frame ) {
     const int subX = 4;
     const float subOffsetX = 0.0f;
 
-    static const int strides[3] = { full_width, full_width / subX, full_width / subX };
-    static const int line_counts[3] = { full_height, full_height, full_height };
+    const int strides[3] = { full_width, full_width / subX, full_width / subX };
+    const int line_counts[3] = { full_height, full_height, full_height };
 
     // Set up the current window
     box2i window = {
