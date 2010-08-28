@@ -76,7 +76,7 @@ color_to_python( rgba_f16 *color ) {
     rgba_f32 result;
     half_convert_to_float( &color->r, &result.r, 4 );
 
-    return Py_BuildValue( "ffff", result.r, result.g, result.b, result.a );
+    return py_make_rgba_f32( &result );
 }
 
 static PyObject *
