@@ -417,6 +417,7 @@ static PyTypeObject py_type_FFAudioSource = {
     "fluggo.media.ffmpeg.FFAudioSource",    // tp_name
     sizeof(py_obj_FFAudioSource),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_AudioSource,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) FFAudioSource_dealloc,
     .tp_init = (initproc) FFAudioSource_init,

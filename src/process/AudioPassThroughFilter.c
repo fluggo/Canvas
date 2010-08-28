@@ -110,6 +110,7 @@ static PyTypeObject py_type_AudioPassThroughFilter = {
     "fluggo.media.process.AudioPassThroughFilter",    // tp_name
     sizeof(py_obj_AudioPassThroughFilter),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_AudioSource,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AudioPassThroughFilter_dealloc,
     .tp_init = (initproc) AudioPassThroughFilter_init,
