@@ -203,7 +203,6 @@ py_RgbaFrameF16_new( box2i *full_data_window, rgba_frame_f16 **frame ) {
     v2i size;
     box2i_getSize( &PRIV(result)->fullDataWindow, &size );
 
-    PRIV(result)->stride = size.x;
     PRIV(result)->data = PyMem_Malloc( sizeof(rgba_f16) * size.x * size.y );
 
     if( !PRIV(result)->data ) {

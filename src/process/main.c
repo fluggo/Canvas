@@ -123,7 +123,6 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     box2i_getSize( &frame.fullDataWindow, &frameSize );
 
     frame.currentDataWindow = frame.fullDataWindow;
-    frame.stride = frameSize.x;
     frame.data = PyMem_Malloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
 
     if( !frame.data )

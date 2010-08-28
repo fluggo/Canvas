@@ -262,7 +262,6 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
         box2i_getSize( &temp_frame.fullDataWindow, &size );
 
         temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
-        temp_frame.stride = size.x;
 
         video_scale_bilinear_horizontal_f32( &temp_frame, target_point.x, source, source_point.x, factors.x );
         video_scale_bilinear_vertical_f32( target, target_point.y, &temp_frame, source_point.y, factors.y );
@@ -280,7 +279,6 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
         box2i_getSize( &temp_frame.fullDataWindow, &size );
 
         temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
-        temp_frame.stride = size.x;
 
         video_scale_bilinear_vertical_f32( &temp_frame, target_point.y, source, source_point.y, factors.y );
         video_scale_bilinear_horizontal_f32( target, target_point.x, &temp_frame, source_point.x, factors.x );
@@ -315,7 +313,6 @@ video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_s
     box2i_getSize( &temp_frame.fullDataWindow, &size );
 
     temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
-    temp_frame.stride = size.x;
 
     video_getFrame_f32( source, frame, &temp_frame );
     video_scale_bilinear_f32( target, target_point, &temp_frame, source_point, factors );

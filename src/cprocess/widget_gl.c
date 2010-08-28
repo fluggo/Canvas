@@ -254,7 +254,6 @@ playbackThread( widget_gl_context *self ) {
 
             g_free( frame.data );
             frame.data = g_malloc( frameSize.y * frameSize.x * sizeof(rgba_f16) );
-            frame.stride = frameSize.x;
         }
 
         // The frame could shift without changing size, so we set this here just in case

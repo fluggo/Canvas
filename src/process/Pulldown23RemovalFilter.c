@@ -89,7 +89,6 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
         // TODO: Cache this temp frame between calls
         rgba_frame_f16 tempFrame;
         tempFrame.data = g_slice_alloc( sizeof(rgba_f16) * height * width );
-        tempFrame.stride = width;
         tempFrame.fullDataWindow = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
 

@@ -203,7 +203,6 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     if( videoSource.source.funcs ) {
         inputFrame.fullDataWindow = dataWindow;
         inputFrame.data = (rgba_f16*) g_slice_alloc( frameSize.x * frameSize.y * sizeof(rgba_f16) );
-        inputFrame.stride = frameSize.x;
 
         avcodec_get_frame_defaults( &interFrame );
         avcodec_get_frame_defaults( &outputFrame );

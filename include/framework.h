@@ -149,14 +149,12 @@ typedef struct {
     rgba_f16 *data;
     box2i fullDataWindow;
     box2i currentDataWindow;
-    int stride;
 } rgba_frame_f16;
 
 typedef struct {
     rgba_f32 *data;
     box2i fullDataWindow;
     box2i currentDataWindow;
-    int stride;
 } rgba_frame_f32;
 
 typedef struct {
@@ -177,11 +175,17 @@ typedef struct {
 } VideoFrameSourceFuncs;
 
 G_GNUC_PURE static inline rgba_f16 *getPixel_f16( rgba_frame_f16 *frame, int x, int y ) {
-    return &frame->data[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
+    return &frame->data[
+        (y - frame->fullDataWindow.min.y) *
+            (frame->fullDataWindow.max.x - frame->fullDataWindow.min.x + 1) +
+        x - frame->fullDataWindow.min.x];
 }
 
 G_GNUC_PURE static inline rgba_f32 *getPixel_f32( rgba_frame_f32 *frame, int x, int y ) {
-    return &frame->data[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
+    return &frame->data[
+        (y - frame->fullDataWindow.min.y) *
+            (frame->fullDataWindow.max.x - frame->fullDataWindow.min.x + 1) +
+        x - frame->fullDataWindow.min.x];
 }
 
 typedef struct {

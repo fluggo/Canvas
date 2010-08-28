@@ -60,7 +60,6 @@ video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, vid
 
         tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
         tempFrame.fullDataWindow = out->fullDataWindow;
-        tempFrame.stride = size.x;
 
         video_getFrame_f32( a, frame_a, out );
         video_getFrame_f32( b, frame_b, &tempFrame );

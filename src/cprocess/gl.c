@@ -152,7 +152,6 @@ EXPORT void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_
     frame.data = g_slice_alloc0( sizeof(rgba_f16) * frameSize.x * frameSize.y );
     frame.fullDataWindow = targetFrame->fullDataWindow;
     frame.currentDataWindow = targetFrame->fullDataWindow;
-    frame.stride = frameSize.x;
 
     video_getFrame_f16( source, frameIndex, &frame );
 
