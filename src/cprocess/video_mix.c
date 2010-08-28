@@ -19,7 +19,7 @@
 */
 
 #include <string.h>
-#include "video_mix.h"
+#include "framework.h"
 
 EXPORT void
 video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in ) {

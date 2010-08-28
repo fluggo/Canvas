@@ -18,11 +18,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdint.h>
-
 #include "pyframework.h"
 #include <structmember.h>
-#include "clock.h"
 #include <time.h>
 
 EXPORT bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder ) {

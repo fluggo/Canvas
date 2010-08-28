@@ -198,6 +198,22 @@ void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *t
 void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame );
 const uint8_t *video_get_gamma45_ramp();
 
+void video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in );
+void video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha );
+void video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b );
+void video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_b );
+void video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_a, float mix_b );
+
+void video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f32 *source, v2f source_point, v2f factors );
+void video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_source *source, int frame, box2i *source_rect, v2f source_point, v2f factors );
+
+// Transfer functions
+void video_transfer_rec709_to_linear_scene( const half *in, half *out, size_t count );
+void video_transfer_rec709_to_linear_display( const half *in, half *out, size_t count );
+void video_transfer_linear_to_rec709( const half *in, half *out, size_t count );
+void video_transfer_linear_to_sRGB( const half *in, half *out, size_t count );
+
+// OpenGL utility routines
 void *getCurrentGLContext();
 
 #define gl_checkError()        __gl_checkError(__FILE__, __LINE__)
@@ -257,6 +273,55 @@ void audio_get_frame( const audio_source *source, audio_frame *frame );
 extern AudioFrameSourceFuncs audio_frame_as_source_funcs;
 
 #define AUDIO_FRAME_AS_SOURCE(frame)  { .obj = frame, .funcs = &audio_frame_as_source_funcs }
+
+/*
+    Function: audio_copy_frame
+    Copy a frame into another frame (already allocated) with a given offset.
+
+    out - Destination frame.
+    in - Source frame.
+    offset - Offset, in samples, of the source frame relative to the destination frame.
+        An offset of 500, for example, would copy source sample 500 to destination sample
+        0, 501 to 1, and so on.
+*/
+void audio_copy_frame( audio_frame *out, const audio_frame *in, int offset );
+
+/*
+    Function: audio_copy_frame
+    Copy a frame into another frame (already allocated) with a given offset and attenuation.
+
+    out - Destination frame.
+    in - Source frame.
+    factor - Factor to multiply input samples by. Specify 1.0 for a direct copy.
+    offset - Offset, in samples, of the source frame relative to the destination frame.
+        An offset of 500, for example, would copy source sample 500 to destination sample
+        0, 501 to 1, and so on.
+*/
+void audio_copy_frame_attenuate( audio_frame *out, const audio_frame *in, float factor, int offset );
+
+/*
+    Function: audio_attenuate
+    Attenuate an existing frame.
+
+    frame - Frame to attenuate
+    factor - Factor to multiply input samples by.
+*/
+void audio_attenuate( audio_frame *frame, float factor );
+
+/*
+    Function: audio_mix_add
+    Adds two audio frames.
+
+    out - First frame to mix, and the frame to receive the result.
+    mix_out - Attenuation on the existing frame.
+    a - Second frame to mix.
+    mix_a - Attenuation on the second frame.
+    offset - Offset, in samples, of frame A relative to the destination frame.
+*/
+void audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_a, int offset );
+
+void audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, float mix_a, int offset_a );
+
 
 /************ Codec packet source ******/
 
@@ -353,6 +418,133 @@ typedef struct {
     void *obj;
     coded_image_source_funcs *funcs;
 } coded_image_source;
+
+// Video subsampling/reconstruction
+void video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame );
+coded_image *video_subsample_dv( rgba_frame_f16 *frame );
+
+
+/******** Presentation clocks ****/
+
+#define CLK_LOOP    0x1
+
+typedef struct {
+    int64_t playbackMin, playbackMax;
+    int64_t loopMin, loopMax;
+    int flags;
+} ClockRegions;
+
+typedef int64_t (*clock_getPresentationTimeFunc)( void *self );
+typedef void (*clock_getSpeedFunc)( void *self, rational *result );
+typedef void (*clock_getRegionsFunc)( void *self, ClockRegions *result );
+typedef void (*clock_callback_func)( void *data, rational *speed, int64_t time );
+typedef void *(*clock_register_callback_func)( void *self, clock_callback_func callback, void *data, GDestroyNotify notify );
+typedef void *(*clock_unregister_callback_func)( void *self, void *handle );
+
+typedef struct {
+    clock_getPresentationTimeFunc getPresentationTime;
+    clock_getSpeedFunc getSpeed;
+    clock_getRegionsFunc getRegions;
+    clock_register_callback_func register_callback;
+    clock_unregister_callback_func unregister_callback;
+} PresentationClockFuncs;
+
+typedef struct {
+    void *obj;
+    PresentationClockFuncs *funcs;
+} presentation_clock;
+
+int64_t gettime();
+
+
+/********** Workspace ***/
+
+typedef struct workspace_t_tag workspace_t;
+typedef struct workspace_iter_t_tag workspace_iter_t;
+typedef struct workspace_item_t_tag workspace_item_t;
+
+workspace_t *workspace_create_video();
+gint workspace_get_length( workspace_t *workspace );
+workspace_item_t *workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t width, int64_t offset, int64_t z, gpointer tag );
+workspace_item_t *workspace_get_item( workspace_t *self, gint index );
+void workspace_remove_item( workspace_item_t *item );
+void workspace_as_video_source( workspace_t *workspace, video_source *source );
+void workspace_free( workspace_t *workspace );
+void workspace_get_item_pos( workspace_item_t *item, int64_t *x, int64_t *width, int64_t *z );
+int64_t workspace_get_item_offset( workspace_item_t *item );
+void workspace_set_item_offset( workspace_item_t *item, int64_t offset );
+gpointer workspace_get_item_source( workspace_item_t *item );
+void workspace_set_item_source( workspace_item_t *item, gpointer source );
+gpointer workspace_get_item_tag( workspace_item_t *item );
+void workspace_set_item_tag( workspace_item_t *item, gpointer tag );
+void workspace_update_item( workspace_item_t *item, int64_t *x, int64_t *width, int64_t *z, int64_t *offset, gpointer *source, gpointer *tag );
+void workspace_as_video_source( workspace_t *workspace, video_source *source );
+void workspace_as_audio_source( workspace_t *workspace, audio_source *source );
+
+
+/*********** GL widget ***/
+
+typedef struct __tag_widget_gl_context widget_gl_context;
+
+typedef void (*invalidate_func)( void *closure );
+
+widget_gl_context *widget_gl_new();
+void widget_gl_free( widget_gl_context *self );
+
+gboolean widget_gl_get_hard_mode_supported( widget_gl_context *self );
+gboolean widget_gl_get_hard_mode_enabled( widget_gl_context *self );
+void widget_gl_hard_mode_enable( widget_gl_context *self, gboolean enable );
+void widget_gl_get_display_window( widget_gl_context *self, box2i *display_window );
+void widget_gl_set_display_window( widget_gl_context *self, box2i *display_window );
+void widget_gl_set_video_source( widget_gl_context *self, video_source *source );
+void widget_gl_set_presentation_clock( widget_gl_context *self, presentation_clock *clock );
+float widget_gl_get_pixel_aspect_ratio( widget_gl_context *self );
+void widget_gl_set_pixel_aspect_ratio( widget_gl_context *self, float pixel_aspect_ratio );
+
+void widget_gl_draw( widget_gl_context *self, v2i widget_size );
+void widget_gl_set_invalidate_func( widget_gl_context *self, invalidate_func func, void *closure );
+
+float widget_gl_get_rendering_intent( widget_gl_context *self );
+void widget_gl_set_rendering_intent( widget_gl_context *self, float rendering_intent );
+
+
+/*********** FIR filters ***/
+
+typedef struct {
+    // Coefficients of the filter's taps
+    float *coeff;
+
+    // Number of taps in the filter (length of the coeff array)
+    int width;
+
+    // Index of the center tap
+    int center;
+} fir_filter;
+
+/*
+    Creates an FIR triangle filter suitable for 1:sub supersampling or sub:1 subsampling.
+
+    Specify an offset of zero to have the filter centered on a sample. A nonzero offset
+    will move the center by the specified fraction of taps. (filter->center will point to
+    the tap that *would* have been the center)
+
+    If filter->coeff is null, the coefficient array will be allocated for you.
+    When you're done with the filter, free its coefficients with filter_free.
+
+    If you would rather specify your own array, fill filter->coeff with the array and
+    filter->width with its size. If the array is not big enough, coeff will be unaltered,
+    center will be -1, and width will be the required size to hold the filter.
+*/
+void filter_createTriangle( float sub, float offset, fir_filter *filter );
+
+void filter_createLanczos( float sub, int kernel_size, float offset, fir_filter *filter );
+
+/*
+    Frees the coefficients
+*/
+void filter_free( fir_filter *filter );
+
+
 
 #if defined(__cplusplus)
 }

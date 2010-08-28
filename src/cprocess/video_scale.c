@@ -20,9 +20,7 @@
 
 #include <string.h>
 #include <math.h>
-#include "video_mix.h"
-#include "video_scale.h"
-#include "filter.h"
+#include "framework.h"
 
 static void
 video_fill_zero_f32( rgba_frame_f32 *target ) {

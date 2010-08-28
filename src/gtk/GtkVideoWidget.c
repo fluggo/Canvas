@@ -24,7 +24,6 @@
 #include <pygtk/pygtk.h>
 #include "pyframework.h"
 #include <structmember.h>
-#include "widget_gl.h"
 
 #include <gtk/gtk.h>
 #include <gtk/gtkgl.h>

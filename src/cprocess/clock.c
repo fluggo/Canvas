@@ -18,7 +18,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "clock.h"
+#include <stdint.h>
+#include <time.h>
 
 int64_t gettime() {
     struct timespec time;

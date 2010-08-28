@@ -20,7 +20,6 @@
 
 #include "pyframework.h"
 #include <asoundlib.h>
-#include "clock.h"
 
 typedef struct __tag_callback_info {
     void *data;

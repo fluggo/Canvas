@@ -21,8 +21,6 @@
 #include "pyframework.h"
 #include <libavformat/avformat.h>
 #include <libavutil/avstring.h>
-#include "filter.h"
-#include "color.h"
 
 typedef struct __stream_t {
     AVStream *stream;

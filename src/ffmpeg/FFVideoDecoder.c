@@ -20,8 +20,6 @@
 
 #include "pyframework.h"
 #include <libavformat/avformat.h>
-#include "filter.h"
-#include "color.h"
 
 typedef struct __tag_my_coded_image {
     coded_image image;

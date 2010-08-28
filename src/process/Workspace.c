@@ -19,7 +19,6 @@
 */
 
 #include "pyframework.h"
-#include "workspace.h"
 
 static PyObject *pysource_funcs;
 

@@ -19,9 +19,7 @@
 */
 
 #include <string.h>
-#include "video_reconstruct.h"
-#include "filter.h"
-#include "color.h"
+#include "framework.h"
 
 static void
 free_coded_image( coded_image *image ) {

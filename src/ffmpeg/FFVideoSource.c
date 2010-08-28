@@ -20,8 +20,6 @@
 
 #include "pyframework.h"
 #include <libavformat/avformat.h>
-#include "filter.h"
-#include "color.h"
 
 static GQuark q_recon411Shader;
 

@@ -19,7 +19,6 @@
 */
 
 #include "pyframework.h"
-#include "video_mix.h"
 
 static PyObject *pysource_funcs;
 

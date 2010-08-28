@@ -23,7 +23,6 @@
 
 #include <Python.h>
 #include "framework.h"
-#include "clock.h"
 
 #if defined(__cplusplus)
 extern "C" {

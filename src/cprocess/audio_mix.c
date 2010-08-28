@@ -19,7 +19,7 @@
 */
 
 #include <string.h>
-#include "audio_mix.h"
+#include "framework.h"
 
 EXPORT void
 audio_copy_frame( audio_frame *out, const audio_frame *in, int offset ) {

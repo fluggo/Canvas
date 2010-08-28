@@ -19,7 +19,6 @@
 */
 
 #include "pyframework.h"
-#include "video_reconstruct.h"
 
 typedef struct {
     PyObject_HEAD

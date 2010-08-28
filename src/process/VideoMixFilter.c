@@ -19,7 +19,6 @@
 */
 
 #include "pyframework.h"
-#include "video_mix.h"
 
 static GQuark q_crossfadeShader;
 

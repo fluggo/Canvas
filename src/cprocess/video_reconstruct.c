@@ -19,9 +19,7 @@
 */
 
 #include <string.h>
-#include "video_reconstruct.h"
-#include "filter.h"
-#include "color.h"
+#include "framework.h"
 
 typedef struct {
     float cb, cr;

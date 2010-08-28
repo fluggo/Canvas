@@ -19,7 +19,6 @@
 */
 
 #include "pyframework.h"
-#include "audio_mix.h"
 
 static PyObject *pysource_funcs;
 

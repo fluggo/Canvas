@@ -20,8 +20,6 @@
 
 #include "pyframework.h"
 #include <libavcodec/avcodec.h>
-#include "filter.h"
-#include "color.h"
 
 typedef struct {
     PyObject_HEAD

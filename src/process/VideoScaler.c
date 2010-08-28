@@ -19,7 +19,6 @@
 */
 
 #include "pyframework.h"
-#include "video_scale.h"
 
 static PyObject *pysourceFuncs;
 

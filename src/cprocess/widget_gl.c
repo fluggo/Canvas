@@ -20,8 +20,7 @@
 
 #include <stdlib.h>
 #include <math.h>
-#include "widget_gl.h"
-#include "color.h"
+#include "framework.h"
 
 #define SOFT_MODE_BUFFERS    4
 #define HARD_MODE_BUFFERS    2

@@ -20,7 +20,6 @@
 
 #include <math.h>
 #include "framework.h"
-#include "filter.h"
 
 EXPORT void
 filter_createTriangle( float sub, float offset, fir_filter *filter ) {

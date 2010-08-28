@@ -19,7 +19,6 @@
 */
 
 #include "framework.h"
-#include "audio_mix.h"
 
 EXPORT int64_t
 getFrameTime( const rational *frameRate, int frame ) {
