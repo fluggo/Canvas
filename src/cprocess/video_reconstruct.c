@@ -68,7 +68,7 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
     v2i picOffset = { 0, -1 };
 
     // Set up the current window
-    box2i_set( &frame->currentDataWindow,
+    box2i_set( &frame->current_window,
         max( picOffset.x, frame->full_window.min.x ),
         max( picOffset.y, frame->full_window.min.y ),
         min( full_width + picOffset.x - 1, frame->full_window.max.x ),
@@ -87,7 +87,7 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
     cbcr_f32 *tempChroma = g_slice_alloc( sizeof(cbcr_f32) * full_width );
 
     // Turn into half RGB
-    for( int row = frame->currentDataWindow.min.y - picOffset.y; row <= frame->currentDataWindow.max.y - picOffset.y; row++ ) {
+    for( int row = frame->current_window.min.y - picOffset.y; row <= frame->current_window.max.y - picOffset.y; row++ ) {
         uint8_t *yrow = (uint8_t*) planar->data[0] + (row * planar->stride[0]);
         uint8_t *cbrow = (uint8_t*) planar->data[1] + (row * planar->stride[1]);
         uint8_t *crrow = (uint8_t*) planar->data[2] + (row * planar->stride[2]);
@@ -99,15 +99,15 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
         for( int x = startx; x <= endx; x++ ) {
             float cb = studio_chroma8_to_float( cbrow[x] ), cr = studio_chroma8_to_float( crrow[x] );
 
-            for( int i = max(frame->currentDataWindow.min.x - picOffset.x, x * subX - triangleFilter.center );
-                    i <= min(frame->currentDataWindow.max.x - picOffset.x, x * subX + (triangleFilter.width - triangleFilter.center - 1)); i++ ) {
+            for( int i = max(frame->current_window.min.x - picOffset.x, x * subX - triangleFilter.center );
+                    i <= min(frame->current_window.max.x - picOffset.x, x * subX + (triangleFilter.width - triangleFilter.center - 1)); i++ ) {
 
                 tempChroma[i].cb += cb * triangleFilter.coeff[i - x * subX + triangleFilter.center];
                 tempChroma[i].cr += cr * triangleFilter.coeff[i - x * subX + triangleFilter.center];
             }
         }
 
-        for( int x = frame->currentDataWindow.min.x; x <= frame->currentDataWindow.max.x; x++ ) {
+        for( int x = frame->current_window.min.x; x <= frame->current_window.max.x; x++ ) {
             float y = studio_luma8_to_float( yrow[x - picOffset.x] );
 
             tempRow[x].r = y * colorMatrix[0][0] +
@@ -122,12 +122,12 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
             tempRow[x].a = 1.0f;
         }
 
-        half *out = &getPixel_f16( frame, frame->currentDataWindow.min.x, row + picOffset.y )->r;
+        half *out = &getPixel_f16( frame, frame->current_window.min.x, row + picOffset.y )->r;
 
-        half_convert_from_float( (float*)(tempRow + frame->currentDataWindow.min.x - picOffset.x), out,
-            (sizeof(rgba_f16) / sizeof(half)) * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
+        half_convert_from_float( (float*)(tempRow + frame->current_window.min.x - picOffset.x), out,
+            (sizeof(rgba_f16) / sizeof(half)) * (frame->current_window.max.x - frame->current_window.min.x + 1) );
         video_transfer_rec709_to_linear_scene( out, out,
-            (sizeof(rgba_f16) / sizeof(half)) * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
+            (sizeof(rgba_f16) / sizeof(half)) * (frame->current_window.max.x - frame->current_window.min.x + 1) );
     }
 
     filter_free( &triangleFilter );

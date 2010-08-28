@@ -53,7 +53,7 @@ RgbaFrameF16_get_full_data_window( PyObject *self, void *closure ) {
 
 static PyObject *
 RgbaFrameF16_get_current_data_window( PyObject *self, void *closure ) {
-    return py_make_box2i( &PRIV(self)->currentDataWindow );
+    return py_make_box2i( &PRIV(self)->current_window );
 }
 
 static PyGetSetDef RgbaFrameF16_getsetters[] = {
@@ -104,7 +104,7 @@ RgbaFrameF16_pixel( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "ii", &x, &y ) )
         return NULL;
 
-    box2i *window = &PRIV(self)->currentDataWindow;
+    box2i *window = &PRIV(self)->current_window;
 
     if( x < window->min.x || x > window->max.x || y < window->min.y || y > window->max.y )
         Py_RETURN_NONE;
@@ -114,11 +114,11 @@ RgbaFrameF16_pixel( PyObject *self, PyObject *args ) {
 
 static PyObject *
 RgbaFrameF16_to_argb32_string( PyObject *self, PyObject *args ) {
-    if( box2i_isEmpty( &PRIV(self)->currentDataWindow ) )
+    if( box2i_isEmpty( &PRIV(self)->current_window ) )
         Py_RETURN_NONE;
 
     v2i size;
-    box2i_getSize( &PRIV(self)->currentDataWindow, &size );
+    box2i_getSize( &PRIV(self)->current_window, &size );
 
     const uint8_t *ramp = video_get_gamma45_ramp();
 
@@ -128,13 +128,13 @@ RgbaFrameF16_to_argb32_string( PyObject *self, PyObject *args ) {
     if( !data )
         return NULL;
 
-    for( int y = PRIV(self)->currentDataWindow.min.y; y <= PRIV(self)->currentDataWindow.max.y; y++ ) {
-        rgba_f16 *sy = getPixel_f16( PRIV(self), PRIV(self)->currentDataWindow.min.x, y );
+    for( int y = PRIV(self)->current_window.min.y; y <= PRIV(self)->current_window.max.y; y++ ) {
+        rgba_f16 *sy = getPixel_f16( PRIV(self), PRIV(self)->current_window.min.x, y );
 
         for( int x = 0; x < size.x; x++ ) {
             uint8_t a = ramp[sy[x].a];
 
-            data[(y - PRIV(self)->currentDataWindow.min.y) * size.x + x] =
+            data[(y - PRIV(self)->current_window.min.y) * size.x + x] =
                 (a << 24) |
                 (((ramp[sy[x].r] * a >> 8) & 0xFF) << 16) |
                 (((ramp[sy[x].g] * a >> 8) & 0xFF) << 8) |

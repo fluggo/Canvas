@@ -234,7 +234,7 @@ static void
 FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f16 *frame ) {
     if( frameIndex < 0 ) {
         // No result
-        box2i_setEmpty( &frame->currentDataWindow );
+        box2i_setEmpty( &frame->current_window );
         return;
     }
 
@@ -248,7 +248,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
         g_print( "Could not read the frame.\n" );
 
         if( frame )
-            box2i_setEmpty( &frame->currentDataWindow );
+            box2i_setEmpty( &frame->current_window );
     }
 
     if( !frame ) {
@@ -277,7 +277,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
     g_static_mutex_unlock( &self->mutex );
 
     // Set up the current window
-    box2i_set( &frame->currentDataWindow,
+    box2i_set( &frame->current_window,
         max( picOffset.x, frame->full_window.min.x ),
         max( picOffset.y, frame->full_window.min.y ),
         min( self->codecContext->width + picOffset.x - 1, frame->full_window.max.x ),
@@ -305,7 +305,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
 
         default:
             // TEMP: Wimp out if we don't know the format
-            box2i_setEmpty( &frame->currentDataWindow );
+            box2i_setEmpty( &frame->current_window );
             return;
     }
 
@@ -318,7 +318,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
     cbcr_f32 *tempChroma = g_slice_alloc( sizeof(cbcr_f32) * self->codecContext->width );
 
     // Turn into half RGB
-    for( int row = frame->currentDataWindow.min.y - picOffset.y; row <= frame->currentDataWindow.max.y - picOffset.y; row++ ) {
+    for( int row = frame->current_window.min.y - picOffset.y; row <= frame->current_window.max.y - picOffset.y; row++ ) {
         yrow = yplane + (row * linesize[0]);
         cbrow = cbplane + (row * linesize[1]);
         crrow = crplane + (row * linesize[2]);
@@ -330,15 +330,15 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
         for( int x = startx; x <= endx; x++ ) {
             float cb = (cbrow[x] - 128.0f) / 224.0f, cr = (crrow[x] - 128.0f) / 224.0f;
 
-            for( int i = max(frame->currentDataWindow.min.x - picOffset.x, x * subX - triangleFilter.center );
-                    i <= min(frame->currentDataWindow.max.x - picOffset.x, x * subX + (triangleFilter.width - triangleFilter.center - 1)); i++ ) {
+            for( int i = max(frame->current_window.min.x - picOffset.x, x * subX - triangleFilter.center );
+                    i <= min(frame->current_window.max.x - picOffset.x, x * subX + (triangleFilter.width - triangleFilter.center - 1)); i++ ) {
 
                 tempChroma[i].cb += cb * triangleFilter.coeff[i - x * subX + triangleFilter.center];
                 tempChroma[i].cr += cr * triangleFilter.coeff[i - x * subX + triangleFilter.center];
             }
         }
 
-        for( int x = frame->currentDataWindow.min.x; x <= frame->currentDataWindow.max.x; x++ ) {
+        for( int x = frame->current_window.min.x; x <= frame->current_window.max.x; x++ ) {
             float y = (yrow[x - picOffset.x] - 16.0f) / 219.0f;
 
             tempRow[x].r = y * self->colorMatrix[0][0] +
@@ -353,12 +353,12 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
             tempRow[x].a = 1.0f;
         }
 
-        half *out = &getPixel_f16( frame, frame->currentDataWindow.min.x, row + picOffset.y )->r;
+        half *out = &getPixel_f16( frame, frame->current_window.min.x, row + picOffset.y )->r;
 
-        half_convert_from_float( (float*)(tempRow + frame->currentDataWindow.min.x - picOffset.x), out,
-            (sizeof(rgba_f16) / sizeof(half)) * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
+        half_convert_from_float( (float*)(tempRow + frame->current_window.min.x - picOffset.x), out,
+            (sizeof(rgba_f16) / sizeof(half)) * (frame->current_window.max.x - frame->current_window.min.x + 1) );
         video_transfer_rec709_to_linear_scene( out, out,
-            (sizeof(rgba_f16) / sizeof(half)) * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
+            (sizeof(rgba_f16) / sizeof(half)) * (frame->current_window.max.x - frame->current_window.min.x + 1) );
     }
 
     filter_free( &triangleFilter );
@@ -470,7 +470,7 @@ static void
 FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_gl *frame ) {
     if( frameIndex < 0 ) {
         // No result
-        box2i_setEmpty( &frame->currentDataWindow );
+        box2i_setEmpty( &frame->current_window );
         return;
     }
 
@@ -520,7 +520,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
         g_print( "Could not read the frame.\n" );
 
         if( frame )
-            box2i_setEmpty( &frame->currentDataWindow );
+            box2i_setEmpty( &frame->current_window );
     }
 
     if( !frame ) {
@@ -534,7 +534,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
     if( avFrame.interlaced_frame && !avFrame.top_field_first )
         picOffset.y = -1;
 
-    box2i_set( &frame->currentDataWindow,
+    box2i_set( &frame->current_window,
         max( picOffset.x, frame->full_window.min.x ),
         max( picOffset.y, frame->full_window.min.y ),
         min( self->codecContext->width + picOffset.x - 1, frame->full_window.max.x ),

@@ -47,7 +47,7 @@ static void
 Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_frame_f16 *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
-        box2i_setEmpty( &frame->currentDataWindow );
+        box2i_setEmpty( &frame->current_window );
         return;
     }
 
@@ -82,20 +82,20 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
         // Mixed fields; we want the odds (field #2) from this frame:
         video_getFrame_f16( &self->source.source, baseFrame + 2, frame );
 
-        int height = frame->currentDataWindow.max.y - frame->currentDataWindow.min.y + 1;
-        int width = frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1;
+        int height = frame->current_window.max.y - frame->current_window.min.y + 1;
+        int width = frame->current_window.max.x - frame->current_window.min.x + 1;
 
         // We want the evens (field #1) from this next frame
         // TODO: Cache this temp frame between calls
         rgba_frame_f16 tempFrame;
         tempFrame.data = g_slice_alloc( sizeof(rgba_f16) * height * width );
-        tempFrame.full_window = frame->currentDataWindow;
-        tempFrame.currentDataWindow = frame->currentDataWindow;
+        tempFrame.full_window = frame->current_window;
+        tempFrame.current_window = frame->current_window;
 
         video_getFrame_f16( &self->source.source, baseFrame + 3, &tempFrame );
 
-        for( int i = ((frame->currentDataWindow.min.y + 1) & ~1); i <= frame->currentDataWindow.max.y; i += 2 ) {
-            memcpy( getPixel_f16( frame, frame->currentDataWindow.min.x, i ),
+        for( int i = ((frame->current_window.min.y + 1) & ~1); i <= frame->current_window.max.y; i += 2 ) {
+            memcpy( getPixel_f16( frame, frame->current_window.min.x, i ),
                 getPixel_f16( &tempFrame, 0, i ),
                 width * sizeof(rgba_f16) );
         }
@@ -134,7 +134,7 @@ static void
 Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_frame_gl *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
-        box2i_setEmpty( &frame->currentDataWindow );
+        box2i_setEmpty( &frame->current_window );
         return;
     }
 

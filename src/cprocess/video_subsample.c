@@ -121,10 +121,10 @@ video_subsample_dv( rgba_frame_f16 *frame ) {
 
     // Set up the current window
     box2i window = {
-        { max( picOffset.x, frame->currentDataWindow.min.x ),
-          max( picOffset.y, frame->currentDataWindow.min.y ) },
-        { min( full_width + picOffset.x - 1, frame->currentDataWindow.max.x ),
-          min( full_height + picOffset.y - 1, frame->currentDataWindow.max.y ) }
+        { max( picOffset.x, frame->current_window.min.x ),
+          max( picOffset.y, frame->current_window.min.y ) },
+        { min( full_width + picOffset.x - 1, frame->current_window.max.x ),
+          min( full_height + picOffset.y - 1, frame->current_window.max.y ) }
     };
     int window_width = window.max.x - window.min.x + 1;
 

@@ -54,7 +54,7 @@ RgbaFrameF32_get_full_data_window( PyObject *self, void *closure ) {
 
 static PyObject *
 RgbaFrameF32_get_current_data_window( PyObject *self, void *closure ) {
-    box2i *window = &PRIV(self)->currentDataWindow;
+    box2i *window = &PRIV(self)->current_window;
     return py_make_box2i( window );
 }
 
@@ -99,7 +99,7 @@ RgbaFrameF32_pixel( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "ii", &x, &y ) )
         return NULL;
 
-    box2i *window = &PRIV(self)->currentDataWindow;
+    box2i *window = &PRIV(self)->current_window;
 
     if( x < window->min.x || x > window->max.x || y < window->min.y || y > window->max.y )
         Py_RETURN_NONE;

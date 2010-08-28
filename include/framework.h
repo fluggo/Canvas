@@ -148,19 +148,19 @@ typedef struct {
 typedef struct {
     rgba_f16 *data;
     box2i full_window;
-    box2i currentDataWindow;
+    box2i current_window;
 } rgba_frame_f16;
 
 typedef struct {
     rgba_f32 *data;
     box2i full_window;
-    box2i currentDataWindow;
+    box2i current_window;
 } rgba_frame_f32;
 
 typedef struct {
     GLuint texture;
     box2i full_window;
-    box2i currentDataWindow;
+    box2i current_window;
 } rgba_frame_gl;
 
 typedef void (*video_getFrameFunc)( void *self, int frameIndex, rgba_frame_f16 *frame );

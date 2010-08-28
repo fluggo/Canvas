@@ -29,12 +29,12 @@ EmptyVideoSource_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 
 static void
 EmptyVideoSource_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) {
-    box2i_setEmpty( &frame->currentDataWindow );
+    box2i_setEmpty( &frame->current_window );
 }
 
 static void
 EmptyVideoSource_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame ) {
-    box2i_setEmpty( &frame->currentDataWindow );
+    box2i_setEmpty( &frame->current_window );
 }
 
 static void
@@ -51,7 +51,7 @@ EmptyVideoSource_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *fram
     glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
     glClear( GL_COLOR_BUFFER_BIT );
 
-    box2i_setEmpty( &frame->currentDataWindow );
+    box2i_setEmpty( &frame->current_window );
 }
 
 static void

@@ -35,10 +35,10 @@ video_fill_zero_f32( rgba_frame_f32 *target ) {
 
 static void
 video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_frame_f32 *source, float symin, float factor ) {
-    box2i srect = source->currentDataWindow, trect = target->full_window;
+    box2i srect = source->current_window, trect = target->full_window;
 
-    int xmin = max( source->currentDataWindow.min.x, target->full_window.min.x );
-    int xmax = min( source->currentDataWindow.max.x, target->full_window.max.x );
+    int xmin = max( source->current_window.min.x, target->full_window.min.x );
+    int xmax = min( source->current_window.max.x, target->full_window.max.x );
 
     // These will hold how much of the target frame we actually used
     int ymin = G_MAXINT, ymax = G_MININT;
@@ -123,7 +123,7 @@ video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_fra
         }
     }
 
-    box2i_set( &target->currentDataWindow, xmin, ymin, xmax, ymax );
+    box2i_set( &target->current_window, xmin, ymin, xmax, ymax );
 
     g_slice_free1( sizeof(float) * filter_width, filter.coeff );
 }
@@ -133,10 +133,10 @@ video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_f
     // BJC: This is the more-or-less direct translation of vertical, which means
     // it has somewhat poor locality of reference
 
-    box2i srect = source->currentDataWindow, trect = target->full_window;
+    box2i srect = source->current_window, trect = target->full_window;
 
-    int ymin = max( source->currentDataWindow.min.y, target->full_window.min.y );
-    int ymax = min( source->currentDataWindow.max.y, target->full_window.max.y );
+    int ymin = max( source->current_window.min.y, target->full_window.min.y );
+    int ymax = min( source->current_window.max.y, target->full_window.max.y );
 
     // These will hold how much of the target frame we actually used
     int xmin = G_MAXINT, xmax = G_MININT;
@@ -190,7 +190,7 @@ video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_f
             }
         }
 
-        box2i_set( &target->currentDataWindow, xmin, ymin, xmax, ymax );
+        box2i_set( &target->current_window, xmin, ymin, xmax, ymax );
     }
     else {
         for( int tx = trect.min.x; tx <= trect.max.x; tx++ ) {
@@ -224,7 +224,7 @@ video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_f
             }
         }
 
-        box2i_set( &target->currentDataWindow, xmin, ymin, xmax, ymax );
+        box2i_set( &target->current_window, xmin, ymin, xmax, ymax );
     }
 
     g_slice_free1( sizeof(float) * filter_width, filter.coeff );
@@ -254,9 +254,9 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
     if( factors.x < factors.y ) {
         box2i_set( &temp_frame.full_window,
             (int)(source_point.x - (target_point.x - target->full_window.min.x) * factors.x),
-            source->currentDataWindow.min.y,
+            source->current_window.min.y,
             (int)(source_point.x + (target->full_window.max.x - target_point.x) * factors.x),
-            source->currentDataWindow.max.y );
+            source->current_window.max.y );
 
         box2i_intersect( &temp_frame.full_window, &temp_frame.full_window, &target->full_window );
         box2i_getSize( &temp_frame.full_window, &size );
@@ -270,9 +270,9 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
     }
     else {
         box2i_set( &temp_frame.full_window,
-            source->currentDataWindow.min.x,
+            source->current_window.min.x,
             (int)(source_point.y - (target_point.y - target->full_window.min.y) * factors.y),
-            source->currentDataWindow.max.x,
+            source->current_window.max.x,
             (int)(source_point.y + (target->full_window.max.y - target_point.y) * factors.y) );
 
         box2i_intersect( &temp_frame.full_window, &temp_frame.full_window, &target->full_window );
@@ -290,7 +290,7 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
 EXPORT void
 video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_source *source, int frame, box2i *source_rect, v2f source_point, v2f factors ) {
     if( factors.x == 0.0f || factors.y == 0.0f ) {
-        box2i_setEmpty( &target->currentDataWindow );
+        box2i_setEmpty( &target->current_window );
         return;
     }
 

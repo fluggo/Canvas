@@ -270,30 +270,30 @@ playbackThread( widget_gl_context *self ) {
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
 
         // Pull the frame data from the chain
-        frame.currentDataWindow = target->fullDataWindow;
+        frame.current_window = target->fullDataWindow;
 
         if( funcs != NULL ) {
             video_getFrame_f16( &self->frameSource, nextFrame, &frame );
         }
         else {
             // No result
-            box2i_setEmpty( &frame.currentDataWindow );
+            box2i_setEmpty( &frame.current_window );
         }
 
-        target->currentDataWindow = frame.currentDataWindow;
+        target->currentDataWindow = frame.current_window;
 
         // Convert the results to 8-bit
         const uint8_t *gamma45 = self->gamma_ramp;
 
-        for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
+        for( int y = frame.current_window.min.y; y <= frame.current_window.max.y; y++ ) {
             rgba_u8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride - frame.full_window.min.x];
             rgba_f16 *sourceData = getPixel_f16( &frame, 0, y );
 
-            video_transfer_linear_to_sRGB( &sourceData[frame.currentDataWindow.min.x].r,
-                &sourceData[frame.currentDataWindow.min.x].r,
-                (frame.currentDataWindow.max.x - frame.currentDataWindow.min.x + 1) * 4 );
+            video_transfer_linear_to_sRGB( &sourceData[frame.current_window.min.x].r,
+                &sourceData[frame.current_window.min.x].r,
+                (frame.current_window.max.x - frame.current_window.min.x + 1) * 4 );
 
-            for( int x = frame.currentDataWindow.min.x; x <= frame.currentDataWindow.max.x; x++ ) {
+            for( int x = frame.current_window.min.x; x <= frame.current_window.max.x; x++ ) {
                 targetData[x].r = gamma45[sourceData[x].r];
                 targetData[x].g = gamma45[sourceData[x].g];
                 targetData[x].b = gamma45[sourceData[x].b];
@@ -556,14 +556,14 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
 
     rgba_frame_gl frame = {
         .full_window = self->displayWindow,
-        .currentDataWindow = self->displayWindow
+        .current_window = self->displayWindow
     };
 
     video_getFrame_gl( &self->frameSource, frameIndex, &frame );
 
     self->hardTextureId = frame.texture;
     self->lastHardFrame = frameIndex;
-    self->currentDataWindow = frame.currentDataWindow;
+    self->currentDataWindow = frame.current_window;
 }
 
 static const char *gammaShader =

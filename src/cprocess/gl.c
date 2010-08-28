@@ -60,8 +60,8 @@ EXPORT void *getCurrentGLContext() {
 
     Parameters:
 
-    frame - Frame to render to, containing a valid fullDataWindow.
-            gl_renderToTexture won't alter the currentDataWindow.
+    frame - Frame to render to, containing a valid full_window.
+            gl_renderToTexture won't alter the current_window.
 
     Remarks:
     This function creates a GL texture for the frame and renders a quad
@@ -135,7 +135,7 @@ gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProg
 
 EXPORT void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame ) {
     if( !source || !source->funcs ) {
-        box2i_setEmpty( &targetFrame->currentDataWindow );
+        box2i_setEmpty( &targetFrame->current_window );
         return;
     }
 
@@ -151,11 +151,11 @@ EXPORT void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_
     rgba_frame_f16 frame = { NULL };
     frame.data = g_slice_alloc0( sizeof(rgba_f16) * frameSize.x * frameSize.y );
     frame.full_window = targetFrame->full_window;
-    frame.currentDataWindow = targetFrame->full_window;
+    frame.current_window = targetFrame->full_window;
 
     video_getFrame_f16( source, frameIndex, &frame );
 
-    // TODO: Only fill in the area specified by currentDataWindow
+    // TODO: Only fill in the area specified by current_window
     glGenTextures( 1, &targetFrame->texture );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, targetFrame->texture );
     glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,

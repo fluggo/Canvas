@@ -59,21 +59,21 @@ static void
 SolidColorVideoSource_getFrame( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_frame_f16 *frame ) {
     v2i size;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->full_window );
-    box2i_getSize( &frame->currentDataWindow, &size );
+    box2i_intersect( &frame->current_window, &self->window, &frame->full_window );
+    box2i_getSize( &frame->current_window, &size );
 
     if( size.x == 0 || size.y == 0 )
         return;
 
     // Fill first row
-    rgba_f16 *first_row = getPixel_f16( frame, frame->currentDataWindow.min.x, frame->currentDataWindow.min.y );
+    rgba_f16 *first_row = getPixel_f16( frame, frame->current_window.min.x, frame->current_window.min.y );
 
     for( int x = 0; x < size.x; x++ )
         first_row[x] = self->color_f16;
 
     // Dupe to the rest
     for( int y = 1; y < size.y; y++ ) {
-        memcpy( getPixel_f16( frame, frame->currentDataWindow.min.x, frame->currentDataWindow.min.y + y ),
+        memcpy( getPixel_f16( frame, frame->current_window.min.x, frame->current_window.min.y + y ),
             first_row, sizeof(rgba_f16) * size.x );
     }
 }
@@ -82,21 +82,21 @@ static void
 SolidColorVideoSource_getFrame32( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_frame_f32 *frame ) {
     v2i size;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->full_window );
-    box2i_getSize( &frame->currentDataWindow, &size );
+    box2i_intersect( &frame->current_window, &self->window, &frame->full_window );
+    box2i_getSize( &frame->current_window, &size );
 
     if( size.x == 0 || size.y == 0 )
         return;
 
     // Fill first row
-    rgba_f32 *first_row = getPixel_f32( frame, frame->currentDataWindow.min.x, frame->currentDataWindow.min.y );
+    rgba_f32 *first_row = getPixel_f32( frame, frame->current_window.min.x, frame->current_window.min.y );
 
     for( int x = 0; x < size.x; x++ )
         first_row[x] = self->color_f32;
 
     // Dupe to the rest
     for( int y = 1; y < size.y; y++ ) {
-        memcpy( getPixel_f32( frame, frame->currentDataWindow.min.x, frame->currentDataWindow.min.y + y ),
+        memcpy( getPixel_f32( frame, frame->current_window.min.x, frame->current_window.min.y + y ),
             first_row, sizeof(rgba_f32) * size.x );
     }
 }
@@ -105,8 +105,8 @@ static void
 SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_frame_gl *frame ) {
     v2i size, frameSize;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->full_window );
-    box2i_getSize( &frame->currentDataWindow, &size );
+    box2i_intersect( &frame->current_window, &self->window, &frame->full_window );
+    box2i_getSize( &frame->current_window, &size );
 
     if( size.x == 0 || size.y == 0 )
         return;
@@ -133,14 +133,14 @@ SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameI
 
     glBegin( GL_QUADS );
     glColor4fv( &self->color_f32.r );
-    glVertex2i( frame->currentDataWindow.min.x - frame->full_window.min.x,
-        frame->currentDataWindow.min.y - frame->full_window.min.y );
-    glVertex2i( frame->currentDataWindow.max.x - frame->full_window.min.x + 1,
-        frame->currentDataWindow.min.y - frame->full_window.min.y );
-    glVertex2i( frame->currentDataWindow.max.x - frame->full_window.min.x + 1,
-        frame->currentDataWindow.max.y - frame->full_window.min.y + 1 );
-    glVertex2i( frame->currentDataWindow.min.x - frame->full_window.min.x,
-        frame->currentDataWindow.max.y - frame->full_window.min.y + 1 );
+    glVertex2i( frame->current_window.min.x - frame->full_window.min.x,
+        frame->current_window.min.y - frame->full_window.min.y );
+    glVertex2i( frame->current_window.max.x - frame->full_window.min.x + 1,
+        frame->current_window.min.y - frame->full_window.min.y );
+    glVertex2i( frame->current_window.max.x - frame->full_window.min.x + 1,
+        frame->current_window.max.y - frame->full_window.min.y + 1 );
+    glVertex2i( frame->current_window.min.x - frame->full_window.min.x,
+        frame->current_window.max.y - frame->full_window.min.y + 1 );
     glEnd();
 
     glDeleteFramebuffersEXT( 1, &fbo );

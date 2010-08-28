@@ -24,8 +24,8 @@
 EXPORT void
 video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in ) {
     box2i inner;
-    box2i_intersect( &inner, &out->full_window, &in->currentDataWindow );
-    out->currentDataWindow = inner;
+    box2i_intersect( &inner, &out->full_window, &in->current_window );
+    out->current_window = inner;
 
     bool is_empty = box2i_isEmpty( &inner );
 
@@ -77,13 +77,13 @@ video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha
         return;
 
     if( alpha == 0.0f ) {
-        box2i_setEmpty( &out->currentDataWindow );
+        box2i_setEmpty( &out->current_window );
         return;
     }
 
     box2i inner;
-    box2i_intersect( &inner, &out->full_window, &in->currentDataWindow );
-    out->currentDataWindow = inner;
+    box2i_intersect( &inner, &out->full_window, &in->current_window );
+    out->current_window = inner;
 
     bool is_empty = box2i_isEmpty( &inner );
 
@@ -107,7 +107,7 @@ video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha
 
 EXPORT void
 video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_b ) {
-    box2i *awin = &a->currentDataWindow, *bwin = &b->currentDataWindow;
+    box2i *awin = &a->current_window, *bwin = &b->current_window;
 
     mix_b = clampf(mix_b, 0.0f, 1.0f);
     const float mix_a = (1.0f - mix_b);
@@ -146,15 +146,15 @@ video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, 
         rgba_f32 *row_top = getPixel_f32( top, 0, y );
         const float mix = (top == a) ? mix_a : mix_b;
 
-        for( int x = outer.min.x; x < top->currentDataWindow.min.x; x++ )
+        for( int x = outer.min.x; x < top->current_window.min.x; x++ )
             row_out[x] = zero;
 
-        for( int x = top->currentDataWindow.min.x; x <= top->currentDataWindow.max.x; x++ ) {
+        for( int x = top->current_window.min.x; x <= top->current_window.max.x; x++ ) {
             row_out[x] = row_top[x];
             row_out[x].a *= mix;
         }
 
-        for( int x = top->currentDataWindow.max.x + 1; x <= outer.max.x; x++ )
+        for( int x = top->current_window.max.x + 1; x <= outer.max.x; x++ )
             row_out[x] = zero;
     }
 
@@ -220,24 +220,24 @@ video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, 
         rgba_f32 *row_bottom = getPixel_f32( bottom, 0, y );
         const float mix = (bottom == a) ? mix_a : mix_b;
 
-        for( int x = outer.min.x; x < bottom->currentDataWindow.min.x; x++ )
+        for( int x = outer.min.x; x < bottom->current_window.min.x; x++ )
             row_out[x] = zero;
 
-        for( int x = bottom->currentDataWindow.min.x; x <= bottom->currentDataWindow.max.x; x++ ) {
+        for( int x = bottom->current_window.min.x; x <= bottom->current_window.max.x; x++ ) {
             row_out[x] = row_bottom[x];
             row_out[x].a *= mix;
         }
 
-        for( int x = bottom->currentDataWindow.max.x + 1; x <= outer.max.x; x++ )
+        for( int x = bottom->current_window.max.x + 1; x <= outer.max.x; x++ )
             row_out[x] = zero;
     }
 
-    out->currentDataWindow = outer;
+    out->current_window = outer;
 }
 
 EXPORT void
 video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_a, float mix_b ) {
-    box2i *awin = &a->currentDataWindow, *bwin = &b->currentDataWindow;
+    box2i *awin = &a->current_window, *bwin = &b->current_window;
 
     mix_a = clampf(mix_a, 0.0f, 1.0f);
     mix_b = clampf(mix_b, 0.0f, 1.0f);
@@ -276,15 +276,15 @@ video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, f
         rgba_f32 *row_top = getPixel_f32( top, 0, y );
         const float mix = (top == a) ? mix_a : mix_b;
 
-        for( int x = outer.min.x; x < top->currentDataWindow.min.x; x++ )
+        for( int x = outer.min.x; x < top->current_window.min.x; x++ )
             row_out[x] = zero;
 
-        for( int x = top->currentDataWindow.min.x; x <= top->currentDataWindow.max.x; x++ ) {
+        for( int x = top->current_window.min.x; x <= top->current_window.max.x; x++ ) {
             row_out[x] = row_top[x];
             row_out[x].a *= mix;
         }
 
-        for( int x = top->currentDataWindow.max.x + 1; x <= outer.max.x; x++ )
+        for( int x = top->current_window.max.x + 1; x <= outer.max.x; x++ )
             row_out[x] = zero;
     }
 
@@ -350,18 +350,18 @@ video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, f
         rgba_f32 *row_bottom = getPixel_f32( bottom, 0, y );
         const float mix = (bottom == a) ? mix_a : mix_b;
 
-        for( int x = outer.min.x; x < bottom->currentDataWindow.min.x; x++ )
+        for( int x = outer.min.x; x < bottom->current_window.min.x; x++ )
             row_out[x] = zero;
 
-        for( int x = bottom->currentDataWindow.min.x; x <= bottom->currentDataWindow.max.x; x++ ) {
+        for( int x = bottom->current_window.min.x; x <= bottom->current_window.max.x; x++ ) {
             row_out[x] = row_bottom[x];
             row_out[x].a *= mix;
         }
 
-        for( int x = bottom->currentDataWindow.max.x + 1; x <= outer.max.x; x++ )
+        for( int x = bottom->current_window.max.x + 1; x <= outer.max.x; x++ )
             row_out[x] = zero;
     }
 
-    out->currentDataWindow = outer;
+    out->current_window = outer;
 }
 

@@ -33,7 +33,7 @@ getTimeFrame( const rational *frameRate, int64_t time ) {
 
 EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame ) {
     if( !source || !source->funcs ) {
-        box2i_setEmpty( &targetFrame->currentDataWindow );
+        box2i_setEmpty( &targetFrame->current_window );
         return;
     }
 
@@ -43,7 +43,7 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
     }
 
     if( !source->funcs->getFrame32 ) {
-        box2i_setEmpty( &targetFrame->currentDataWindow );
+        box2i_setEmpty( &targetFrame->current_window );
         return;
     }
 
@@ -54,32 +54,32 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
     box2i_getSize( &targetFrame->full_window, &size );
     tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.x * size.y );
     tempFrame.full_window = targetFrame->full_window;
-    tempFrame.currentDataWindow = targetFrame->full_window;
+    tempFrame.current_window = targetFrame->full_window;
 
     source->funcs->getFrame32( source->obj, frameIndex, &tempFrame );
 
-    if( !box2i_isEmpty( &tempFrame.currentDataWindow ) ) {
+    if( !box2i_isEmpty( &tempFrame.current_window ) ) {
         // Convert to f16
-        int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
+        int countX = tempFrame.current_window.max.x - tempFrame.current_window.min.x + 1;
 
         if( countX > 0 ) {
-            for( int y = tempFrame.currentDataWindow.min.y; y <= tempFrame.currentDataWindow.max.y; y++ ) {
+            for( int y = tempFrame.current_window.min.y; y <= tempFrame.current_window.max.y; y++ ) {
                 half_convert_from_float(
-                    &getPixel_f32( &tempFrame, tempFrame.currentDataWindow.min.x, y )->r,
-                    &getPixel_f16( targetFrame, tempFrame.currentDataWindow.min.x, y )->r,
+                    &getPixel_f32( &tempFrame, tempFrame.current_window.min.x, y )->r,
+                    &getPixel_f16( targetFrame, tempFrame.current_window.min.x, y )->r,
                     countX * 4 );
             }
         }
     }
 
-    targetFrame->currentDataWindow = tempFrame.currentDataWindow;
+    targetFrame->current_window = tempFrame.current_window;
 
     g_slice_free1( sizeof(rgba_f32) * size.x * size.y, tempFrame.data );
 }
 
 EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame ) {
     if( !source || !source->funcs ) {
-        box2i_setEmpty( &targetFrame->currentDataWindow );
+        box2i_setEmpty( &targetFrame->current_window );
         return;
     }
 
@@ -89,7 +89,7 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
     }
 
     if( !source->funcs->getFrame ) {
-        box2i_setEmpty( &targetFrame->currentDataWindow );
+        box2i_setEmpty( &targetFrame->current_window );
         return;
     }
 
@@ -100,21 +100,21 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
     box2i_getSize( &targetFrame->full_window, &size );
     tempFrame.data = g_slice_alloc( sizeof(rgba_f16) * size.x * size.y );
     tempFrame.full_window = targetFrame->full_window;
-    tempFrame.currentDataWindow = targetFrame->full_window;
+    tempFrame.current_window = targetFrame->full_window;
 
     source->funcs->getFrame( source->obj, frameIndex, &tempFrame );
 
     // Convert to f32
-    int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
+    int countX = tempFrame.current_window.max.x - tempFrame.current_window.min.x + 1;
 
-    for( int y = tempFrame.currentDataWindow.min.y; y <= tempFrame.currentDataWindow.max.y; y++ ) {
+    for( int y = tempFrame.current_window.min.y; y <= tempFrame.current_window.max.y; y++ ) {
         half_convert_to_float(
-            &getPixel_f16( &tempFrame, tempFrame.currentDataWindow.min.x, y )->r,
-            &getPixel_f32( targetFrame, tempFrame.currentDataWindow.min.x, y )->r,
+            &getPixel_f16( &tempFrame, tempFrame.current_window.min.x, y )->r,
+            &getPixel_f32( targetFrame, tempFrame.current_window.min.x, y )->r,
             countX * 4 );
     }
 
-    targetFrame->currentDataWindow = tempFrame.currentDataWindow;
+    targetFrame->current_window = tempFrame.current_window;
 
     g_slice_free1( sizeof(rgba_f16) * size.x * size.y, tempFrame.data );
 }
