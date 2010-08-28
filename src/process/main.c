@@ -103,7 +103,7 @@ PyObject *
 py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     PyObject *dataWindowTuple = NULL, *sourceObj;
     rgba_frame_f16 frame;
-    box2i_set( &frame.fullDataWindow, 0, 0, 4095, 4095 );
+    box2i_set( &frame.full_window, 0, 0, 4095, 4095 );
     int minFrame, maxFrame;
 
     static char *kwlist[] = { "source", "min_frame", "max_frame", "data_window", NULL };
@@ -113,16 +113,16 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
         return NULL;
 
     if( dataWindowTuple && !PyArg_ParseTuple( dataWindowTuple, "iiii",
-        &frame.fullDataWindow.min.x,
-        &frame.fullDataWindow.min.y,
-        &frame.fullDataWindow.max.x,
-        &frame.fullDataWindow.max.y ) )
+        &frame.full_window.min.x,
+        &frame.full_window.min.y,
+        &frame.full_window.max.x,
+        &frame.full_window.max.y ) )
         return NULL;
 
     v2i frameSize;
-    box2i_getSize( &frame.fullDataWindow, &frameSize );
+    box2i_getSize( &frame.full_window, &frameSize );
 
-    frame.currentDataWindow = frame.fullDataWindow;
+    frame.currentDataWindow = frame.full_window;
     frame.data = PyMem_Malloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
 
     if( !frame.data )

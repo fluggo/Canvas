@@ -201,7 +201,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     int interBufferSize = 0, outputBufferSize = 0;
 
     if( videoSource.source.funcs ) {
-        inputFrame.fullDataWindow = dataWindow;
+        inputFrame.full_window = dataWindow;
         inputFrame.data = (rgba_f16*) g_slice_alloc( frameSize.x * frameSize.y * sizeof(rgba_f16) );
 
         avcodec_get_frame_defaults( &interFrame );
@@ -259,13 +259,13 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             //printf( "video #%d\n", nextVideoFrame );
             packet.stream_index = video->index;
 
-            inputFrame.currentDataWindow = inputFrame.fullDataWindow;
+            inputFrame.currentDataWindow = inputFrame.full_window;
             video_getFrame_f16( &videoSource.source, nextVideoFrame, &inputFrame );
 
             // Transcode to RGBA
             for( int y = 0; y < frameSize.y; y++ ) {
                 rgba_u8 *targetData = (rgba_u8*) &interFrame.data[0][y * interFrame.linesize[0]];
-                rgba_f16 *sourceData = getPixel_f16( &inputFrame, inputFrame.fullDataWindow.min.x, inputFrame.fullDataWindow.min.y + y );
+                rgba_f16 *sourceData = getPixel_f16( &inputFrame, inputFrame.full_window.min.x, inputFrame.full_window.min.y + y );
 
                 for( int x = 0; x < frameSize.x; x++ ) {
                     targetData[x].r = ramp[sourceData[x].r];

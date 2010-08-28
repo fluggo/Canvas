@@ -147,19 +147,19 @@ typedef struct {
 
 typedef struct {
     rgba_f16 *data;
-    box2i fullDataWindow;
+    box2i full_window;
     box2i currentDataWindow;
 } rgba_frame_f16;
 
 typedef struct {
     rgba_f32 *data;
-    box2i fullDataWindow;
+    box2i full_window;
     box2i currentDataWindow;
 } rgba_frame_f32;
 
 typedef struct {
     GLuint texture;
-    box2i fullDataWindow;
+    box2i full_window;
     box2i currentDataWindow;
 } rgba_frame_gl;
 
@@ -176,16 +176,16 @@ typedef struct {
 
 G_GNUC_PURE static inline rgba_f16 *getPixel_f16( rgba_frame_f16 *frame, int x, int y ) {
     return &frame->data[
-        (y - frame->fullDataWindow.min.y) *
-            (frame->fullDataWindow.max.x - frame->fullDataWindow.min.x + 1) +
-        x - frame->fullDataWindow.min.x];
+        (y - frame->full_window.min.y) *
+            (frame->full_window.max.x - frame->full_window.min.x + 1) +
+        x - frame->full_window.min.x];
 }
 
 G_GNUC_PURE static inline rgba_f32 *getPixel_f32( rgba_frame_f32 *frame, int x, int y ) {
     return &frame->data[
-        (y - frame->fullDataWindow.min.y) *
-            (frame->fullDataWindow.max.x - frame->fullDataWindow.min.x + 1) +
-        x - frame->fullDataWindow.min.x];
+        (y - frame->full_window.min.y) *
+            (frame->full_window.max.x - frame->full_window.min.x + 1) +
+        x - frame->full_window.min.x];
 }
 
 typedef struct {

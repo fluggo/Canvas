@@ -70,7 +70,7 @@ EXPORT void *getCurrentGLContext() {
 EXPORT void
 gl_renderToTexture( rgba_frame_gl *frame ) {
     v2i frameSize;
-    box2i_getSize( &frame->fullDataWindow, &frameSize );
+    box2i_getSize( &frame->full_window, &frameSize );
 
     GLuint fbo;
     glGenFramebuffersEXT( 1, &fbo );
@@ -146,12 +146,12 @@ EXPORT void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_
 
     // Pull 16-bit frame data from the software chain and load it
     v2i frameSize;
-    box2i_getSize( &targetFrame->fullDataWindow, &frameSize );
+    box2i_getSize( &targetFrame->full_window, &frameSize );
 
     rgba_frame_f16 frame = { NULL };
     frame.data = g_slice_alloc0( sizeof(rgba_f16) * frameSize.x * frameSize.y );
-    frame.fullDataWindow = targetFrame->fullDataWindow;
-    frame.currentDataWindow = targetFrame->fullDataWindow;
+    frame.full_window = targetFrame->full_window;
+    frame.currentDataWindow = targetFrame->full_window;
 
     video_getFrame_f16( source, frameIndex, &frame );
 

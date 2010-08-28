@@ -51,10 +51,10 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
     rgba_frame_f32 tempFrame;
     v2i size;
 
-    box2i_getSize( &targetFrame->fullDataWindow, &size );
+    box2i_getSize( &targetFrame->full_window, &size );
     tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.x * size.y );
-    tempFrame.fullDataWindow = targetFrame->fullDataWindow;
-    tempFrame.currentDataWindow = targetFrame->fullDataWindow;
+    tempFrame.full_window = targetFrame->full_window;
+    tempFrame.currentDataWindow = targetFrame->full_window;
 
     source->funcs->getFrame32( source->obj, frameIndex, &tempFrame );
 
@@ -97,10 +97,10 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
     rgba_frame_f16 tempFrame;
     v2i size;
 
-    box2i_getSize( &targetFrame->fullDataWindow, &size );
+    box2i_getSize( &targetFrame->full_window, &size );
     tempFrame.data = g_slice_alloc( sizeof(rgba_f16) * size.x * size.y );
-    tempFrame.fullDataWindow = targetFrame->fullDataWindow;
-    tempFrame.currentDataWindow = targetFrame->fullDataWindow;
+    tempFrame.full_window = targetFrame->full_window;
+    tempFrame.currentDataWindow = targetFrame->full_window;
 
     source->funcs->getFrame( source->obj, frameIndex, &tempFrame );
 

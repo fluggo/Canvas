@@ -69,10 +69,10 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
 
     // Set up the current window
     box2i_set( &frame->currentDataWindow,
-        max( picOffset.x, frame->fullDataWindow.min.x ),
-        max( picOffset.y, frame->fullDataWindow.min.y ),
-        min( full_width + picOffset.x - 1, frame->fullDataWindow.max.x ),
-        min( full_height + picOffset.y - 1, frame->fullDataWindow.max.y ) );
+        max( picOffset.x, frame->full_window.min.x ),
+        max( picOffset.y, frame->full_window.min.y ),
+        min( full_width + picOffset.x - 1, frame->full_window.max.x ),
+        min( full_height + picOffset.y - 1, frame->full_window.max.y ) );
 
     // Set up subsample support
     const int subX = 4;

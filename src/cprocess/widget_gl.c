@@ -195,7 +195,7 @@ static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
 static gpointer
 playbackThread( widget_gl_context *self ) {
     rgba_frame_f16 frame = { NULL };
-    box2i_setEmpty( &frame.fullDataWindow );
+    box2i_setEmpty( &frame.full_window );
 
     for( ;; ) {
         int64_t startTime = INT64_C(0);
@@ -249,8 +249,8 @@ playbackThread( widget_gl_context *self ) {
         }
 
         // If our target array is the wrong size, reallocate it now
-        if( box2i_isEmpty( &frame.fullDataWindow ) ||
-            !box2i_equalSize( &self->displayWindow, &frame.fullDataWindow ) ) {
+        if( box2i_isEmpty( &frame.full_window ) ||
+            !box2i_equalSize( &self->displayWindow, &frame.full_window ) ) {
 
             g_free( frame.data );
             frame.data = g_malloc( frameSize.y * frameSize.x * sizeof(rgba_f16) );
@@ -258,7 +258,7 @@ playbackThread( widget_gl_context *self ) {
 
         // The frame could shift without changing size, so we set this here just in case
         target->fullDataWindow = self->displayWindow;
-        frame.fullDataWindow = self->displayWindow;
+        frame.full_window = self->displayWindow;
 
         VideoFrameSourceFuncs *funcs = self->frameSource.funcs;
 
@@ -286,7 +286,7 @@ playbackThread( widget_gl_context *self ) {
         const uint8_t *gamma45 = self->gamma_ramp;
 
         for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
-            rgba_u8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride - frame.fullDataWindow.min.x];
+            rgba_u8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride - frame.full_window.min.x];
             rgba_f16 *sourceData = getPixel_f16( &frame, 0, y );
 
             video_transfer_linear_to_sRGB( &sourceData[frame.currentDataWindow.min.x].r,
@@ -555,7 +555,7 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
         frameIndex = self->firstFrame;
 
     rgba_frame_gl frame = {
-        .fullDataWindow = self->displayWindow,
+        .full_window = self->displayWindow,
         .currentDataWindow = self->displayWindow
     };
 

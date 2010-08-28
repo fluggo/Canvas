@@ -24,7 +24,7 @@
 EXPORT void
 video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in ) {
     box2i inner;
-    box2i_intersect( &inner, &out->fullDataWindow, &in->currentDataWindow );
+    box2i_intersect( &inner, &out->full_window, &in->currentDataWindow );
     out->currentDataWindow = inner;
 
     bool is_empty = box2i_isEmpty( &inner );
@@ -56,10 +56,10 @@ video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, vid
         rgba_frame_f32 tempFrame;
         v2i size;
 
-        box2i_getSize( &out->fullDataWindow, &size );
+        box2i_getSize( &out->full_window, &size );
 
         tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
-        tempFrame.fullDataWindow = out->fullDataWindow;
+        tempFrame.full_window = out->full_window;
 
         video_getFrame_f32( a, frame_a, out );
         video_getFrame_f32( b, frame_b, &tempFrame );
@@ -82,7 +82,7 @@ video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha
     }
 
     box2i inner;
-    box2i_intersect( &inner, &out->fullDataWindow, &in->currentDataWindow );
+    box2i_intersect( &inner, &out->full_window, &in->currentDataWindow );
     out->currentDataWindow = inner;
 
     bool is_empty = box2i_isEmpty( &inner );
@@ -124,10 +124,10 @@ video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, 
     box2i outer, inner;
 
     box2i_union( &outer, awin, bwin );
-    box2i_intersect( &outer, &outer, &out->fullDataWindow );
+    box2i_intersect( &outer, &outer, &out->full_window );
 
     box2i_intersect( &inner, awin, bwin );
-    box2i_intersect( &inner, &inner, &out->fullDataWindow );
+    box2i_intersect( &inner, &inner, &out->full_window );
 
     bool empty_inner_x = inner.min.x > inner.max.x,
         empty_inner_y = inner.min.y > inner.max.y;
@@ -254,10 +254,10 @@ video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, f
     box2i outer, inner;
 
     box2i_union( &outer, awin, bwin );
-    box2i_intersect( &outer, &outer, &out->fullDataWindow );
+    box2i_intersect( &outer, &outer, &out->full_window );
 
     box2i_intersect( &inner, awin, bwin );
-    box2i_intersect( &inner, &inner, &out->fullDataWindow );
+    box2i_intersect( &inner, &inner, &out->full_window );
 
     bool empty_inner_x = inner.min.x > inner.max.x,
         empty_inner_y = inner.min.y > inner.max.y;

@@ -89,7 +89,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
         // TODO: Cache this temp frame between calls
         rgba_frame_f16 tempFrame;
         tempFrame.data = g_slice_alloc( sizeof(rgba_f16) * height * width );
-        tempFrame.fullDataWindow = frame->currentDataWindow;
+        tempFrame.full_window = frame->currentDataWindow;
         tempFrame.currentDataWindow = frame->currentDataWindow;
 
         video_getFrame_f16( &self->source.source, baseFrame + 3, &tempFrame );
@@ -167,7 +167,7 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
     }
     else {
         v2i frameSize;
-        box2i_getSize( &frame->fullDataWindow, &frameSize );
+        box2i_getSize( &frame->full_window, &frameSize );
 
         void *context = getCurrentGLContext();
         gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, q_interlaceShader );

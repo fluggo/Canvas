@@ -28,17 +28,17 @@ static void
 video_fill_zero_f32( rgba_frame_f32 *target ) {
     // You know what? Skip the pleasantries:
     v2i size;
-    box2i_getSize( &target->fullDataWindow, &size );
+    box2i_getSize( &target->full_window, &size );
 
     memset( target->data, 0, size.x * size.y * sizeof(rgba_f32) );
 }
 
 static void
 video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_frame_f32 *source, float symin, float factor ) {
-    box2i srect = source->currentDataWindow, trect = target->fullDataWindow;
+    box2i srect = source->currentDataWindow, trect = target->full_window;
 
-    int xmin = max( source->currentDataWindow.min.x, target->fullDataWindow.min.x );
-    int xmax = min( source->currentDataWindow.max.x, target->fullDataWindow.max.x );
+    int xmin = max( source->currentDataWindow.min.x, target->full_window.min.x );
+    int xmax = min( source->currentDataWindow.max.x, target->full_window.max.x );
 
     // These will hold how much of the target frame we actually used
     int ymin = G_MAXINT, ymax = G_MININT;
@@ -133,10 +133,10 @@ video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_f
     // BJC: This is the more-or-less direct translation of vertical, which means
     // it has somewhat poor locality of reference
 
-    box2i srect = source->currentDataWindow, trect = target->fullDataWindow;
+    box2i srect = source->currentDataWindow, trect = target->full_window;
 
-    int ymin = max( source->currentDataWindow.min.y, target->fullDataWindow.min.y );
-    int ymax = min( source->currentDataWindow.max.y, target->fullDataWindow.max.y );
+    int ymin = max( source->currentDataWindow.min.y, target->full_window.min.y );
+    int ymax = min( source->currentDataWindow.max.y, target->full_window.max.y );
 
     // These will hold how much of the target frame we actually used
     int xmin = G_MAXINT, xmax = G_MININT;
@@ -252,14 +252,14 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
     v2i size;
 
     if( factors.x < factors.y ) {
-        box2i_set( &temp_frame.fullDataWindow,
-            (int)(source_point.x - (target_point.x - target->fullDataWindow.min.x) * factors.x),
+        box2i_set( &temp_frame.full_window,
+            (int)(source_point.x - (target_point.x - target->full_window.min.x) * factors.x),
             source->currentDataWindow.min.y,
-            (int)(source_point.x + (target->fullDataWindow.max.x - target_point.x) * factors.x),
+            (int)(source_point.x + (target->full_window.max.x - target_point.x) * factors.x),
             source->currentDataWindow.max.y );
 
-        box2i_intersect( &temp_frame.fullDataWindow, &temp_frame.fullDataWindow, &target->fullDataWindow );
-        box2i_getSize( &temp_frame.fullDataWindow, &size );
+        box2i_intersect( &temp_frame.full_window, &temp_frame.full_window, &target->full_window );
+        box2i_getSize( &temp_frame.full_window, &size );
 
         temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
 
@@ -269,14 +269,14 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
         g_slice_free1( sizeof(rgba_f32) * size.y * size.x, temp_frame.data );
     }
     else {
-        box2i_set( &temp_frame.fullDataWindow,
+        box2i_set( &temp_frame.full_window,
             source->currentDataWindow.min.x,
-            (int)(source_point.y - (target_point.y - target->fullDataWindow.min.y) * factors.y),
+            (int)(source_point.y - (target_point.y - target->full_window.min.y) * factors.y),
             source->currentDataWindow.max.x,
-            (int)(source_point.y + (target->fullDataWindow.max.y - target_point.y) * factors.y) );
+            (int)(source_point.y + (target->full_window.max.y - target_point.y) * factors.y) );
 
-        box2i_intersect( &temp_frame.fullDataWindow, &temp_frame.fullDataWindow, &target->fullDataWindow );
-        box2i_getSize( &temp_frame.fullDataWindow, &size );
+        box2i_intersect( &temp_frame.full_window, &temp_frame.full_window, &target->full_window );
+        box2i_getSize( &temp_frame.full_window, &size );
 
         temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
 
@@ -302,15 +302,15 @@ video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_s
     rgba_frame_f32 temp_frame;
     v2i size;
 
-    box2i_set( &temp_frame.fullDataWindow,
-        (int)(source_point.x - (target_point.x - target->fullDataWindow.min.x) / factors.x) - 1,
-        (int)(source_point.y - (target_point.y - target->fullDataWindow.min.y) / factors.y) - 1,
-        (int)(source_point.x + (target->fullDataWindow.max.x - target_point.x) / factors.x) + 1,
-        (int)(source_point.y + (target->fullDataWindow.max.y - target_point.y) / factors.y) + 1 );
+    box2i_set( &temp_frame.full_window,
+        (int)(source_point.x - (target_point.x - target->full_window.min.x) / factors.x) - 1,
+        (int)(source_point.y - (target_point.y - target->full_window.min.y) / factors.y) - 1,
+        (int)(source_point.x + (target->full_window.max.x - target_point.x) / factors.x) + 1,
+        (int)(source_point.y + (target->full_window.max.y - target_point.y) / factors.y) + 1 );
 
-    box2i_intersect( &temp_frame.fullDataWindow, &temp_frame.fullDataWindow, source_rect );
+    box2i_intersect( &temp_frame.full_window, &temp_frame.full_window, source_rect );
 
-    box2i_getSize( &temp_frame.fullDataWindow, &size );
+    box2i_getSize( &temp_frame.full_window, &size );
 
     temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
 

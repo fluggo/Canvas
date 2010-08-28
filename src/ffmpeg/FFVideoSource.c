@@ -278,10 +278,10 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
 
     // Set up the current window
     box2i_set( &frame->currentDataWindow,
-        max( picOffset.x, frame->fullDataWindow.min.x ),
-        max( picOffset.y, frame->fullDataWindow.min.y ),
-        min( self->codecContext->width + picOffset.x - 1, frame->fullDataWindow.max.x ),
-        min( self->codecContext->height + picOffset.y - 1, frame->fullDataWindow.max.y ) );
+        max( picOffset.x, frame->full_window.min.x ),
+        max( picOffset.y, frame->full_window.min.y ),
+        min( self->codecContext->width + picOffset.x - 1, frame->full_window.max.x ),
+        min( self->codecContext->height + picOffset.y - 1, frame->full_window.max.y ) );
 
     // Set up subsample support
     int subX;
@@ -481,7 +481,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
 
     // Now set up the texture to render to
     v2i frameSize;
-    box2i_getSize( &frame->fullDataWindow, &frameSize );
+    box2i_getSize( &frame->full_window, &frameSize );
 
     void *context = getCurrentGLContext();
     gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, q_recon411Shader );
@@ -535,10 +535,10 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
         picOffset.y = -1;
 
     box2i_set( &frame->currentDataWindow,
-        max( picOffset.x, frame->fullDataWindow.min.x ),
-        max( picOffset.y, frame->fullDataWindow.min.y ),
-        min( self->codecContext->width + picOffset.x - 1, frame->fullDataWindow.max.x ),
-        min( self->codecContext->height + picOffset.y - 1, frame->fullDataWindow.max.y ) );
+        max( picOffset.x, frame->full_window.min.x ),
+        max( picOffset.y, frame->full_window.min.y ),
+        min( self->codecContext->width + picOffset.x - 1, frame->full_window.max.x ),
+        min( self->codecContext->height + picOffset.y - 1, frame->full_window.max.y ) );
 
     // Set up the input textures
     glActiveTexture( GL_TEXTURE0 );

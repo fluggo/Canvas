@@ -59,7 +59,7 @@ static void
 SolidColorVideoSource_getFrame( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_frame_f16 *frame ) {
     v2i size;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->fullDataWindow );
+    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->full_window );
     box2i_getSize( &frame->currentDataWindow, &size );
 
     if( size.x == 0 || size.y == 0 )
@@ -82,7 +82,7 @@ static void
 SolidColorVideoSource_getFrame32( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_frame_f32 *frame ) {
     v2i size;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->fullDataWindow );
+    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->full_window );
     box2i_getSize( &frame->currentDataWindow, &size );
 
     if( size.x == 0 || size.y == 0 )
@@ -105,13 +105,13 @@ static void
 SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_frame_gl *frame ) {
     v2i size, frameSize;
 
-    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->fullDataWindow );
+    box2i_intersect( &frame->currentDataWindow, &self->window, &frame->full_window );
     box2i_getSize( &frame->currentDataWindow, &size );
 
     if( size.x == 0 || size.y == 0 )
         return;
 
-    box2i_getSize( &frame->fullDataWindow, &frameSize );
+    box2i_getSize( &frame->full_window, &frameSize );
 
     glGenTextures( 1, &frame->texture );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frame->texture );
@@ -133,14 +133,14 @@ SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameI
 
     glBegin( GL_QUADS );
     glColor4fv( &self->color_f32.r );
-    glVertex2i( frame->currentDataWindow.min.x - frame->fullDataWindow.min.x,
-        frame->currentDataWindow.min.y - frame->fullDataWindow.min.y );
-    glVertex2i( frame->currentDataWindow.max.x - frame->fullDataWindow.min.x + 1,
-        frame->currentDataWindow.min.y - frame->fullDataWindow.min.y );
-    glVertex2i( frame->currentDataWindow.max.x - frame->fullDataWindow.min.x + 1,
-        frame->currentDataWindow.max.y - frame->fullDataWindow.min.y + 1 );
-    glVertex2i( frame->currentDataWindow.min.x - frame->fullDataWindow.min.x,
-        frame->currentDataWindow.max.y - frame->fullDataWindow.min.y + 1 );
+    glVertex2i( frame->currentDataWindow.min.x - frame->full_window.min.x,
+        frame->currentDataWindow.min.y - frame->full_window.min.y );
+    glVertex2i( frame->currentDataWindow.max.x - frame->full_window.min.x + 1,
+        frame->currentDataWindow.min.y - frame->full_window.min.y );
+    glVertex2i( frame->currentDataWindow.max.x - frame->full_window.min.x + 1,
+        frame->currentDataWindow.max.y - frame->full_window.min.y + 1 );
+    glVertex2i( frame->currentDataWindow.min.x - frame->full_window.min.x,
+        frame->currentDataWindow.max.y - frame->full_window.min.y + 1 );
     glEnd();
 
     glDeleteFramebuffersEXT( 1, &fbo );

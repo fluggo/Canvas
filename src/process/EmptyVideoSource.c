@@ -41,7 +41,7 @@ static void
 EmptyVideoSource_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame ) {
     // Even empty video sources need to produce a texture
     v2i frameSize;
-    box2i_getSize( &frame->fullDataWindow, &frameSize );
+    box2i_getSize( &frame->full_window, &frameSize );
 
     glGenTextures( 1, &frame->texture );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frame->texture );

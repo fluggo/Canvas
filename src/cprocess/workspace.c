@@ -497,10 +497,10 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
         rgba_frame_f32 tempFrame;
         v2i size;
 
-        box2i_getSize( &frame->fullDataWindow, &size );
+        box2i_getSize( &frame->full_window, &size );
 
         tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
-        tempFrame.fullDataWindow = frame->fullDataWindow;
+        tempFrame.full_window = frame->full_window;
 
         while( !g_sequence_iter_is_begin( iter ) ) {
             iter = g_sequence_iter_prev( iter );

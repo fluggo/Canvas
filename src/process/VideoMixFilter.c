@@ -164,7 +164,7 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_fra
 
     // Now set up the texture to render to
     v2i frameSize;
-    box2i_getSize( &frame->fullDataWindow, &frameSize );
+    box2i_getSize( &frame->full_window, &frameSize );
     box2i_union( &frame->currentDataWindow, &frameA.currentDataWindow, &frameB.currentDataWindow );
 
     glGenTextures( 1, &frame->texture );
