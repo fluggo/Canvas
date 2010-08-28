@@ -95,9 +95,9 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
 
         video_getFrame_f16( &self->source.source, baseFrame + 3, &tempFrame );
 
-        for( int i = (frame->currentDataWindow.min.y & 1) ? 1 : 0; i < height; i += 2 ) {
-            memcpy( &frame->data[i * frame->stride + frame->currentDataWindow.min.y - frame->fullDataWindow.min.y],
-                &tempFrame.data[i * frame->stride],
+        for( int i = ((frame->currentDataWindow.min.y + 1) & ~1); i <= frame->currentDataWindow.max.y; i += 2 ) {
+            memcpy( getPixel_f16( frame, frame->currentDataWindow.min.x, i ),
+                getPixel_f16( &tempFrame, 0, i ),
                 width * sizeof(rgba_f16) );
         }
 

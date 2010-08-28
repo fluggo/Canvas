@@ -61,16 +61,13 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
 
     if( !box2i_isEmpty( &tempFrame.currentDataWindow ) ) {
         // Convert to f16
-        int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
         int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
 
         if( countX > 0 ) {
-            for( int y = tempFrame.currentDataWindow.min.y - tempFrame.fullDataWindow.min.y;
-                y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
-
+            for( int y = tempFrame.currentDataWindow.min.y; y <= tempFrame.currentDataWindow.max.y; y++ ) {
                 half_convert_from_float(
-                    &tempFrame.data[y * tempFrame.stride + offsetX].r,
-                    &targetFrame->data[y * targetFrame->stride + offsetX].r,
+                    &getPixel_f32( &tempFrame, tempFrame.currentDataWindow.min.x, y )->r,
+                    &getPixel_f16( targetFrame, tempFrame.currentDataWindow.min.x, y )->r,
                     countX * 4 );
             }
         }
@@ -110,15 +107,12 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
     source->funcs->getFrame( source->obj, frameIndex, &tempFrame );
 
     // Convert to f32
-    int offsetX = tempFrame.currentDataWindow.min.x - tempFrame.fullDataWindow.min.x;
     int countX = tempFrame.currentDataWindow.max.x - tempFrame.currentDataWindow.min.x + 1;
 
-    for( int y = tempFrame.currentDataWindow.min.y - tempFrame.fullDataWindow.min.y;
-        y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
-
+    for( int y = tempFrame.currentDataWindow.min.y; y <= tempFrame.currentDataWindow.max.y; y++ ) {
         half_convert_to_float(
-            &tempFrame.data[y * tempFrame.stride + offsetX].r,
-            &targetFrame->data[y * targetFrame->stride + offsetX].r,
+            &getPixel_f16( &tempFrame, tempFrame.currentDataWindow.min.x, y )->r,
+            &getPixel_f32( targetFrame, tempFrame.currentDataWindow.min.x, y )->r,
             countX * 4 );
     }
 

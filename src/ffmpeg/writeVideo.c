@@ -266,7 +266,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             // Transcode to RGBA
             for( int y = 0; y < frameSize.y; y++ ) {
                 rgba_u8 *targetData = (rgba_u8*) &interFrame.data[0][y * interFrame.linesize[0]];
-                rgba_f16 *sourceData = &inputFrame.data[y * inputFrame.stride];
+                rgba_f16 *sourceData = getPixel_f16( &inputFrame, inputFrame.fullDataWindow.min.x, inputFrame.fullDataWindow.min.y + y );
 
                 for( int x = 0; x < frameSize.x; x++ ) {
                     targetData[x].r = ramp[sourceData[x].r];

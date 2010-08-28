@@ -122,9 +122,7 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
             tempRow[x].a = 1.0f;
         }
 
-        half *out = &frame->data[
-            (row + picOffset.y - frame->fullDataWindow.min.y) * frame->stride +
-            frame->currentDataWindow.min.x - frame->fullDataWindow.min.x].r;
+        half *out = &getPixel_f16( frame, frame->currentDataWindow.min.x, row + picOffset.y )->r;
 
         half_convert_from_float( (float*)(tempRow + frame->currentDataWindow.min.x - picOffset.x), out,
             (sizeof(rgba_f16) / sizeof(half)) * (frame->currentDataWindow.max.x - frame->currentDataWindow.min.x + 1) );
