@@ -217,7 +217,7 @@ void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *ou
         sizeof(float) * channelCount * (fullMaxSample - fullMinSample + 1)
         bytes. Channels are interleaved; a sample can be found at
         data[(sample - fullMinSample) * channelCount + channel].
-    channelCount - The number of channels in the buffer. Note that this is
+    channels - The number of channels in the buffer. Note that this is
         constant: An audio source should not set this to the number of channels
         it can produce, but rather produce zero samples for channels it
         does not have.
@@ -230,7 +230,7 @@ void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *ou
 
 typedef struct {
     float *data;
-    int channelCount;
+    int channels;
     int fullMinSample, fullMaxSample;
     int currentMinSample, currentMaxSample;
 } audio_frame;
@@ -239,7 +239,7 @@ typedef void (*audio_getFrameFunc)( void *self, audio_frame *frame );
 
 G_GNUC_PURE static inline float *
 audio_get_sample( const audio_frame *frame, int sample, int channel ) {
-    return &frame->data[(sample - frame->fullMinSample) * frame->channelCount + channel];
+    return &frame->data[(sample - frame->fullMinSample) * frame->channels + channel];
 }
 
 typedef struct {

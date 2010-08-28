@@ -81,14 +81,13 @@ AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
         PRIV(self)->lastElement = i;
         Element elem = SEQINDEX(self, i);
         audio_frame tempFrame = {
-            .channelCount = frame->channelCount,
+            .channels = frame->channels,
             .fullMinSample = max(elem.startSample, frame->fullMinSample),
             .fullMaxSample = min(elem.startSample + elem.length - 1, frame->fullMaxSample),
         };
         tempFrame.currentMinSample = tempFrame.fullMinSample;
         tempFrame.currentMaxSample = tempFrame.fullMaxSample;
-        tempFrame.data = frame->data +
-            (tempFrame.fullMinSample - frame->fullMinSample) * frame->channelCount;
+        tempFrame.data = audio_get_sample( frame, tempFrame.fullMinSample, 0 );
 
         if( elem.source.source.funcs ) {
             elem.source.source.funcs->getFrame( elem.source.source.obj, &tempFrame );
@@ -97,7 +96,7 @@ AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
             // No result, fill with zeros
             memset( tempFrame.data, 0,
                 (tempFrame.fullMaxSample - tempFrame.fullMinSample + 1)
-                * tempFrame.channelCount * sizeof(float) );
+                * tempFrame.channels * sizeof(float) );
         }
 
         frame->currentMaxSample = tempFrame.fullMaxSample;

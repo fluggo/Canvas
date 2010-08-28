@@ -321,7 +321,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             //printf( "audio #%d\n", nextAudioSample );
             packet.stream_index = audio->index;
 
-            audioInputFrame.channelCount = audioChannels;
+            audioInputFrame.channels = audioChannels;
             audioInputFrame.fullMinSample = nextAudioSample;
             audioInputFrame.fullMaxSample = nextAudioSample + sampleCount - 1;
             audioInputFrame.currentMinSample = nextAudioSample;

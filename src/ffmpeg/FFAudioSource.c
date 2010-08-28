@@ -284,7 +284,7 @@ FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
         int duration = min(self->lastPacketStart + self->lastPacketDuration, frame->fullMaxSample + 1) - startSample;
         float *out = audio_get_sample( frame, startSample, 0 );
 
-        convert_samples( out, frame->channelCount, self->audioBuffer, self->codecContext->channels, (startSample - self->lastPacketStart),
+        convert_samples( out, frame->channels, self->audioBuffer, self->codecContext->channels, (startSample - self->lastPacketStart),
             self->codecContext->sample_fmt, duration );
 
         frame->currentMinSample = startSample;
@@ -365,7 +365,7 @@ FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
         int duration = min(packetStart + packetDuration, frame->fullMaxSample + 1) - startSample;
         float *out = audio_get_sample( frame, startSample, 0 );
 
-        convert_samples( out, frame->channelCount, self->audioBuffer, self->codecContext->channels, (startSample - packetStart),
+        convert_samples( out, frame->channels, self->audioBuffer, self->codecContext->channels, (startSample - packetStart),
             self->codecContext->sample_fmt, duration );
 
         if( first ) {

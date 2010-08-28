@@ -86,7 +86,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         snd_pcm_get_params( self->pcmDevice, &hwBufferSize, &hwPeriodSize );
 
         audio_frame frame;
-        frame.channelCount = self->channelCount;
+        frame.channels = self->channelCount;
         frame.data = self->inBuffer;
 
         if( speed.n > 0 ) {
@@ -114,17 +114,17 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         }
         else if( speed.n > 0 ) {
             for( int i = 0; i < hwCount; i++ ) {
-                for( int ch = 0; ch < frame.channelCount; ch++ ) {
-                    ((float *) outptr)[i * frame.channelCount + ch] =
-                        inptr[(i * speed.n / speed.d) * frame.channelCount + ch];
+                for( int ch = 0; ch < frame.channels; ch++ ) {
+                    ((float *) outptr)[i * frame.channels + ch] =
+                        inptr[(i * speed.n / speed.d) * frame.channels + ch];
                 }
             }
         }
         else {
             for( int i = 0; i < hwCount; i++ ) {
-                for( int ch = 0; ch < frame.channelCount; ch++ ) {
-                    ((float *) outptr)[(hwCount - i - 1) * frame.channelCount + ch] =
-                        inptr[(i * -speed.n / speed.d) * frame.channelCount + ch];
+                for( int ch = 0; ch < frame.channels; ch++ ) {
+                    ((float *) outptr)[(hwCount - i - 1) * frame.channels + ch] =
+                        inptr[(i * -speed.n / speed.d) * frame.channels + ch];
                 }
             }
         }
@@ -156,7 +156,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
                 break;
             }
 
-            outptr += error * frame.channelCount * sizeof(float);
+            outptr += error * frame.channels * sizeof(float);
             hwCount -= error;
         }
 

@@ -34,18 +34,18 @@ audio_copy_frame( audio_frame *out, const audio_frame *in, int offset ) {
     if( out->currentMaxSample < out->currentMinSample )
         return;
 
-    if( out->channelCount == in->channelCount ) {
+    if( out->channels == in->channels ) {
         // Easiest case: a direct copy
         memcpy( audio_get_sample( out, out->currentMinSample, 0 ),
             audio_get_sample( in, out->currentMinSample + offset, 0 ),
-            sizeof(float) * in->channelCount * (out->currentMaxSample - out->currentMinSample + 1) );
+            sizeof(float) * in->channels * (out->currentMaxSample - out->currentMinSample + 1) );
         return;
     }
 
     for( int out_sample = out->currentMinSample; out_sample <= out->currentMaxSample; out_sample++ ) {
-        for( int channel = 0; channel < out->channelCount; channel++ ) {
+        for( int channel = 0; channel < out->channels; channel++ ) {
             *audio_get_sample( out, out_sample, channel ) =
-                (channel < in->channelCount) ? *audio_get_sample( in, out_sample + offset, channel ) : 0.0f;
+                (channel < in->channels) ? *audio_get_sample( in, out_sample + offset, channel ) : 0.0f;
         }
     }
 }
@@ -76,9 +76,9 @@ audio_copy_frame_attenuate( audio_frame *out, const audio_frame *in, float facto
         return;
 
     for( int out_sample = out->currentMinSample; out_sample <= out->currentMaxSample; out_sample++ ) {
-        for( int channel = 0; channel < out->channelCount; channel++ ) {
+        for( int channel = 0; channel < out->channels; channel++ ) {
             *audio_get_sample( out, out_sample, channel ) =
-                (channel < in->channelCount) ? *audio_get_sample( in, out_sample + offset, channel ) * factor : 0.0f;
+                (channel < in->channels) ? *audio_get_sample( in, out_sample + offset, channel ) * factor : 0.0f;
         }
     }
 }
@@ -140,9 +140,9 @@ audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_
     // Left (one frame only)
     if( a->currentMinSample - offset < out->currentMinSample ) {
         for( int sample = out_min_sample; sample < inner_min; sample++ ) {
-            for( int channel = 0; channel < out->channelCount; channel++ ) {
+            for( int channel = 0; channel < out->channels; channel++ ) {
                 *audio_get_sample( out, sample, channel ) =
-                    (channel < a->channelCount) ? *audio_get_sample( a, sample + offset, channel ) * mix_a : 0.0f;
+                    (channel < a->channels) ? *audio_get_sample( a, sample + offset, channel ) * mix_a : 0.0f;
             }
         }
     }
@@ -150,16 +150,16 @@ audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_
     // Middle (both or neither)
     if( inner_max < inner_min ) {
         for( int sample = inner_max + 1; sample <= inner_min - 1; sample++ ) {
-            for( int channel = 0; channel < out->channelCount; channel++ ) {
+            for( int channel = 0; channel < out->channels; channel++ ) {
                 *audio_get_sample( out, sample, channel ) = 0.0f;
             }
         }
     }
     else {
         for( int sample = inner_min; sample <= inner_max; sample++ ) {
-            for( int channel = 0; channel < out->channelCount; channel++ ) {
+            for( int channel = 0; channel < out->channels; channel++ ) {
                 *audio_get_sample( out, sample, channel ) +=
-                    ((channel < a->channelCount) ? *audio_get_sample( a, sample + offset, channel ) * mix_a : 0.0f);
+                    ((channel < a->channels) ? *audio_get_sample( a, sample + offset, channel ) * mix_a : 0.0f);
             }
         }
     }
@@ -167,9 +167,9 @@ audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_
     // Right (one frame only)
     if( a->currentMaxSample - offset > out->currentMaxSample ) {
         for( int sample = inner_max + 1; sample <= out_max_sample; sample++ ) {
-            for( int channel = 0; channel < out->channelCount; channel++ ) {
+            for( int channel = 0; channel < out->channels; channel++ ) {
                 *audio_get_sample( out, sample, channel ) =
-                    (channel < a->channelCount) ? *audio_get_sample( a, sample + offset, channel ) * mix_a : 0.0f;
+                    (channel < a->channels) ? *audio_get_sample( a, sample + offset, channel ) * mix_a : 0.0f;
             }
         }
     }
@@ -212,10 +212,10 @@ audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, floa
 
     // Pull A into a temp frame
     audio_frame temp_frame = {
-        .data = g_slice_alloc( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount ),
+        .data = g_slice_alloc( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channels ),
         .fullMinSample = out->fullMinSample + offset_a,
         .fullMaxSample = out->fullMaxSample + offset_a,
-        .channelCount = out->channelCount
+        .channels = out->channels
     };
 
     audio_get_frame( a, &temp_frame );
@@ -223,7 +223,7 @@ audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, floa
     // Now mix
     audio_mix_add( out, mix_out, &temp_frame, mix_a, offset_a );
 
-    g_slice_free1( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount, temp_frame.data );
+    g_slice_free1( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channels, temp_frame.data );
 }
 
 

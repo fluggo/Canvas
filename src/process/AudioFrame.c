@@ -68,7 +68,7 @@ AudioFrame_get_current_max_sample( PyObject *self, void *closure ) {
 
 static PyObject *
 AudioFrame_get_channels( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->channelCount );
+    return PyInt_FromLong( PRIV(self)->channels );
 }
 
 static PyGetSetDef AudioFrame_getsetters[] = {
@@ -84,12 +84,12 @@ static PyGetSetDef AudioFrame_getsetters[] = {
 // Sequence protocol for raw data
 static Py_ssize_t
 AudioFrame_size( PyObject *self ) {
-    return (PRIV(self)->fullMaxSample - PRIV(self)->fullMinSample + 1) * PRIV(self)->channelCount;
+    return (PRIV(self)->fullMaxSample - PRIV(self)->fullMinSample + 1) * PRIV(self)->channels;
 }
 
 static PyObject *
 AudioFrame_get_item( PyObject *self, Py_ssize_t i ) {
-    if( i < 0 || i >= (PRIV(self)->fullMaxSample - PRIV(self)->fullMinSample + 1) * PRIV(self)->channelCount ) {
+    if( i < 0 || i >= (PRIV(self)->fullMaxSample - PRIV(self)->fullMinSample + 1) * PRIV(self)->channels ) {
         PyErr_SetString( PyExc_IndexError, "Index was out of range." );
         return NULL;
     }
@@ -112,7 +112,7 @@ AudioFrame_sample( PyObject *self, PyObject *args ) {
     if( sample < PRIV(self)->currentMinSample || sample > PRIV(self)->currentMaxSample )
         Py_RETURN_NONE;
 
-    if( channel < 0 || channel >= PRIV(self)->channelCount ) {
+    if( channel < 0 || channel >= PRIV(self)->channels ) {
         PyErr_SetString( PyExc_IndexError, "Channel index was out of range." );
         return NULL;
     }
@@ -178,7 +178,7 @@ py_AudioFrame_new( int min_sample, int max_sample, int channels, audio_frame **f
 
     PRIV(result)->fullMinSample = min_sample;
     PRIV(result)->fullMaxSample = max_sample;
-    PRIV(result)->channelCount = channels;
+    PRIV(result)->channels = channels;
 
     PRIV(result)->data = PyMem_Malloc( sizeof(float) * (max_sample - min_sample + 1) * channels );
 
