@@ -134,8 +134,8 @@ EXPORT AudioFrameSourceFuncs audio_frame_as_source_funcs = {
 EXPORT void
 audio_get_frame( const audio_source *source, audio_frame *frame ) {
     if( !source || !source->funcs || !source->funcs->getFrame ) {
-        frame->currentMinSample = 0;
-        frame->currentMaxSample = -1;
+        frame->current_min_sample = 0;
+        frame->current_max_sample = -1;
         return;
     }
 

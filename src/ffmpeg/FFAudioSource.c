@@ -246,24 +246,24 @@ FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
     int sampleRate = self->codecContext->sample_rate;
     //printf( "timeBase: %d/%d, frameRate: %d/%d\n", timeBase->num, timeBase->den, sampleRate, 1 );
     int64_t frameDuration = (timeBase->den) / (timeBase->num * sampleRate);
-    int64_t timestamp = ((int64_t) frame->fullMinSample * timeBase->den) / (timeBase->num * sampleRate) + frameDuration / 2;
+    int64_t timestamp = ((int64_t) frame->full_min_sample * timeBase->den) / (timeBase->num * sampleRate) + frameDuration / 2;
 
 
 //    if( (uint64_t) self->context->start_time != AV_NOPTS_VALUE )
 //        timestamp += self->context->start_time;
 
 /*    if( self->allKeyframes ) {
-        if( av_seek_frame( self->context, self->firstAudioStream, frame->fullMinSample,
+        if( av_seek_frame( self->context, self->firstAudioStream, frame->full_min_sample,
                 AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD ) < 0 )
-            printf( "Could not seek to frame %ld.\n", frame->fullMinSample );
+            printf( "Could not seek to frame %ld.\n", frame->full_min_sample );
 
-        self->currentAudioFrame = frame->fullMinSample;
+        self->currentAudioFrame = frame->full_min_sample;
     }
     else {*/
         // Only bother seeking if we're way off (or it's behind us)
-        if( self->lastPacketStart != -1 && (frame->fullMinSample < self->lastPacketStart || (frame->fullMinSample - self->lastPacketStart) >= (frame->fullMaxSample - frame->fullMinSample) * 4) ) {
+        if( self->lastPacketStart != -1 && (frame->full_min_sample < self->lastPacketStart || (frame->full_min_sample - self->lastPacketStart) >= (frame->full_max_sample - frame->full_min_sample) * 4) ) {
 
-            //printf( "min: %d, lastPacket: %d\n", frame->fullMinSample, self->lastPacketStart );
+            //printf( "min: %d, lastPacket: %d\n", frame->full_min_sample, self->lastPacketStart );
             //printf( "Seeking back to %ld...\n", timestamp );
             int seekStamp = timestamp;
 
@@ -276,23 +276,23 @@ FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
 
     bool first = true;
 
-    if( self->lastPacketStart != -1 && self->lastPacketStart <= frame->fullMaxSample &&
-        (self->lastPacketStart + self->lastPacketDuration) >= frame->fullMinSample ) {
+    if( self->lastPacketStart != -1 && self->lastPacketStart <= frame->full_max_sample &&
+        (self->lastPacketStart + self->lastPacketDuration) >= frame->full_min_sample ) {
 
         // Decode into the current frame
-        int startSample = max(self->lastPacketStart, frame->fullMinSample);
-        int duration = min(self->lastPacketStart + self->lastPacketDuration, frame->fullMaxSample + 1) - startSample;
+        int startSample = max(self->lastPacketStart, frame->full_min_sample);
+        int duration = min(self->lastPacketStart + self->lastPacketDuration, frame->full_max_sample + 1) - startSample;
         float *out = audio_get_sample( frame, startSample, 0 );
 
         convert_samples( out, frame->channels, self->audioBuffer, self->codecContext->channels, (startSample - self->lastPacketStart),
             self->codecContext->sample_fmt, duration );
 
-        frame->currentMinSample = startSample;
-        frame->currentMaxSample = startSample + duration - 1;
+        frame->current_min_sample = startSample;
+        frame->current_max_sample = startSample + duration - 1;
         first = false;
 
         // We could be done...
-        if( frame->currentMinSample == frame->fullMinSample && frame->currentMaxSample == frame->fullMaxSample ) {
+        if( frame->current_min_sample == frame->full_min_sample && frame->current_max_sample == frame->full_max_sample ) {
             //printf( "Going home early: (%d, %d)\n", startSample, duration );
             return;
         }
@@ -335,8 +335,8 @@ FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
             if( (decoded = avcodec_decode_audio2( self->codecContext, audioBuffer, &bufferSize,
                 data, dataSize )) < 0 ) {
                 printf( "Could not decode the audio.\n" );
-                frame->currentMaxSample = -1;
-                frame->currentMinSample = 0;
+                frame->current_max_sample = -1;
+                frame->current_min_sample = 0;
                 av_free_packet( &packet );
                 return;
             }
@@ -361,29 +361,29 @@ FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
         self->lastPacketDuration = packetDuration;
 
         //printf( "We'll take that (%d, %d)\n", packetStart, packetDuration );
-        int startSample = max(packetStart, frame->fullMinSample);
-        int duration = min(packetStart + packetDuration, frame->fullMaxSample + 1) - startSample;
+        int startSample = max(packetStart, frame->full_min_sample);
+        int duration = min(packetStart + packetDuration, frame->full_max_sample + 1) - startSample;
         float *out = audio_get_sample( frame, startSample, 0 );
 
         convert_samples( out, frame->channels, self->audioBuffer, self->codecContext->channels, (startSample - packetStart),
             self->codecContext->sample_fmt, duration );
 
         if( first ) {
-            frame->currentMinSample = packetStart;
-            frame->currentMaxSample = packetStart + packetDuration - 1;
+            frame->current_min_sample = packetStart;
+            frame->current_max_sample = packetStart + packetDuration - 1;
             first = false;
         }
         else {
-            frame->currentMinSample = min(frame->currentMinSample, packetStart);
-            frame->currentMaxSample = max(frame->currentMaxSample, packetStart + packetDuration - 1);
+            frame->current_min_sample = min(frame->current_min_sample, packetStart);
+            frame->current_max_sample = max(frame->current_max_sample, packetStart + packetDuration - 1);
         }
 
-        frame->currentMinSample = max(frame->currentMinSample, frame->fullMinSample);
-        frame->currentMaxSample = min(frame->currentMaxSample, frame->fullMaxSample);
+        frame->current_min_sample = max(frame->current_min_sample, frame->full_min_sample);
+        frame->current_max_sample = min(frame->current_max_sample, frame->full_max_sample);
 
         av_free_packet( &packet );
 
-        if( packetStart + packetDuration >= frame->fullMaxSample ) {
+        if( packetStart + packetDuration >= frame->full_max_sample ) {
 //            printf( "Enough: (%d, %d) vs (%d, %d)\n", frame->currentMinSample, frame->currentMaxSample, frame->fullMinSample, frame->fullMaxSample );
             return;
         }

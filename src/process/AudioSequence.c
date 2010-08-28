@@ -54,27 +54,27 @@ AudioSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 static void
 AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
     g_mutex_lock( PRIV(self)->mutex );
-    if( frame->fullMaxSample < 0 || PRIV(self)->sequence->len == 0 ) {
+    if( frame->full_max_sample < 0 || PRIV(self)->sequence->len == 0 ) {
         // No result
         g_mutex_unlock( PRIV(self)->mutex );
-        frame->currentMaxSample = frame->currentMinSample - 1;
+        frame->current_max_sample = frame->current_min_sample - 1;
         return;
     }
 
-    if( frame->currentMinSample < 0 )
-        frame->currentMinSample = 0;
+    if( frame->current_min_sample < 0 )
+        frame->current_min_sample = 0;
 
-    frame->currentMaxSample = -1;
+    frame->current_max_sample = -1;
 
     // Find the source at the beginning of this frame
     // BJC: I realize this is O(n) worst-case, but hopefully n is small
     // and the worst-case is rare
     int i = min(PRIV(self)->lastElement, PRIV(self)->sequence->len);
 
-    while( i < (PRIV(self)->sequence->len - 1) && frame->currentMinSample >= SEQINDEX(self, i).startSample + SEQINDEX(self, i).length )
+    while( i < (PRIV(self)->sequence->len - 1) && frame->current_min_sample >= SEQINDEX(self, i).startSample + SEQINDEX(self, i).length )
         i++;
 
-    while( i > 0 && frame->fullMaxSample < SEQINDEX(self, i).startSample )
+    while( i > 0 && frame->full_max_sample < SEQINDEX(self, i).startSample )
         i--;
 
     while( i < PRIV(self)->sequence->len ) {
@@ -82,12 +82,12 @@ AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
         Element elem = SEQINDEX(self, i);
         audio_frame tempFrame = {
             .channels = frame->channels,
-            .fullMinSample = max(elem.startSample, frame->fullMinSample),
-            .fullMaxSample = min(elem.startSample + elem.length - 1, frame->fullMaxSample),
+            .full_min_sample = max(elem.startSample, frame->full_min_sample),
+            .full_max_sample = min(elem.startSample + elem.length - 1, frame->full_max_sample),
         };
-        tempFrame.currentMinSample = tempFrame.fullMinSample;
-        tempFrame.currentMaxSample = tempFrame.fullMaxSample;
-        tempFrame.data = audio_get_sample( frame, tempFrame.fullMinSample, 0 );
+        tempFrame.current_min_sample = tempFrame.full_min_sample;
+        tempFrame.current_max_sample = tempFrame.full_max_sample;
+        tempFrame.data = audio_get_sample( frame, tempFrame.full_min_sample, 0 );
 
         if( elem.source.source.funcs ) {
             elem.source.source.funcs->getFrame( elem.source.source.obj, &tempFrame );
@@ -95,13 +95,13 @@ AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
         else {
             // No result, fill with zeros
             memset( tempFrame.data, 0,
-                (tempFrame.fullMaxSample - tempFrame.fullMinSample + 1)
+                (tempFrame.full_max_sample - tempFrame.full_min_sample + 1)
                 * tempFrame.channels * sizeof(float) );
         }
 
-        frame->currentMaxSample = tempFrame.fullMaxSample;
+        frame->current_max_sample = tempFrame.full_max_sample;
 
-        if( frame->currentMaxSample == frame->fullMaxSample )
+        if( frame->current_max_sample == frame->full_max_sample )
             break;
 
         i++;

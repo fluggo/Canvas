@@ -45,7 +45,7 @@ static void
 AudioPassThroughFilter_getFrame( py_obj_AudioPassThroughFilter *self, audio_frame *frame ) {
     if( !self->source.source.funcs ) {
         // No result
-        frame->currentMaxSample = frame->currentMinSample - 1;
+        frame->current_max_sample = frame->current_min_sample - 1;
         return;
     }
 

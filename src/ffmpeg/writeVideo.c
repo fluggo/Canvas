@@ -322,10 +322,10 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             packet.stream_index = audio->index;
 
             audioInputFrame.channels = audioChannels;
-            audioInputFrame.fullMinSample = nextAudioSample;
-            audioInputFrame.fullMaxSample = nextAudioSample + sampleCount - 1;
-            audioInputFrame.currentMinSample = nextAudioSample;
-            audioInputFrame.currentMaxSample = nextAudioSample + sampleCount - 1;
+            audioInputFrame.full_min_sample = nextAudioSample;
+            audioInputFrame.full_max_sample = nextAudioSample + sampleCount - 1;
+            audioInputFrame.current_min_sample = nextAudioSample;
+            audioInputFrame.current_max_sample = nextAudioSample + sampleCount - 1;
 
             audioSource.source.funcs->getFrame( audioSource.source.obj, &audioInputFrame );
 
@@ -366,7 +366,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
                         audio->codec->time_base, audio->time_base );
                 }
                 else {
-                    packet.pts = av_rescale_q( audioInputFrame.fullMinSample,
+                    packet.pts = av_rescale_q( audioInputFrame.full_min_sample,
                         audio->codec->time_base, audio->time_base );
                 }
 

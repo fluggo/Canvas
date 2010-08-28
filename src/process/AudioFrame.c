@@ -48,22 +48,22 @@ AudioFrame_get_funcs( PyObject *self, void *closure ) {
 
 static PyObject *
 AudioFrame_get_full_min_sample( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->fullMinSample );
+    return PyInt_FromLong( PRIV(self)->full_min_sample );
 }
 
 static PyObject *
 AudioFrame_get_full_max_sample( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->fullMaxSample );
+    return PyInt_FromLong( PRIV(self)->full_max_sample );
 }
 
 static PyObject *
 AudioFrame_get_current_min_sample( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->currentMinSample );
+    return PyInt_FromLong( PRIV(self)->current_min_sample );
 }
 
 static PyObject *
 AudioFrame_get_current_max_sample( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->currentMaxSample );
+    return PyInt_FromLong( PRIV(self)->current_max_sample );
 }
 
 static PyObject *
@@ -84,12 +84,12 @@ static PyGetSetDef AudioFrame_getsetters[] = {
 // Sequence protocol for raw data
 static Py_ssize_t
 AudioFrame_size( PyObject *self ) {
-    return (PRIV(self)->fullMaxSample - PRIV(self)->fullMinSample + 1) * PRIV(self)->channels;
+    return (PRIV(self)->full_max_sample - PRIV(self)->full_min_sample + 1) * PRIV(self)->channels;
 }
 
 static PyObject *
 AudioFrame_get_item( PyObject *self, Py_ssize_t i ) {
-    if( i < 0 || i >= (PRIV(self)->fullMaxSample - PRIV(self)->fullMinSample + 1) * PRIV(self)->channels ) {
+    if( i < 0 || i >= (PRIV(self)->full_max_sample - PRIV(self)->full_min_sample + 1) * PRIV(self)->channels ) {
         PyErr_SetString( PyExc_IndexError, "Index was out of range." );
         return NULL;
     }
@@ -109,7 +109,7 @@ AudioFrame_sample( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "ii", &sample, &channel ) )
         return NULL;
 
-    if( sample < PRIV(self)->currentMinSample || sample > PRIV(self)->currentMaxSample )
+    if( sample < PRIV(self)->current_min_sample || sample > PRIV(self)->current_max_sample )
         Py_RETURN_NONE;
 
     if( channel < 0 || channel >= PRIV(self)->channels ) {
@@ -176,8 +176,8 @@ py_AudioFrame_new( int min_sample, int max_sample, int channels, audio_frame **f
     if( !result )
         return NULL;
 
-    PRIV(result)->fullMinSample = min_sample;
-    PRIV(result)->fullMaxSample = max_sample;
+    PRIV(result)->full_min_sample = min_sample;
+    PRIV(result)->full_max_sample = max_sample;
     PRIV(result)->channels = channels;
 
     PRIV(result)->data = PyMem_Malloc( sizeof(float) * (max_sample - min_sample + 1) * channels );

@@ -90,18 +90,18 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         frame.data = self->inBuffer;
 
         if( speed.n > 0 ) {
-            frame.fullMinSample = nextSample;
-            frame.fullMaxSample = nextSample + swCount - 1;
+            frame.full_min_sample = nextSample;
+            frame.full_max_sample = nextSample + swCount - 1;
             self->nextSample += swCount;
         }
         else {
-            frame.fullMinSample = nextSample - swCount + 1;
-            frame.fullMaxSample = nextSample;
+            frame.full_min_sample = nextSample - swCount + 1;
+            frame.full_max_sample = nextSample;
             self->nextSample -= swCount;
         }
 
-        frame.currentMinSample = frame.fullMinSample;
-        frame.currentMaxSample = frame.fullMaxSample;
+        frame.current_min_sample = frame.full_min_sample;
+        frame.current_max_sample = frame.full_max_sample;
 
         g_mutex_unlock( self->mutex );
 

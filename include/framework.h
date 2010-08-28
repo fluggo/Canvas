@@ -221,25 +221,25 @@ void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *ou
         constant: An audio source should not set this to the number of channels
         it can produce, but rather produce zero samples for channels it
         does not have.
-    fullMinSample - The index of the sample found at frameData[0].
-    fullMaxSample - The index of the last possible sample in the buffer,
+    full_min_sample - The index of the sample found at frameData[0].
+    full_max_sample - The index of the last possible sample in the buffer,
         which is at frameData[(fullMaxSample - fullMinSample) * channelCount].
-    currentMinSample - The index of the first valid sample in the buffer.
-    currentMaxSample - The index of the last valid sample in the buffer.
+    current_min_sample - The index of the first valid sample in the buffer.
+    current_max_sample - The index of the last valid sample in the buffer.
 */
 
 typedef struct {
     float *data;
     int channels;
-    int fullMinSample, fullMaxSample;
-    int currentMinSample, currentMaxSample;
+    int full_min_sample, full_max_sample;
+    int current_min_sample, current_max_sample;
 } audio_frame;
 
 typedef void (*audio_getFrameFunc)( void *self, audio_frame *frame );
 
 G_GNUC_PURE static inline float *
 audio_get_sample( const audio_frame *frame, int sample, int channel ) {
-    return &frame->data[(sample - frame->fullMinSample) * frame->channels + channel];
+    return &frame->data[(sample - frame->full_min_sample) * frame->channels + channel];
 }
 
 typedef struct {
