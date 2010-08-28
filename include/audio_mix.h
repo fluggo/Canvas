@@ -20,8 +20,8 @@
 
 #include "framework.h"
 
-#if !defined(FLUGGO_VIDEO_MIX_H)
-#define FLUGGO_VIDEO_MIX_H
+#if !defined(FLUGGO_AUDIO_MIX_H)
+#define FLUGGO_AUDIO_MIX_H
 
 /*
     Function: audio_copy_frame
