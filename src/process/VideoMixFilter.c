@@ -21,17 +21,6 @@
 #include "pyframework.h"
 #include "video_mix.h"
 
-#define FOREACH_PIXEL_BEGIN(frame,pixel) \
-    for( int _py = (frame)->currentDataWindow.min.y - (frame)->fullDataWindow.min.y; \
-            _py <= (frame)->currentDataWindow.max.y - (frame)->fullDataWindow.min.y; _py++ ) { \
-        for( int _px = (frame)->currentDataWindow.min.x - (frame)->fullDataWindow.min.x; \
-            _px <= (frame)->currentDataWindow.max.x - (frame)->fullDataWindow.min.x; _px++ ) { \
-            rgba_f32 *pixel = &(frame)->frameData[_py * (frame)->stride + _px]; \
-
-#define FOREACH_PIXEL_END } }
-
-#define frame_pixel(frame, vx, vy)    (frame)->frameData[(frame)->stride * ((vy) - (frame)->fullDataWindow.min.y) + ((vx) - (frame)->fullDataWindow.min.x)]
-
 static GQuark q_crossfadeShader;
 
 typedef enum {
