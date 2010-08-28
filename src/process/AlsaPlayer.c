@@ -87,7 +87,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
         audio_frame frame;
         frame.channelCount = self->channelCount;
-        frame.frameData = self->inBuffer;
+        frame.data = self->inBuffer;
 
         if( speed.n > 0 ) {
             frame.fullMinSample = nextSample;

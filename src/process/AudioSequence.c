@@ -87,7 +87,7 @@ AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
         };
         tempFrame.currentMinSample = tempFrame.fullMinSample;
         tempFrame.currentMaxSample = tempFrame.fullMaxSample;
-        tempFrame.frameData = frame->frameData +
+        tempFrame.data = frame->data +
             (tempFrame.fullMinSample - frame->fullMinSample) * frame->channelCount;
 
         if( elem.source.source.funcs ) {
@@ -95,7 +95,7 @@ AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
         }
         else {
             // No result, fill with zeros
-            memset( tempFrame.frameData, 0,
+            memset( tempFrame.data, 0,
                 (tempFrame.fullMaxSample - tempFrame.fullMinSample + 1)
                 * tempFrame.channelCount * sizeof(float) );
         }

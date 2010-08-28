@@ -282,7 +282,7 @@ FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
         // Decode into the current frame
         int startSample = max(self->lastPacketStart, frame->fullMinSample);
         int duration = min(self->lastPacketStart + self->lastPacketDuration, frame->fullMaxSample + 1) - startSample;
-        float *out = frame->frameData + (startSample - frame->fullMinSample) * frame->channelCount;
+        float *out = audio_get_sample( frame, startSample, 0 );
 
         convert_samples( out, frame->channelCount, self->audioBuffer, self->codecContext->channels, (startSample - self->lastPacketStart),
             self->codecContext->sample_fmt, duration );
@@ -363,7 +363,7 @@ FFAudioSource_getFrame( py_obj_FFAudioSource *self, audio_frame *frame ) {
         //printf( "We'll take that (%d, %d)\n", packetStart, packetDuration );
         int startSample = max(packetStart, frame->fullMinSample);
         int duration = min(packetStart + packetDuration, frame->fullMaxSample + 1) - startSample;
-        float *out = frame->frameData + (startSample - frame->fullMinSample) * frame->channelCount;
+        float *out = audio_get_sample( frame, startSample, 0 );
 
         convert_samples( out, frame->channelCount, self->audioBuffer, self->codecContext->channels, (startSample - packetStart),
             self->codecContext->sample_fmt, duration );

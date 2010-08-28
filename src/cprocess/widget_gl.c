@@ -252,8 +252,8 @@ playbackThread( widget_gl_context *self ) {
         if( box2i_isEmpty( &frame.fullDataWindow ) ||
             !box2i_equalSize( &self->displayWindow, &frame.fullDataWindow ) ) {
 
-            g_free( frame.frameData );
-            frame.frameData = g_malloc( frameSize.y * frameSize.x * sizeof(rgba_f16) );
+            g_free( frame.data );
+            frame.data = g_malloc( frameSize.y * frameSize.x * sizeof(rgba_f16) );
             frame.stride = frameSize.x;
         }
 
@@ -288,7 +288,7 @@ playbackThread( widget_gl_context *self ) {
 
         for( int y = frame.currentDataWindow.min.y; y <= frame.currentDataWindow.max.y; y++ ) {
             rgba_u8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride - frame.fullDataWindow.min.x];
-            rgba_f16 *sourceData = &frame.frameData[(y - frame.fullDataWindow.min.y) * frame.stride - frame.fullDataWindow.min.x];
+            rgba_f16 *sourceData = &frame.data[(y - frame.fullDataWindow.min.y) * frame.stride - frame.fullDataWindow.min.x];
             video_transfer_linear_to_sRGB( &sourceData[frame.currentDataWindow.min.x].r,
                 &sourceData[frame.currentDataWindow.min.x].r,
                 (frame.currentDataWindow.max.x - frame.currentDataWindow.min.x + 1) * 4 );

@@ -353,7 +353,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
             tempRow[x].a = 1.0f;
         }
 
-        half *out = &frame->frameData[
+        half *out = &frame->data[
             (row + picOffset.y - frame->fullDataWindow.min.y) * frame->stride +
             frame->currentDataWindow.min.x - frame->fullDataWindow.min.x].r;
 

@@ -202,7 +202,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
 
     if( videoSource.source.funcs ) {
         inputFrame.fullDataWindow = dataWindow;
-        inputFrame.frameData = (rgba_f16*) g_slice_alloc( frameSize.x * frameSize.y * sizeof(rgba_f16) );
+        inputFrame.data = (rgba_f16*) g_slice_alloc( frameSize.x * frameSize.y * sizeof(rgba_f16) );
         inputFrame.stride = frameSize.x;
 
         avcodec_get_frame_defaults( &interFrame );
@@ -241,7 +241,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         outSampleBufSize = sizeof(short) * audioChannels * sampleCount;
         outSampleBuf = g_slice_alloc( outSampleBufSize );
 
-        audioInputFrame.frameData = g_slice_alloc( sizeof(float) * audioChannels * sampleCount );
+        audioInputFrame.data = g_slice_alloc( sizeof(float) * audioChannels * sampleCount );
     }
 
     int nextVideoFrame = getTimeFrame( &videoRate, startTime );
@@ -266,7 +266,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             // Transcode to RGBA
             for( int y = 0; y < frameSize.y; y++ ) {
                 rgba_u8 *targetData = (rgba_u8*) &interFrame.data[0][y * interFrame.linesize[0]];
-                rgba_f16 *sourceData = &inputFrame.frameData[y * inputFrame.stride];
+                rgba_f16 *sourceData = &inputFrame.data[y * inputFrame.stride];
 
                 for( int x = 0; x < frameSize.x; x++ ) {
                     targetData[x].r = ramp[sourceData[x].r];
@@ -335,7 +335,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             for( int i = 0; i < sampleCount; i++ ) {
                 for( int j = 0; j < audioChannels; j++ ) {
                     ((short*) outSampleBuf)[i * audioChannels + j] =
-                        (short)(audioInputFrame.frameData[i * audioChannels + j] * 32767.0);
+                        (short)(audioInputFrame.data[i * audioChannels + j] * 32767.0);
                 }
             }
 
@@ -437,7 +437,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     if( videoSource.source.funcs ) {
         avcodec_close( video->codec );
         g_slice_free1( RAMP_SIZE, ramp );
-        g_slice_free1( frameSize.x * frameSize.y * sizeof(rgba_f16), inputFrame.frameData );
+        g_slice_free1( frameSize.x * frameSize.y * sizeof(rgba_f16), inputFrame.data );
         g_slice_free1( interBufferSize, interBuffer );
         g_slice_free1( outputBufferSize, outputBuffer );
         sws_freeContext( scaler );
@@ -447,7 +447,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     if( audioSource.source.funcs ) {
         avcodec_close( audio->codec );
         g_slice_free1( outSampleBufSize, outSampleBuf );
-        g_slice_free1( sizeof(float) * sampleCount * audioChannels, audioInputFrame.frameData );
+        g_slice_free1( sizeof(float) * sampleCount * audioChannels, audioInputFrame.data );
         av_free( audio );
     }
 

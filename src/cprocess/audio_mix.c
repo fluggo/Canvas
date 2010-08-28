@@ -24,9 +24,9 @@
 EXPORT void
 audio_copy_frame( audio_frame *out, const audio_frame *in, int offset ) {
     g_assert( out );
-    g_assert( out->frameData );
+    g_assert( out->data );
     g_assert( in );
-    g_assert( in->frameData );
+    g_assert( in->data );
 
     out->currentMinSample = max(out->fullMinSample, in->currentMinSample - offset);
     out->currentMaxSample = min(out->fullMaxSample, in->currentMaxSample - offset);
@@ -65,9 +65,9 @@ audio_copy_frame_attenuate( audio_frame *out, const audio_frame *in, float facto
     }
 
     g_assert( out );
-    g_assert( out->frameData );
+    g_assert( out->data );
     g_assert( in );
-    g_assert( in->frameData );
+    g_assert( in->data );
 
     out->currentMinSample = max(out->fullMinSample, in->currentMinSample - offset);
     out->currentMaxSample = min(out->fullMaxSample, in->currentMaxSample - offset);
@@ -86,7 +86,7 @@ audio_copy_frame_attenuate( audio_frame *out, const audio_frame *in, float facto
 EXPORT void
 audio_attenuate( audio_frame *frame, float factor ) {
     g_assert( frame );
-    g_assert( frame->frameData );
+    g_assert( frame->data );
 
     if( factor == 1.0f )
         return;
@@ -117,7 +117,7 @@ audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_
         return;
 
     g_assert( a );
-    g_assert( a->frameData );
+    g_assert( a->data );
 
     const int out_min_sample = max(out->fullMinSample, min(a->currentMinSample - offset, out->currentMinSample));
     const int out_max_sample = min(out->fullMaxSample, max(a->currentMaxSample - offset, out->currentMaxSample));
@@ -181,7 +181,7 @@ audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_
 EXPORT void
 audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, float mix_a, int offset_a ) {
     g_assert( out );
-    g_assert( out->frameData );
+    g_assert( out->data );
 
     if( mix_out == 0.0f || (out->currentMaxSample < out->currentMinSample) ) {
         if( mix_a == 0.0f ) {
@@ -212,7 +212,7 @@ audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, floa
 
     // Pull A into a temp frame
     audio_frame temp_frame = {
-        .frameData = g_slice_alloc( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount ),
+        .data = g_slice_alloc( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount ),
         .fullMinSample = out->fullMinSample + offset_a,
         .fullMaxSample = out->fullMaxSample + offset_a,
         .channelCount = out->channelCount
@@ -223,7 +223,7 @@ audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, floa
     // Now mix
     audio_mix_add( out, mix_out, &temp_frame, mix_a, offset_a );
 
-    g_slice_free1( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount, temp_frame.frameData );
+    g_slice_free1( sizeof(float) * (out->fullMaxSample - out->fullMinSample + 1) * out->channelCount, temp_frame.data );
 }
 
 

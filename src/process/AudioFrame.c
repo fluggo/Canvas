@@ -32,7 +32,7 @@ AudioFrame_get_frame( PyObject *self, audio_frame *frame ) {
 
 static void
 AudioFrame_dealloc( PyObject *self ) {
-    PyMem_Free( PRIV(self)->frameData );
+    PyMem_Free( PRIV(self)->data );
     self->ob_type->tp_free( self );
 }
 
@@ -94,7 +94,7 @@ AudioFrame_get_item( PyObject *self, Py_ssize_t i ) {
         return NULL;
     }
 
-    return PyFloat_FromDouble( PRIV(self)->frameData[i] );
+    return PyFloat_FromDouble( PRIV(self)->data[i] );
 }
 
 static PySequenceMethods AudioFrame_sequence = {
@@ -180,9 +180,9 @@ py_AudioFrame_new( int min_sample, int max_sample, int channels, audio_frame **f
     PRIV(result)->fullMaxSample = max_sample;
     PRIV(result)->channelCount = channels;
 
-    PRIV(result)->frameData = PyMem_Malloc( sizeof(float) * (max_sample - min_sample + 1) * channels );
+    PRIV(result)->data = PyMem_Malloc( sizeof(float) * (max_sample - min_sample + 1) * channels );
 
-    if( !PRIV(result)->frameData ) {
+    if( !PRIV(result)->data ) {
         Py_DECREF(result);
         return PyErr_NoMemory();
     }

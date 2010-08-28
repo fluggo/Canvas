@@ -122,7 +122,7 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
             tempRow[x].a = 1.0f;
         }
 
-        half *out = &frame->frameData[
+        half *out = &frame->data[
             (row + picOffset.y - frame->fullDataWindow.min.y) * frame->stride +
             frame->currentDataWindow.min.x - frame->fullDataWindow.min.x].r;
 

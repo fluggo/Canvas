@@ -146,14 +146,14 @@ typedef struct {
 } rgba_f32;
 
 typedef struct {
-    rgba_f16 *frameData;
+    rgba_f16 *data;
     box2i fullDataWindow;
     box2i currentDataWindow;
     int stride;
 } rgba_frame_f16;
 
 typedef struct {
-    rgba_f32 *frameData;
+    rgba_f32 *data;
     box2i fullDataWindow;
     box2i currentDataWindow;
     int stride;
@@ -177,11 +177,11 @@ typedef struct {
 } VideoFrameSourceFuncs;
 
 G_GNUC_PURE static inline rgba_f16 *getPixel_f16( rgba_frame_f16 *frame, int x, int y ) {
-    return &frame->frameData[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
+    return &frame->data[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
 }
 
 G_GNUC_PURE static inline rgba_f32 *getPixel_f32( rgba_frame_f32 *frame, int x, int y ) {
-    return &frame->frameData[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
+    return &frame->data[(y - frame->fullDataWindow.min.y) * frame->stride + x - frame->fullDataWindow.min.x];
 }
 
 typedef struct {
@@ -225,7 +225,7 @@ void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *ou
 */
 
 typedef struct {
-    float *frameData;
+    float *data;
     int channelCount;
     int fullMinSample, fullMaxSample;
     int currentMinSample, currentMaxSample;
@@ -235,7 +235,7 @@ typedef void (*audio_getFrameFunc)( void *self, audio_frame *frame );
 
 G_GNUC_PURE static inline float *
 audio_get_sample( const audio_frame *frame, int sample, int channel ) {
-    return &frame->frameData[(sample - frame->fullMinSample) * frame->channelCount + channel];
+    return &frame->data[(sample - frame->fullMinSample) * frame->channelCount + channel];
 }
 
 typedef struct {

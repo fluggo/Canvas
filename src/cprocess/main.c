@@ -52,7 +52,7 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
     v2i size;
 
     box2i_getSize( &targetFrame->fullDataWindow, &size );
-    tempFrame.frameData = g_slice_alloc( sizeof(rgba_f32) * size.x * size.y );
+    tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.x * size.y );
     tempFrame.fullDataWindow = targetFrame->fullDataWindow;
     tempFrame.currentDataWindow = targetFrame->fullDataWindow;
     tempFrame.stride = size.x;
@@ -69,8 +69,8 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
                 y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
 
                 half_convert_from_float(
-                    &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
-                    &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
+                    &tempFrame.data[y * tempFrame.stride + offsetX].r,
+                    &targetFrame->data[y * targetFrame->stride + offsetX].r,
                     countX * 4 );
             }
         }
@@ -78,7 +78,7 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
 
     targetFrame->currentDataWindow = tempFrame.currentDataWindow;
 
-    g_slice_free1( sizeof(rgba_f32) * size.x * size.y, tempFrame.frameData );
+    g_slice_free1( sizeof(rgba_f32) * size.x * size.y, tempFrame.data );
 }
 
 EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame ) {
@@ -102,7 +102,7 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
     v2i size;
 
     box2i_getSize( &targetFrame->fullDataWindow, &size );
-    tempFrame.frameData = g_slice_alloc( sizeof(rgba_f16) * size.x * size.y );
+    tempFrame.data = g_slice_alloc( sizeof(rgba_f16) * size.x * size.y );
     tempFrame.fullDataWindow = targetFrame->fullDataWindow;
     tempFrame.currentDataWindow = targetFrame->fullDataWindow;
     tempFrame.stride = size.x;
@@ -117,14 +117,14 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
         y <= tempFrame.currentDataWindow.max.y - tempFrame.fullDataWindow.min.y; y++ ) {
 
         half_convert_to_float(
-            &tempFrame.frameData[y * tempFrame.stride + offsetX].r,
-            &targetFrame->frameData[y * targetFrame->stride + offsetX].r,
+            &tempFrame.data[y * tempFrame.stride + offsetX].r,
+            &targetFrame->data[y * targetFrame->stride + offsetX].r,
             countX * 4 );
     }
 
     targetFrame->currentDataWindow = tempFrame.currentDataWindow;
 
-    g_slice_free1( sizeof(rgba_f16) * size.x * size.y, tempFrame.frameData );
+    g_slice_free1( sizeof(rgba_f16) * size.x * size.y, tempFrame.data );
 }
 
 

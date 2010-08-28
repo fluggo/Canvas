@@ -124,15 +124,15 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     frame.currentDataWindow = frame.fullDataWindow;
     frame.stride = frameSize.x;
-    frame.frameData = PyMem_Malloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
+    frame.data = PyMem_Malloc( sizeof(rgba_f16) * frameSize.x * frameSize.y );
 
-    if( !frame.frameData )
+    if( !frame.data )
         return PyErr_NoMemory();
 
     VideoSourceHolder source = { .csource = NULL };
 
     if( !py_video_takeSource( sourceObj, &source ) ) {
-        PyMem_Free( frame.frameData );
+        PyMem_Free( frame.data );
         return NULL;
     }
 
@@ -141,7 +141,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
         source.source.funcs->getFrame( source.source.obj, i, &frame );
     int64_t endTime = gettime();
 
-    PyMem_Free( frame.frameData );
+    PyMem_Free( frame.data );
 
     if( !py_video_takeSource( NULL, &source ) )
         return NULL;

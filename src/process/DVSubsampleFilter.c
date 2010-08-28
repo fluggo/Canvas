@@ -55,14 +55,14 @@ DVSubsampleFilter_get_frame( py_obj_DVSubsampleFilter *self, int frame ) {
     const v2i size = { 720, 480 };
     const box2i window = { { 0, -1 }, { 719, 478 } };
 
-    temp_frame.frameData = g_slice_alloc( sizeof(rgba_f16) * size.y * size.x );
+    temp_frame.data = g_slice_alloc( sizeof(rgba_f16) * size.y * size.x );
     temp_frame.fullDataWindow = window;
     temp_frame.stride = size.x;
 
     video_getFrame_f16( &self->source.source, frame, &temp_frame );
     coded_image *result = video_subsample_dv( &temp_frame );
 
-    g_slice_free1( sizeof(rgba_f16) * size.y * size.x, temp_frame.frameData );
+    g_slice_free1( sizeof(rgba_f16) * size.y * size.x, temp_frame.data );
 
     return result;
 }

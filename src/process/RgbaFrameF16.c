@@ -32,7 +32,7 @@ RgbaFrameF16_getFrame_f16( PyObject *self, int frame_index, rgba_frame_f16 *fram
 
 static void
 RgbaFrameF16_dealloc( PyObject *self ) {
-    PyMem_Free( PRIV(self)->frameData );
+    PyMem_Free( PRIV(self)->data );
     self->ob_type->tp_free( self );
 }
 
@@ -89,7 +89,7 @@ RgbaFrameF16_get_item( PyObject *self, Py_ssize_t i ) {
         return NULL;
     }
 
-    return color_to_python( &PRIV(self)->frameData[i] );
+    return color_to_python( &PRIV(self)->data[i] );
 }
 
 static PySequenceMethods RgbaFrameF16_sequence = {
@@ -204,9 +204,9 @@ py_RgbaFrameF16_new( box2i *full_data_window, rgba_frame_f16 **frame ) {
     box2i_getSize( &PRIV(result)->fullDataWindow, &size );
 
     PRIV(result)->stride = size.x;
-    PRIV(result)->frameData = PyMem_Malloc( sizeof(rgba_f16) * size.x * size.y );
+    PRIV(result)->data = PyMem_Malloc( sizeof(rgba_f16) * size.x * size.y );
 
-    if( !PRIV(result)->frameData ) {
+    if( !PRIV(result)->data ) {
         Py_DECREF(result);
         return PyErr_NoMemory();
     }

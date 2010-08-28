@@ -32,7 +32,7 @@ RgbaFrameF32_getFrame32( PyObject *self, int frame_index, rgba_frame_f32 *frame 
 
 static void
 RgbaFrameF32_dealloc( PyObject *self ) {
-    PyMem_Free( PRIV(self)->frameData );
+    PyMem_Free( PRIV(self)->data );
     self->ob_type->tp_free( self );
 }
 
@@ -84,7 +84,7 @@ RgbaFrameF32_get_item( PyObject *self, Py_ssize_t i ) {
         return NULL;
     }
 
-    return py_make_rgba_f32( &PRIV(self)->frameData[i] );
+    return py_make_rgba_f32( &PRIV(self)->data[i] );
 }
 
 static PySequenceMethods RgbaFrameF32_sequence = {
@@ -160,9 +160,9 @@ py_RgbaFrameF32_new( box2i *full_data_window, rgba_frame_f32 **frame ) {
     box2i_getSize( &PRIV(result)->fullDataWindow, &size );
 
     PRIV(result)->stride = size.x;
-    PRIV(result)->frameData = PyMem_Malloc( sizeof(rgba_f32) * size.x * size.y );
+    PRIV(result)->data = PyMem_Malloc( sizeof(rgba_f32) * size.x * size.y );
 
-    if( !PRIV(result)->frameData ) {
+    if( !PRIV(result)->data ) {
         Py_DECREF(result);
         return PyErr_NoMemory();
     }

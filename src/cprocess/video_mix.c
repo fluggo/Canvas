@@ -58,7 +58,7 @@ video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, vid
 
         box2i_getSize( &out->fullDataWindow, &size );
 
-        tempFrame.frameData = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
+        tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
         tempFrame.fullDataWindow = out->fullDataWindow;
         tempFrame.stride = size.x;
 
@@ -66,7 +66,7 @@ video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, vid
         video_getFrame_f32( b, frame_b, &tempFrame );
         video_mix_cross_f32( out, out, &tempFrame, mix_b );
 
-        g_slice_free1( sizeof(rgba_f32) * size.y * size.x, tempFrame.frameData );
+        g_slice_free1( sizeof(rgba_f32) * size.y * size.x, tempFrame.data );
     }
 }
 
