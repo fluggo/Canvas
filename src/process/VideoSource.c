@@ -27,11 +27,11 @@ static PyMethodDef VideoSource_methods[] = {
     { "get_frame_f16", (PyCFunction) py_get_frame_f16, METH_VARARGS | METH_KEYWORDS,
         "Get a frame of video from a video source.\n"
         "\n"
-        "(RgbaFrameF16) frame = source.get_frame_f16(frame, data_window)" },
+        "(RgbaFrameF16) frame = source.get_frame_f16(frame_index, data_window)" },
     { "get_frame_f32", (PyCFunction) py_get_frame_f32, METH_VARARGS | METH_KEYWORDS,
         "Get a frame of video from a video source.\n"
         "\n"
-        "(RgbaFrameF32) frame = source.get_frame_f32(frame, data_window)" },
+        "(RgbaFrameF32) frame = source.get_frame_f32(frame_index, data_window)" },
     { NULL }
 };
 

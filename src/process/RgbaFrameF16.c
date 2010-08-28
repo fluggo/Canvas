@@ -223,7 +223,7 @@ py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw ) {
     PyObject *window_tuple = NULL;
     int frame_index;
 
-    static char *kwlist[] = { "frame", "data_window", NULL };
+    static char *kwlist[] = { "frame_index", "data_window", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "iO", kwlist,
             &frame_index, &window_tuple ) )
