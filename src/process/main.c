@@ -100,98 +100,6 @@ PyObject *py_getTimeFrame( PyObject *self, PyObject *args ) {
 }
 
 PyObject *
-py_getAudioData( PyObject *self, PyObject *args, PyObject *kw ) {
-    PyObject *sourceObj;
-    AudioSourceHolder source;
-    int channels = 2, minSample, maxSample;
-
-    static char *kwlist[] = { "source", "min_sample", "max_sample", "channels", NULL };
-
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "Oii|i", kwlist,
-            &sourceObj, &minSample, &maxSample, &channels ) )
-        return NULL;
-
-    // Verify good arguments
-    if( channels < 0 ) {
-        PyErr_SetString( PyExc_Exception, "The number of channels was less than zero." );
-        return NULL;
-    }
-
-    if( maxSample < minSample ) {
-        PyErr_SetString( PyExc_Exception, "The max sample was less than the min sample." );
-        return NULL;
-    }
-
-    // Prep data structures
-    if( !py_audio_takeSource( sourceObj, &source ) )
-        return NULL;
-
-    audio_frame frame;
-    frame.frameData = PyMem_Malloc( channels * (maxSample - minSample + 1) * sizeof(float) );
-    frame.channelCount = channels;
-    frame.fullMinSample = minSample;
-    frame.fullMaxSample = maxSample;
-
-    if( frame.frameData == NULL ) {
-        py_audio_takeSource( NULL, &source );
-        return PyErr_NoMemory();
-    }
-
-    // Fetch the data
-    source.source.funcs->getFrame( source.source.obj, &frame );
-
-    // Clear the references we took
-    py_audio_takeSource( NULL, &source );
-
-    // Prepare to give it to Python
-    PyObject *resultChannelList = PyList_New( frame.channelCount );
-
-    if( !resultChannelList ) {
-        PyMem_Free( frame.frameData );
-        return NULL;
-    }
-
-    int listLength = 0;
-
-    if( frame.currentMaxSample >= frame.currentMinSample )
-        listLength = frame.currentMaxSample - frame.currentMinSample + 1;
-
-    for( int i = 0; i < frame.channelCount; i++ ) {
-        PyObject *resultChannel = PyList_New( listLength );
-
-        if( !resultChannel ) {
-            Py_CLEAR( resultChannelList );
-            PyMem_Free( frame.frameData );
-            return NULL;
-        }
-
-        PyList_SET_ITEM( resultChannelList, i, resultChannel );
-
-        for( int j = 0; j < listLength; j++ ) {
-            PyObject *value = PyFloat_FromDouble( (double) frame.frameData[frame.channelCount * j + i] );
-
-            if( !value ) {
-                Py_CLEAR( resultChannelList );
-                PyMem_Free( frame.frameData );
-                return NULL;
-            }
-
-            PyList_SET_ITEM( resultChannel, j, value );
-        }
-    }
-
-    // We can finally free the data memory
-    PyMem_Free( frame.frameData );
-
-    PyObject *result = Py_BuildValue( "iiN", frame.currentMinSample, frame.currentMaxSample, resultChannelList );
-
-    if( !result )
-        Py_CLEAR( resultChannelList );
-
-    return result;
-}
-
-PyObject *
 py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     PyObject *dataWindowTuple = NULL, *sourceObj;
     rgba_frame_f16 frame;
@@ -248,8 +156,6 @@ static PyMethodDef module_methods[] = {
         "get_frame_time(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
     { "get_time_frame", (PyCFunction) py_getTimeFrame, METH_VARARGS,
         "get_time_frame(rate, time): Gets the frame containing the given time in nanoseconds at the given Fraction frame rate." },
-    { "get_audio_data", (PyCFunction) py_getAudioData, METH_VARARGS | METH_KEYWORDS,
-        "min_sample, max_sample, data = getAudioData(source, min_sample, max_sample[, channels=2]): Gets raw audio data from the source." },
     { "time_get_frame", (PyCFunction) py_timeGetFrame, METH_VARARGS | METH_KEYWORDS,
         "timeGetFrame(source, min_frame, max_frame, data_window=(0,0,1,1)): Retrieves min_frame through max_frame from the source and returns the time it took in nanoseconds." },
     { "frame_func_get", (PyCFunction) py_frame_func_get, METH_VARARGS | METH_KEYWORDS,
