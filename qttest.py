@@ -61,7 +61,7 @@ class VideoWorkspaceManager(object):
             self.canvas_item.updated.disconnect(self.handle_updated)
 
     def __init__(self, canvas_space, source_list):
-        self.workspace = process.Workspace()
+        self.workspace = process.VideoWorkspace()
         self.canvas_space = canvas_space
         self.canvas_space.item_added.connect(self.handle_item_added)
         self.canvas_space.item_removed.connect(self.handle_item_removed)
@@ -339,7 +339,7 @@ class MainWindow(QMainWindow):
             # Create a private workspace for this render
             # TODO: Changes to *filters* in the original workspace may alter this one, too
             # Be sure to check for that before making this process asynchronous
-            workspace = process.Workspace()
+            workspace = process.VideoWorkspace()
             items = sorted(self.space, key=lambda a: a.z_sort_key())
 
             for i, item in enumerate(items):

@@ -70,7 +70,7 @@ class MainWindow(object):
         red = process.SolidColorVideoSource(rgba(1.0, 0.0, 0.0, 0.25), box2i(20, 20, 318, 277))
         green = process.SolidColorVideoSource(rgba(0.0, 1.0, 0.0, 0.75), box2i(200, 200, 518, 477))
 
-        workspace = process.Workspace()
+        workspace = process.VideoWorkspace()
         workspace.add(source=pulldown, x=0, width=100, z=0)
         workspace.add(source=red, x=50, width=100, z=1)
         workspace.add(source=green, x=75, width=100, z=2)
