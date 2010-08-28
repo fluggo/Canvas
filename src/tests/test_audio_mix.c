@@ -18,7 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "audio_mix.h"
+#include "framework.h"
 
 /************
     audio_copy_frame
@@ -30,25 +30,25 @@ test_copy_frame_basic_expand() {
     float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame in = {
-        .frameData = in_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .channels = 1,
     };
 
     audio_copy_frame( &out, &in, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( in_data[i], ==, out_data[i + 1] );
@@ -61,25 +61,25 @@ test_copy_frame_basic_offset() {
     float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame in = {
-        .frameData = in_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .channels = 1,
     };
 
     audio_copy_frame( &out, &in, 3 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 1);
-    g_assert_cmpint(out.currentMaxSample, ==, 3);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 3);
 
     for( int i = 2; i < 5; i++ ) {
         g_assert_cmpfloat( in_data[i], ==, out_data[i + 1 - 3] );
@@ -97,25 +97,25 @@ test_copy_frame_stereo_reduce_channels() {
     float out_data[5] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame in = {
-        .frameData = in_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 2,
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 2,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .channels = 1,
     };
 
     audio_copy_frame( &out, &in, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 2);
-    g_assert_cmpint(out.fullMaxSample, ==, 6);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 2);
+    g_assert_cmpint(out.full_max_sample, ==, 6);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( in_data[i * 2], ==, out_data[i] );
@@ -137,25 +137,25 @@ test_copy_frame_stereo_expand_channels() {
         out_data[i] = -15.0f;
 
     audio_frame in = {
-        .frameData = in_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 2,
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 2,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .channelCount = 3,
+        .data = out_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .channels = 3,
     };
 
     audio_copy_frame( &out, &in, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 2);
-    g_assert_cmpint(out.fullMaxSample, ==, 6);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 2);
+    g_assert_cmpint(out.full_max_sample, ==, 6);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( in_data[i * 2], ==, out_data[i * 3] );
@@ -175,25 +175,25 @@ test_copy_frame_attenuate_basic_expand() {
     float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame in = {
-        .frameData = in_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .channels = 1,
     };
 
     audio_copy_frame_attenuate( &out, &in, 0.5f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( in_data[i] * 0.5f, ==, out_data[i + 1] );
@@ -211,25 +211,25 @@ test_copy_frame_attenuate_stereo_reduce_channels() {
     float out_data[5] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame in = {
-        .frameData = in_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 2,
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 2,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .channels = 1,
     };
 
     audio_copy_frame_attenuate( &out, &in, 0.5f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 2);
-    g_assert_cmpint(out.fullMaxSample, ==, 6);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 2);
+    g_assert_cmpint(out.full_max_sample, ==, 6);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( in_data[i * 2] * 0.5f, ==, out_data[i] );
@@ -251,25 +251,25 @@ test_copy_frame_attenuate_stereo_expand_channels() {
         out_data[i] = -15.0f;
 
     audio_frame in = {
-        .frameData = in_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 2,
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 2,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .channelCount = 3,
+        .data = out_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .channels = 3,
     };
 
     audio_copy_frame_attenuate( &out, &in, 0.5f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 2);
-    g_assert_cmpint(out.fullMaxSample, ==, 6);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 2);
+    g_assert_cmpint(out.full_max_sample, ==, 6);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( in_data[i * 2] * 0.5f, ==, out_data[i * 3] );
@@ -290,26 +290,26 @@ test_add_basic() {
     float out_data[7] = { 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 9.0f };
 
     audio_frame a = {
-        .frameData = a_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_mix_add( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( a_data[i] + b_data[i], ==, out_data[i + 1] );
@@ -323,26 +323,26 @@ test_add_basic_empty_in() {
     float out_data[7] = { 9.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 9.0f };
 
     audio_frame a = {
-        .frameData = dummy_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 4, .currentMaxSample = 3,
-        .channelCount = 1,
+        .data = dummy_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 4, .current_max_sample = 3,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_mix_add( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( test_data[i], ==, out_data[i + 1] );
@@ -356,26 +356,26 @@ test_add_basic_zero_in() {
     float out_data[7] = { 9.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 9.0f };
 
     audio_frame a = {
-        .frameData = dummy_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = dummy_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_mix_add( &out, 1.0f, &a, 0.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( test_data[i], ==, out_data[i + 1] );
@@ -388,26 +388,26 @@ test_add_basic_empty_out() {
     float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame a = {
-        .frameData = a_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 5, .currentMaxSample = 4,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 5, .current_max_sample = 4,
+        .channels = 1,
     };
 
     audio_mix_add( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( a_data[i], ==, out_data[i + 1] );
@@ -420,26 +420,26 @@ test_add_basic_zero_out() {
     float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame a = {
-        .frameData = a_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_mix_add( &out, 0.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( a_data[i], ==, out_data[i + 1] );
@@ -452,26 +452,26 @@ test_add_basic_offset() {
     float out_data[7] = { 9.0f, 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
 
     audio_frame a = {
-        .frameData = a_data,
-        .fullMinSample = 1, .fullMaxSample = 5,
-        .currentMinSample = 1, .currentMaxSample = 5,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 1, .full_max_sample = 5,
+        .current_min_sample = 1, .current_max_sample = 5,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 3, .currentMaxSample = 7,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 3, .current_max_sample = 7,
+        .channels = 1,
     };
 
     audio_mix_add( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 1);
-    g_assert_cmpint(out.currentMaxSample, ==, 7);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 7);
 
     g_assert_cmpfloat( out_data[0], ==, 0.0f );
     g_assert_cmpfloat( out_data[1], ==, 1.0f );
@@ -488,26 +488,26 @@ test_add_basic_offset_attenuate() {
     float out_data[7] = { 9.0f, 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
 
     audio_frame a = {
-        .frameData = a_data,
-        .fullMinSample = 6, .fullMaxSample = 10,
-        .currentMinSample = 6, .currentMaxSample = 10,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 6, .full_max_sample = 10,
+        .current_min_sample = 6, .current_max_sample = 10,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 3, .currentMaxSample = 7,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 3, .current_max_sample = 7,
+        .channels = 1,
     };
 
     audio_mix_add( &out, 2.0f, &a, 0.5f, 5 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 1);
-    g_assert_cmpint(out.currentMaxSample, ==, 7);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 7);
 
     g_assert_cmpfloat( out_data[0], ==, 0.25f );
     g_assert_cmpfloat( out_data[1], ==, 0.5f );
@@ -530,27 +530,27 @@ test_add_pull_basic() {
     float out_data[7] = { 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 9.0f };
 
     audio_frame a_frame = {
-        .frameData = a_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_source a = AUDIO_FRAME_AS_SOURCE( &a_frame );
     audio_mix_add_pull( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( a_data[i] + b_data[i], ==, out_data[i + 1] );
@@ -564,27 +564,27 @@ test_add_pull_basic_empty_in() {
     float out_data[7] = { 9.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 9.0f };
 
     audio_frame a_frame = {
-        .frameData = dummy_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 4, .currentMaxSample = 3,
-        .channelCount = 1,
+        .data = dummy_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 4, .current_max_sample = 3,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_source a = AUDIO_FRAME_AS_SOURCE( &a_frame );
     audio_mix_add_pull( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( test_data[i], ==, out_data[i + 1] );
@@ -598,27 +598,27 @@ test_add_pull_basic_zero_in() {
     float out_data[7] = { 9.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 9.0f };
 
     audio_frame a_frame = {
-        .frameData = dummy_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = dummy_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_source a = AUDIO_FRAME_AS_SOURCE( &a_frame );
     audio_mix_add_pull( &out, 1.0f, &a, 0.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( test_data[i], ==, out_data[i + 1] );
@@ -631,27 +631,27 @@ test_add_pull_basic_empty_out() {
     float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame a_frame = {
-        .frameData = a_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 5, .currentMaxSample = 4,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 5, .current_max_sample = 4,
+        .channels = 1,
     };
 
     audio_source a = AUDIO_FRAME_AS_SOURCE( &a_frame );
     audio_mix_add_pull( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( a_data[i], ==, out_data[i + 1] );
@@ -664,17 +664,17 @@ test_add_pull_basic_zero_out() {
     float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
 
     audio_frame a_frame = {
-        .frameData = a_data,
-        .fullMinSample = 2, .fullMaxSample = 6,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 2, .currentMaxSample = 6,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
     };
 
     audio_source a = AUDIO_FRAME_AS_SOURCE( &a_frame );
@@ -682,10 +682,10 @@ test_add_pull_basic_zero_out() {
     audio_mix_add_pull( &out, 0.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 2);
-    g_assert_cmpint(out.currentMaxSample, ==, 6);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
 
     for( int i = 0; i < 5; i++ ) {
         g_assert_cmpfloat( a_data[i], ==, out_data[i + 1] );
@@ -698,17 +698,17 @@ test_add_pull_basic_offset() {
     float out_data[7] = { 9.0f, 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
 
     audio_frame a_frame = {
-        .frameData = a_data,
-        .fullMinSample = 1, .fullMaxSample = 5,
-        .currentMinSample = 1, .currentMaxSample = 5,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 1, .full_max_sample = 5,
+        .current_min_sample = 1, .current_max_sample = 5,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 3, .currentMaxSample = 7,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 3, .current_max_sample = 7,
+        .channels = 1,
     };
 
     audio_source a = AUDIO_FRAME_AS_SOURCE( &a_frame );
@@ -716,10 +716,10 @@ test_add_pull_basic_offset() {
     audio_mix_add_pull( &out, 1.0f, &a, 1.0f, 0 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 1);
-    g_assert_cmpint(out.currentMaxSample, ==, 7);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 7);
 
     g_assert_cmpfloat( out_data[0], ==, 0.0f );
     g_assert_cmpfloat( out_data[1], ==, 1.0f );
@@ -736,27 +736,27 @@ test_add_pull_basic_offset_attenuate() {
     float out_data[7] = { 9.0f, 9.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
 
     audio_frame a_frame = {
-        .frameData = a_data,
-        .fullMinSample = 6, .fullMaxSample = 10,
-        .currentMinSample = 6, .currentMaxSample = 10,
-        .channelCount = 1,
+        .data = a_data,
+        .full_min_sample = 6, .full_max_sample = 10,
+        .current_min_sample = 6, .current_max_sample = 10,
+        .channels = 1,
     };
 
     audio_frame out = {
-        .frameData = out_data,
-        .fullMinSample = 1, .fullMaxSample = 7,
-        .currentMinSample = 3, .currentMaxSample = 7,
-        .channelCount = 1,
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 3, .current_max_sample = 7,
+        .channels = 1,
     };
 
     audio_source a = AUDIO_FRAME_AS_SOURCE( &a_frame );
     audio_mix_add_pull( &out, 2.0f, &a, 0.5f, 5 );
 
     // Check it
-    g_assert_cmpint(out.fullMinSample, ==, 1);
-    g_assert_cmpint(out.fullMaxSample, ==, 7);
-    g_assert_cmpint(out.currentMinSample, ==, 1);
-    g_assert_cmpint(out.currentMaxSample, ==, 7);
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 7);
 
     g_assert_cmpfloat( out_data[0], ==, 0.25f );
     g_assert_cmpfloat( out_data[1], ==, 0.5f );
