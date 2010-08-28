@@ -264,6 +264,7 @@ static PyMethodDef module_methods[] = {
 };
 
 void init_basetypes( PyObject *module );
+void init_AudioSource( PyObject *module );
 void init_VideoSource( PyObject *module );
 void init_CodecPacketSource( PyObject *module );
 void init_CodedImageSource( PyObject *module );
@@ -280,6 +281,7 @@ void init_SolidColorVideoSource( PyObject *module );
 void init_EmptyVideoSource( PyObject *module );
 void init_basicframefuncs( PyObject *module );
 void init_Workspace( PyObject *module );
+void init_AudioFrame( PyObject *module );
 void init_RgbaFrameF16( PyObject *module );
 void init_RgbaFrameF32( PyObject *module );
 void init_VideoScaler( PyObject *module );
@@ -292,6 +294,7 @@ initprocess() {
 
     init_half();
     init_basetypes( m );
+    init_AudioSource( m );
     init_VideoSource( m );
     init_CodecPacketSource( m );
     init_CodedImageSource( m );
@@ -308,6 +311,7 @@ initprocess() {
     init_EmptyVideoSource( m );
     init_basicframefuncs( m );
     init_Workspace( m );
+    init_AudioFrame( m );
     init_RgbaFrameF16( m );
     init_RgbaFrameF32( m );
     init_VideoScaler( m );

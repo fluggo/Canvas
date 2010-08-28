@@ -66,6 +66,8 @@ typedef struct {
 
 bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder );
 
+extern PyTypeObject py_type_AudioSource;
+
 #define AUDIO_FRAME_SOURCE_FUNCS "_audio_frame_source_funcs"
 
 /*********** Frame functions *****/
