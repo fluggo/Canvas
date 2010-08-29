@@ -28,7 +28,7 @@ typedef struct __tag_my_coded_image {
 
 static void
 my_coded_image_free( my_coded_image *image ) {
-    if( --image->ref_count == 0 ) {
+    if( g_atomic_int_dec_and_test( &image->ref_count ) ) {
         g_free( image->image.data[0] );
         g_slice_free( my_coded_image, image );
     }
@@ -171,9 +171,13 @@ FFVideoDecoder_dealloc( py_obj_FFVideoDecoder *self ) {
 
 static coded_image *
 FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
+    g_static_mutex_lock( &self->mutex );
+
     if( self->source.source.funcs->seek && (frame < self->next_frame || frame > self->next_frame + 12) ) {
-        if( !self->source.source.funcs->seek( self->source.source.obj, frame ) )
+        if( !self->source.source.funcs->seek( self->source.source.obj, frame ) ) {
+            g_static_mutex_unlock( &self->mutex );
             return NULL;
+        }
     }
 
     self->next_frame = frame;
@@ -197,8 +201,10 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
 
         packet = self->source.source.funcs->getNextPacket( self->source.source.obj );
 
-        if( !packet )
+        if( !packet ) {
+            g_static_mutex_unlock( &self->mutex );
             return NULL;
+        }
 
         int got_picture;
 
@@ -220,7 +226,9 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
             packet->free_func( packet );
 
         my_coded_image *image = (my_coded_image*) av_frame.opaque;
-        image->ref_count++;
+        g_atomic_int_inc( &image->ref_count );
+
+        g_static_mutex_unlock( &self->mutex );
 
         return &image->image;
     }
