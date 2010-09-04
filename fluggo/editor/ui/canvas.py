@@ -543,10 +543,8 @@ class _BottomHandle(_Handle):
         else:
             self.parentItem().item.update(height=1)
 
-class VideoItem(QGraphicsItem, Draggable):
+class ClipItem(QGraphicsItem, Draggable):
     def __init__(self, item, name):
-        # BJC: This class currently has both the model and the view,
-        # so it will need to be split
         QGraphicsItem.__init__(self)
         Draggable.__init__(self, QGraphicsItem)
         self.item = item
@@ -557,9 +555,7 @@ class VideoItem(QGraphicsItem, Draggable):
         self.setFlags(QGraphicsItem.ItemIsSelectable |
             QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
-        self.thumbnails = []
-        self.thumbnail_indexes = []
-        self.thumbnail_width = 1.0
+
         self._stream = None
 
         self.left_handle = _LeftHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
@@ -570,6 +566,28 @@ class VideoItem(QGraphicsItem, Draggable):
         self.bottom_handle.setPos(0.0, self.item.height)
 
         self.view_reset_needed = False
+
+    def _update(self, **kw):
+        '''
+        Called by the item model to update our appearance.
+        '''
+        # Alter the apparent Z-order of the item
+        if 'z' in kw:
+            self.scene().resort_item(self)
+
+        # Changes in item position
+        pos = self.pos()
+
+        if 'x' in kw or 'y' in kw:
+            self.setPos(kw.get('x', pos.x()), kw.get('y', pos.y()))
+
+        # Changes in item size
+        if 'width' in kw or 'height' in kw:
+            self.right_handle.setPos(self.item.width, 0.0)
+            self.bottom_handle.setPos(0.0, self.item.height)
+            self.view_reset_needed = True
+
+            self.prepareGeometryChange()
 
     @property
     def stream(self):
@@ -614,41 +632,84 @@ class VideoItem(QGraphicsItem, Draggable):
             self.view_scale_changed(view)
             self.view_reset_needed = False
 
+    def boundingRect(self):
+        return QRectF(0.0, 0.0, self.item.width, self.item.height)
+
+    def drag_start(self, view):
+        self._drag_start_x = self.item.x
+        self._drag_start_y = self.item.y
+        self._left_snap_marker = None
+        self._right_snap_marker = None
+
+    def _clear_snap_markers(self):
+        if self._left_snap_marker:
+            self.scene().remove_marker(self._left_snap_marker)
+            self._left_snap_marker = None
+
+        if self._right_snap_marker:
+            self.scene().remove_marker(self._right_snap_marker)
+            self._right_snap_marker = None
+
+    def drag_move(self, view, abs_pos, rel_pos):
+        pos_x = int(round(rel_pos.x())) + self._drag_start_x
+        pos_y = rel_pos.y() + self._drag_start_y
+
+        self._clear_snap_markers()
+
+        left_snap = view.find_snap_items_horizontal(self, pos_x)
+        right_snap = view.find_snap_items_horizontal(self, pos_x + self.item.width)
+
+        if left_snap is not None:
+            if right_snap is not None:
+                if abs(left_snap - pos_x) < abs(right_snap - pos_x + self.item.width):
+                    self._left_snap_marker = VerticalSnapMarker(left_snap)
+                    self.scene().add_marker(self._left_snap_marker)
+                    pos_x = left_snap
+                elif abs(left_snap - pos_x) > abs(right_snap - pos_x + self.item.width):
+                    self._right_snap_marker = VerticalSnapMarker(right_snap)
+                    self.scene().add_marker(self._right_snap_marker)
+                    pos_x = right_snap - self.item.width
+                else:
+                    self._left_snap_marker = VerticalSnapMarker(left_snap)
+                    self.scene().add_marker(self._left_snap_marker)
+                    self._right_snap_marker = VerticalSnapMarker(right_snap)
+                    self.scene().add_marker(self._right_snap_marker)
+                    pos_x = left_snap
+            else:
+                self._left_snap_marker = VerticalSnapMarker(left_snap)
+                self.scene().add_marker(self._left_snap_marker)
+                pos_x = left_snap
+        elif right_snap is not None:
+            self._right_snap_marker = VerticalSnapMarker(right_snap)
+            self.scene().add_marker(self._right_snap_marker)
+            pos_x = right_snap - self.item.width
+
+        self.item.update(x=pos_x, y=pos_y)
+
+    def drag_end(self, view, abs_pos, rel_pos):
+        self._clear_snap_markers()
+
+class VideoItem(ClipItem):
+    def __init__(self, item, name):
+        ClipItem.__init__(self, item, name)
+        self.thumbnails = []
+        self.thumbnail_indexes = []
+        self.thumbnail_width = 1.0
+
     def _update(self, **kw):
         '''
         Called by the item model to update our appearance.
         '''
-        # Alter the apparent Z-order of the item
-        self.scene().resort_item(self)
-
-        # Changes in item position
-        pos = self.pos()
-
-        if 'x' in kw or 'y' in kw:
-            self.setPos(kw.get('x', pos.x()), kw.get('y', pos.y()))
-
         # Changes requiring a reset of the thumbnails
-        if self.item.width != kw.get('width', self.item.width) or self.item.offset != kw.get('offset', self.item.offset):
+        # TODO: This resets thumbnails *way* more than is necessary
+        if 'height' in kw or 'width' in kw or 'offset' in kw:
             for frame in self.thumbnails:
                 if hasattr(frame, 'cancel'):
                     frame.cancel()
 
             self.thumbnails = []
 
-        # Changes in item size
-        if 'width' in kw or 'height' in kw:
-            self.right_handle.setPos(self.item.width, 0.0)
-            self.bottom_handle.setPos(0.0, self.item.height)
-            self.view_reset_needed = True
-
-            self.prepareGeometryChange()
-
-            if 'height' in kw:
-                for frame in self.thumbnails:
-                    if hasattr(frame, 'cancel'):
-                        frame.cancel()
-
-                self.thumbnails = []
+        ClipItem._update(self, **kw)
 
     def _create_thumbnails(self, total_width):
         # Calculate how many thumbnails fit
@@ -669,9 +730,6 @@ class VideoItem(QGraphicsItem, Draggable):
             self.thumbnail_indexes = [start_frame]
         else:
             self.thumbnail_indexes = [start_frame + int(float(a) * frame_count / (count - 1)) for a in range(count)]
-
-    def boundingRect(self):
-        return QRectF(0.0, 0.0, self.item.width, self.item.height)
 
     def paint(self, painter, option, widget):
         rect = painter.transform().mapRect(self.boundingRect())
@@ -739,60 +797,6 @@ class VideoItem(QGraphicsItem, Draggable):
         painter.drawText(rect, Qt.TextSingleLine, self.name)
 
         painter.restore()
-
-    def drag_start(self, view):
-        self._drag_start_x = self.item.x
-        self._drag_start_y = self.item.y
-        self._left_snap_marker = None
-        self._right_snap_marker = None
-
-    def _clear_snap_markers(self):
-        if self._left_snap_marker:
-            self.scene().remove_marker(self._left_snap_marker)
-            self._left_snap_marker = None
-
-        if self._right_snap_marker:
-            self.scene().remove_marker(self._right_snap_marker)
-            self._right_snap_marker = None
-
-    def drag_move(self, view, abs_pos, rel_pos):
-        pos_x = int(round(rel_pos.x())) + self._drag_start_x
-        pos_y = rel_pos.y() + self._drag_start_y
-
-        self._clear_snap_markers()
-
-        left_snap = view.find_snap_items_horizontal(self, pos_x)
-        right_snap = view.find_snap_items_horizontal(self, pos_x + self.item.width)
-
-        if left_snap is not None:
-            if right_snap is not None:
-                if abs(left_snap - pos_x) < abs(right_snap - pos_x + self.item.width):
-                    self._left_snap_marker = VerticalSnapMarker(left_snap)
-                    self.scene().add_marker(self._left_snap_marker)
-                    pos_x = left_snap
-                elif abs(left_snap - pos_x) > abs(right_snap - pos_x + self.item.width):
-                    self._right_snap_marker = VerticalSnapMarker(right_snap)
-                    self.scene().add_marker(self._right_snap_marker)
-                    pos_x = right_snap - self.item.width
-                else:
-                    self._left_snap_marker = VerticalSnapMarker(left_snap)
-                    self.scene().add_marker(self._left_snap_marker)
-                    self._right_snap_marker = VerticalSnapMarker(right_snap)
-                    self.scene().add_marker(self._right_snap_marker)
-                    pos_x = left_snap
-            else:
-                self._left_snap_marker = VerticalSnapMarker(left_snap)
-                self.scene().add_marker(self._left_snap_marker)
-                pos_x = left_snap
-        elif right_snap is not None:
-            self._right_snap_marker = VerticalSnapMarker(right_snap)
-            self.scene().add_marker(self._right_snap_marker)
-            pos_x = right_snap - self.item.width
-
-        self.item.update(x=pos_x, y=pos_y)
-
-    def drag_end(self, view, abs_pos, rel_pos):
-        self._clear_snap_markers()
 
 class PlaceholderItem(QGraphicsItem):
     def __init__(self, source_name, stream_format, x, y, height):
