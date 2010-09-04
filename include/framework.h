@@ -313,14 +313,13 @@ void audio_attenuate( audio_frame *frame, float factor );
     Adds two audio frames.
 
     out - First frame to mix, and the frame to receive the result.
-    mix_out - Attenuation on the existing frame.
     a - Second frame to mix.
     mix_a - Attenuation on the second frame.
     offset - Offset, in samples, of frame A relative to the destination frame.
 */
-void audio_mix_add( audio_frame *out, float mix_out, const audio_frame *a, float mix_a, int offset );
+void audio_mix_add( audio_frame *out, const audio_frame *a, float mix_a, int offset );
 
-void audio_mix_add_pull( audio_frame *out, float mix_out, const audio_source *a, float mix_a, int offset_a );
+void audio_mix_add_pull( audio_frame *out, const audio_source *a, float mix_a, int offset_a );
 
 
 /************ Codec packet source ******/
