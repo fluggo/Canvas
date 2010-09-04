@@ -129,8 +129,10 @@ class Scene(QGraphicsScene):
     def dropEvent(self, event):
         # Turn them into real boys and girls
         for item in self.drag_items:
-            self.space.append(canvas.Clip(item.stream_format.type, item.source_name, item.stream_format.id,
-                x=item.pos().x(), y=item.pos().y(), width=item.width, height=item.height))
+            rate = self.frame_rate
+
+            self.space.append(canvas.Clip(item.stream_format.type, item.source_name, item.stream_format.index,
+                x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), width=item.width, height=item.height))
 
             self.removeItem(item)
 
@@ -806,7 +808,7 @@ class PlaceholderItem(QGraphicsItem):
         self.source_name = source_name
         self.stream_format = stream_format
         self.height = height
-        self.width = self.stream_format.length
+        self.width = self.stream_format.adjusted_length
         self.setPos(x, y)
 
     def boundingRect(self):
