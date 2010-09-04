@@ -755,9 +755,6 @@ class VideoItem(ClipItem):
 
         painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QColor.fromRgbF(0.9, 0.9, 0.8))
 
-        painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
-        painter.drawText(rect, Qt.TextSingleLine, self.name)
-
         # Figure out which thumbnails belong here and paint them
         # The thumbnail lefts are at (i * (rect.width - thumbnail_width) / (len(thumbnails) - 1)) + rect.x()
         # Rights are at left + thumbnail_width
