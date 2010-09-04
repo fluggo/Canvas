@@ -77,11 +77,7 @@ class SourceList(collections.MutableMapping):
 class VideoSource(process.VideoPassThroughFilter):
     def __init__(self, source, format):
         self.format = format
-        self.length = self.format.length
-
-        if self.format.pulldown_type == PULLDOWN_23:
-            source = process.Pulldown23RemovalFilter(source, self.format.pulldown_phase);
-            self.length = source.get_new_length(self.length)
+        self.length = self.format.adjusted_length
 
         process.VideoPassThroughFilter.__init__(self, source)
 

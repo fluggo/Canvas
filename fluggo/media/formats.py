@@ -19,6 +19,7 @@
 
 import fractions, yaml
 from fluggo.media.basetypes import *
+from fluggo.media import process
 
 PULLDOWN_NONE = 'None'
 PULLDOWN_23 = '2:3'
@@ -126,6 +127,16 @@ class StreamFormat(yaml.YAMLObject):
 
     def get(self, property, default=None):
         return self.override.get(property, self.detected.get(property, default))
+
+    @property
+    def adjusted_length(self):
+        length = self.length
+
+        if self.pulldown_type == PULLDOWN_23:
+            source = process.Pulldown23RemovalFilter(None, self.pulldown_phase);
+            length = source.get_new_length(length)
+
+        return length
 
     @property
     def index(self):
