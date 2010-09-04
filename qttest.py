@@ -78,7 +78,7 @@ class VideoWorkspaceManager(object):
         if item.type() != 'video':
             return
 
-        source = self.source_list.get_stream(item.source_name, item.source_stream_id)
+        source = self.source_list.get_stream(item.source_name, item.source_stream_index)
 
         workspace_item = self.workspace.add(x=item.x, width=item.width, z=item.z, offset=item.offset, source=source)
 

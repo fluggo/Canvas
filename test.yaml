@@ -9,7 +9,7 @@ softboiled01;17;55;12.avi: !MediaContainer
       frame_rate: !rational [30000, 1001]
       max_data_window: !box2i [!v2i '(0, -1)', !v2i '(719, 478)']
       sample_aspect_ratio: !rational [10, 11]
-      stream_id: 0
+      stream_index: 0
     length: 8736
     override: {pulldown_phase: 3, pulldown_type: '2:3'}
     type: video
