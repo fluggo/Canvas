@@ -574,7 +574,7 @@ class VideoItem(QGraphicsItem, Draggable):
     @property
     def stream(self):
         if not self._stream:
-            self._stream = self.scene().source_list.get_stream(self.item.source_name, self.item.source_stream_id)
+            self._stream = self.scene().source_list.get_stream(self.item.source_name, self.item.source_stream_index)
 
         return self._stream
 

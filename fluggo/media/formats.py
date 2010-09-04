@@ -35,9 +35,7 @@ class ContainerAttribute:
     #   the user has set for the muxer, each beginning with "muxer:".
     MUXER = 'muxer'
 
-    # Set in the "detected" dictionary for a stream, this is a container-specific identifier that
-    # can be used to find the stream again
-    STREAM_ID = 'stream_id'
+    STREAM_INDEX = 'stream_index'
 
 class KnownMuxers:
     AVI = 'video/x-msvideo'
@@ -130,8 +128,8 @@ class StreamFormat(yaml.YAMLObject):
         return self.override.get(property, self.detected.get(property, default))
 
     @property
-    def id(self):
-        return self.get(ContainerAttribute.STREAM_ID)
+    def index(self):
+        return self.get(ContainerAttribute.STREAM_INDEX)
 
     @property
     def pixel_aspect_ratio(self):

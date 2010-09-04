@@ -33,16 +33,16 @@ class FFMuxPlugin(object):
     supported_muxers = frozenset((KnownMuxers.AVI, KnownMuxers.DV, 'video/x-ffmpeg-avi', 'video/x-ffmpeg-dv'))
 
     @classmethod
-    def get_stream(cls, container, id):
+    def get_stream(cls, container, index):
         # BJC: Naive version, this will need a change
         for stream in container.streams:
-            if stream.id != id:
+            if stream.index != index:
                 continue
 
             if stream.type == 'video':
                 return sources.VideoSource(ffmpeg.FFVideoSource(container.path), stream)
 
-        raise RuntimeError('Stream ID {0} not found in {1}.'.format(id, container.path))
+        raise RuntimeError('Stream ID {0} not found in {1}.'.format(index, container.path))
 
     @classmethod
     def detect_container(cls, path):

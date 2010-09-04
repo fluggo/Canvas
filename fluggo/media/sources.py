@@ -65,12 +65,12 @@ class SourceList(collections.MutableMapping):
         '''
         return [self[name].streams[0]]
 
-    def get_stream(self, name, stream_id):
+    def get_stream(self, name, stream_index):
         container = self.sources.get(name)
 
         for muxer in self.muxers:
             if container.muxer in muxer.supported_muxers:
-                return muxer.get_stream(container, stream_id)
+                return muxer.get_stream(container, stream_index)
 
         return None
 

@@ -240,16 +240,16 @@ class Clip(Item):
     '''
     yaml_tag = u'!CanvasClip'
 
-    def __init__(self, type=None, source_name=None, source_stream_id=None, **kw):
+    def __init__(self, type=None, source_name=None, source_stream_index=None, **kw):
         Item.__init__(self, **kw)
         self._type = type
         self._source_name = source_name
-        self._source_stream_id = source_stream_id
+        self._source_stream_index = source_stream_index
 
     def _create_repr_dict(self):
         dict = Item._create_repr_dict(self)
         dict['source_name'] = self._source_name
-        dict['source_stream_id'] = self._source_stream_id
+        dict['source_stream_index'] = self._source_stream_index
         dict['type'] = self._type
 
         return dict
@@ -259,8 +259,8 @@ class Clip(Item):
         return self._source_name
 
     @property
-    def source_stream_id(self):
-        return self._source_stream_id
+    def source_stream_index(self):
+        return self._source_stream_index
 
     def type(self):
         return self._type
