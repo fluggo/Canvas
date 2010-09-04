@@ -66,7 +66,7 @@ class Scene(QGraphicsScene):
             self.sort_list.add(ui_item)
 
     def selected_items(self):
-        return [item.item for item in self.selectedItems() if isinstance(item, VideoItem)]
+        return [item.item for item in self.selectedItems() if isinstance(item, ClipItem)]
 
     def handle_item_removed(self, item):
         if item.type() != 'video':
