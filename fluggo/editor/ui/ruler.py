@@ -53,11 +53,11 @@ class TimeRuler(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            frame = long(float(fractions.Fraction(event.x()) / self.scale) + self.left_frame)
+            frame = long(round(float(fractions.Fraction(event.x()) / self.scale) + self.left_frame))
             self.set_current_frame(frame)
 
     def mouseMoveEvent(self, event):
-        frame = long(float(fractions.Fraction(event.x()) / self.scale) + self.left_frame)
+        frame = long(round(float(fractions.Fraction(event.x()) / self.scale) + self.left_frame))
         self.set_current_frame(frame)
 
     def scale(self):
