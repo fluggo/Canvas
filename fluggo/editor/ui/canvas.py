@@ -51,6 +51,9 @@ class Scene(QGraphicsScene):
         self.marker_removed = signal.Signal()
         self.markers = set()
 
+        self.frame_rate = fractions.Fraction(24000, 1001)
+        self.sample_rate = fractions.Fraction(48000, 1)
+
         for item in self.space:
             self.handle_item_added(item)
 
@@ -234,8 +237,6 @@ class View(QGraphicsView):
         self.clock_callback_handle = self.clock.register_callback(self._clock_changed, None)
         self.clock_frame = 0
 
-        self.frame_rate = fractions.Fraction(24000, 1001)
-
         self.white = False
         self.frame = 0
         self.set_current_frame(0)
@@ -284,13 +285,13 @@ class View(QGraphicsView):
         self._invalidate_marker(frame)
 
         self.ruler.set_current_frame(frame)
-        self.clock.seek(process.get_frame_time(self.frame_rate, int(frame)))
+        self.clock.seek(process.get_frame_time(self.scene().frame_rate, int(frame)))
 
     def _update_clock_frame(self, time=None):
         if not time:
             time = self.clock.get_presentation_time()
 
-        frame = process.get_time_frame(self.frame_rate, time)
+        frame = process.get_time_frame(self.scene().frame_rate, time)
         self._set_clock_frame(frame)
 
     def _set_clock_frame(self, frame):
