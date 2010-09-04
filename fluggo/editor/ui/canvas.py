@@ -593,6 +593,14 @@ class ClipItem(QGraphicsItem, Draggable):
             self.prepareGeometryChange()
 
     @property
+    def units_per_second(self):
+        '''
+        A float giving the number of units per second in the X axis.
+        This will typically be float(scene().frame_rate) or float(scene().sample_rate).
+        '''
+        raise NotImplementedError
+
+    @property
     def stream(self):
         if not self._stream:
             self._stream = self.scene().source_list.get_stream(self.item.source_name, self.item.source_stream_index)
@@ -698,6 +706,10 @@ class VideoItem(ClipItem):
         self.thumbnails = []
         self.thumbnail_indexes = []
         self.thumbnail_width = 1.0
+
+    @property
+    def units_per_second(self):
+        return float(self.scene().frame_rate)
 
     def _update(self, **kw):
         '''
