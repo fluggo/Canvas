@@ -58,12 +58,12 @@ class Scene(QGraphicsScene):
             self.handle_item_added(item)
 
     def handle_item_added(self, item):
-        if item.type() != 'video':
-            return
+        if item.type() == 'video':
+            ui_item = VideoItem(item, 'Clip')
+            self.addItem(ui_item)
+            ui_item.added_to_scene()
 
-        ui_item = VideoItem(item, 'Clip')
-        self.addItem(ui_item)
-        self.sort_list.add(ui_item)
+            self.sort_list.add(ui_item)
 
     def selected_items(self):
         return [item.item for item in self.selectedItems() if isinstance(item, VideoItem)]
@@ -186,15 +186,15 @@ class HorizontalSnapMarker(ForegroundMarker):
         painter.restore()
 
 class VerticalSnapMarker(ForegroundMarker):
-    def __init__(self, frame):
-        self.frame = frame
+    def __init__(self, time):
+        self.time = time
 
     def bounding_rect(self, view):
-        pos_x = view.viewportTransform().map(QPointF(float(self.frame), 0.0)).x()
+        pos_x = view.viewportTransform().map(QPointF(float(self.time), 0.0)).x()
         return QRectF(pos_x - (view.snap_marker_width / 2.0), 0.0, view.snap_marker_width, view.viewport().height())
 
     def paint(self, view, painter, rect):
-        pos_x = painter.transform().map(QPointF(float(self.frame), 0.0)).x()
+        pos_x = painter.transform().map(QPointF(float(self.time), 0.0)).x()
         rect = painter.transform().mapRect(rect)
 
         painter.save()
@@ -252,7 +252,7 @@ class View(QGraphicsView):
         self.scale_x = fractions.Fraction(1)
         self.scale_y = fractions.Fraction(1)
 
-        self.scale(4, 1)
+        self.scale(4 * 24, 1)
 
     def _clock_changed(self, speed, time, data):
         if speed.numerator and self.playback_timer is None:
@@ -270,7 +270,7 @@ class View(QGraphicsView):
         self.scale_x = fractions.Fraction(sx)
         self.scale_y = fractions.Fraction(sy)
 
-        self.ruler.set_scale(sx)
+        self.ruler.set_scale(sx / self.scene().frame_rate)
 
         self.resetTransform()
         QGraphicsView.scale(self, float(sx), float(sy))
@@ -334,13 +334,13 @@ class View(QGraphicsView):
             self._reset_ruler_scroll()
 
     def _reset_ruler_scroll(self):
-        left = self.mapToScene(0, 0).x()
+        left = self.mapToScene(0, 0).x() * float(self.scene().frame_rate)
         self.ruler.set_left_frame(left)
 
     def _invalidate_marker(self, frame):
         # BJC: No, for some reason, invalidateScene() did not work here
-        top = self.mapFromScene(frame, self.scene().scene_top)
-        bottom = self.mapFromScene(frame, self.scene().scene_bottom)
+        top = self.mapFromScene(frame / float(self.scene().frame_rate), self.scene().scene_top)
+        bottom = self.mapFromScene(frame / float(self.scene().frame_rate), self.scene().scene_bottom)
 
         top = self.mapToScene(top.x() - 1, top.y())
         bottom = self.mapToScene(bottom.x() + 1, bottom.y())
@@ -361,12 +361,14 @@ class View(QGraphicsView):
         QGraphicsView.drawForeground(self, painter, rect)
 
         # Clock frame line
+        x = self.clock_frame / float(self.scene().frame_rate)
         painter.setPen(self.black_pen)
-        painter.drawLine(self.clock_frame, rect.y(), self.clock_frame, rect.y() + rect.height())
+        painter.drawLine(QPointF(x, rect.y()), QPointF(x, rect.y() + rect.height()))
 
         # Current frame line, which blinks
+        x = self.frame / float(self.scene().frame_rate)
         painter.setPen(self.white_pen if self.white else self.black_pen)
-        painter.drawLine(self.frame, rect.y(), self.frame, rect.y() + rect.height())
+        painter.drawLine(QPointF(x, rect.y()), QPointF(x, rect.y() + rect.height()))
 
         for marker in self.scene().markers:
             marker.paint(self, painter, rect)
@@ -375,33 +377,34 @@ class View(QGraphicsView):
         rect = self.viewportTransform().inverted()[0].mapRect(marker.bounding_rect(self))
         self.updateScene([rect])
 
-    def find_snap_items_horizontal(self, item, frame):
+    def find_snap_items_horizontal(self, item, time):
         '''
-        Find the nearest horizontal snap point for the given item and frame. (The
+        Find the nearest horizontal snap point for the given item and time. (The
         item is only used to avoid finding it as its own snap point.)
         '''
-        top = self.mapFromScene(frame, self.scene().scene_top)
-        bottom = self.mapFromScene(frame, self.scene().scene_bottom)
+        top = self.mapFromScene(time, self.scene().scene_top)
+        bottom = self.mapFromScene(time, self.scene().scene_bottom)
 
         items = self.items(QRect(top.x() - self.snap_distance, top.y(), self.snap_distance * 2, bottom.y() - top.y()), Qt.IntersectsItemBoundingRect)
 
         # TODO: Find something more generic than video items
-        items = [a.item for a in items if isinstance(a, VideoItem) and a is not item]
+        items = [a for a in items if isinstance(a, ClipItem) and a is not item]
 
-        distance = int(math.floor(self.viewportTransform().inverted()[0].mapRect(QRectF(0.0, 0.0, self.snap_distance, 1.0)).width()))
+        # Transform the snap_distance into time units
+        distance = self.viewportTransform().inverted()[0].mapRect(QRectF(0.0, 0.0, self.snap_distance, 1.0)).width()
         x = None
 
-        if distance < 1:
-            distance = 1
+        #if distance < 1.0:
+        #    distance = 1.0
 
         for item in items:
-            if abs(item.x - frame) < distance:
-                x = item.x
-                distance = abs(x - frame)
+            if abs(item.item.x / item.units_per_second - time) < distance:
+                x = item.item.x / item.units_per_second
+                distance = abs(x - time)
 
-            if abs(item.x + item.width - frame) < distance:
-                x = item.x + item.width
-                distance = abs(x - frame)
+            if abs((item.item.x + item.item.width) / item.units_per_second - time) < distance:
+                x = (item.item.x + item.item.width) / item.units_per_second
+                distance = abs(x - time)
 
         return x
 
@@ -487,7 +490,7 @@ class _Handle(QGraphicsRectItem, Draggable):
         self.original_height = None
 
     def drag_start(self, view):
-        self.original_x = int(self.parentItem().pos().x())
+        self.original_x = int(round(self.parentItem().pos().x() * self.parentItem().units_per_second))
         self.original_width = self.parentItem().item.width
         self.original_offset = self.parentItem().item.offset
         self.original_y = self.parentItem().pos().y()
@@ -501,7 +504,7 @@ class _Handle(QGraphicsRectItem, Draggable):
 
 class _LeftHandle(_Handle):
     def drag_move(self, view, abs_pos, rel_pos):
-        x = int(rel_pos.x())
+        x = int(round(rel_pos.x() * self.parentItem().units_per_second))
 
         if self.original_offset + x < 0:
             self.parentItem().item.update(x=self.original_x - self.original_offset, width=self.original_width + self.original_offset,
@@ -515,7 +518,7 @@ class _LeftHandle(_Handle):
 
 class _RightHandle(_Handle):
     def drag_move(self, view, abs_pos, rel_pos):
-        x = int(rel_pos.x())
+        x = int(round(rel_pos.x() * self.parentItem().units_per_second))
 
         if self.original_width + x > self.parentItem().max_length:
             self.parentItem().item.update(width=self.parentItem().max_length)
@@ -554,7 +557,6 @@ class ClipItem(QGraphicsItem, Draggable):
         self.item.updated.connect(self._update)
 
         self.name = name
-        self.setPos(self.item.x, self.item.y)
         self.setFlags(QGraphicsItem.ItemIsSelectable |
             QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
@@ -570,6 +572,11 @@ class ClipItem(QGraphicsItem, Draggable):
 
         self.view_reset_needed = False
 
+    def added_to_scene(self):
+        # Set the things we couldn't without self.units_per_second
+        self.setPos(self.item.x / self.units_per_second, self.item.y)
+        self.right_handle.setPos(self.item.width / self.units_per_second, 0.0)
+
     def _update(self, **kw):
         '''
         Called by the item model to update our appearance.
@@ -582,11 +589,11 @@ class ClipItem(QGraphicsItem, Draggable):
         pos = self.pos()
 
         if 'x' in kw or 'y' in kw:
-            self.setPos(kw.get('x', pos.x()), kw.get('y', pos.y()))
+            self.setPos(kw.get('x', pos.x() * self.units_per_second) / self.units_per_second, kw.get('y', pos.y()))
 
         # Changes in item size
         if 'width' in kw or 'height' in kw:
-            self.right_handle.setPos(self.item.width, 0.0)
+            self.right_handle.setPos(self.item.width / self.units_per_second, 0.0)
             self.bottom_handle.setPos(0.0, self.item.height)
             self.view_reset_needed = True
 
@@ -630,8 +637,8 @@ class ClipItem(QGraphicsItem, Draggable):
 
         self.left_handle.setRect(QRectF(0.0, 0.0, hx, self.item.height))
         self.right_handle.setRect(QRectF(-hx, 0.0, hx, self.item.height))
-        self.top_handle.setRect(QRectF(0.0, 0.0, self.item.width, hy))
-        self.bottom_handle.setRect(QRectF(0.0, -hy, self.item.width, hy))
+        self.top_handle.setRect(QRectF(0.0, 0.0, self.item.width / self.units_per_second, hy))
+        self.bottom_handle.setRect(QRectF(0.0, -hy, self.item.width / self.units_per_second, hy))
 
     def hoverEnterEvent(self, event):
         view = event.widget().parentWidget()
@@ -644,7 +651,7 @@ class ClipItem(QGraphicsItem, Draggable):
             self.view_reset_needed = False
 
     def boundingRect(self):
-        return QRectF(0.0, 0.0, self.item.width, self.item.height)
+        return QRectF(0.0, 0.0, self.item.width / self.units_per_second, self.item.height)
 
     def drag_start(self, view):
         self._drag_start_x = self.item.x
@@ -662,36 +669,44 @@ class ClipItem(QGraphicsItem, Draggable):
             self._right_snap_marker = None
 
     def drag_move(self, view, abs_pos, rel_pos):
-        pos_x = int(round(rel_pos.x())) + self._drag_start_x
+        pos_x = int(round(rel_pos.x() * self.units_per_second)) + self._drag_start_x
         pos_y = rel_pos.y() + self._drag_start_y
 
         self._clear_snap_markers()
 
-        left_snap = view.find_snap_items_horizontal(self, pos_x)
-        right_snap = view.find_snap_items_horizontal(self, pos_x + self.item.width)
+        left_snap = view.find_snap_items_horizontal(self, pos_x / self.units_per_second)
+        right_snap = view.find_snap_items_horizontal(self, (pos_x + self.item.width) / self.units_per_second)
 
+        # left_snap and right_snap are in seconds; convert back to our units
+        if left_snap is not None:
+            left_snap = int(round(left_snap * self.units_per_second))
+
+        if right_snap is not None:
+            right_snap = int(round(right_snap * self.units_per_second))
+
+        # Place the snap markers and accept snaps
         if left_snap is not None:
             if right_snap is not None:
                 if abs(left_snap - pos_x) < abs(right_snap - pos_x + self.item.width):
-                    self._left_snap_marker = VerticalSnapMarker(left_snap)
+                    self._left_snap_marker = VerticalSnapMarker(left_snap / self.units_per_second)
                     self.scene().add_marker(self._left_snap_marker)
                     pos_x = left_snap
                 elif abs(left_snap - pos_x) > abs(right_snap - pos_x + self.item.width):
-                    self._right_snap_marker = VerticalSnapMarker(right_snap)
+                    self._right_snap_marker = VerticalSnapMarker(right_snap / self.units_per_second)
                     self.scene().add_marker(self._right_snap_marker)
                     pos_x = right_snap - self.item.width
                 else:
-                    self._left_snap_marker = VerticalSnapMarker(left_snap)
+                    self._left_snap_marker = VerticalSnapMarker(left_snap / self.units_per_second)
                     self.scene().add_marker(self._left_snap_marker)
-                    self._right_snap_marker = VerticalSnapMarker(right_snap)
+                    self._right_snap_marker = VerticalSnapMarker(right_snap / self.units_per_second)
                     self.scene().add_marker(self._right_snap_marker)
                     pos_x = left_snap
             else:
-                self._left_snap_marker = VerticalSnapMarker(left_snap)
+                self._left_snap_marker = VerticalSnapMarker(left_snap / self.units_per_second)
                 self.scene().add_marker(self._left_snap_marker)
                 pos_x = left_snap
         elif right_snap is not None:
-            self._right_snap_marker = VerticalSnapMarker(right_snap)
+            self._right_snap_marker = VerticalSnapMarker(right_snap / self.units_per_second)
             self.scene().add_marker(self._right_snap_marker)
             pos_x = right_snap - self.item.width
 
