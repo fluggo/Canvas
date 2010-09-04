@@ -151,7 +151,7 @@ FFDemuxer_get_next_packet( py_obj_FFDemuxer *self ) {
 
     g_static_mutex_lock( &self->mutex );
 
-    do {
+    for( ;; ) {
         //printf( "Reading frame\n" );
         if( av_read_frame( self->context, &packet->av_packet ) < 0 ) {
             g_static_mutex_unlock( &self->mutex );
@@ -159,7 +159,12 @@ FFDemuxer_get_next_packet( py_obj_FFDemuxer *self ) {
 
             return NULL;
         }
-    } while( packet->av_packet.stream_index != self->stream );
+
+        if( packet->av_packet.stream_index == self->stream )
+            break;
+
+        av_free_packet( &packet->av_packet );
+    }
 
     g_static_mutex_unlock( &self->mutex );
 
