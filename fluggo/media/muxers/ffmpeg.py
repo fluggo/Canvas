@@ -39,8 +39,16 @@ class FFMuxPlugin(object):
             if stream.index != index:
                 continue
 
+            demux = ffmpeg.FFDemuxer(container.path, index)
+
             if stream.type == 'video':
-                return sources.VideoSource(ffmpeg.FFVideoSource(container.path), stream)
+                # TODO: Right now, anticipate only DV video
+                decode = ffmpeg.FFVideoDecoder(demux, 'dvvideo')
+                return sources.VideoSource(process.DVReconstructionFilter(decode), stream)
+            elif stream.type == 'audio':
+                return sources.AudioSource(ffmpeg.FFAudioDecoder(demux, 'pcm_s16le', 2), stream)
+
+            raise RuntimeError('Could not identify stream type.')
 
         raise RuntimeError('Stream ID {0} not found in {1}.'.format(index, container.path))
 
