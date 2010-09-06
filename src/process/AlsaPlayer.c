@@ -163,7 +163,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
             if( error == -EPIPE ) {
                 // Underrun!
                 printf("ALSA playback underrun\n" );
-                snd_pcm_prepare( self->pcmDevice );
+                snd_pcm_recover( self->pcmDevice, error, 1 );
                 self->nextSample = getTimeFrame( &rate, _getPresentationTime( self ) );
                 break;
             }
