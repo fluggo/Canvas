@@ -46,6 +46,7 @@ class Scene(QGraphicsScene):
         self.space.item_added.connect(self.handle_item_added)
         self.space.item_removed.connect(self.handle_item_removed)
         self.drag_items = None
+        self.drag_key_index = 0
         self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z_sort_key(), index_attr='z_order')
         self.marker_added = signal.Signal()
         self.marker_removed = signal.Signal()
@@ -56,6 +57,12 @@ class Scene(QGraphicsScene):
 
         for item in self.space:
             self.handle_item_added(item)
+
+    def get_rate(self, item_type):
+        if item_type == 'video':
+            return self.frame_rate
+        elif item_type == 'audio':
+            return self.sample_rate
 
     def handle_item_added(self, item):
         if item.type() == 'video':
@@ -94,8 +101,13 @@ class Scene(QGraphicsScene):
 
         pos - Position of the cursor in scene coordinates.
         '''
-        # TODO: Handle multiple items
-        self.drag_items[0].setPos(pos.x(), pos.y() - self.drag_items[0].height / 2.0)
+        # All other items are placed in relation to the item at drag_key_index
+        item = self.drag_items[self.drag_key_index]
+        time = round(pos.x() * self.get_rate(item.stream_format.type)) / self.get_rate(item.stream_format.type)
+
+        for i, item in enumerate(self.drag_items):
+            item_time = round(time * self.get_rate(item.stream_format.type)) / self.get_rate(item.stream_format.type)
+            item.setPos(item_time, pos.y() + self.DEFAULT_HEIGHT * (float(i) - 0.5))
 
     def add_marker(self, marker):
         self.markers.add(marker)
