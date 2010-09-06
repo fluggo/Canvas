@@ -99,6 +99,13 @@ ClockCallbackHandle_callback( py_obj_ClockCallbackHandle *self, rational *speed,
 
     PyObject *speed_obj = py_make_rational( speed );
 
+    if( !speed_obj ) {
+        g_warning( "In ClockCallbackHandle_callback:\n" );
+
+        PyErr_Print();
+        return;
+    }
+
     PyObject *result = PyObject_CallFunction( self->callable, "OLO",
         speed_obj, time, self->data );
 
