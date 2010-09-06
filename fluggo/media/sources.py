@@ -63,7 +63,12 @@ class SourceList(collections.MutableMapping):
         '''
         Get a list of streams considered "default" for the given source.
         '''
-        return [self[name].streams[0]]
+        # For now, first video stream and first audio stream
+        source = self[name]
+        video_streams = [stream for stream in source.streams if stream.type == 'video']
+        audio_streams = [stream for stream in source.streams if stream.type == 'audio']
+
+        return video_streams[0:1] + audio_streams[0:1]
 
     def get_stream(self, name, stream_index):
         container = self.sources.get(name)
