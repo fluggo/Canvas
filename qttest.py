@@ -255,11 +255,15 @@ class MainWindow(QMainWindow):
         self.space = canvas.Space()
         #self.space.append(clip)
 
-        self.workspace_manager = VideoWorkspaceManager(self.space, self.source_list)
-        self.workspace_manager.frames_updated.connect(self.handle_update_frames)
+        self.audio_workspace_manager = AudioWorkspaceManager(self.space, self.source_list)
+        self.audio_player = process.AlsaPlayer(48000, 2, self.audio_workspace_manager.workspace)
+
+        self.video_workspace_manager = VideoWorkspaceManager(self.space, self.source_list)
+        self.video_workspace_manager.frames_updated.connect(self.handle_update_frames)
 
         # Set up canvas
-        self.clock = process.SystemPresentationClock()
+        #self.clock = process.SystemPresentationClock()
+        self.clock = self.audio_player
         self.frame_rate = fractions.Fraction(24000, 1001)
 
         self.view = ui.canvas.View(self.clock, self.space, self.source_list)
@@ -276,7 +280,7 @@ class MainWindow(QMainWindow):
         self.video_widget.setRenderingIntent(1.5)
         self.video_widget.setPixelAspectRatio(640.0/704.0)
         self.video_widget.setPresentationClock(self.clock)
-        self.video_widget.setVideoSource(self.workspace_manager.workspace)
+        self.video_widget.setVideoSource(self.video_workspace_manager.workspace)
 
         self.clock.seek(0)
 
