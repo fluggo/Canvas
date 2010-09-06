@@ -317,6 +317,7 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
     self->configMutex = g_mutex_new();
     self->cond = g_cond_new();
     self->stop = true;
+    self->playSpeed = (rational) { 0, 1 };
     self->bufferSize = 1024;
     self->inBuffer = PyMem_Malloc( self->bufferSize * self->channelCount * sizeof(float) );
 
