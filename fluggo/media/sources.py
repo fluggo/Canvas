@@ -81,3 +81,10 @@ class VideoSource(process.VideoPassThroughFilter):
 
         process.VideoPassThroughFilter.__init__(self, source)
 
+class AudioSource(process.AudioPassThroughFilter):
+    def __init__(self, source, format):
+        self.format = format
+        self.length = self.format.adjusted_length
+
+        process.AudioPassThroughFilter.__init__(self, source)
+
