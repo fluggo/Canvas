@@ -101,7 +101,7 @@ G_GNUC_PURE static int cmpz( gconstpointer aptr, gconstpointer bptr, gpointer us
 }
 
 EXPORT workspace_t *
-workspace_create_video() {
+workspace_create() {
     workspace_t *result = g_slice_new0( workspace_t );
 
     g_static_mutex_init( &result->mutex );

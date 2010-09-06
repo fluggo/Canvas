@@ -462,7 +462,7 @@ typedef struct workspace_t_tag workspace_t;
 typedef struct workspace_iter_t_tag workspace_iter_t;
 typedef struct workspace_item_t_tag workspace_item_t;
 
-workspace_t *workspace_create_video();
+workspace_t *workspace_create();
 gint workspace_get_length( workspace_t *workspace );
 workspace_item_t *workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t width, int64_t offset, int64_t z, gpointer tag );
 workspace_item_t *workspace_get_item( workspace_t *self, gint index );

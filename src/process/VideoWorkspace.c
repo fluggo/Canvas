@@ -304,7 +304,7 @@ WorkspaceItem_richcompare( PyObject *a, PyObject *b, int op ) {
 
 static int
 Workspace_init( PyObject *self, PyObject *args, PyObject *kwds ) {
-    PRIV(self)->workspace = workspace_create_video();
+    PRIV(self)->workspace = workspace_create();
     workspace_as_video_source( PRIV(self)->workspace, &PRIV(self)->source );
 
     return 0;
