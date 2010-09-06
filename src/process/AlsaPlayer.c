@@ -44,6 +44,7 @@ typedef struct {
     float *inBuffer;
     void *outBuffer;
     snd_pcm_hw_params_t *hwParams;
+    bool time_change;
 
     GStaticRWLock callback_lock;
     callback_info *callbacks;
@@ -56,8 +57,12 @@ playbackThread( py_obj_AlsaPlayer *self ) {
     for( ;; ) {
         g_mutex_lock( self->mutex );
 
-        if( self->stop )
+        // BJC: I'd much prefer to use snd_pcm_rewind in the case of a time_change,
+        // but studies show that doesn't work in all cases
+        if( self->stop || self->time_change ) {
             snd_pcm_drop( self->pcmDevice );
+            self->time_change = false;
+        }
 
         while( !self->quit && self->stop )
             g_cond_wait( self->cond, self->mutex );
@@ -173,17 +178,17 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         }
 
         // Reset the clock so that it stays in sync
-        snd_htimestamp_t tstamp;
-        snd_pcm_uframes_t avail;
-        snd_pcm_htimestamp( self->pcmDevice, &avail, &tstamp );
+        snd_pcm_sframes_t frame_delay;
+        snd_pcm_delay( self->pcmDevice, &frame_delay );
 
         g_mutex_lock( self->mutex );
-        self->baseTime = gettime();
+        if( !self->stop && !self->time_change ) {
+            self->baseTime = gettime();
+            self->seekTime = getFrameTime( &rate, self->nextSample ) -
+                getFrameTime( &rate, frame_delay ) * speed.n / speed.d;
 
-        if( speed.n > 0 )
-            self->seekTime = getFrameTime( &rate, self->nextSample - (hwBufferSize - avail) );
-        else
-            self->seekTime = getFrameTime( &rate, self->nextSample + (hwBufferSize - avail) );
+            //printf( "ALSA thread new seek time: %ld (nextSample: %d, hwBufferSize: %lu, avail: %lu, speed: %d)\n", self->seekTime, self->nextSample, hwBufferSize, frame_delay, speed.n );
+        }
 
         //printf( "nextSample: %d, hwBufferSize: %d, avail: %d\n", self->nextSample, hwBufferSize, avail );
         g_mutex_unlock( self->mutex );
@@ -332,6 +337,7 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
     self->stop = true;
     self->playSpeed = (rational) { 0, 1 };
     self->bufferSize = 1024;
+    self->time_change = false;
     self->inBuffer = PyMem_Malloc( self->bufferSize * self->channelCount * sizeof(float) );
 
     if( self->inBuffer == NULL ) {
@@ -481,6 +487,8 @@ _set( py_obj_AlsaPlayer *self, int64_t seek_time, rational *speed ) {
     self->playSpeed = *speed;
     self->nextSample = getTimeFrame( &self->rate, self->seekTime );
     self->seekTime = getFrameTime( &self->rate, self->nextSample );
+    seek_time = self->seekTime;
+    self->time_change = true;
     g_cond_signal( self->cond );
     g_mutex_unlock( self->mutex );
 
