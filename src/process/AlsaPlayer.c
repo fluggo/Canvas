@@ -49,7 +49,7 @@ typedef struct {
     callback_info *callbacks;
 } py_obj_AlsaPlayer;
 
-static int64_t _getPresentationTime_nolock( py_obj_AlsaPlayer *self );
+static int64_t _getPresentationTime( py_obj_AlsaPlayer *self );
 
 static gpointer
 playbackThread( py_obj_AlsaPlayer *self ) {
@@ -151,7 +151,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
                 // Underrun!
                 printf("ALSA playback underrun\n" );
                 snd_pcm_prepare( self->pcmDevice );
-                self->nextSample = getTimeFrame( &rate, _getPresentationTime_nolock( self ) );
+                self->nextSample = getTimeFrame( &rate, _getPresentationTime( self ) );
                 break;
             }
 
@@ -560,7 +560,7 @@ static PyGetSetDef AlsaPlayer_getsetters[] = {
 static PyObject *
 AlsaPlayer_stop( py_obj_AlsaPlayer *self ) {
     rational speed = { 0, 1 };
-    _set( self, _getPresentationTime_nolock( self ), &speed );
+    _set( self, _getPresentationTime( self ), &speed );
 
     Py_RETURN_NONE;
 }
@@ -576,7 +576,7 @@ AlsaPlayer_play( py_obj_AlsaPlayer *self, PyObject *args ) {
     if( !py_parse_rational( rateObj, &rate ) )
         return NULL;
 
-    _set( self, _getPresentationTime_nolock( self ), &rate );
+    _set( self, _getPresentationTime( self ), &rate );
 
     Py_RETURN_NONE;
 }
