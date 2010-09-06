@@ -182,6 +182,7 @@ void init_VideoPassThroughFilter( PyObject *module );
 void init_SolidColorVideoSource( PyObject *module );
 void init_EmptyVideoSource( PyObject *module );
 void init_basicframefuncs( PyObject *module );
+void init_AudioWorkspace( PyObject *module );
 void init_VideoWorkspace( PyObject *module );
 void init_AudioFrame( PyObject *module );
 void init_RgbaFrameF16( PyObject *module );
@@ -212,6 +213,7 @@ initprocess() {
     init_SolidColorVideoSource( m );
     init_EmptyVideoSource( m );
     init_basicframefuncs( m );
+    init_AudioWorkspace( m );
     init_VideoWorkspace( m );
     init_AudioFrame( m );
     init_RgbaFrameF16( m );
