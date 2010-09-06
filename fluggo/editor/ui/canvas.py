@@ -288,7 +288,13 @@ class View(QGraphicsView):
     def selected_items(self):
         return self.scene().selected_items()
 
-    def scale(self, sx, sy):
+    def scale(self, sx, sy, scale_center=None):
+        # Find the current center
+        center = QRectF(self.mapToScene(0, 0), self.mapToScene(self.width(), self.height())).center()
+
+        if scale_center is None:
+            scale_center = center.x()
+
         self.scale_x = fractions.Fraction(sx)
         self.scale_y = fractions.Fraction(sy)
 
@@ -296,6 +302,7 @@ class View(QGraphicsView):
 
         self.resetTransform()
         QGraphicsView.scale(self, float(sx), float(sy))
+        self.centerOn(scale_center, center.x())
         self._reset_ruler_scroll()
 
     def set_current_frame(self, frame):
@@ -334,10 +341,10 @@ class View(QGraphicsView):
     def wheelEvent(self, event):
         if event.delta() > 0:
             factor = 2 ** (event.delta() / 120)
-            self.scale(self.scale_x * factor, self.scale_y)
+            self.scale(self.scale_x * factor, self.scale_y, scale_center=self.mapToScene(event.pos()).x())
         else:
             factor = 2 ** (-event.delta() / 120)
-            self.scale(self.scale_x / factor, self.scale_y)
+            self.scale(self.scale_x / factor, self.scale_y, scale_center=self.mapToScene(event.pos()).x())
 
     def handle_scene_rect_changed(self, rect):
         self._reset_ruler_scroll()
