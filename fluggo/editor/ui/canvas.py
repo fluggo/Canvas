@@ -64,6 +64,12 @@ class Scene(QGraphicsScene):
             ui_item.added_to_scene()
 
             self.sort_list.add(ui_item)
+        elif item.type() == 'audio':
+            ui_item = AudioItem(item, 'Clip')
+            self.addItem(ui_item)
+            ui_item.added_to_scene()
+
+            self.sort_list.add(ui_item)
 
     def selected_items(self):
         return [item.item for item in self.selectedItems() if isinstance(item, ClipItem)]
@@ -130,6 +136,9 @@ class Scene(QGraphicsScene):
         # Turn them into real boys and girls
         for item in self.drag_items:
             rate = self.frame_rate
+
+            if item.stream_format.type == 'audio':
+                rate = self.sample_rate
 
             self.space.append(canvas.Clip(item.stream_format.type, item.source_name, item.stream_format.index,
                 x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), width=item.width, height=item.height))
@@ -819,6 +828,28 @@ class VideoItem(ClipItem):
 
         if self.isSelected():
             painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0, 0.5))
+
+        painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
+        painter.drawText(rect, Qt.TextSingleLine, self.name)
+
+        painter.restore()
+
+class AudioItem(ClipItem):
+    def __init__(self, item, name):
+        ClipItem.__init__(self, item, name)
+
+    @property
+    def units_per_second(self):
+        return float(self.scene().sample_rate)
+
+    def paint(self, painter, option, widget):
+        rect = painter.transform().mapRect(self.boundingRect())
+        clip_rect = painter.transform().mapRect(option.exposedRect)
+
+        painter.save()
+        painter.resetTransform()
+
+        painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QColor.fromRgbF(0.9, 0.9, 0.8))
 
         painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
         painter.drawText(rect, Qt.TextSingleLine, self.name)
