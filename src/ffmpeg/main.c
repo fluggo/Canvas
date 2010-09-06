@@ -36,6 +36,7 @@ void init_FFVideoSource( PyObject *module );
 void init_FFVideoDecoder( PyObject *module );
 void init_FFVideoEncoder( PyObject *module );
 void init_FFAudioSource( PyObject *module );
+void init_FFAudioDecoder( PyObject *module );
 void init_FFDemuxer( PyObject *module );
 void init_FFMuxer( PyObject *module );
 void init_FFContainer( PyObject *module );
@@ -53,6 +54,7 @@ initffmpeg() {
     init_FFVideoDecoder( m );
     init_FFVideoEncoder( m );
     init_FFAudioSource( m );
+    init_FFAudioDecoder( m );
     init_FFDemuxer( m );
     init_FFMuxer( m );
     init_FFContainer( m );
