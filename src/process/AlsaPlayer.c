@@ -106,6 +106,19 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
         self->audioSource.source.funcs->getFrame( self->audioSource.source.obj, &frame );
 
+        // Zero out anything that wasn't provided
+        if( frame.current_min_sample > frame.current_max_sample ) {
+            memset( frame.data, 0, sizeof(float) * (frame.full_max_sample - frame.full_min_sample + 1) * frame.channels );
+        }
+        else {
+            if( frame.full_min_sample < frame.current_min_sample )
+                memset( frame.data, 0, sizeof(float) * (frame.current_min_sample - frame.full_min_sample) * frame.channels );
+
+            if( frame.full_max_sample > frame.current_max_sample )
+                memset( audio_get_sample( &frame, frame.current_max_sample + 1, 0 ), 0,
+                    sizeof(float) * (frame.full_max_sample - frame.current_max_sample) * frame.channels );
+        }
+
         // Convert speed differences
         if( speed.n == 1 && speed.d == 1 ) {
             // As long as the output is float, we can use the original buffer
