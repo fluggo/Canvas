@@ -525,6 +525,60 @@ workspace_as_video_source( workspace_t *workspace, video_source *source ) {
     source->funcs = &workspace_video_funcs;
 }
 
+static void
+workspace_audio_get_frame( workspace_t *self, audio_frame *frame ) {
+    g_static_mutex_lock( &self->mutex );
+
+    // Update the composite list
+    workspace_move_it( self, frame->full_min_sample, frame->full_max_sample );
+
+    // Now composite everything in it
+    frame->current_min_sample = 0;
+    frame->current_max_sample = -1;
+
+    if( g_sequence_get_length( self->composite_list ) == 0 ) {
+        g_static_mutex_unlock( &self->mutex );
+        return;
+    }
+
+    GSequenceIter *iter = g_sequence_get_begin_iter( self->composite_list );
+
+    while( !g_sequence_iter_is_end( iter ) ) {
+        workspace_item_t *item = (workspace_item_t *) g_sequence_get( iter );
+
+        // Construct a ghost of the output frame so as to limit the composite to the current item
+        audio_frame in_frame = {
+            .full_min_sample = max(frame->full_min_sample, item->x),
+            .full_max_sample = min(frame->full_max_sample, item->x + item->width - 1),
+            .current_min_sample = max(frame->current_min_sample, item->x),
+            .current_max_sample = min(frame->current_max_sample, item->x + item->width - 1),
+            .channels = frame->channels
+        };
+
+        in_frame.data = frame->data + (in_frame.full_min_sample - frame->full_min_sample) * in_frame.channels;
+
+        // TODO: Workspace items need some sort of opacity/attenuation setting
+        audio_mix_add_pull( &in_frame, (audio_source *) item->source, 1.0f, -(item->x + item->offset) );
+
+        frame->current_min_sample = min(frame->current_min_sample, in_frame.current_min_sample);
+        frame->current_max_sample = max(frame->current_max_sample, in_frame.current_max_sample);
+
+        iter = g_sequence_iter_next( iter );
+    }
+
+    g_static_mutex_unlock( &self->mutex );
+}
+
+static AudioFrameSourceFuncs workspace_audio_funcs = {
+    .getFrame = (audio_getFrameFunc) workspace_audio_get_frame
+};
+
+EXPORT void
+workspace_as_audio_source( workspace_t *workspace, audio_source *source ) {
+    source->obj = workspace;
+    source->funcs = &workspace_audio_funcs;
+}
+
 EXPORT void
 workspace_free( workspace_t *workspace ) {
     g_sequence_free( workspace->leftsort );
