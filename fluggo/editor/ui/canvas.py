@@ -241,6 +241,8 @@ class View(QGraphicsView):
     snap_marker_color = QColor.fromRgbF(0.0, 1.0, 0.0)
     snap_marker_width = 5.0
     snap_distance = 8.0
+    max_zoom_x = 100000.0
+    min_zoom_x = 0.01
 
     def __init__(self, clock, space, source_list):
         QGraphicsView.__init__(self)
@@ -341,9 +343,17 @@ class View(QGraphicsView):
     def wheelEvent(self, event):
         if event.delta() > 0:
             factor = 2 ** (event.delta() / 120)
+
+            if self.scale_x * factor > self.max_zoom_x:
+                return
+
             self.scale(self.scale_x * factor, self.scale_y, scale_center=self.mapToScene(event.pos()).x())
         else:
             factor = 2 ** (-event.delta() / 120)
+
+            if self.scale_x / factor < self.min_zoom_x:
+                return
+
             self.scale(self.scale_x / factor, self.scale_y, scale_center=self.mapToScene(event.pos()).x())
 
     def handle_scene_rect_changed(self, rect):
