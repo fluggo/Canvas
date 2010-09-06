@@ -247,6 +247,7 @@ class View(QGraphicsView):
         self.setScene(Scene(space, source_list))
         self.setViewportMargins(0, 30, 0, 0)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.setViewportUpdateMode(self.FullViewportUpdate)
 
         self.ruler = ruler.TimeRuler(self, timecode=timecode.NtscDropFrame())
         self.ruler.move(self.frameWidth(), self.frameWidth())
