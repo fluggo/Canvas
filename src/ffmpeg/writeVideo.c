@@ -47,7 +47,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         return NULL;
 
     v2i frameSize;
-    box2i_getSize( &dataWindow, &frameSize );
+    box2i_get_size( &dataWindow, &frameSize );
 
     VideoSourceHolder videoSource = { { NULL } };
     if( !py_video_take_source( videoSourceObj, &videoSource ) )

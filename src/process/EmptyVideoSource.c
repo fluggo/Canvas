@@ -29,19 +29,19 @@ EmptyVideoSource_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 
 static void
 EmptyVideoSource_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) {
-    box2i_setEmpty( &frame->current_window );
+    box2i_set_empty( &frame->current_window );
 }
 
 static void
 EmptyVideoSource_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame ) {
-    box2i_setEmpty( &frame->current_window );
+    box2i_set_empty( &frame->current_window );
 }
 
 static void
 EmptyVideoSource_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame ) {
     // Even empty video sources need to produce a texture
     v2i frameSize;
-    box2i_getSize( &frame->full_window, &frameSize );
+    box2i_get_size( &frame->full_window, &frameSize );
 
     glGenTextures( 1, &frame->texture );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frame->texture );
@@ -51,7 +51,7 @@ EmptyVideoSource_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *fram
     glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
     glClear( GL_COLOR_BUFFER_BIT );
 
-    box2i_setEmpty( &frame->current_window );
+    box2i_set_empty( &frame->current_window );
 }
 
 static void

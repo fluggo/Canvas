@@ -26,7 +26,7 @@ static void
 video_fill_zero_f32( rgba_frame_f32 *target ) {
     // You know what? Skip the pleasantries:
     v2i size;
-    box2i_getSize( &target->full_window, &size );
+    box2i_get_size( &target->full_window, &size );
 
     memset( target->data, 0, size.x * size.y * sizeof(rgba_f32) );
 }
@@ -257,7 +257,7 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
             source->current_window.max.y );
 
         box2i_intersect( &temp_frame.full_window, &temp_frame.full_window, &target->full_window );
-        box2i_getSize( &temp_frame.full_window, &size );
+        box2i_get_size( &temp_frame.full_window, &size );
 
         temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
 
@@ -274,7 +274,7 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
             (int)(source_point.y + (target->full_window.max.y - target_point.y) * factors.y) );
 
         box2i_intersect( &temp_frame.full_window, &temp_frame.full_window, &target->full_window );
-        box2i_getSize( &temp_frame.full_window, &size );
+        box2i_get_size( &temp_frame.full_window, &size );
 
         temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
 
@@ -288,7 +288,7 @@ video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f
 EXPORT void
 video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_source *source, int frame, box2i *source_rect, v2f source_point, v2f factors ) {
     if( factors.x == 0.0f || factors.y == 0.0f ) {
-        box2i_setEmpty( &target->current_window );
+        box2i_set_empty( &target->current_window );
         return;
     }
 
@@ -308,7 +308,7 @@ video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_s
 
     box2i_intersect( &temp_frame.full_window, &temp_frame.full_window, source_rect );
 
-    box2i_getSize( &temp_frame.full_window, &size );
+    box2i_get_size( &temp_frame.full_window, &size );
 
     temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
 

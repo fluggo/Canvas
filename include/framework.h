@@ -74,11 +74,11 @@ static inline void box2i_set( box2i *box, int minX, int minY, int maxX, int maxY
     box->max.y = maxY;
 }
 
-static inline void box2i_setEmpty( box2i *box ) {
+static inline void box2i_set_empty( box2i *box ) {
     box2i_set( box, 0, 0, -1, -1 );
 }
 
-G_GNUC_PURE static inline bool box2i_isEmpty( const box2i *box ) {
+G_GNUC_PURE static inline bool box2i_is_empty( const box2i *box ) {
     return box->max.x < box->min.x || box->max.y < box->min.y;
 }
 
@@ -112,7 +112,7 @@ static inline void box2i_normalize( box2i *result ) {
     }
 }
 
-static inline void box2i_getSize( const box2i *box, v2i *result ) {
+static inline void box2i_get_size( const box2i *box, v2i *result ) {
     result->x = (box->max.x < box->min.x) ? 0 : (box->max.x - box->min.x + 1);
     result->y = (box->max.y < box->min.y) ? 0 : (box->max.y - box->min.y + 1);
 }

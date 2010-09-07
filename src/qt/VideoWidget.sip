@@ -18,7 +18,7 @@ public:
         if( !py_parse_box2i( a0, &window ) ) {
             sipIsErr = 1;
         }
-        else if( box2i_isEmpty( &window ) ) {
+        else if( box2i_is_empty( &window ) ) {
             PyErr_SetString( PyExc_Exception, "An empty window was passed to setDisplayWindow." );
             sipIsErr = 1;
         }

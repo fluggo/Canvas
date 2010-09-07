@@ -27,9 +27,7 @@ video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in ) {
     box2i_intersect( &inner, &out->full_window, &in->current_window );
     out->current_window = inner;
 
-    bool is_empty = box2i_isEmpty( &inner );
-
-    if( is_empty )
+    if( box2i_is_empty( &inner ) )
         return;
 
     int width = inner.max.x - inner.min.x + 1;
@@ -56,7 +54,7 @@ video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, vid
         rgba_frame_f32 tempFrame;
         v2i size;
 
-        box2i_getSize( &out->full_window, &size );
+        box2i_get_size( &out->full_window, &size );
 
         tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
         tempFrame.full_window = out->full_window;
@@ -77,7 +75,7 @@ video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha
         return;
 
     if( alpha == 0.0f ) {
-        box2i_setEmpty( &out->current_window );
+        box2i_set_empty( &out->current_window );
         return;
     }
 
@@ -85,9 +83,7 @@ video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha
     box2i_intersect( &inner, &out->full_window, &in->current_window );
     out->current_window = inner;
 
-    bool is_empty = box2i_isEmpty( &inner );
-
-    if( is_empty )
+    if( box2i_is_empty( &inner ) )
         return;
 
     int width = inner.max.x - inner.min.x + 1;
@@ -112,11 +108,11 @@ video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, 
     mix_b = clampf(mix_b, 0.0f, 1.0f);
     const float mix_a = (1.0f - mix_b);
 
-    if( box2i_isEmpty( awin ) ) {
+    if( box2i_is_empty( awin ) ) {
         video_copy_frame_alpha_f32( out, b, mix_b );
         return;
     }
-    else if( box2i_isEmpty( bwin ) ) {
+    else if( box2i_is_empty( bwin ) ) {
         video_copy_frame_alpha_f32( out, a, mix_a );
         return;
     }
@@ -242,11 +238,11 @@ video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, f
     mix_a = clampf(mix_a, 0.0f, 1.0f);
     mix_b = clampf(mix_b, 0.0f, 1.0f);
 
-    if( box2i_isEmpty( awin ) || mix_a == 0.0f ) {
+    if( box2i_is_empty( awin ) || mix_a == 0.0f ) {
         video_copy_frame_alpha_f32( out, b, mix_b );
         return;
     }
-    else if( box2i_isEmpty( bwin ) || mix_b == 0.0f ) {
+    else if( box2i_is_empty( bwin ) || mix_b == 0.0f ) {
         video_copy_frame_alpha_f32( out, a, mix_a );
         return;
     }

@@ -478,7 +478,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
 
     // Now composite everything in it
     if( g_sequence_get_length( self->composite_list ) == 0 ) {
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         g_static_mutex_unlock( &self->mutex );
         return;
     }
@@ -496,7 +496,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
         rgba_frame_f32 tempFrame;
         v2i size;
 
-        box2i_getSize( &frame->full_window, &size );
+        box2i_get_size( &frame->full_window, &size );
 
         tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
         tempFrame.full_window = frame->full_window;

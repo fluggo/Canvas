@@ -52,7 +52,7 @@ DVReconstructionFilter_get_frame( py_obj_DVReconstructionFilter *self, int frame
     coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, frame_index );
 
     if( !image ) {
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         return;
     }
 

@@ -68,7 +68,7 @@ static Py_ssize_t
 RgbaFrameF32_size( PyObject *self ) {
     v2i size;
 
-    box2i_getSize( &PRIV(self)->full_window, &size );
+    box2i_get_size( &PRIV(self)->full_window, &size );
 
     return size.x * size.y;
 }
@@ -76,7 +76,7 @@ RgbaFrameF32_size( PyObject *self ) {
 static PyObject *
 RgbaFrameF32_get_item( PyObject *self, Py_ssize_t i ) {
     v2i size;
-    box2i_getSize( &PRIV(self)->full_window, &size );
+    box2i_get_size( &PRIV(self)->full_window, &size );
 
     if( i < 0 || i >= (size.x * size.y) ) {
         PyErr_SetString( PyExc_IndexError, "Index was out of range." );
@@ -156,7 +156,7 @@ py_RgbaFrameF32_new( box2i *full_data_window, rgba_frame_f32 **frame ) {
     PRIV(result)->full_window = *full_data_window;
 
     v2i size;
-    box2i_getSize( &PRIV(result)->full_window, &size );
+    box2i_get_size( &PRIV(result)->full_window, &size );
 
     PRIV(result)->data = PyMem_Malloc( sizeof(rgba_f32) * size.x * size.y );
 

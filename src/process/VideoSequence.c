@@ -81,7 +81,7 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) 
     if( !elemPtr ) {
         // No result
         g_mutex_unlock( PRIV(self)->mutex );
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         return;
     }
 
@@ -99,7 +99,7 @@ VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame 
     if( !elemPtr ) {
         // No result
         g_mutex_unlock( PRIV(self)->mutex );
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         return;
     }
 
@@ -117,7 +117,7 @@ VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame )
     if( !elemPtr ) {
         // No result
         g_mutex_unlock( PRIV(self)->mutex );
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         return;
     }
 

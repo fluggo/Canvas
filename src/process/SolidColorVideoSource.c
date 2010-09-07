@@ -60,7 +60,7 @@ SolidColorVideoSource_getFrame( py_obj_SolidColorVideoSource *self, int frameInd
     v2i size;
 
     box2i_intersect( &frame->current_window, &self->window, &frame->full_window );
-    box2i_getSize( &frame->current_window, &size );
+    box2i_get_size( &frame->current_window, &size );
 
     if( size.x == 0 || size.y == 0 )
         return;
@@ -83,7 +83,7 @@ SolidColorVideoSource_getFrame32( py_obj_SolidColorVideoSource *self, int frameI
     v2i size;
 
     box2i_intersect( &frame->current_window, &self->window, &frame->full_window );
-    box2i_getSize( &frame->current_window, &size );
+    box2i_get_size( &frame->current_window, &size );
 
     if( size.x == 0 || size.y == 0 )
         return;
@@ -106,12 +106,12 @@ SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameI
     v2i size, frameSize;
 
     box2i_intersect( &frame->current_window, &self->window, &frame->full_window );
-    box2i_getSize( &frame->current_window, &size );
+    box2i_get_size( &frame->current_window, &size );
 
     if( size.x == 0 || size.y == 0 )
         return;
 
-    box2i_getSize( &frame->full_window, &frameSize );
+    box2i_get_size( &frame->full_window, &frameSize );
 
     glGenTextures( 1, &frame->texture );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frame->texture );

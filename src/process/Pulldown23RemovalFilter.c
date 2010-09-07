@@ -47,7 +47,7 @@ static void
 Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_frame_f16 *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         return;
     }
 
@@ -134,7 +134,7 @@ static void
 Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_frame_gl *frame ) {
     if( self->source.source.obj == NULL ) {
         // No result
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         return;
     }
 
@@ -167,7 +167,7 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
     }
     else {
         v2i frameSize;
-        box2i_getSize( &frame->full_window, &frameSize );
+        box2i_get_size( &frame->full_window, &frameSize );
 
         void *context = getCurrentGLContext();
         gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, q_interlaceShader );

@@ -232,7 +232,7 @@ static void
 FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f16 *frame ) {
     if( frameIndex < 0 ) {
         // No result
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         return;
     }
 
@@ -246,7 +246,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
         g_print( "Could not read the frame.\n" );
 
         if( frame )
-            box2i_setEmpty( &frame->current_window );
+            box2i_set_empty( &frame->current_window );
     }
 
     if( !frame ) {
@@ -303,7 +303,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
 
         default:
             // TEMP: Wimp out if we don't know the format
-            box2i_setEmpty( &frame->current_window );
+            box2i_set_empty( &frame->current_window );
             return;
     }
 
@@ -468,7 +468,7 @@ static void
 FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_gl *frame ) {
     if( frameIndex < 0 ) {
         // No result
-        box2i_setEmpty( &frame->current_window );
+        box2i_set_empty( &frame->current_window );
         return;
     }
 
@@ -479,7 +479,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
 
     // Now set up the texture to render to
     v2i frameSize;
-    box2i_getSize( &frame->full_window, &frameSize );
+    box2i_get_size( &frame->full_window, &frameSize );
 
     void *context = getCurrentGLContext();
     gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, q_recon411Shader );
@@ -518,7 +518,7 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
         g_print( "Could not read the frame.\n" );
 
         if( frame )
-            box2i_setEmpty( &frame->current_window );
+            box2i_set_empty( &frame->current_window );
     }
 
     if( !frame ) {

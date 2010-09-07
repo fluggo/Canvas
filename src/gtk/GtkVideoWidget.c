@@ -171,7 +171,7 @@ GtkVideoWidget_setDisplayWindow( py_obj_GtkVideoWidget *self, PyObject *args ) {
     if( !py_parse_box2i( window_obj, &window ) )
         return NULL;
 
-    if( box2i_isEmpty( &window ) ) {
+    if( box2i_is_empty( &window ) ) {
         PyErr_SetString( PyExc_Exception, "An empty window was passed to setDisplayWindow." );
         return NULL;
     }

@@ -185,8 +185,8 @@ widget_gl_display_frame( widget_gl_context *self ) {
 static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
     v2i size1, size2;
 
-    box2i_getSize( box1, &size1 );
-    box2i_getSize( box2, &size2 );
+    box2i_get_size( box1, &size1 );
+    box2i_get_size( box2, &size2 );
 
     return size1.x == size2.x && size1.y == size2.y;
 }
@@ -194,7 +194,7 @@ static bool box2i_equalSize( box2i *box1, box2i *box2 ) {
 static gpointer
 playbackThread( widget_gl_context *self ) {
     rgba_frame_f16 frame = { NULL };
-    box2i_setEmpty( &frame.full_window );
+    box2i_set_empty( &frame.full_window );
 
     for( ;; ) {
         int64_t startTime = INT64_C(0);
@@ -218,7 +218,7 @@ playbackThread( widget_gl_context *self ) {
         v2i frameSize;
         rational speed;
 
-        box2i_getSize( &self->displayWindow, &frameSize );
+        box2i_get_size( &self->displayWindow, &frameSize );
         self->clock.funcs->getSpeed( self->clock.obj, &speed );
 
         // Pull out the next frame
@@ -239,7 +239,7 @@ playbackThread( widget_gl_context *self ) {
         SoftFrameTarget *target = &self->softTargets[writeBuffer];
 
         // If the frame is the wrong size, reallocate it now
-        if( box2i_isEmpty( &target->fullDataWindow ) ||
+        if( box2i_is_empty( &target->fullDataWindow ) ||
             !box2i_equalSize( &self->displayWindow, &target->fullDataWindow ) ) {
 
             g_free( target->frameData );
@@ -248,7 +248,7 @@ playbackThread( widget_gl_context *self ) {
         }
 
         // If our target array is the wrong size, reallocate it now
-        if( box2i_isEmpty( &frame.full_window ) ||
+        if( box2i_is_empty( &frame.full_window ) ||
             !box2i_equalSize( &self->displayWindow, &frame.full_window ) ) {
 
             g_free( frame.data );
@@ -276,7 +276,7 @@ playbackThread( widget_gl_context *self ) {
         }
         else {
             // No result
-            box2i_setEmpty( &frame.current_window );
+            box2i_set_empty( &frame.current_window );
         }
 
         target->currentDataWindow = frame.current_window;
@@ -416,7 +416,7 @@ widget_gl_new() {
 
     for( int i = 0; i < SOFT_MODE_BUFFERS; i++ ) {
         self->softTargets[i].frameData = NULL;
-        box2i_setEmpty( &self->softTargets[i].fullDataWindow );
+        box2i_set_empty( &self->softTargets[i].fullDataWindow );
     }
 
     self->renderThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
@@ -481,7 +481,7 @@ widget_gl_initialize( widget_gl_context *self ) {
     self->softMode = !self->hardModeSupported || self->hardModeDisable;
 
     v2i frameSize;
-    box2i_getSize( &self->displayWindow, &frameSize );
+    box2i_get_size( &self->displayWindow, &frameSize );
 
     if( !self->softTextureId && self->softMode ) {
         glGenTextures( 1, &self->softTextureId );
@@ -515,13 +515,13 @@ widget_gl_initialize( widget_gl_context *self ) {
 static void
 widget_gl_softLoadTexture( widget_gl_context *self ) {
     if( self->softTargets[self->readBuffer].frameData == NULL ) {
-        box2i_setEmpty( &self->currentDataWindow );
+        box2i_set_empty( &self->currentDataWindow );
         return;
     }
 
     // Load texture
     v2i frameSize;
-    box2i_getSize( &self->displayWindow, &frameSize );
+    box2i_get_size( &self->displayWindow, &frameSize );
 
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
     glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, frameSize.x, frameSize.y,
@@ -540,7 +540,7 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
     }
 
     if( self->frameSource.obj == NULL ) {
-        box2i_setEmpty( &self->currentDataWindow );
+        box2i_set_empty( &self->currentDataWindow );
         return;
     }
 
@@ -612,7 +612,7 @@ widget_gl_draw( widget_gl_context *self, v2i widget_size ) {
 
     // Set ourselves up with the correct aspect ratio for the space
     v2i frameSize;
-    box2i_getSize( &self->displayWindow, &frameSize );
+    box2i_get_size( &self->displayWindow, &frameSize );
 
     float width = frameSize.x * self->pixelAspectRatio;
     float height = frameSize.y;
@@ -657,7 +657,7 @@ widget_gl_draw( widget_gl_context *self, v2i widget_size ) {
 
     glDisable( GL_TEXTURE_2D );
 
-    if( box2i_isEmpty( &self->currentDataWindow ) )
+    if( box2i_is_empty( &self->currentDataWindow ) )
         return;
 
     if( !self->softMode ) {
