@@ -86,7 +86,7 @@ _timeout_callback( py_obj_VideoPullQueueItem *item ) {
     Py_CLEAR( item->pyframe );
     Py_CLEAR( item->owner );
 
-    py_video_takeSource( NULL, &item->source );
+    py_video_take_source( NULL, &item->source );
 
     Py_DECREF(item);
     PyGILState_Release( state );
@@ -146,7 +146,7 @@ VideoPullQueue_enqueue( py_obj_VideoPullQueue *self, PyObject *args, PyObject *k
         return NULL;
     }
 
-    if( !py_video_takeSource( source_obj, &item->source ) ) {
+    if( !py_video_take_source( source_obj, &item->source ) ) {
         Py_DECREF( item->pyframe );
         Py_DECREF( item );
 

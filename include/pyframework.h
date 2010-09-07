@@ -50,7 +50,7 @@ typedef struct {
     PyObject *csource;
 } VideoSourceHolder;
 
-bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder );
+bool py_video_take_source( PyObject *source, VideoSourceHolder *holder );
 
 extern PyTypeObject py_type_VideoSource;
 
@@ -63,7 +63,7 @@ typedef struct {
     PyObject *csource;
 } AudioSourceHolder;
 
-bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder );
+bool py_audio_take_source( PyObject *source, AudioSourceHolder *holder );
 
 extern PyTypeObject py_type_AudioSource;
 

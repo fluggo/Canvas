@@ -22,7 +22,7 @@
 #include <structmember.h>
 #include <time.h>
 
-EXPORT bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder ) {
+EXPORT bool py_video_take_source( PyObject *source, VideoSourceHolder *holder ) {
     Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
     holder->source.funcs = NULL;
@@ -45,7 +45,7 @@ EXPORT bool py_video_takeSource( PyObject *source, VideoSourceHolder *holder ) {
     return true;
 }
 
-EXPORT bool py_audio_takeSource( PyObject *source, AudioSourceHolder *holder ) {
+EXPORT bool py_audio_take_source( PyObject *source, AudioSourceHolder *holder ) {
     Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
     holder->source.funcs = NULL;
@@ -127,7 +127,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     VideoSourceHolder source = { .csource = NULL };
 
-    if( !py_video_takeSource( sourceObj, &source ) ) {
+    if( !py_video_take_source( sourceObj, &source ) ) {
         PyMem_Free( frame.data );
         return NULL;
     }
@@ -139,7 +139,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     PyMem_Free( frame.data );
 
-    if( !py_video_takeSource( NULL, &source ) )
+    if( !py_video_take_source( NULL, &source ) )
         return NULL;
 
     return Py_BuildValue( "L", endTime - startTime );

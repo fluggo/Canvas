@@ -317,7 +317,7 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
             &rate, &channels, &frameSource ) )
         return -1;
 
-    if( !py_audio_takeSource( frameSource, &self->audioSource ) )
+    if( !py_audio_take_source( frameSource, &self->audioSource ) )
         return -1;
 
     int error;
@@ -371,7 +371,7 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
     else
         self->quit = true;
 
-    py_audio_takeSource( NULL, &self->audioSource );
+    py_audio_take_source( NULL, &self->audioSource );
 
     if( self->playbackThread != NULL )
         g_thread_join( self->playbackThread );

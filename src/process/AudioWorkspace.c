@@ -124,7 +124,7 @@ WorkspaceItem_set_source( py_obj_WorkspaceItem *self, PyObject *value, void *clo
 
     AudioSourceHolder *holder = workspace_get_item_source( self->item );
 
-    if( !py_audio_takeSource( value, holder ) )
+    if( !py_audio_take_source( value, holder ) )
         return -1;
 
     return 0;
@@ -195,7 +195,7 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
         return NULL;
 
     if( source ) {
-        if( !py_audio_takeSource( source, holder ) )
+        if( !py_audio_take_source( source, holder ) )
             return NULL;
     }
 
@@ -291,7 +291,7 @@ AudioWorkspace_dealloc( PyObject *self ) {
         workspace_item_t *item = workspace_get_item( PRIV(self)->workspace, i );
 
         AudioSourceHolder *holder = (AudioSourceHolder *) workspace_get_item_source( item );
-        py_audio_takeSource( NULL, holder );
+        py_audio_take_source( NULL, holder );
 
         PyObject *tag = (PyObject *) workspace_get_item_tag( item );
 
@@ -357,7 +357,7 @@ AudioWorkspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
             &source, &offset, &x, &width, &tag ) )
         return NULL;
 
-    if( !py_audio_takeSource( source, holder ) )
+    if( !py_audio_take_source( source, holder ) )
         return NULL;
 
     if( tag )
@@ -374,7 +374,7 @@ AudioWorkspace_remove( PyObject *self, PyObject *args ) {
         return NULL;
 
     AudioSourceHolder *holder = (AudioSourceHolder *) workspace_get_item_source( item->item );
-    py_audio_takeSource( NULL, holder );
+    py_audio_take_source( NULL, holder );
 
     PyObject *tag = (PyObject *) workspace_get_item_tag( item->item );
 

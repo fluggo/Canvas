@@ -156,7 +156,7 @@ WorkspaceItem_set_source( py_obj_WorkspaceItem *self, PyObject *value, void *clo
 
     VideoSourceHolder *holder = workspace_get_item_source( self->item );
 
-    if( !py_video_takeSource( value, holder ) )
+    if( !py_video_take_source( value, holder ) )
         return -1;
 
     return 0;
@@ -228,7 +228,7 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
         return NULL;
 
     if( source ) {
-        if( !py_video_takeSource( source, holder ) )
+        if( !py_video_take_source( source, holder ) )
             return NULL;
     }
 
@@ -324,7 +324,7 @@ Workspace_dealloc( PyObject *self ) {
         workspace_item_t *item = workspace_get_item( PRIV(self)->workspace, i );
 
         VideoSourceHolder *holder = (VideoSourceHolder *) workspace_get_item_source( item );
-        py_video_takeSource( NULL, holder );
+        py_video_take_source( NULL, holder );
 
         PyObject *tag = (PyObject *) workspace_get_item_tag( item );
 
@@ -390,7 +390,7 @@ Workspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
             &source, &offset, &x, &width, &z, &tag ) )
         return NULL;
 
-    if( !py_video_takeSource( source, holder ) )
+    if( !py_video_take_source( source, holder ) )
         return NULL;
 
     if( tag )
@@ -407,7 +407,7 @@ Workspace_remove( PyObject *self, PyObject *args ) {
         return NULL;
 
     VideoSourceHolder *holder = (VideoSourceHolder *) workspace_get_item_source( item->item );
-    py_video_takeSource( NULL, holder );
+    py_video_take_source( NULL, holder );
 
     PyObject *tag = (PyObject *) workspace_get_item_tag( item->item );
 

@@ -160,7 +160,7 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
         return -1;
     }
 
-    if( !py_audio_takeSource( sourceObj, &source ) )
+    if( !py_audio_take_source( sourceObj, &source ) )
         return -1;
 
     Py_INCREF( v );
@@ -168,7 +168,7 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
     // Replace the current holder
     Element *entry = &g_array_index( PRIV(self)->sequence, Element, i );
     Py_CLEAR( entry->tuple );
-    py_audio_takeSource( NULL, &entry->source );
+    py_audio_take_source( NULL, &entry->source );
 
     int lengthAdjust = length - entry->length;
 
@@ -240,7 +240,7 @@ AudioSequence_dealloc( PyObject *self ) {
         Element *element = &g_array_index( PRIV(self)->sequence, Element, i );
 
         Py_CLEAR( element->tuple );
-        py_audio_takeSource( NULL, &element->source );
+        py_audio_take_source( NULL, &element->source );
     }
 
     g_array_free( PRIV(self)->sequence, true );

@@ -36,7 +36,7 @@ DVSubsampleFilter_init( py_obj_DVSubsampleFilter *self, PyObject *args, PyObject
     if( !PyArg_ParseTupleAndKeywords( args, kw, "O", kwlist, &source_obj ) )
         return -1;
 
-    if( !py_video_takeSource( source_obj, &self->source ) )
+    if( !py_video_take_source( source_obj, &self->source ) )
         return -1;
 
     return 0;
@@ -44,7 +44,7 @@ DVSubsampleFilter_init( py_obj_DVSubsampleFilter *self, PyObject *args, PyObject
 
 static void
 DVSubsampleFilter_dealloc( py_obj_DVSubsampleFilter *self ) {
-    py_video_takeSource( NULL, &self->source );
+    py_video_take_source( NULL, &self->source );
     self->ob_type->tp_free( (PyObject*) self );
 }
 

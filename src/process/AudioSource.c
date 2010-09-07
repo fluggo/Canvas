@@ -40,14 +40,14 @@ py_audio_get_frame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     AudioSourceHolder source = { .csource = NULL };
 
-    if( !py_audio_takeSource( self, &source ) ) {
+    if( !py_audio_take_source( self, &source ) ) {
         Py_DECREF(result);
         return NULL;
     }
 
     audio_get_frame( &source.source, frame );
 
-    if( !py_audio_takeSource( NULL, &source ) ) {
+    if( !py_audio_take_source( NULL, &source ) ) {
         Py_DECREF(result);
         return NULL;
     }

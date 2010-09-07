@@ -50,11 +50,11 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     box2i_getSize( &dataWindow, &frameSize );
 
     VideoSourceHolder videoSource = { { NULL } };
-    if( !py_video_takeSource( videoSourceObj, &videoSource ) )
+    if( !py_video_take_source( videoSourceObj, &videoSource ) )
         return NULL;
 
     AudioSourceHolder audioSource = { { NULL } };
-    if( !py_audio_takeSource( audioSourceObj, &audioSource ) )
+    if( !py_audio_take_source( audioSourceObj, &audioSource ) )
         return NULL;
 
     // Do a simple gamma ramp for now
@@ -430,8 +430,8 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     url_fclose( stream );
 
     g_free( bitBucket );
-    py_video_takeSource( NULL, &videoSource );
-    py_audio_takeSource( NULL, &audioSource );
+    py_video_take_source( NULL, &videoSource );
+    py_audio_take_source( NULL, &audioSource );
 
     if( videoSource.source.funcs ) {
         avcodec_close( video->codec );

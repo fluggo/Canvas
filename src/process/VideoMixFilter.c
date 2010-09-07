@@ -47,10 +47,10 @@ VideoMixFilter_init( py_obj_VideoMixFilter *self, PyObject *args, PyObject *kwds
         &srcA, &srcB, &mixB ) )
         return -1;
 
-    if( !py_video_takeSource( srcA, &self->srcA ) )
+    if( !py_video_take_source( srcA, &self->srcA ) )
         return -1;
 
-    if( !py_video_takeSource( srcB, &self->srcB ) )
+    if( !py_video_take_source( srcB, &self->srcB ) )
         return -1;
 
     if( !py_frameFunc_takeSource( mixB, &self->mixB ) )
@@ -181,8 +181,8 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_fra
 
 static void
 VideoMixFilter_dealloc( py_obj_VideoMixFilter *self ) {
-    py_video_takeSource( NULL, &self->srcA );
-    py_video_takeSource( NULL, &self->srcB );
+    py_video_take_source( NULL, &self->srcA );
+    py_video_take_source( NULL, &self->srcB );
     py_frameFunc_takeSource( NULL, &self->mixB );
     self->ob_type->tp_free( (PyObject*) self );
 }
