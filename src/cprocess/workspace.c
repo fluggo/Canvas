@@ -515,8 +515,8 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
     g_static_mutex_unlock( &self->mutex );
 }
 
-static VideoFrameSourceFuncs workspace_video_funcs = {
-    .getFrame32 = (video_getFrame32Func) workspace_get_frame_f32
+static video_frame_source_funcs workspace_video_funcs = {
+    .get_frame_32 = (video_get_frame_32_func) workspace_get_frame_f32
 };
 
 EXPORT void

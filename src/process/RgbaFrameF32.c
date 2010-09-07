@@ -35,8 +35,8 @@ RgbaFrameF32_dealloc( PyObject *self ) {
     self->ob_type->tp_free( self );
 }
 
-static VideoFrameSourceFuncs source_funcs = {
-    .getFrame32 = (video_getFrame32Func) RgbaFrameF32_getFrame32,
+static video_frame_source_funcs source_funcs = {
+    .get_frame_32 = (video_get_frame_32_func) RgbaFrameF32_getFrame32,
 };
 
 static PyObject *

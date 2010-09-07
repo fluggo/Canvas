@@ -85,8 +85,8 @@ VideoScaler_dealloc( py_obj_VideoScaler *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-static VideoFrameSourceFuncs sourceFuncs = {
-    .getFrame32 = (video_getFrame32Func) VideoScaler_get_frame_f32,
+static video_frame_source_funcs sourceFuncs = {
+    .get_frame_32 = (video_get_frame_32_func) VideoScaler_get_frame_f32,
 };
 
 static PyObject *

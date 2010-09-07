@@ -62,8 +62,8 @@ DVReconstructionFilter_get_frame( py_obj_DVReconstructionFilter *self, int frame
         image->free_func( image );
 }
 
-static VideoFrameSourceFuncs source_funcs = {
-    .getFrame = (video_getFrameFunc) DVReconstructionFilter_get_frame,
+static video_frame_source_funcs source_funcs = {
+    .get_frame = (video_get_frame_func) DVReconstructionFilter_get_frame,
 };
 
 static PyObject *pySourceFuncs;

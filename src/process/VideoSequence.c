@@ -281,10 +281,10 @@ VideoSequence_dealloc( PyObject *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-static VideoFrameSourceFuncs sourceFuncs = {
-    .getFrame = (video_getFrameFunc) VideoSequence_getFrame,
-    .getFrame32 = (video_getFrame32Func) VideoSequence_getFrame32,
-    .getFrameGL = (video_getFrameGLFunc) VideoSequence_getFrameGL,
+static video_frame_source_funcs sourceFuncs = {
+    .get_frame = (video_get_frame_func) VideoSequence_getFrame,
+    .get_frame_32 = (video_get_frame_32_func) VideoSequence_getFrame32,
+    .get_frame_gl = (video_get_frame_gl_func) VideoSequence_getFrameGL,
 };
 
 static PyObject *

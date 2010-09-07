@@ -40,7 +40,7 @@ EXPORT bool py_video_take_source( PyObject *source, VideoSourceHolder *holder ) 
         return false;
     }
 
-    holder->source.funcs = (VideoFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->source.funcs = (video_frame_source_funcs*) PyCObject_AsVoidPtr( holder->csource );
 
     return true;
 }
@@ -134,7 +134,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     int64_t startTime = gettime();
     for( int i = minFrame; i <= maxFrame; i++ )
-        source.source.funcs->getFrame( source.source.obj, i, &frame );
+        source.source.funcs->get_frame( source.source.obj, i, &frame );
     int64_t endTime = gettime();
 
     PyMem_Free( frame.data );

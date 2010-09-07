@@ -139,8 +139,8 @@ EXPORT void video_get_frame_gl( video_source *source, int frameIndex, rgba_frame
         return;
     }
 
-    if( source->funcs->getFrameGL ) {
-        source->funcs->getFrameGL( source->obj, frameIndex, targetFrame );
+    if( source->funcs->get_frame_gl ) {
+        source->funcs->get_frame_gl( source->obj, frameIndex, targetFrame );
         return;
     }
 

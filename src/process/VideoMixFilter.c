@@ -187,9 +187,9 @@ VideoMixFilter_dealloc( py_obj_VideoMixFilter *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-static VideoFrameSourceFuncs sourceFuncs = {
-    .getFrame32 = (video_getFrame32Func) VideoMixFilter_getFrame32,
-    .getFrameGL = (video_getFrameGLFunc) VideoMixFilter_getFrameGL
+static video_frame_source_funcs sourceFuncs = {
+    .get_frame_32 = (video_get_frame_32_func) VideoMixFilter_getFrame32,
+    .get_frame_gl = (video_get_frame_gl_func) VideoMixFilter_getFrameGL
 };
 
 static PyObject *

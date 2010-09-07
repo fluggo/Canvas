@@ -35,8 +35,8 @@ RgbaFrameF16_dealloc( PyObject *self ) {
     self->ob_type->tp_free( self );
 }
 
-static VideoFrameSourceFuncs source_funcs = {
-    .getFrame = (video_getFrameFunc) RgbaFrameF16_getFrame_f16,
+static video_frame_source_funcs source_funcs = {
+    .get_frame = (video_get_frame_func) RgbaFrameF16_getFrame_f16,
 };
 
 static PyObject *

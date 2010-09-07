@@ -102,10 +102,10 @@ VideoPassThroughFilter_setSource( py_obj_VideoPassThroughFilter *self, PyObject 
     Py_RETURN_NONE;
 }
 
-static VideoFrameSourceFuncs sourceFuncs = {
-    .getFrame = (video_getFrameFunc) VideoPassThroughFilter_getFrame,
-    .getFrame32 = (video_getFrame32Func) VideoPassThroughFilter_getFrame32,
-    .getFrameGL = (video_getFrameGLFunc) VideoPassThroughFilter_getFrameGL
+static video_frame_source_funcs sourceFuncs = {
+    .get_frame = (video_get_frame_func) VideoPassThroughFilter_getFrame,
+    .get_frame_32 = (video_get_frame_32_func) VideoPassThroughFilter_getFrame32,
+    .get_frame_gl = (video_get_frame_gl_func) VideoPassThroughFilter_getFrameGL
 };
 
 static PyObject *

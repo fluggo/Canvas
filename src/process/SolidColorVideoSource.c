@@ -151,10 +151,10 @@ SolidColorVideoSource_dealloc( py_obj_SolidColorVideoSource *self ) {
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-static VideoFrameSourceFuncs sourceFuncs = {
-    .getFrame = (video_getFrameFunc) SolidColorVideoSource_getFrame,
-    .getFrame32 = (video_getFrame32Func) SolidColorVideoSource_getFrame32,
-    .getFrameGL = (video_getFrameGLFunc) SolidColorVideoSource_getFrameGL
+static video_frame_source_funcs sourceFuncs = {
+    .get_frame = (video_get_frame_func) SolidColorVideoSource_getFrame,
+    .get_frame_32 = (video_get_frame_32_func) SolidColorVideoSource_getFrame32,
+    .get_frame_gl = (video_get_frame_gl_func) SolidColorVideoSource_getFrameGL
 };
 
 static PyObject *

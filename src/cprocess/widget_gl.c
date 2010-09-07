@@ -259,7 +259,7 @@ playbackThread( widget_gl_context *self ) {
         target->fullDataWindow = self->displayWindow;
         frame.full_window = self->displayWindow;
 
-        VideoFrameSourceFuncs *funcs = self->frameSource.funcs;
+        video_frame_source_funcs *funcs = self->frameSource.funcs;
 
         bool wasRenderOneFrame = self->renderOneFrame;
         self->renderOneFrame = false;

@@ -336,8 +336,8 @@ Workspace_dealloc( PyObject *self ) {
     self->ob_type->tp_free( self );
 }
 
-static VideoFrameSourceFuncs source_funcs = {
-    .getFrame32 = (video_getFrame32Func) Workspace_getFrame32,
+static video_frame_source_funcs source_funcs = {
+    .get_frame_32 = (video_get_frame_32_func) Workspace_getFrame32,
 };
 
 static PyObject *

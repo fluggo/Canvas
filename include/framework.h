@@ -163,16 +163,16 @@ typedef struct {
     box2i current_window;
 } rgba_frame_gl;
 
-typedef void (*video_getFrameFunc)( void *self, int frameIndex, rgba_frame_f16 *frame );
-typedef void (*video_getFrame32Func)( void *self, int frameIndex, rgba_frame_f32 *frame );
-typedef void (*video_getFrameGLFunc)( void *self, int frameIndex, rgba_frame_gl *frame );
+typedef void (*video_get_frame_func)( void *self, int frame_index, rgba_frame_f16 *frame );
+typedef void (*video_get_frame_32_func)( void *self, int frame_index, rgba_frame_f32 *frame );
+typedef void (*video_get_frame_gl_func)( void *self, int frame_index, rgba_frame_gl *frame );
 
 typedef struct {
     int flags;            // Reserved, should be zero
-    video_getFrameFunc getFrame;
-    video_getFrame32Func getFrame32;
-    video_getFrameGLFunc getFrameGL;
-} VideoFrameSourceFuncs;
+    video_get_frame_func get_frame;
+    video_get_frame_32_func get_frame_32;
+    video_get_frame_gl_func get_frame_gl;
+} video_frame_source_funcs;
 
 G_GNUC_PURE static inline rgba_f16 *video_get_pixel_f16( rgba_frame_f16 *frame, int x, int y ) {
     return &frame->data[
@@ -190,7 +190,7 @@ G_GNUC_PURE static inline rgba_f32 *video_get_pixel_f32( rgba_frame_f32 *frame, 
 
 typedef struct {
     void *obj;
-    VideoFrameSourceFuncs *funcs;
+    video_frame_source_funcs *funcs;
 } video_source;
 
 void video_get_frame_f16( video_source *source, int frame_index, rgba_frame_f16 *frame );

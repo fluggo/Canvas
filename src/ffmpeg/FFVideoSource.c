@@ -586,9 +586,9 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
 }
 
-static VideoFrameSourceFuncs videoSourceFuncs = {
-    .getFrame = (video_getFrameFunc) FFVideoSource_getFrame,
-    .getFrameGL = (video_getFrameGLFunc) FFVideoSource_getFrameGL,
+static video_frame_source_funcs videoSourceFuncs = {
+    .get_frame = (video_get_frame_func) FFVideoSource_getFrame,
+    .get_frame_gl = (video_get_frame_gl_func) FFVideoSource_getFrameGL,
 };
 
 static PyObject *pyVideoSourceFuncs;

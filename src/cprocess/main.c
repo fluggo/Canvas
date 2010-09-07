@@ -36,12 +36,12 @@ EXPORT void video_get_frame_f16( video_source *source, int frameIndex, rgba_fram
         return;
     }
 
-    if( source->funcs->getFrame ) {
-        source->funcs->getFrame( source->obj, frameIndex, targetFrame );
+    if( source->funcs->get_frame ) {
+        source->funcs->get_frame( source->obj, frameIndex, targetFrame );
         return;
     }
 
-    if( !source->funcs->getFrame32 ) {
+    if( !source->funcs->get_frame_32 ) {
         box2i_setEmpty( &targetFrame->current_window );
         return;
     }
@@ -55,7 +55,7 @@ EXPORT void video_get_frame_f16( video_source *source, int frameIndex, rgba_fram
     tempFrame.full_window = targetFrame->full_window;
     tempFrame.current_window = targetFrame->full_window;
 
-    source->funcs->getFrame32( source->obj, frameIndex, &tempFrame );
+    source->funcs->get_frame_32( source->obj, frameIndex, &tempFrame );
 
     if( !box2i_isEmpty( &tempFrame.current_window ) ) {
         // Convert to f16
@@ -82,12 +82,12 @@ EXPORT void video_get_frame_f32( video_source *source, int frameIndex, rgba_fram
         return;
     }
 
-    if( source->funcs->getFrame32 ) {
-        source->funcs->getFrame32( source->obj, frameIndex, targetFrame );
+    if( source->funcs->get_frame_32 ) {
+        source->funcs->get_frame_32( source->obj, frameIndex, targetFrame );
         return;
     }
 
-    if( !source->funcs->getFrame ) {
+    if( !source->funcs->get_frame ) {
         box2i_setEmpty( &targetFrame->current_window );
         return;
     }
@@ -101,7 +101,7 @@ EXPORT void video_get_frame_f32( video_source *source, int frameIndex, rgba_fram
     tempFrame.full_window = targetFrame->full_window;
     tempFrame.current_window = targetFrame->full_window;
 
-    source->funcs->getFrame( source->obj, frameIndex, &tempFrame );
+    source->funcs->get_frame( source->obj, frameIndex, &tempFrame );
 
     // Convert to f32
     int countX = tempFrame.current_window.max.x - tempFrame.current_window.min.x + 1;

@@ -59,10 +59,10 @@ EmptyVideoSource_dealloc( PyObject *self ) {
     self->ob_type->tp_free( self );
 }
 
-static VideoFrameSourceFuncs sourceFuncs = {
-    .getFrame = (video_getFrameFunc) EmptyVideoSource_getFrame,
-    .getFrame32 = (video_getFrame32Func) EmptyVideoSource_getFrame32,
-    .getFrameGL = (video_getFrameGLFunc) EmptyVideoSource_getFrameGL
+static video_frame_source_funcs sourceFuncs = {
+    .get_frame = (video_get_frame_func) EmptyVideoSource_getFrame,
+    .get_frame_32 = (video_get_frame_32_func) EmptyVideoSource_getFrame32,
+    .get_frame_gl = (video_get_frame_gl_func) EmptyVideoSource_getFrameGL
 };
 
 static PyObject *

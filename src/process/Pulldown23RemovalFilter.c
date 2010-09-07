@@ -243,9 +243,9 @@ Pulldown23RemovalFilter_get_new_length( py_obj_Pulldown23RemovalFilter *self, Py
     return Py_BuildValue( "i", new_length + partial );
 }
 
-static VideoFrameSourceFuncs sourceFuncs = {
-    .getFrame = (video_getFrameFunc) Pulldown23RemovalFilter_getFrame,
-    .getFrameGL = (video_getFrameGLFunc) Pulldown23RemovalFilter_getFrameGL
+static video_frame_source_funcs sourceFuncs = {
+    .get_frame = (video_get_frame_func) Pulldown23RemovalFilter_getFrame,
+    .get_frame_gl = (video_get_frame_gl_func) Pulldown23RemovalFilter_getFrameGL
 };
 
 static PyObject *
