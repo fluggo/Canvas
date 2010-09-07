@@ -169,7 +169,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
                 // Underrun!
                 printf("ALSA playback underrun\n" );
                 snd_pcm_recover( self->pcmDevice, error, 1 );
-                self->nextSample = getTimeFrame( &rate, _getPresentationTime( self ) );
+                self->nextSample = get_time_frame( &rate, _getPresentationTime( self ) );
                 break;
             }
 
@@ -184,8 +184,8 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         g_mutex_lock( self->mutex );
         if( !self->stop && !self->time_change ) {
             self->baseTime = gettime();
-            self->seekTime = getFrameTime( &rate, self->nextSample ) -
-                getFrameTime( &rate, frame_delay ) * speed.n / speed.d;
+            self->seekTime = get_frame_time( &rate, self->nextSample ) -
+                get_frame_time( &rate, frame_delay ) * speed.n / speed.d;
 
             //printf( "ALSA thread new seek time: %ld (nextSample: %d, hwBufferSize: %lu, avail: %lu, speed: %d)\n", self->seekTime, self->nextSample, hwBufferSize, frame_delay, speed.n );
         }
@@ -485,8 +485,8 @@ _set( py_obj_AlsaPlayer *self, int64_t seek_time, rational *speed ) {
     self->baseTime = gettime();
     self->seekTime = seek_time;
     self->playSpeed = *speed;
-    self->nextSample = getTimeFrame( &self->rate, self->seekTime );
-    self->seekTime = getFrameTime( &self->rate, self->nextSample );
+    self->nextSample = get_time_frame( &self->rate, self->seekTime );
+    self->seekTime = get_frame_time( &self->rate, self->nextSample );
     seek_time = self->seekTime;
     self->time_change = true;
     g_cond_signal( self->cond );

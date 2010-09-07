@@ -129,8 +129,8 @@ G_GNUC_CONST static inline float clampf( float value, float min, float max ) {
     return minf(maxf(value, min), max);
 }
 
-int64_t getFrameTime( const rational *frameRate, int frame );
-int getTimeFrame( const rational *frameRate, int64_t time );
+int64_t get_frame_time( const rational *frame_rate, int frame );
+int get_time_frame( const rational *frame_rate, int64_t time );
 
 /************* Video *******/
 typedef struct {

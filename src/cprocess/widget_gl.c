@@ -147,7 +147,7 @@ playSingleFrame( widget_gl_context *self ) {
             else if( speed.n == 0 )
                 return FALSE;
 
-            int64_t nextPresentationTime = getFrameTime( &self->frameRate, self->nextToRenderFrame );
+            int64_t nextPresentationTime = get_frame_time( &self->frameRate, self->nextToRenderFrame );
 
             //printf( "nextPresent: %ld, current: %ld, baseTime: %ld, seekTime: %ld\n", nextPresentationTime, self->clock->getPresentationTime(), ((SystemPresentationClock*)self->clock)->_baseTime, ((SystemPresentationClock*) self->clock)->_seekTime );
 
@@ -302,7 +302,7 @@ playbackThread( widget_gl_context *self ) {
 
         //usleep( 100000 );
 
-        self->softTargets[writeBuffer].time = getFrameTime( &self->frameRate, nextFrame );
+        self->softTargets[writeBuffer].time = get_frame_time( &self->frameRate, nextFrame );
         int64_t endTime = self->clock.funcs->getPresentationTime( self->clock.obj );
 
         int64_t lastDuration = endTime - startTime;
@@ -350,15 +350,15 @@ playbackThread( widget_gl_context *self ) {
                 lastDuration *= INT64_C(-1);
 
             if( speed.n > 0 ) {
-                while( getFrameTime( &self->frameRate, ++self->nextToRenderFrame ) < endTime + lastDuration );
+                while( get_frame_time( &self->frameRate, ++self->nextToRenderFrame ) < endTime + lastDuration );
             }
             else if( speed.n < 0 ) {
-                while( getFrameTime( &self->frameRate, --self->nextToRenderFrame ) > endTime - lastDuration );
+                while( get_frame_time( &self->frameRate, --self->nextToRenderFrame ) > endTime - lastDuration );
             }
 
             //printf( "nextFrame: %d, lastDuration: %ld, endTime: %ld\n", self->nextToRenderFrame, lastDuration, endTime );
 
-            target->nextTime = getFrameTime( &self->frameRate, self->nextToRenderFrame );
+            target->nextTime = get_frame_time( &self->frameRate, self->nextToRenderFrame );
         }
 
         g_mutex_unlock( self->frameReadMutex );
@@ -792,7 +792,7 @@ widget_gl_play( widget_gl_context *self ) {
     // Fire up the production and playback threads from scratch
     g_mutex_lock( self->frameReadMutex );
     int64_t stopTime = self->clock.funcs->getPresentationTime( self->clock.obj );
-    self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
+    self->nextToRenderFrame = get_time_frame( &self->frameRate, stopTime );
     self->filled = -2;
     g_cond_signal( self->frameReadCond );
     g_mutex_unlock( self->frameReadMutex );
@@ -814,7 +814,7 @@ widget_gl_stop( widget_gl_context *self ) {
     int64_t stopTime = self->clock.funcs->getPresentationTime( self->clock.obj );
 
     self->renderOneFrame = true;
-    self->nextToRenderFrame = getTimeFrame( &self->frameRate, stopTime );
+    self->nextToRenderFrame = get_time_frame( &self->frameRate, stopTime );
     g_cond_signal( self->frameReadCond );
     g_mutex_unlock( self->frameReadMutex );
 

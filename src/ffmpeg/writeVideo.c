@@ -243,13 +243,13 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         audioInputFrame.data = g_slice_alloc( sizeof(float) * audioChannels * sampleCount );
     }
 
-    int nextVideoFrame = getTimeFrame( &videoRate, startTime );
-    int nextAudioSample = getTimeFrame( &audioRate, startTime );
+    int nextVideoFrame = get_time_frame( &videoRate, startTime );
+    int nextAudioSample = get_time_frame( &audioRate, startTime );
     int startVideoFrame = nextVideoFrame;
 
     int64_t time = startTime,
-        nextVideoTime = getFrameTime( &videoRate, nextVideoFrame ),
-        nextAudioTime = getFrameTime( &audioRate, nextAudioSample );
+        nextVideoTime = get_frame_time( &videoRate, nextVideoFrame ),
+        nextAudioTime = get_frame_time( &audioRate, nextAudioSample );
 
     while( time <= endTime ) {
         AVPacket packet;
@@ -314,7 +314,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             }
 
             nextVideoFrame++;
-            nextVideoTime = getFrameTime( &videoRate, nextVideoFrame );
+            nextVideoTime = get_frame_time( &videoRate, nextVideoFrame );
         }
 
         if( time == nextAudioTime && audioSource.source.funcs ) {
@@ -380,7 +380,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             }
 
             nextAudioSample += sampleCount;
-            nextAudioTime = getFrameTime( &audioRate, nextAudioSample );
+            nextAudioTime = get_frame_time( &audioRate, nextAudioSample );
         }
 
         if( videoSource.source.funcs ) {

@@ -21,12 +21,12 @@
 #include "framework.h"
 
 EXPORT int64_t
-getFrameTime( const rational *frameRate, int frame ) {
+get_frame_time( const rational *frameRate, int frame ) {
     return ((int64_t) frame * INT64_C(1000000000) * (int64_t)(frameRate->d)) / (int64_t)(frameRate->n) + INT64_C(1);
 }
 
 EXPORT int
-getTimeFrame( const rational *frameRate, int64_t time ) {
+get_time_frame( const rational *frameRate, int64_t time ) {
     return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 

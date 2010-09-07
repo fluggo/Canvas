@@ -79,7 +79,7 @@ PyObject *py_getFrameTime( PyObject *self, PyObject *args ) {
     if( !py_parse_rational( frameRateObj, &frameRate ) )
         return NULL;
 
-    return Py_BuildValue( "L", getFrameTime( &frameRate, frame ) );
+    return Py_BuildValue( "L", get_frame_time( &frameRate, frame ) );
 }
 
 PyObject *py_getTimeFrame( PyObject *self, PyObject *args ) {
@@ -93,7 +93,7 @@ PyObject *py_getTimeFrame( PyObject *self, PyObject *args ) {
     if( !py_parse_rational( frameRateObj, &frameRate ) )
         return NULL;
 
-    return Py_BuildValue( "i", getTimeFrame( &frameRate, time ) );
+    return Py_BuildValue( "i", get_time_frame( &frameRate, time ) );
 }
 
 PyObject *

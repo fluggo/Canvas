@@ -215,7 +215,7 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
         current->next_packet = current->source.source.funcs->getNextPacket( current->source.source.obj );
 
         if( current->next_packet )
-            current->next_dts = getFrameTime( &current->rate, current->next_packet->dts );
+            current->next_dts = get_frame_time( &current->rate, current->next_packet->dts );
 
         current = current->next;
     }
@@ -282,7 +282,7 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
         next_stream->next_packet = next_stream->source.source.funcs->getNextPacket( next_stream->source.source.obj );
 
         if( next_stream->next_packet )
-            next_stream->next_dts = getFrameTime( &next_stream->rate, next_stream->next_packet->dts );
+            next_stream->next_dts = get_frame_time( &next_stream->rate, next_stream->next_packet->dts );
     }
 
     // Close format
