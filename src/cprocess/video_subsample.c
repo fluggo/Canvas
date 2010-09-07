@@ -142,7 +142,7 @@ video_subsample_dv( rgba_frame_f16 *frame ) {
         uint8_t *cbrow = (uint8_t*) planar->data[1] + (row * planar->stride[1]);
         uint8_t *crrow = (uint8_t*) planar->data[2] + (row * planar->stride[2]);
 
-        half *in = &getPixel_f16( frame, window.min.x, row + picOffset.y )->r;
+        half *in = &video_get_pixel_f16( frame, window.min.x, row + picOffset.y )->r;
 
         video_transfer_linear_to_rec709( in, in, (sizeof(rgba_f16) / sizeof(half)) * window_width );
         half_convert_to_float( in, &tempRow->r, (sizeof(rgba_f16) / sizeof(half)) * window_width );

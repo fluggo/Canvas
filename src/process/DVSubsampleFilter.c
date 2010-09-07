@@ -57,7 +57,7 @@ DVSubsampleFilter_get_frame( py_obj_DVSubsampleFilter *self, int frame ) {
     temp_frame.data = g_slice_alloc( sizeof(rgba_f16) * size.y * size.x );
     temp_frame.full_window = window;
 
-    video_getFrame_f16( &self->source.source, frame, &temp_frame );
+    video_get_frame_f16( &self->source.source, frame, &temp_frame );
     coded_image *result = video_subsample_dv( &temp_frame );
 
     g_slice_free1( sizeof(rgba_f16) * size.y * size.x, temp_frame.data );

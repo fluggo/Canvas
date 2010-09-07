@@ -272,7 +272,7 @@ playbackThread( widget_gl_context *self ) {
         frame.current_window = target->fullDataWindow;
 
         if( funcs != NULL ) {
-            video_getFrame_f16( &self->frameSource, nextFrame, &frame );
+            video_get_frame_f16( &self->frameSource, nextFrame, &frame );
         }
         else {
             // No result
@@ -286,7 +286,7 @@ playbackThread( widget_gl_context *self ) {
 
         for( int y = frame.current_window.min.y; y <= frame.current_window.max.y; y++ ) {
             rgba_u8 *targetData = &target->frameData[(y - target->fullDataWindow.min.y) * target->stride - frame.full_window.min.x];
-            rgba_f16 *sourceData = getPixel_f16( &frame, 0, y );
+            rgba_f16 *sourceData = video_get_pixel_f16( &frame, 0, y );
 
             video_transfer_linear_to_sRGB( &sourceData[frame.current_window.min.x].r,
                 &sourceData[frame.current_window.min.x].r,
@@ -558,7 +558,7 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
         .current_window = self->displayWindow
     };
 
-    video_getFrame_gl( &self->frameSource, frameIndex, &frame );
+    video_get_frame_gl( &self->frameSource, frameIndex, &frame );
 
     self->hardTextureId = frame.texture;
     self->lastHardFrame = frameIndex;

@@ -312,7 +312,7 @@ Workspace_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 
 static void
 Workspace_getFrame32( PyObject *self, int frame_index, rgba_frame_f32 *frame ) {
-    video_getFrame_f32( &PRIV(self)->source, frame_index, frame );
+    video_get_frame_f32( &PRIV(self)->source, frame_index, frame );
 }
 
 static void

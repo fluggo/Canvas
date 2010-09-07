@@ -62,7 +62,7 @@ video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_fra
     // by zeroing out the output and going at it one input-row at a time
     if( factor > 1.0f ) {
         for( int sy = srect.min.y; sy <= srect.max.y; sy++ ) {
-            rgba_f32 *srow = getPixel_f32( source, xmin, sy );
+            rgba_f32 *srow = video_get_pixel_f32( source, xmin, sy );
 
             float target_center_f = (sy - symin) * factor + tymin;
             int target_center = (int) floor( target_center_f );
@@ -76,7 +76,7 @@ video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_fra
                 if( ty < trect.min.y || ty > trect.max.y )
                     continue;
 
-                rgba_f32 *trow = getPixel_f32( target, xmin, ty );
+                rgba_f32 *trow = video_get_pixel_f32( target, xmin, ty );
 
                 for( int x = 0; x < (xmax - xmin + 1); x++ ) {
                     trow[x].r += srow[x].r * filter.coeff[fy];
@@ -92,7 +92,7 @@ video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_fra
     }
     else {
         for( int ty = trect.min.y; ty <= trect.max.y; ty++ ) {
-            rgba_f32 *trow = getPixel_f32( target, xmin, ty );
+            rgba_f32 *trow = video_get_pixel_f32( target, xmin, ty );
 
             float source_center_f = (ty - tymin) / factor + symin;
             int source_center = (int) floor( source_center_f );
@@ -106,7 +106,7 @@ video_scale_bilinear_vertical_f32( rgba_frame_f32 *target, float tymin, rgba_fra
                 if( sy < srect.min.y || sy > srect.max.y )
                     continue;
 
-                rgba_f32 *srow = getPixel_f32( source, xmin, sy );
+                rgba_f32 *srow = video_get_pixel_f32( source, xmin, sy );
 
                 for( int x = 0; x < (xmax - xmin + 1); x++ ) {
                     trow[x].r += srow[x].r * filter.coeff[fy];
@@ -167,8 +167,8 @@ video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_f
             filter_createTriangle( factor, target_center_f - target_center, &filter );
 
             for( int y = ymin; y <= ymax; y++ ) {
-                rgba_f32 *s = getPixel_f32( source, sx, y );
-                rgba_f32 *t = getPixel_f32( target, target_center - filter.center, y );
+                rgba_f32 *s = video_get_pixel_f32( source, sx, y );
+                rgba_f32 *t = video_get_pixel_f32( target, target_center - filter.center, y );
 
                 for( int fx = 0; fx < filter.width; fx++ ) {
                     // BJC: Also, this is one naaaasty inner loop, so this will require some work
@@ -201,8 +201,8 @@ video_scale_bilinear_horizontal_f32( rgba_frame_f32 *target, float txmin, rgba_f
             // TODO: We can skip the inner loop if the filter wouldn't touch any of the source pixels
 
             for( int y = ymin; y <= ymax; y++ ) {
-                rgba_f32 *s = getPixel_f32( source, source_center - filter.center, y );
-                rgba_f32 *t = getPixel_f32( target, tx, y );
+                rgba_f32 *s = video_get_pixel_f32( source, source_center - filter.center, y );
+                rgba_f32 *t = video_get_pixel_f32( target, tx, y );
 
                 for( int fx = 0; fx < filter.width; fx++ ) {
                     // BJC: Also, this is one naaaasty inner loop, so this will require some work
@@ -293,7 +293,7 @@ video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_s
     }
 
     if( factors.x == 1.0f && factors.y == 1.0f && target_point.x == source_point.x && target_point.y == source_point.y ) {
-        video_getFrame_f32( source, frame, target );
+        video_get_frame_f32( source, frame, target );
         return;
     }
 
@@ -312,7 +312,7 @@ video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_s
 
     temp_frame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
 
-    video_getFrame_f32( source, frame, &temp_frame );
+    video_get_frame_f32( source, frame, &temp_frame );
     video_scale_bilinear_f32( target, target_point, &temp_frame, source_point, factors );
 
     g_slice_free1( sizeof(rgba_f32) * size.y * size.x, temp_frame.data );

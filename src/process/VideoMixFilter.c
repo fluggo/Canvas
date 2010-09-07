@@ -115,11 +115,11 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_fra
 
     if( self->mode == MIXMODE_CROSSFADE && mixB == 1.0f ) {
         // We only need frame B
-        video_getFrame_gl( &self->srcB.source, frameIndex, frame );
+        video_get_frame_gl( &self->srcB.source, frameIndex, frame );
         return;
     }
     else if( mixB == 0.0f ) {
-        video_getFrame_gl( &self->srcA.source, frameIndex, frame );
+        video_get_frame_gl( &self->srcA.source, frameIndex, frame );
         return;
     }
 
@@ -142,8 +142,8 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_fra
 
     rgba_frame_gl frameA = *frame, frameB = *frame;
 
-    video_getFrame_gl( &self->srcA.source, frameIndex, &frameA );
-    video_getFrame_gl( &self->srcB.source, frameIndex, &frameB );
+    video_get_frame_gl( &self->srcA.source, frameIndex, &frameA );
+    video_get_frame_gl( &self->srcB.source, frameIndex, &frameB );
 
     glUseProgramObjectARB( shader->program );
     glUniform1iARB( shader->texA, 0 );

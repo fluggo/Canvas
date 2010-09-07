@@ -490,7 +490,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
     GSequenceIter *iter = g_sequence_iter_prev( g_sequence_get_end_iter( self->composite_list ) );
     workspace_item_t *item = (workspace_item_t *) g_sequence_get( iter );
 
-    video_getFrame_f32( (video_source *) item->source, frame_index - item->x + item->offset, frame );
+    video_get_frame_f32( (video_source *) item->source, frame_index - item->x + item->offset, frame );
 
     if( !g_sequence_iter_is_begin( iter ) ) {
         rgba_frame_f32 tempFrame;
@@ -505,7 +505,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
             iter = g_sequence_iter_prev( iter );
             item = (workspace_item_t *) g_sequence_get( iter );
 
-            video_getFrame_f32( (video_source *) item->source, frame_index - item->x + item->offset, &tempFrame );
+            video_get_frame_f32( (video_source *) item->source, frame_index - item->x + item->offset, &tempFrame );
             video_mix_over_f32( frame, frame, &tempFrame, 1.0f, 1.0f );
         }
 

@@ -49,7 +49,7 @@ VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameI
         return;
     }
 
-    video_getFrame_f16( &self->source.source, frameIndex, frame );
+    video_get_frame_f16( &self->source.source, frameIndex, frame );
 }
 
 static void
@@ -60,7 +60,7 @@ VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int fram
         return;
     }
 
-    video_getFrame_f32( &self->source.source, frameIndex, frame );
+    video_get_frame_f32( &self->source.source, frameIndex, frame );
 }
 
 static void
@@ -71,7 +71,7 @@ VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int fram
         return;
     }
 
-    video_getFrame_gl( &self->source.source, frameIndex, frame );
+    video_get_frame_gl( &self->source.source, frameIndex, frame );
 }
 
 static void

@@ -103,7 +103,7 @@ RgbaFrameF32_pixel( PyObject *self, PyObject *args ) {
     if( x < window->min.x || x > window->max.x || y < window->min.y || y > window->max.y )
         Py_RETURN_NONE;
 
-    return py_make_rgba_f32( getPixel_f32( PRIV(self), x, y ) );
+    return py_make_rgba_f32( video_get_pixel_f32( PRIV(self), x, y ) );
 }
 
 static PyMethodDef RgbaFrameF32_methods[] = {
@@ -200,7 +200,7 @@ py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw ) {
         return NULL;
     }
 
-    video_getFrame_f32( &source.source, frame_index, PRIV(result) );
+    video_get_frame_f32( &source.source, frame_index, PRIV(result) );
 
     if( !py_video_takeSource( NULL, &source ) ) {
         Py_DECREF(result);

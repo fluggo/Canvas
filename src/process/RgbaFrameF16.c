@@ -108,7 +108,7 @@ RgbaFrameF16_pixel( PyObject *self, PyObject *args ) {
     if( x < window->min.x || x > window->max.x || y < window->min.y || y > window->max.y )
         Py_RETURN_NONE;
 
-    return color_to_python( getPixel_f16( PRIV(self), x, y ) );
+    return color_to_python( video_get_pixel_f16( PRIV(self), x, y ) );
 }
 
 static PyObject *
@@ -128,7 +128,7 @@ RgbaFrameF16_to_argb32_string( PyObject *self, PyObject *args ) {
         return NULL;
 
     for( int y = PRIV(self)->current_window.min.y; y <= PRIV(self)->current_window.max.y; y++ ) {
-        rgba_f16 *sy = getPixel_f16( PRIV(self), PRIV(self)->current_window.min.x, y );
+        rgba_f16 *sy = video_get_pixel_f16( PRIV(self), PRIV(self)->current_window.min.x, y );
 
         for( int x = 0; x < size.x; x++ ) {
             uint8_t a = ramp[sy[x].a];
@@ -244,7 +244,7 @@ py_get_frame_f16( PyObject *self, PyObject *args, PyObject *kw ) {
         return NULL;
     }
 
-    video_getFrame_f16( &source.source, frame_index, PRIV(result) );
+    video_get_frame_f16( &source.source, frame_index, PRIV(result) );
 
     if( !py_video_takeSource( NULL, &source ) ) {
         Py_DECREF(result);

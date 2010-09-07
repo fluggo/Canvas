@@ -30,7 +30,7 @@ getTimeFrame( const rational *frameRate, int64_t time ) {
     return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 
-EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame ) {
+EXPORT void video_get_frame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->current_window );
         return;
@@ -64,8 +64,8 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
         if( countX > 0 ) {
             for( int y = tempFrame.current_window.min.y; y <= tempFrame.current_window.max.y; y++ ) {
                 half_convert_from_float(
-                    &getPixel_f32( &tempFrame, tempFrame.current_window.min.x, y )->r,
-                    &getPixel_f16( targetFrame, tempFrame.current_window.min.x, y )->r,
+                    &video_get_pixel_f32( &tempFrame, tempFrame.current_window.min.x, y )->r,
+                    &video_get_pixel_f16( targetFrame, tempFrame.current_window.min.x, y )->r,
                     countX * 4 );
             }
         }
@@ -76,7 +76,7 @@ EXPORT void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame
     g_slice_free1( sizeof(rgba_f32) * size.x * size.y, tempFrame.data );
 }
 
-EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame ) {
+EXPORT void video_get_frame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->current_window );
         return;
@@ -108,8 +108,8 @@ EXPORT void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame
 
     for( int y = tempFrame.current_window.min.y; y <= tempFrame.current_window.max.y; y++ ) {
         half_convert_to_float(
-            &getPixel_f16( &tempFrame, tempFrame.current_window.min.x, y )->r,
-            &getPixel_f32( targetFrame, tempFrame.current_window.min.x, y )->r,
+            &video_get_pixel_f16( &tempFrame, tempFrame.current_window.min.x, y )->r,
+            &video_get_pixel_f32( targetFrame, tempFrame.current_window.min.x, y )->r,
             countX * 4 );
     }
 

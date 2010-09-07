@@ -133,7 +133,7 @@ gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProg
     *outProgram = program;
 }
 
-EXPORT void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame ) {
+EXPORT void video_get_frame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame ) {
     if( !source || !source->funcs ) {
         box2i_setEmpty( &targetFrame->current_window );
         return;
@@ -153,7 +153,7 @@ EXPORT void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_
     frame.full_window = targetFrame->full_window;
     frame.current_window = targetFrame->full_window;
 
-    video_getFrame_f16( source, frameIndex, &frame );
+    video_get_frame_f16( source, frameIndex, &frame );
 
     // TODO: Only fill in the area specified by current_window
     glGenTextures( 1, &targetFrame->texture );

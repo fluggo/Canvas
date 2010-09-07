@@ -260,12 +260,12 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             packet.stream_index = video->index;
 
             inputFrame.current_window = inputFrame.full_window;
-            video_getFrame_f16( &videoSource.source, nextVideoFrame, &inputFrame );
+            video_get_frame_f16( &videoSource.source, nextVideoFrame, &inputFrame );
 
             // Transcode to RGBA
             for( int y = 0; y < frameSize.y; y++ ) {
                 rgba_u8 *targetData = (rgba_u8*) &interFrame.data[0][y * interFrame.linesize[0]];
-                rgba_f16 *sourceData = getPixel_f16( &inputFrame, inputFrame.full_window.min.x, inputFrame.full_window.min.y + y );
+                rgba_f16 *sourceData = video_get_pixel_f16( &inputFrame, inputFrame.full_window.min.x, inputFrame.full_window.min.y + y );
 
                 for( int x = 0; x < frameSize.x; x++ ) {
                     targetData[x].r = ramp[sourceData[x].r];

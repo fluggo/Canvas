@@ -66,14 +66,14 @@ SolidColorVideoSource_getFrame( py_obj_SolidColorVideoSource *self, int frameInd
         return;
 
     // Fill first row
-    rgba_f16 *first_row = getPixel_f16( frame, frame->current_window.min.x, frame->current_window.min.y );
+    rgba_f16 *first_row = video_get_pixel_f16( frame, frame->current_window.min.x, frame->current_window.min.y );
 
     for( int x = 0; x < size.x; x++ )
         first_row[x] = self->color_f16;
 
     // Dupe to the rest
     for( int y = 1; y < size.y; y++ ) {
-        memcpy( getPixel_f16( frame, frame->current_window.min.x, frame->current_window.min.y + y ),
+        memcpy( video_get_pixel_f16( frame, frame->current_window.min.x, frame->current_window.min.y + y ),
             first_row, sizeof(rgba_f16) * size.x );
     }
 }
@@ -89,14 +89,14 @@ SolidColorVideoSource_getFrame32( py_obj_SolidColorVideoSource *self, int frameI
         return;
 
     // Fill first row
-    rgba_f32 *first_row = getPixel_f32( frame, frame->current_window.min.x, frame->current_window.min.y );
+    rgba_f32 *first_row = video_get_pixel_f32( frame, frame->current_window.min.x, frame->current_window.min.y );
 
     for( int x = 0; x < size.x; x++ )
         first_row[x] = self->color_f32;
 
     // Dupe to the rest
     for( int y = 1; y < size.y; y++ ) {
-        memcpy( getPixel_f32( frame, frame->current_window.min.x, frame->current_window.min.y + y ),
+        memcpy( video_get_pixel_f32( frame, frame->current_window.min.x, frame->current_window.min.y + y ),
             first_row, sizeof(rgba_f32) * size.x );
     }
 }

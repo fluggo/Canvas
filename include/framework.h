@@ -174,14 +174,14 @@ typedef struct {
     video_getFrameGLFunc getFrameGL;
 } VideoFrameSourceFuncs;
 
-G_GNUC_PURE static inline rgba_f16 *getPixel_f16( rgba_frame_f16 *frame, int x, int y ) {
+G_GNUC_PURE static inline rgba_f16 *video_get_pixel_f16( rgba_frame_f16 *frame, int x, int y ) {
     return &frame->data[
         (y - frame->full_window.min.y) *
             (frame->full_window.max.x - frame->full_window.min.x + 1) +
         x - frame->full_window.min.x];
 }
 
-G_GNUC_PURE static inline rgba_f32 *getPixel_f32( rgba_frame_f32 *frame, int x, int y ) {
+G_GNUC_PURE static inline rgba_f32 *video_get_pixel_f32( rgba_frame_f32 *frame, int x, int y ) {
     return &frame->data[
         (y - frame->full_window.min.y) *
             (frame->full_window.max.x - frame->full_window.min.x + 1) +
@@ -193,9 +193,9 @@ typedef struct {
     VideoFrameSourceFuncs *funcs;
 } video_source;
 
-void video_getFrame_f16( video_source *source, int frameIndex, rgba_frame_f16 *targetFrame );
-void video_getFrame_f32( video_source *source, int frameIndex, rgba_frame_f32 *targetFrame );
-void video_getFrame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame );
+void video_get_frame_f16( video_source *source, int frame_index, rgba_frame_f16 *frame );
+void video_get_frame_f32( video_source *source, int frame_index, rgba_frame_f32 *frame );
+void video_get_frame_gl( video_source *source, int frame_index, rgba_frame_gl *frame );
 const uint8_t *video_get_gamma45_ramp();
 
 void video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in );
