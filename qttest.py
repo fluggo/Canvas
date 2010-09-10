@@ -454,39 +454,39 @@ class MainWindow(QMainWindow):
 
     def canvas_bring_forward(self):
         for item in self.view.selected_items():
-            key = item.z_sort_key()
+            key = item.z
             overlaps = item.overlap_items()
-            above_items = [x for x in overlaps if x.z_sort_key() > key]
+            above_items = [x.z for x in overlaps if x.z < key]
 
             if not above_items:
                 continue
 
-            bottom_item = min(above_items)
+            bottom_z = max(above_items)
 
-            z1 = item.z
-            z2 = bottom_item.z
+            z1 = bottom_z
+            z2 = item.z
 
             temp_items = self.space[z1:z2 + 1]
-            temp_items.append(temp_items.pop(0))
+            temp_items.insert(0, temp_items.pop())
 
             self.space[z1:z2 + 1] = temp_items
 
     def canvas_send_backward(self):
         for item in self.view.selected_items():
-            key = item.z_sort_key()
+            key = item.z
             overlaps = item.overlap_items()
-            below_items = [x for x in overlaps if x.z_sort_key() < key]
+            below_items = [x.z for x in overlaps if x.z > key]
 
             if not below_items:
                 continue
 
-            top_item = max(below_items)
+            top_z = min(below_items)
 
-            z1 = top_item.z
-            z2 = item.z
+            z1 = item.z
+            z2 = top_z
 
             temp_items = self.space[z1:z2 + 1]
-            temp_items.insert(0, temp_items.pop())
+            temp_items.append(temp_items.pop(0))
 
             self.space[z1:z2 + 1] = temp_items
 

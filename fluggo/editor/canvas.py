@@ -121,7 +121,7 @@ class _ZSortKey():
 
     def __cmp__(self, other):
         if other.item in self.item.overlap_items():
-            result = cmp(self.z, other.z)
+            result = -cmp(self.z, other.z)
 
             if result:
                 return result

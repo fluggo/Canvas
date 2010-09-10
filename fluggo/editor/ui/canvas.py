@@ -47,7 +47,7 @@ class Scene(QGraphicsScene):
         self.space.item_removed.connect(self.handle_item_removed)
         self.drag_items = None
         self.drag_key_index = 0
-        self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z_sort_key(), index_attr='z_order')
+        self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z, index_attr='z_order')
         self.marker_added = signal.Signal()
         self.marker_removed = signal.Signal()
         self.markers = set()
@@ -146,16 +146,20 @@ class Scene(QGraphicsScene):
 
     def dropEvent(self, event):
         # Turn them into real boys and girls
+        items = []
+
         for item in self.drag_items:
             rate = self.frame_rate
 
             if item.stream_format.type == 'audio':
                 rate = self.sample_rate
 
-            self.space.append(canvas.Clip(item.stream_format.type, item.source_name, item.stream_format.index,
+            items.append(canvas.Clip(item.stream_format.type, item.source_name, item.stream_format.index,
                 x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), width=item.width, height=item.height))
 
             self.removeItem(item)
+
+        self.space[0:0] = items
 
     @property
     def scene_top(self):
@@ -665,8 +669,8 @@ class ClipItem(QGraphicsItem, Draggable):
     def z_order(self, value):
         self._z_order = value
 
-        if value != self.zValue():
-            self.setZValue(value)
+        if -value != self.zValue():
+            self.setZValue(-value)
 
     def view_scale_changed(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes
