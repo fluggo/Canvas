@@ -17,6 +17,48 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import collections, bisect
+from fluggo import ezlist
+
+class AutoIndexList(ezlist.EZList):
+    '''
+    List that optionally stores an item's index on the item in *index_attr*.
+    If given, *iterable* determines the list's initial contents.
+
+    '''
+    def __init__(self, iterable=None, index_attr=None):
+        self.index_attr = index_attr
+
+        if iterable:
+            self.list = list(iterable)
+
+            if index_attr:
+                for i in range(len(self.list)):
+                    setattr(self.list[i], index_attr, i)
+        else:
+            self.list = []
+
+    def _replace_range(self, start, stop, items):
+        if self.index_attr:
+            for i, item in enumerate(items, start):
+                setattr(item, self.index_attr, i)
+
+        self.list[start:stop] = items
+
+        if self.index_attr and stop - start != len(items):
+            for i, item in enumerate(self.list[stop:], stop):
+                setattr(item, self.index_attr, i)
+
+    def index(self, item):
+        if self.index_attr:
+            return getattr(item, self.index_attr)
+
+        return self.list.index(item)
+
+    def __getitem__(self, index):
+        return self.list[index]
+
+    def __len__(self):
+        return len(self.list)
 
 class SortedList(collections.Sequence):
     def __init__(self, iterable=None, keyfunc=None, cmpfunc=None, index_attr=None):
