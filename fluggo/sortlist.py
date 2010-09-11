@@ -88,22 +88,16 @@ class SortedList(collections.Sequence):
 
             keyfunc = Key
 
-        self.index_attr = index_attr
-
         if iterable:
-            self.list = list(iterable)
+            self.list = AutoIndexList(iterable, index_attr)
             self.list.sort(key=keyfunc)
 
             if keyfunc:
                 self.keys = [keyfunc(item) for item in self.list]
             else:
                 self.keys = self.list[:]
-
-            if index_attr:
-                for i in range(len(self.list)):
-                    setattr(self.list[i], index_attr, i)
         else:
-            self.list = []
+            self.list = AutoIndexList(index_attr=index_attr)
             self.keys = []
 
         self.keyfunc = keyfunc
@@ -118,13 +112,9 @@ class SortedList(collections.Sequence):
         self.list.insert(index, item)
         self.keys.insert(index, key)
 
-        if self.index_attr:
-            for i in range(len(self.list) - 1, index - 1, -1):
-                setattr(self.list[i], self.index_attr, i)
-
     def index(self, item):
-        if self.index_attr:
-            return getattr(item, self.index_attr)
+        if self.list.index_attr:
+            return self.list.index(item)
 
         key = item
 
@@ -162,10 +152,6 @@ class SortedList(collections.Sequence):
         return self.list[index]
 
     def __delitem__(self, index):
-        if self.index_attr:
-            for i in range(index + 1, len(self.list)):
-                setattr(self.list[i], self.index_attr, i - 1)
-
         del self.list[index]
         del self.keys[index]
 
