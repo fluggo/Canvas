@@ -154,7 +154,7 @@ class Scene(QGraphicsScene):
             if item.stream_format.type == 'audio':
                 rate = self.sample_rate
 
-            items.append(canvas.Clip(item.stream_format.type, item.source_name, item.stream_format.index,
+            items.append(canvas.Clip(type=item.stream_format.type, source_name=item.source_name, source_stream_index=item.stream_format.index,
                 x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), width=item.width, height=item.height))
 
             self.removeItem(item)
