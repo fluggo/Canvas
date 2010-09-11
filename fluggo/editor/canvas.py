@@ -63,6 +63,17 @@ class Space(ezlist.EZList):
         for item in (new_item_set - old_item_set):
             self.item_added(item)
 
+    def fixup(self):
+        '''
+        Perform first-time initialization after being deserialized; PyYAML doesn't
+        give us a chance to do this automatically.
+        '''
+        # Number the items as above
+        for i, item in enumerate(self._items):
+            item._scene = self
+            item._z = i
+            item.fixup()
+
     def find_overlaps(self, item):
         '''Find all items that directly overlap the given item (but not including the given item).'''
         return [other for other in self._items if item is not other and item.overlaps(other)]
@@ -230,6 +241,12 @@ class Item(yaml.YAMLObject):
 
     def kill(self):
         self._scene = None
+
+    def fixup(self):
+        '''
+        Perform initialization that has to wait until deserialization is finished.
+        '''
+        pass
 
     def type(self):
         raise NotImplementedError

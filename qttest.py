@@ -395,8 +395,14 @@ class MainWindow(QMainWindow):
             (sources, space) = yaml.load_all(stream)
 
         self.space[:] = []
+
         self.source_list.clear()
         self.source_list.update(sources)
+
+        space.fixup()
+
+        # TODO: Replace the whole space here; this requires
+        # swapping it out for the view and workspace managers also
         self.space[:] = space[:]
 
     def render_dv(self):
