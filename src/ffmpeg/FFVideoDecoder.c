@@ -173,7 +173,7 @@ static coded_image *
 FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
     g_static_mutex_lock( &self->mutex );
 
-    if( self->source.source.funcs->seek && (frame < self->next_frame || frame > self->next_frame + 12) ) {
+    if( self->source.source.funcs->seek && frame != self->next_frame ) {
         if( !self->source.source.funcs->seek( self->source.source.obj, frame ) ) {
             g_static_mutex_unlock( &self->mutex );
             return NULL;
