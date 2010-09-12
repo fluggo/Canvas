@@ -44,7 +44,12 @@ class FFMuxPlugin(object):
             if stream.type == 'video':
                 # TODO: Right now, anticipate only DV video
                 decode = ffmpeg.FFVideoDecoder(demux, 'dvvideo')
-                return sources.VideoSource(process.DVReconstructionFilter(decode), stream)
+                source = process.DVReconstructionFilter(decode)
+
+                if stream.pulldown_type == '2:3':
+                    source = process.Pulldown23RemovalFilter(source, stream.pulldown_phase)
+
+                return sources.VideoSource(source, stream)
             elif stream.type == 'audio':
                 return sources.AudioSource(ffmpeg.FFAudioDecoder(demux, 'pcm_s16le', 2), stream)
 
