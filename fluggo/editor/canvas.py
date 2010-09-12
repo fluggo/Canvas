@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import yaml
-from fluggo import ezlist, signal
+import yaml, collections
+from fluggo import ezlist, sortlist, signal
 
 class Space(ezlist.EZList):
     yaml_tag = u'!CanvasSpace'
@@ -143,22 +143,94 @@ class _ZSortKey():
         return 'key(y={0.y}, z={0.z})'.format(self)
 
 class Item(yaml.YAMLObject):
-    def __init__(self, x=0, y=0.0, width=1, height=1.0, offset=0):
+    '''
+    Class for all items that can appear in the canvas.
+
+    All of the arguments for the constructor are the YAML properties that can appear
+    for this class.
+
+    An anchor on one clip says that its position should be fixed in relation
+    to another. In the Y direction, all we need is the :attr:`target` clip; each item's
+    current position is enough to establish the offset.
+
+    In the X (time) direction, if each clip is using a different time scale, the
+    time offset can be different depending on where each item appears in the
+    canvas. Therefore we establish a fixed offset here based on :attr:`target_offset`,
+    the offset from the beginning of the target clip (not the beginning of the
+    target's source) in target frames, and :attr:`source_offset`, the offset in source
+    frames from the position defined by :attr:`target_offset` to the beginning of the
+    source clip.
+
+    This won't work out exactly in many situations; the scene will round to the
+    nearest position in those cases.
+
+    The attribute :attr:`visible` determines whether the anchor deserves displaying
+    an explicit link between the clips. If ``False``, then the anchor acts more
+    like groups found in other editors.
+    '''
+
+    yaml_tag = u'!CanvasItem'
+
+    def __init__(self, x=0, y=0.0, width=1, height=1.0, type=None, source=None, anchor=None,
+            anchor_target_offset=None, anchor_source_offset=None, anchor_visible=False, tags=None,
+            ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None):
         self._scene = None
-        self._offset = offset
         self._x = x
         self._y = y
         self._z = 0
         self._height = height
         self._width = width
+        self._type = type
+        self._source = source
+        self._ease_in_type = ease_in_type
+        self._ease_in = ease_in
+        self._ease_out_type = ease_out_type
+        self._ease_out = ease_out
         self.updated = signal.Signal()
+        self._anchor = anchor
+        self._anchor_target_offset = anchor_target_offset
+        self._anchor_source_offset = anchor_source_offset
+        self._anchor_visible = anchor_visible
+        self._tags = set(tags) if tags else set()
 
     def _create_repr_dict(self):
-        return {
+        result = {
             'x': self._x, 'y': self._y,
             'width': self._width, 'height': self._height,
-            'offset': self._offset
+            'type': self._type
         }
+
+        if self._anchor:
+            result['anchor'] = self._anchor
+
+            if self._anchor_target_offset:
+                result['anchor_target_offset'] = self._anchor_target_offset
+
+            if self._anchor_source_offset:
+                result['anchor_source_offset'] = self._anchor_source_offset
+
+            if self._anchor_visible:
+                result['anchor_visible'] = self._anchor_visible
+
+        if self._ease_in:
+            result['ease_in'] = self._ease_in
+
+            if self._ease_in_type:
+                result['ease_in_type'] = self._ease_in_type
+
+        if self._ease_out:
+            result['ease_out'] = self._ease_out
+
+            if self._ease_out_type:
+                result['ease_out_type'] = self._ease_out_type
+
+        if self._tags:
+            result['tags'] = list(tags)
+
+        if self._source:
+            result['source'] = self._source
+
+        return result
 
     @classmethod
     def to_yaml(cls, dumper, data):
@@ -167,6 +239,10 @@ class Item(yaml.YAMLObject):
     @classmethod
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
+
+    @property
+    def tags(self):
+        return frozenset(self._tags)
 
     @property
     def x(self):
@@ -189,14 +265,13 @@ class Item(yaml.YAMLObject):
         return self._height
 
     @property
-    def offset(self):
-        return self._offset
+    def source(self):
+        return self._source
 
     def z_sort_key(self, y=None, z=None):
         '''
-        Get an object that can be used to sort items by Z-order.
-
-        Supply a Z parameter to alter the key.
+        Get an object that can be used to sort items in video overlay order. *y* and *z*
+        alter the key.
         '''
         return _ZSortKey(self, self.overlap_items(), self._y if y is None else y, self._z if z is None else z)
 
@@ -207,6 +282,9 @@ class Item(yaml.YAMLObject):
         return cmp(self.z_sort_key(), other.z_sort_key())
 
     def overlaps(self, other):
+        '''
+        Return True if *other* overlaps this item.
+        '''
         if self.x >= (other.x + other.width) or (self.x + self.width) <= other.x:
             return False
 
@@ -216,6 +294,9 @@ class Item(yaml.YAMLObject):
         return True
 
     def update(self, **kw):
+        '''
+        Update the attributes of this item.
+        '''
         if 'x' in kw:
             self._x = int(kw['x'])
 
@@ -228,15 +309,18 @@ class Item(yaml.YAMLObject):
         if 'height' in kw:
             self._height = float(kw['height'])
 
-        if 'offset' in kw:
-            self._offset = int(kw['offset'])
-
         if 'z' in kw:
             self._z = int(kw['z'])
+
+        if 'source' in kw:
+            self._source = kw['source']
 
         self.updated(**kw)
 
     def overlap_items(self):
+        '''
+        Get a list of all items that directly or indirectly overlap this one.
+        '''
         return self._scene.find_overlaps_recursive(self)
 
     def kill(self):
@@ -249,6 +333,22 @@ class Item(yaml.YAMLObject):
         pass
 
     def type(self):
+        '''
+        The type of the item, such as ``'audio'`` or ``'video'``.
+        '''
+        return self._type
+
+    def split(self, offset):
+        '''
+        Split the item *offset* frames from its start, putting two (new) items in
+        its place in the scene list.
+        '''
+        raise NotImplementedError
+
+    def can_join(self, other):
+        return False
+
+    def join(self, other):
         raise NotImplementedError
 
 class Clip(Item):
@@ -257,19 +357,29 @@ class Clip(Item):
     '''
     yaml_tag = u'!CanvasClip'
 
-    def __init__(self, type=None, source_name=None, source_stream_index=None, **kw):
+    def __init__(self, type=None, offset=0, source_name=None, source_stream_index=None, **kw):
         Item.__init__(self, **kw)
         self._type = type
         self._source_name = source_name
         self._source_stream_index = source_stream_index
+        self._offset = offset
 
     def _create_repr_dict(self):
         dict = Item._create_repr_dict(self)
         dict['source_name'] = self._source_name
         dict['source_stream_index'] = self._source_stream_index
-        dict['type'] = self._type
+        dict['offset'] = self._offset
 
         return dict
+
+    def update(self, **kw):
+        '''
+        Update the attributes of this item.
+        '''
+        if 'offset' in kw:
+            self._offset = int(kw['offset'])
+
+        Item.update(self, **kw)
 
     @property
     def source_name(self):
@@ -279,7 +389,107 @@ class Clip(Item):
     def source_stream_index(self):
         return self._source_stream_index
 
+    @property
+    def offset(self):
+        return self._offset
+
+class StreamSourceRef(yaml.YAMLObject):
+    '''
+    References a stream from a video or audio file.
+    '''
+    yaml_tag = u'!StreamSourceRef'
+
+    def __init__(self, source_name=None, stream_index=None, **kw):
+        self._source_name = source_name
+        self._stream_index = stream_index
+
+    @property
+    def source_name(self):
+        return self._source_name
+
+    @property
+    def stream_index(self):
+        return self._stream_index
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        result = {'source_name': self._source_name,
+            'stream_index': self._stream_index}
+
+        return dumper.represent_mapping(cls.yaml_tag, result)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return cls(**loader.construct_mapping(node))
+
+class Timeline(Item):
+    yaml_tag = u'!CanvasTimeline'
+
+    def __init__(self, type=None, items=None, expanded=False, **kw):
+        Item.__init__(self, **kw)
+        self._type = type
+        self._items = items
+        self._expanded = False
+
+    @property
     def type(self):
         return self._type
 
+    def fixup(self):
+        Item.fixup(self)
+
+        self._items = sortlist.AutoIndexList(self._items)
+
+        for item in self._items:
+            item._timeline = self
+
+class TimelineItem(yaml.YAMLObject):
+    yaml_tag = u'!CanvasTimelineItem'
+
+    def __init__(self, source_name=None, source_stream_index=None, offset=0, length=1, transition=None, transition_length=0):
+        self._source_name = source_name
+        self._source_stream_index = source_stream_index
+        self._offset = offset
+        self._length = length
+        self._transition = transition
+        self._transition_length = transition_length
+        self._timeline = None
+        self._index = None
+
+    @property
+    def source(self):
+        return self._source
+
+    @property
+    def offset(self):
+        return self._offset
+
+    @property
+    def length(self):
+        return self._length
+
+    @property
+    def transition(self):
+        return self._transition
+
+    @property
+    def transition_length(self):
+        return self._transition_length
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        mapping = {'source': self._source,
+            'offset': self._offset, 'length': self._length}
+
+        if self._transition_length:
+            mapping['transition_length'] = self._transition_length
+
+            if self._transition:
+                mapping['transition'] = self._transition
+
+        return dumper.represent_mapping(cls.yaml_tag, mapping)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return cls(**loader.construct_mapping(node))
 

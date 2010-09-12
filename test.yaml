@@ -15,6 +15,6 @@ softboiled01;17;55;12.avi: !MediaContainer
     type: video
 --- !CanvasSpace
 items:
-- !CanvasClip {height: 40.0, offset: 0, source_name: softboiled01;17;55;12.avi, source_stream_id: 0,
-  type: video, width: 100, x: 30, y: 30.0}
+- !CanvasClip {type: video, x: 30, y: 30.0, height: 40.0, width: 100, offset: 0,
+  source: !StreamSourceRef {source_name: softboiled01;17;55;12.avi, stream_index: 0}}
 

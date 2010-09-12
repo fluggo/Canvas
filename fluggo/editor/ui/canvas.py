@@ -65,18 +65,22 @@ class Scene(QGraphicsScene):
             return self.sample_rate
 
     def handle_item_added(self, item):
-        if item.type() == 'video':
-            ui_item = VideoItem(item, 'Clip')
-            self.addItem(ui_item)
-            ui_item.added_to_scene()
+        ui_item = None
 
-            self.sort_list.add(ui_item)
-        elif item.type() == 'audio':
-            ui_item = AudioItem(item, 'Clip')
-            self.addItem(ui_item)
-            ui_item.added_to_scene()
+        if isinstance(item, canvas.Clip):
+            if item.type() == 'video':
+                ui_item = VideoItem(item, 'Clip')
+            elif item.type() == 'audio':
+                ui_item = AudioItem(item, 'Clip')
+        elif isinstance(item, canvas.Timeline):
+            return
+        else:
+            return
 
-            self.sort_list.add(ui_item)
+        self.addItem(ui_item)
+        ui_item.added_to_scene()
+
+        self.sort_list.add(ui_item)
 
     def selected_items(self):
         return [item.item for item in self.selectedItems() if isinstance(item, ClipItem)]
@@ -154,7 +158,8 @@ class Scene(QGraphicsScene):
             if item.stream_format.type == 'audio':
                 rate = self.sample_rate
 
-            items.append(canvas.Clip(type=item.stream_format.type, source_name=item.source_name, source_stream_index=item.stream_format.index,
+            items.append(canvas.Clip(type=item.stream_format.type,
+                source=canvas.StreamSourceRef(source_name=item.source_name, stream_index=item.stream_format.index),
                 x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), width=item.width, height=item.height))
 
             self.removeItem(item)
@@ -653,7 +658,7 @@ class ClipItem(QGraphicsItem, Draggable):
     @property
     def stream(self):
         if not self._stream:
-            self._stream = self.scene().source_list.get_stream(self.item.source_name, self.item.source_stream_index)
+            self._stream = self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index)
 
         return self._stream
 
