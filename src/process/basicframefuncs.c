@@ -218,7 +218,7 @@ py_frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder ) {
             return false;
         }
         else if( length > 4 ) {
-            PyErr_Format( PyExc_ValueError, "One of the tuples passed has more than four entries (%zd).", length );
+            PyErr_Format( PyExc_ValueError, "One of the tuples passed has more than four entries (%" PRIdPTR ").", (intptr_t) length );
             return false;
         }
 
