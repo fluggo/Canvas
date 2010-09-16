@@ -54,7 +54,7 @@ Alias('process', process)
 Alias('all', 'process')
 Default('process')
 
-if not Execute('@pkg-config --exists libavformat libswscale'):
+if env['PLATFORM'] != 'win32' and not Execute('@pkg-config --exists libavformat libswscale'):
     ffmpeg_env = python_env.Clone()
     ffmpeg_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale gl gthread-2.0')
     ffmpeg_env.Append(LIBS=[process], CCFLAGS=['-fvisibility=hidden'])
@@ -66,7 +66,7 @@ if not Execute('@pkg-config --exists libavformat libswscale'):
 else:
     print 'Skipping FFmpeg library build'
 
-if not Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
+if env['PLATFORM'] != 'win32' and not Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
     gtk_env = python_env.Clone()
     gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
     gtk_env.Append(LIBS=['GLEW', process], CCFLAGS=['-fvisibility=hidden'])
@@ -131,7 +131,8 @@ except Exception as ex:
 
 # Tests
 testenv = env.Clone()
-testenv.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
+if env['PLATFORM'] != 'win32':
+    testenv.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
 testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=['GLEW', cprocess])
 
 test_cprocess = testenv.Program('tests/cprocess_test', env.Glob('src/tests/*.c'))
