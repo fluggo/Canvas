@@ -1,4 +1,4 @@
-import distutils.sysconfig, os.path
+import distutils.sysconfig, os.path, sys
 import SCons.Defaults
 
 debug = ARGUMENTS.get('debug', 0)
