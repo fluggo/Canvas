@@ -8,6 +8,8 @@
 /config.log
 /.sconf_temp
 *.pyc
+*.pyd
+*.a
 *.os
 *.so
 *.o
