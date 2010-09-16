@@ -27,8 +27,13 @@ elif int(assembly):
 else:
     env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 
+# Set up a basic Python environment
 python_env = env.Clone(SHLIBPREFIX='')
-python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()], CCFLAGS=['-fno-strict-aliasing'])
+python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()],
+                  CCFLAGS=['-fno-strict-aliasing'])
+
+if env['PLATFORM'] == 'win32':
+    python_env['SHLIBSUFFIX'] = '.pyd'
 
 # Generate the half/float conversion tables
 half = env.Command('src/cprocess/halftab.c', 'src/cprocess/genhalf.py', '$PYTHON $SOURCE > $TARGET')
