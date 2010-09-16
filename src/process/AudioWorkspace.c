@@ -295,8 +295,9 @@ AudioWorkspace_dealloc( PyObject *self ) {
 
         PyObject *tag = (PyObject *) workspace_get_item_tag( item );
 
-        if( tag )
+        if( tag ) {
             Py_DECREF(tag);
+        }
     }
 
     workspace_free( PRIV(self)->workspace );
@@ -378,8 +379,9 @@ AudioWorkspace_remove( PyObject *self, PyObject *args ) {
 
     PyObject *tag = (PyObject *) workspace_get_item_tag( item->item );
 
-    if( tag )
+    if( tag ) {
         Py_DECREF(tag);
+    }
 
     Py_CLEAR( item->workspace );
     workspace_remove_item( item->item );
