@@ -10,6 +10,19 @@ env = Environment(CPPPATH=['include'],
     CCFLAGS = ['-Wall', '-D_POSIX_C_SOURCE=200112L', '-Werror'],
     PYTHON=sys.executable)
 
+msys_root = None
+
+if env['PLATFORM'] == 'win32':
+    Tool('mingw')(env)
+
+    # Find the MSYS root
+    msys_root = os.path.dirname(os.path.dirname(env.WhereIs('gcc')))
+    env.Append(CPPPATH=[os.path.join(msys_root, 'include\\w32api')],
+        LIBPATH=[os.path.join(msys_root, 'lib\\w32api'), os.path.join(sys.exec_prefix, 'libs')],
+        CCFLAGS=['-DWINNT'])
+else:
+    env.Append(CCFLAGS=['-fvisibility=hidden'])
+
 # Check to see if we can use clang
 if WhereIs('clang'):
     env['CC'] = 'clang'
@@ -38,16 +51,29 @@ if env['PLATFORM'] == 'win32':
 # Generate the half/float conversion tables
 half = env.Command('src/cprocess/halftab.c', 'src/cprocess/genhalf.py', '$PYTHON $SOURCE > $TARGET')
 
+# Build the cprocess shared objects
 cprocess_env = env.Clone()
-cprocess_env.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
-cprocess_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
+cprocess_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
+
+if env['PLATFORM'] == 'win32':
+    cprocess_env.Append(LIBS=['glew32'])
+else:
+    cprocess_env.ParseConfig('pkg-config --libs --cflags gl')
+    cprocess_env.Append(LIBS=['rt', 'GLEW'])
 
 cprocess = [cprocess_env.SharedObject(None, node) for node in env.Glob('src/cprocess/*.c')]
 Depends(cprocess, half)
 
+# Build the process Python extension
 process_env = python_env.Clone()
-process_env.ParseConfig('pkg-config --libs --cflags alsa gl glib-2.0 gthread-2.0')
-process_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
+process_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
+
+if env['PLATFORM'] == 'win32':
+    process_env.Append(LIBS=['glew32', 'opengl32', 'python26'])
+else:
+    process_env.ParseConfig('pkg-config --libs --cflags gl')
+    process_env.Append(LIBS=['rt', 'GLEW'])
+
 process = process_env.SharedLibrary('fluggo/media/process', env.Glob('src/process/*.c') + cprocess)
 
 Alias('process', process)
@@ -57,7 +83,7 @@ Default('process')
 if env['PLATFORM'] != 'win32' and not Execute('@pkg-config --exists libavformat libswscale'):
     ffmpeg_env = python_env.Clone()
     ffmpeg_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale gl gthread-2.0')
-    ffmpeg_env.Append(LIBS=[process], CCFLAGS=['-fvisibility=hidden'])
+    ffmpeg_env.Append(LIBS=[process])
     ffmpeg = ffmpeg_env.SharedLibrary('fluggo/media/ffmpeg', env.Glob('src/ffmpeg/*.c'))
 
     Alias('ffmpeg', ffmpeg)
