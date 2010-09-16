@@ -8,11 +8,13 @@ test = ARGUMENTS.get('test', 0)
 
 env = Environment(CPPPATH=['include'],
     CCFLAGS = ['-Wall', '-D_POSIX_C_SOURCE=200112L', '-Werror'],
-    CFLAGS=['-std=c99'])
+    PYTHON=sys.executable)
 
 # Check to see if we can use clang
 if WhereIs('clang'):
     env['CC'] = 'clang'
+
+env.Append(CFLAGS=['-std=c99'])
 
 if int(debug):
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
@@ -28,7 +30,8 @@ else:
 python_env = env.Clone(SHLIBPREFIX='')
 python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()], CCFLAGS=['-fno-strict-aliasing'])
 
-half = Command('src/cprocess/halftab.c', 'src/cprocess/genhalf.py', 'python $SOURCE > $TARGET')
+# Generate the half/float conversion tables
+half = env.Command('src/cprocess/halftab.c', 'src/cprocess/genhalf.py', '$PYTHON $SOURCE > $TARGET')
 
 cprocess_env = env.Clone()
 cprocess_env.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
