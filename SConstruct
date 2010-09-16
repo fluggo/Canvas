@@ -40,7 +40,7 @@ Depends(cprocess, half)
 process_env = python_env.Clone()
 process_env.ParseConfig('pkg-config --libs --cflags alsa gl glib-2.0 gthread-2.0')
 process_env.Append(LIBS=['rt', 'GLEW'], CCFLAGS=['-fvisibility=hidden'])
-process = process_env.SharedLibrary('fluggo/media/process.so', env.Glob('src/process/*.c') + cprocess)
+process = process_env.SharedLibrary('fluggo/media/process', env.Glob('src/process/*.c') + cprocess)
 
 Alias('process', process)
 Alias('all', 'process')
@@ -50,7 +50,7 @@ if not Execute('@pkg-config --exists libavformat libswscale'):
     ffmpeg_env = python_env.Clone()
     ffmpeg_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale gl gthread-2.0')
     ffmpeg_env.Append(LIBS=[process], CCFLAGS=['-fvisibility=hidden'])
-    ffmpeg = ffmpeg_env.SharedLibrary('fluggo/media/ffmpeg.so', env.Glob('src/ffmpeg/*.c'))
+    ffmpeg = ffmpeg_env.SharedLibrary('fluggo/media/ffmpeg', env.Glob('src/ffmpeg/*.c'))
 
     Alias('ffmpeg', ffmpeg)
     Alias('all', 'ffmpeg')
@@ -62,7 +62,7 @@ if not Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2
     gtk_env = python_env.Clone()
     gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
     gtk_env.Append(LIBS=['GLEW', process], CCFLAGS=['-fvisibility=hidden'])
-    gtk = gtk_env.SharedLibrary('fluggo/media/gtk.so', ['src/gtk/GtkVideoWidget.c'])
+    gtk = gtk_env.SharedLibrary('fluggo/media/gtk', ['src/gtk/GtkVideoWidget.c'])
 
     Alias('gtk', gtk)
     Alias('all', 'gtk')
