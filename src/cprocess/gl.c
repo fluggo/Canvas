@@ -22,7 +22,12 @@
 
 #include <GL/glew.h>
 #include <GL/gl.h>
+
+#if defined(WINNT)
+#include <windows.h>
+#else
 #include <GL/glx.h>
+#endif
 
 EXPORT void
 __gl_checkError(const char *file, const unsigned long line) {
@@ -51,7 +56,11 @@ __gl_checkError(const char *file, const unsigned long line) {
 }
 
 EXPORT void *getCurrentGLContext() {
+#if defined(WINNT)
+    return wglGetCurrentContext();
+#else
     return glXGetCurrentContext();
+#endif
 }
 
 /*
