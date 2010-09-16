@@ -174,7 +174,6 @@ void init_DVReconstructionFilter( PyObject *module );
 void init_DVSubsampleFilter( PyObject *module );
 void init_Pulldown23RemovalFilter( PyObject *module );
 void init_SystemPresentationClock( PyObject *module );
-void init_AlsaPlayer( PyObject *module );
 void init_AudioPassThroughFilter( PyObject *module );
 void init_VideoSequence( PyObject *module );
 void init_VideoMixFilter( PyObject *module );
@@ -205,7 +204,6 @@ initprocess() {
     init_DVSubsampleFilter( m );
     init_Pulldown23RemovalFilter( m );
     init_SystemPresentationClock( m );
-    init_AlsaPlayer( m );
     init_VideoSequence( m );
     init_VideoMixFilter( m );
     init_AudioPassThroughFilter( m );
