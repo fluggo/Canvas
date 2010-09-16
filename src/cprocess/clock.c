@@ -21,10 +21,34 @@
 #include <stdint.h>
 #include <time.h>
 
+#if defined(WINNT)
+#include <glib.h>
+#include <windows.h>
+#endif
+
 int64_t gettime() {
+#if defined(WINNT)
+    static gsize __init = 0;
+    static LARGE_INTEGER resolution;
+
+    if( g_once_init_enter( &__init ) ) {
+        if( !QueryPerformanceFrequency( &resolution ) )
+            g_error( g_win32_error_message( GetLastError() ) );
+
+        g_once_init_leave( &__init, 1 );
+    }
+
+    LARGE_INTEGER counter;
+
+    if( !QueryPerformanceCounter( &counter ) )
+        g_error( g_win32_error_message( GetLastError() ) );
+
+    return counter.QuadPart * INT64_C(1000000000) / resolution.QuadPart;
+#else
     struct timespec time;
     clock_gettime( CLOCK_MONOTONIC, &time );
 
     return ((int64_t) time.tv_sec) * INT64_C(1000000000) + (int64_t) time.tv_nsec;
+#endif
 }
 
