@@ -209,8 +209,12 @@ read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
         int gotPicture;
 
         //printf( "Decoding video\n" );
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
         avcodec_decode_video( self->codecContext, frame, &gotPicture,
             packet.data, packet.size );
+#else
+        avcodec_decode_video2( self->codecContext, frame, &gotPicture, &packet );
+#endif
 
         if( !gotPicture ) {
             //printf( "Didn't get a picture\n" );

@@ -201,8 +201,18 @@ FFAudioDecoder_get_frame( py_obj_FFAudioDecoder *self, audio_frame *frame ) {
         }
 
         int buffer_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
         uint8_t *data = packet->data;
+#else
+        AVPacket av_packet = {
+            .pts = AV_NOPTS_VALUE,
+            .dts = AV_NOPTS_VALUE,
+            .data = packet->data,
+            .size = packet->length };
+#endif
         int data_size = packet->length;
+
         void *audio_buffer = self->audio_buffer;
 
         int packet_start = packet->pts;
@@ -212,7 +222,11 @@ FFAudioDecoder_get_frame( py_obj_FFAudioDecoder *self, audio_frame *frame ) {
             int decoded;
 
             //printf( "Decoding audio (size left: %d)\n", dataSize );
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
             if( (decoded = avcodec_decode_audio2( &self->context, audio_buffer, &buffer_size, data, data_size )) < 0 ) {
+#else
+            if( (decoded = avcodec_decode_audio3( &self->context, audio_buffer, &buffer_size, &av_packet )) < 0 ) {
+#endif
                 printf( "Could not decode the audio (%s).\n", g_strerror( -decoded ) );
                 frame->current_max_sample = -1;
                 frame->current_min_sample = 0;
@@ -233,7 +247,9 @@ FFAudioDecoder_get_frame( py_obj_FFAudioDecoder *self, audio_frame *frame ) {
 
             packet_duration += get_sample_count( buffer_size, self->context.sample_fmt, self->context.channels );
 
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
             data += decoded;
+#endif
             data_size -= decoded;
             audio_buffer += buffer_size;
             buffer_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;        // A lie, but a safe one, I think

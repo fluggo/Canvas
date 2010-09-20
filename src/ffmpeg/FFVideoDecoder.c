@@ -209,8 +209,17 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
         int got_picture;
 
         //printf( "Decoding video\n" );
-        // TODO: Upgrade to avcodec_decode_video2
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
         avcodec_decode_video( &self->context, &av_frame, &got_picture, packet->data, packet->length );
+#else
+        AVPacket av_packet = {
+            .pts = AV_NOPTS_VALUE,
+            .dts = AV_NOPTS_VALUE,
+            .data = packet->data,
+            .size = packet->length };
+
+        avcodec_decode_video2( &self->context, &av_frame, &got_picture, &av_packet );
+#endif
 
         if( !got_picture )
             continue;

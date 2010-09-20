@@ -95,8 +95,13 @@ FFContainer_init( py_obj_FFContainer *self, PyObject *args, PyObject *kwds ) {
         PyList_SET_ITEM( self->streamList, i, (PyObject *) stream );
     }
 
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 45, 0)
     // Fetch the output format, too, for the MIME type
     self->out = guess_format( self->format->iformat->name, NULL, NULL );
+#else
+    // Fetch the output format, too, for the MIME type
+    self->out = av_guess_format( self->format->iformat->name, NULL, NULL );
+#endif
 
     return 0;
 }

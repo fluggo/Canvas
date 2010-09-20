@@ -88,7 +88,11 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     }
 
     // Set up file
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 45, 0)
     AVOutputFormat *format = guess_format( "dv", /*filename*/ NULL, NULL );        // Static ptr
+#else
+    AVOutputFormat *format = av_guess_format( "dv", /*filename*/ NULL, NULL );        // Static ptr
+#endif
 
     if( format == NULL ) {
         PyErr_Format( PyExc_Exception, "Failed to find an output format matching %s.", filename );
@@ -279,8 +283,13 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             }
 
             // Use swscale to make it YUV 4:1:1
+#if LIBSWSCALE_VERSION_INT < AV_VERSION_INT(0, 9, 0)
             sws_scale( scaler, interFrame.data, interFrame.linesize,
                 0, frameSize.y, outputFrame.data, outputFrame.linesize );
+#else
+            sws_scale( scaler, (const uint8_t * const*) interFrame.data, interFrame.linesize,
+                0, frameSize.y, outputFrame.data, outputFrame.linesize );
+#endif
 
             // Write to file
             outputFrame.interlaced_frame = 1;

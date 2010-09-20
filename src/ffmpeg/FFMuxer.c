@@ -55,7 +55,11 @@ FFMuxer_init( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
         return -1;
 
     av_register_all();
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 45, 0)
     self->format = guess_format( format_name, NULL, NULL );        // Static ptr
+#else
+    self->format = av_guess_format( format_name, NULL, NULL );        // Static ptr
+#endif
 
     if( self->format == NULL ) {
         PyErr_Format( PyExc_Exception, "Failed to find an output format named \"%s\".", format_name );
