@@ -25,7 +25,11 @@
 #include <stdbool.h>
 #include "half.h"
 
+#if defined(WINNT)
+#define EXPORT __attribute__((dllexport))
+#else
 #define EXPORT __attribute__((visibility("default")))
+#endif
 
 #include <glib.h>
 

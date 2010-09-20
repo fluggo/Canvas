@@ -84,7 +84,11 @@ static void n_half_lookup( const half *table, const half *in, half *out, int cou
         *out++ = table[*in++];
 }
 
+#if defined(WINNT)
+#define EXPORT __attribute__((dllexport))
+#else
 #define EXPORT __attribute__((visibility("default")))
+#endif
 
 EXPORT void (*half_convert_to_float)( const half *, float *, int );
 EXPORT void (*half_convert_from_float)( const float *, half *, int );
