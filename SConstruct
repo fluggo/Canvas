@@ -51,6 +51,10 @@ python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()],
 
 if env['PLATFORM'] == 'win32':
     python_env['SHLIBSUFFIX'] = '.pyd'
+    python_env.Append(LIBS=['python26'], LINKFLAGS=['-Wl,--enable-auto-import'])
+
+    # HACK: Work around a stupid bug in the SCons mingw tool
+    python_env['WINDOWS_INSERT_DEF'] = 1
 
 # Generate the half/float conversion tables
 half = env.Command('src/cprocess/halftab.c', 'src/cprocess/genhalf.py', '$PYTHON $SOURCE > $TARGET')
@@ -73,7 +77,7 @@ process_env = python_env.Clone()
 process_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
 
 if env['PLATFORM'] == 'win32':
-    process_env.Append(LIBS=['glew32', 'opengl32', 'python26'])
+    process_env.Append(LIBS=['glew32', 'opengl32'])
 else:
     process_env.ParseConfig('pkg-config --libs --cflags gl')
     process_env.Append(LIBS=['rt', 'GLEW'])
