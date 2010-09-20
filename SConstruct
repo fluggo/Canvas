@@ -84,6 +84,10 @@ else:
 
 process = process_env.SharedLibrary('fluggo/media/process', env.Glob('src/process/*.c') + cprocess)
 
+if env['PLATFORM'] == 'win32':
+    # Go back and narrow down the import lib
+    process = [lib for lib in process if str(lib).endswith('.a')]
+
 Alias('process', process)
 Alias('all', 'process')
 Default('process')
