@@ -94,8 +94,15 @@ Default('process')
 
 if not env.Execute('@pkg-config --exists libavformat libswscale'):
     ffmpeg_env = python_env.Clone()
-    ffmpeg_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale gl gthread-2.0')
+    ffmpeg_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale glib-2.0 gthread-2.0')
     ffmpeg_env.Append(LIBS=[process])
+
+    if env['PLATFORM'] == 'win32':
+        ffmpeg_env.Append(LIBS=['glew32', 'opengl32'])
+    else:
+        ffmpeg_env.ParseConfig('pkg-config --libs --cflags gl')
+        ffmpeg_env.Append(LIBS=['GLEW'])
+
     ffmpeg = ffmpeg_env.SharedLibrary('fluggo/media/ffmpeg', env.Glob('src/ffmpeg/*.c'))
 
     Alias('ffmpeg', ffmpeg)
