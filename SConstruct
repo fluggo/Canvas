@@ -6,15 +6,19 @@ assembly = ARGUMENTS.get('assembly', 0)
 profile = ARGUMENTS.get('profile', 0)
 test = ARGUMENTS.get('test', 0)
 
+check_env = Environment()
+tools = ['default']
+
+if check_env['PLATFORM'] == 'win32':
+    tools = ['mingw']
+
 env = Environment(CPPPATH=['include'],
     CCFLAGS = ['-Wall', '-D_POSIX_C_SOURCE=200112L', '-Werror'],
-    PYTHON=sys.executable)
+    PYTHON=sys.executable, tools=tools)
 
 msys_root = None
 
 if env['PLATFORM'] == 'win32':
-    Tool('mingw')(env)
-
     # Find the MSYS root
     msys_root = os.path.dirname(os.path.dirname(env.WhereIs('gcc')))
     env.Append(CPPPATH=[os.path.join(msys_root, 'include\\w32api')],
