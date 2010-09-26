@@ -804,6 +804,7 @@ class VideoItem(ClipItem):
         if len(self.thumbnails) == count:
             return
 
+        self._cancel_all_thumbnails()
         self.thumbnails = [None for a in range(count)]
 
         if count == 1:
