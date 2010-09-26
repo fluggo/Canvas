@@ -781,13 +781,15 @@ class VideoItem(ClipItem):
         # Changes requiring a reset of the thumbnails
         # TODO: This resets thumbnails *way* more than is necessary
         if 'height' in kw or 'width' in kw or 'offset' in kw:
-            for frame in self.thumbnails:
-                if hasattr(frame, 'cancel'):
-                    frame.cancel()
-
+            self._cancel_all_thumbnails()
             self.thumbnails = []
 
         ClipItem._update(self, **kw)
+
+    def _cancel_all_thumbnails(self):
+        for frame in self.thumbnails:
+            if hasattr(frame, 'cancel'):
+                frame.cancel()
 
     def _create_thumbnails(self, total_width):
         # Calculate how many thumbnails fit
