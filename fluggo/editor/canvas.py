@@ -434,6 +434,15 @@ class Timeline(Item):
     def type(self):
         return self._type
 
+    def __getitem__(self, index):
+        return self._items[index]
+
+    def __len__(self):
+        return len(self._items)
+
+    def __iter__(self):
+        return self._items.__iter__()
+
     def fixup(self):
         Item.fixup(self)
 
