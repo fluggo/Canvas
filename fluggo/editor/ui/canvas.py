@@ -824,49 +824,54 @@ class VideoItem(ClipItem):
         # Figure out which thumbnails belong here and paint them
         # The thumbnail lefts are at (i * (rect.width - thumbnail_width) / (len(thumbnails) - 1)) + rect.x()
         # Rights are at left + thumbnail_width
-        self._create_thumbnails(rect.width())
+        stream = self.stream
 
-        box = self.stream.format.thumbnail_box
+        if stream:
+            self._create_thumbnails(rect.width())
+            box = stream.format.thumbnail_box
 
-        left_nail = int((clip_rect.x() - self.thumbnail_width - rect.x()) *
-            (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width))
-        right_nail = int((clip_rect.x() + clip_rect.width() - rect.x()) *
-            (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width)) + 1
-        left_nail = max(0, left_nail)
-        right_nail = min(len(self.thumbnails), right_nail)
+            left_nail = int((clip_rect.x() - self.thumbnail_width - rect.x()) *
+                (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width))
+            right_nail = int((clip_rect.x() + clip_rect.width() - rect.x()) *
+                (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width)) + 1
+            left_nail = max(0, left_nail)
+            right_nail = min(len(self.thumbnails), right_nail)
 
-        scale = process.VideoScaler(self.stream,
-            target_point=v2f(0, 0), source_point=box.min,
-            scale_factors=v2f(rect.height() * float(self.stream.format.pixel_aspect_ratio) / box.height,
-                rect.height() / box.height),
-            source_rect=box)
+            scale = process.VideoScaler(stream,
+                target_point=v2f(0, 0), source_point=box.min,
+                scale_factors=v2f(rect.height() * float(stream.format.pixel_aspect_ratio) / box.height,
+                    rect.height() / box.height),
+                source_rect=box)
 
-        def callback(frame_index, frame, user_data):
-            (thumbnails, i) = user_data
+            def callback(frame_index, frame, user_data):
+                (thumbnails, i) = user_data
 
-            size = frame.current_data_window.size()
-            img_str = frame.to_argb32_string()
+                size = frame.current_data_window.size()
+                img_str = frame.to_argb32_string()
 
-            thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
+                thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
 
-            # TODO: limit to thumbnail's area
-            self.update()
+                # TODO: limit to thumbnail's area
+                self.update()
 
-        for i in range(left_nail, right_nail):
-            # Later we'll delegate this to another thread
-            if not self.thumbnails[i]:
-                self.thumbnails[i] = _queue.enqueue(source=scale, frame_index=self.thumbnail_indexes[i],
-                    window=self.stream.format.thumbnail_box,
-                    callback=callback, user_data=(self.thumbnails, i))
+            for i in range(left_nail, right_nail):
+                # Later we'll delegate this to another thread
+                if not self.thumbnails[i]:
+                    self.thumbnails[i] = _queue.enqueue(source=scale, frame_index=self.thumbnail_indexes[i],
+                        window=stream.format.thumbnail_box,
+                        callback=callback, user_data=(self.thumbnails, i))
 
-            # TODO: Scale existing thumbnails to fit (removing last thumbnails = [] in _update)
-            if isinstance(self.thumbnails[i], QImage):
-                if len(self.thumbnails) == 1:
-                    painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width)),
-                        rect.y(), self.thumbnails[i])
-                else:
-                    painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
-                        rect.y(), self.thumbnails[i])
+                # TODO: Scale existing thumbnails to fit (removing last thumbnails = [] in _update)
+                if isinstance(self.thumbnails[i], QImage):
+                    if len(self.thumbnails) == 1:
+                        painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width)),
+                            rect.y(), self.thumbnails[i])
+                    else:
+                        painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
+                            rect.y(), self.thumbnails[i])
+        else:
+            # TODO: Show a slug or something?
+            pass
 
         if self.isSelected():
             painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0, 0.5))
