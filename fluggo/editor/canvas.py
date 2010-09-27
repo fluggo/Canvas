@@ -451,8 +451,14 @@ class Timeline(Item):
 
         self._items = sortlist.AutoIndexList(self._items)
 
+        # Count up the proper width and set it on the item
+        total_width = len(self) and self[0].transition_length or 0
+
         for item in self._items:
             item._timeline = self
+            total_width += item.length - item.transition_length
+
+        Item.update(self, width=total_width)
 
 class TimelineItem(yaml.YAMLObject):
     yaml_tag = u'!CanvasTimelineItem'
