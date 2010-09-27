@@ -431,6 +431,9 @@ class Timeline(Item):
         self._items = items
         self._expanded = False
 
+        #: Signal with signature item_updated(item, **kw)
+        self.item_updated = signal.Signal()
+
     def type(self):
         return self._type
 
@@ -462,6 +465,27 @@ class TimelineItem(yaml.YAMLObject):
         self._transition_length = transition_length
         self._timeline = None
         self._index = None
+
+    def update(self, **kw):
+        '''
+        Update the attributes of this item.
+        '''
+        if 'source' in kw:
+            self._source = kw['source']
+
+        if 'offset' in kw:
+            self._offset = int(kw['offset'])
+
+        if 'length' in kw:
+            self._length = int(kw['length'])
+
+        if 'transition' in kw:
+            self._transition = kw['transition']
+
+        if 'transition_length' in kw:
+            self._transition_length = int(kw['transition_length'])
+
+        self._timeline.item_updated(self, **kw)
 
     @property
     def source(self):
