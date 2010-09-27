@@ -75,6 +75,9 @@ class VideoWorkspaceManager(object):
                 self.handle_item_added(item)
 
     def handle_item_added(self, item):
+        if not isinstance(item, canvas.Clip):
+            return
+
         if item.type() != 'video':
             return
 
@@ -146,6 +149,9 @@ class AudioWorkspaceManager(object):
                 self.handle_item_added(item)
 
     def handle_item_added(self, item):
+        if not isinstance(item, canvas.Clip):
+            return
+
         if item.type() != 'audio':
             return
 
