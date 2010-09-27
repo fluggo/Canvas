@@ -876,8 +876,9 @@ class VideoItem(ClipItem):
         if self.isSelected():
             painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0, 0.5))
 
-        painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
-        painter.drawText(rect, Qt.TextSingleLine, self.name)
+        if self.name:
+            painter.setBrush(QColor.fromRgbF(0.0, 0.0, 0.0))
+            painter.drawText(rect, Qt.TextSingleLine, self.name)
 
         painter.restore()
 
