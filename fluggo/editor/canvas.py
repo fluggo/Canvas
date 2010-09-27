@@ -445,9 +445,8 @@ class Timeline(Item):
 class TimelineItem(yaml.YAMLObject):
     yaml_tag = u'!CanvasTimelineItem'
 
-    def __init__(self, source_name=None, source_stream_index=None, offset=0, length=1, transition=None, transition_length=0):
-        self._source_name = source_name
-        self._source_stream_index = source_stream_index
+    def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0):
+        self._source = source
         self._offset = offset
         self._length = length
         self._transition = transition
