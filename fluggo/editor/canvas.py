@@ -431,7 +431,6 @@ class Timeline(Item):
         self._items = items
         self._expanded = False
 
-    @property
     def type(self):
         return self._type
 
