@@ -20,7 +20,7 @@ from fluggo import sortlist, signal
 from fluggo.editor import canvas
 from fluggo.media import process
 
-class SpaceVideoManager(object):
+class SpaceVideoManager(process.VideoPassThroughFilter):
     class ItemWatcher(object):
         def __init__(self, owner, canvas_item, workspace_item):
             self.owner = owner
@@ -72,6 +72,8 @@ class SpaceVideoManager(object):
 
     def __init__(self, canvas_space, source_list):
         self.workspace = process.VideoWorkspace()
+        process.VideoPassThroughFilter.__init__(self, self.workspace)
+
         self.canvas_space = canvas_space
         self.canvas_space.item_added.connect(self.handle_item_added)
         self.canvas_space.item_removed.connect(self.handle_item_removed)

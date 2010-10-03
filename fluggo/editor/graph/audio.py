@@ -20,7 +20,7 @@ from fluggo import signal
 from fluggo.editor import canvas
 from fluggo.media import process
 
-class SpaceAudioManager(object):
+class SpaceAudioManager(process.AudioPassThroughFilter):
     class ItemWatcher(object):
         def __init__(self, owner, canvas_item, workspace_item):
             self.owner = owner
@@ -56,6 +56,8 @@ class SpaceAudioManager(object):
 
     def __init__(self, canvas_space, source_list):
         self.workspace = process.AudioWorkspace()
+        process.AudioPassThroughFilter.__init__(self, self.workspace)
+
         self.canvas_space = canvas_space
         self.canvas_space.item_added.connect(self.handle_item_added)
         self.canvas_space.item_removed.connect(self.handle_item_removed)

@@ -106,7 +106,7 @@ class MainWindow(QMainWindow):
         #self.space.append(clip)
 
         self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
-        self.audio_player = process.AlsaPlayer(48000, 2, self.audio_graph_manager.workspace)
+        self.audio_player = process.AlsaPlayer(48000, 2, self.audio_graph_manager)
 
         self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list)
         self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
         self.video_widget.setRenderingIntent(1.5)
         self.video_widget.setPixelAspectRatio(640.0/704.0)
         self.video_widget.setPresentationClock(self.clock)
-        self.video_widget.setVideoSource(self.video_graph_manager.workspace)
+        self.video_widget.setVideoSource(self.video_graph_manager)
 
         self.clock.seek(0)
 
