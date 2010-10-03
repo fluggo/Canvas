@@ -658,7 +658,8 @@ class ClipItem(QGraphicsItem, Draggable):
     @property
     def stream(self):
         if not self._stream:
-            self._stream = self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index)
+            if isinstance(self.item.source, canvas.StreamSourceRef):
+                self._stream = self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index)
 
         return self._stream
 
