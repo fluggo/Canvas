@@ -506,7 +506,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
             item = (workspace_item_t *) g_sequence_get( iter );
 
             video_get_frame_f32( (video_source *) item->source, frame_index - item->x + item->offset, &tempFrame );
-            video_mix_over_f32( frame, frame, &tempFrame, 1.0f, 1.0f );
+            video_mix_over_f32( frame, &tempFrame, 1.0f );
         }
 
         g_slice_free1( sizeof(rgba_f32) * size.y * size.x, tempFrame.data );
