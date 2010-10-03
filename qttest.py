@@ -6,169 +6,10 @@ from fluggo import signal, sortlist
 from fluggo.media import process, timecode, qt, formats, sources
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
-from fluggo.editor import ui, canvas
+from fluggo.editor import ui, canvas, graph
 
 from fluggo.media.muxers.ffmpeg import FFMuxPlugin
 
-class VideoWorkspaceManager(object):
-    class ItemWatcher(object):
-        def __init__(self, owner, canvas_item, workspace_item):
-            self.owner = owner
-            self.canvas_item = canvas_item
-            self.workspace_item = workspace_item
-            self.canvas_item.updated.connect(self.handle_updated)
-            self._z_order = 0
-
-        def handle_updated(self, **kw):
-            # Raise the frames_updated signal if the content of frames changed
-            if 'x' in kw or 'width' in kw or 'offset' in kw:
-                old_x, old_width, old_offset = self.workspace_item.x, self.workspace_item.width, self.workspace_item.offset
-                new_x, new_width, new_offset = kw.get('x', old_x), kw.get('width', old_width), kw.get('offset', old_offset)
-                old_right, new_right = old_x + old_width, new_x + new_width
-
-                self.workspace_item.update(
-                    x=kw.get('x', old_x),
-                    width=kw.get('width', old_width),
-                    offset=kw.get('offset', old_offset)
-                )
-
-                # Update the currently displayed frame if it's in a changed region
-                if old_x != new_x:
-                    self.owner.frames_updated(min(old_x, new_x), max(old_x, new_x) - 1)
-
-                if old_right != new_right:
-                    self.owner.frames_updated(min(old_right, new_right), max(old_right, new_right) - 1)
-
-                if old_x - old_offset != new_x - new_offset:
-                    self.owner.frames_updated(max(old_x, new_x), min(old_right, new_right) - 1)
-
-            if 'y' in kw or 'z' in kw:
-                self.owner.watchers_sorted.move(self.z_order)
-
-        @property
-        def z_order(self):
-            return self._z_order
-
-        @z_order.setter
-        def z_order(self, value):
-            self._z_order = value
-
-            if value != self.workspace_item.z:
-                self.workspace_item.update(z=value)
-                self.owner.frames_updated(self.workspace_item.x, self.workspace_item.x + self.workspace_item.width - 1)
-
-        def unwatch(self):
-            self.canvas_item.updated.disconnect(self.handle_updated)
-
-    def __init__(self, canvas_space, source_list):
-        self.workspace = process.VideoWorkspace()
-        self.canvas_space = canvas_space
-        self.canvas_space.item_added.connect(self.handle_item_added)
-        self.canvas_space.item_removed.connect(self.handle_item_removed)
-        self.source_list = source_list
-        self.frames_updated = signal.Signal()
-        self.watchers = {}
-        self.watchers_sorted = sortlist.SortedList(keyfunc=lambda a: a.canvas_item.z_sort_key(), index_attr='z_order')
-
-        for item in canvas_space:
-            if item.type() == 'video':
-                self.handle_item_added(item)
-
-    def handle_item_added(self, item):
-        if not isinstance(item, canvas.Clip):
-            return
-
-        if item.type() != 'video':
-            return
-
-        source = None
-
-        if isinstance(item.source, canvas.StreamSourceRef):
-            source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
-
-        workspace_item = self.workspace.add(x=item.x, width=item.width, z=item.z, offset=item.offset, source=source)
-
-        watcher = self.ItemWatcher(self, item, workspace_item)
-        self.watchers[id(item)] = watcher
-        self.watchers_sorted.add(watcher)
-
-    def handle_item_removed(self, item):
-        if item.type() != 'video':
-            return
-
-        watcher = self.watchers.pop(id(item))
-        watcher.unwatch()
-        self.watchers_sorted.remove(watcher)
-        self.workspace.remove(watcher.workspace_item)
-
-class AudioWorkspaceManager(object):
-    class ItemWatcher(object):
-        def __init__(self, owner, canvas_item, workspace_item):
-            self.owner = owner
-            self.canvas_item = canvas_item
-            self.workspace_item = workspace_item
-            self.canvas_item.updated.connect(self.handle_updated)
-
-        def handle_updated(self, **kw):
-            # Raise the frames_updated signal if the content of frames changed
-            if 'x' in kw or 'width' in kw or 'offset' in kw:
-                old_x, old_width, old_offset = self.workspace_item.x, self.workspace_item.width, self.workspace_item.offset
-                new_x, new_width, new_offset = kw.get('x', old_x), kw.get('width', old_width), kw.get('offset', old_offset)
-                old_right, new_right = old_x + old_width, new_x + new_width
-
-                self.workspace_item.update(
-                    x=kw.get('x', old_x),
-                    width=kw.get('width', old_width),
-                    offset=kw.get('offset', old_offset)
-                )
-
-                # Update the currently displayed frame if it's in a changed region
-                if old_x != new_x:
-                    self.owner.frames_updated(min(old_x, new_x), max(old_x, new_x) - 1)
-
-                if old_right != new_right:
-                    self.owner.frames_updated(min(old_right, new_right), max(old_right, new_right) - 1)
-
-                if old_x - old_offset != new_x - new_offset:
-                    self.owner.frames_updated(max(old_x, new_x), min(old_right, new_right) - 1)
-
-        def unwatch(self):
-            self.canvas_item.updated.disconnect(self.handle_updated)
-
-    def __init__(self, canvas_space, source_list):
-        self.workspace = process.AudioWorkspace()
-        self.canvas_space = canvas_space
-        self.canvas_space.item_added.connect(self.handle_item_added)
-        self.canvas_space.item_removed.connect(self.handle_item_removed)
-        self.source_list = source_list
-        self.frames_updated = signal.Signal()
-        self.watchers = {}
-
-        for item in canvas_space:
-            if item.type() == 'audio':
-                self.handle_item_added(item)
-
-    def handle_item_added(self, item):
-        if not isinstance(item, canvas.Clip):
-            return
-
-        if item.type() != 'audio':
-            return
-
-        source = self.source_list.get_stream(item.source_name, item.source_stream_index)
-
-        workspace_item = self.workspace.add(x=item.x, width=item.width, offset=item.offset, source=source)
-
-        watcher = self.ItemWatcher(self, item, workspace_item)
-        self.watchers[id(item)] = watcher
-
-    def handle_item_removed(self, item):
-        if item.type() != 'audio':
-            return
-
-        watcher = self.watchers.pop(id(item))
-        watcher.unwatch()
-        self.workspace.remove(watcher.workspace_item)
 
 class SourceSearchModel(QAbstractTableModel):
     def __init__(self, source_list):
@@ -264,11 +105,11 @@ class MainWindow(QMainWindow):
         self.space = canvas.Space()
         #self.space.append(clip)
 
-        self.audio_workspace_manager = AudioWorkspaceManager(self.space, self.source_list)
-        self.audio_player = process.AlsaPlayer(48000, 2, self.audio_workspace_manager.workspace)
+        self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
+        self.audio_player = process.AlsaPlayer(48000, 2, self.audio_graph_manager.workspace)
 
-        self.video_workspace_manager = VideoWorkspaceManager(self.space, self.source_list)
-        self.video_workspace_manager.frames_updated.connect(self.handle_update_frames)
+        self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list)
+        self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
 
         # Set up canvas
         #self.clock = process.SystemPresentationClock()
@@ -289,7 +130,7 @@ class MainWindow(QMainWindow):
         self.video_widget.setRenderingIntent(1.5)
         self.video_widget.setPixelAspectRatio(640.0/704.0)
         self.video_widget.setPresentationClock(self.clock)
-        self.video_widget.setVideoSource(self.video_workspace_manager.workspace)
+        self.video_widget.setVideoSource(self.video_graph_manager.workspace)
 
         self.clock.seek(0)
 
