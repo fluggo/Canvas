@@ -14,7 +14,7 @@ Contents:
     canvas
     framework
     video_sources
-    cprocess/box2i
+    basetypes
     cprocess/audio
     cprocess/video
 
