@@ -15,8 +15,7 @@ Contents:
     framework
     video_sources
     basetypes
-    cprocess/audio
-    cprocess/video
+    core
 
 Indices and tables
 ==================
