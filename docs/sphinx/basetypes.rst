@@ -4,6 +4,52 @@
 :py:mod:`fluggo.media.basetypes` - Common types in C and Python
 ***************************************************************
 
+Six types appear very often in the media library. They are documented here along
+with the functions to transition them between their C structures and their Python
+equivalents.
+
+All of the C structures are defined in ``framework.h``; the functions to convert
+them to Python and back are all defined in ``pyframework.h``.
+
+Vectors
+=======
+
+.. py:class:: v2i(x, y)
+
+    A tuple representing an integer vector at (*x*, *y*). It can also be initialized
+    with another tuple or :py:class:`v2i`.
+
+    The :c:type:`v2i` structure is the C equivalent::
+
+        typedef struct {
+            int x, y;
+        } v2i;
+
+.. py:class:: v2f(x, y)
+
+    A tuple representing a floating-point vector at (*x*, *y*). It can also be initialized
+    with another tuple or :py:class:`v2f`.
+
+    The :c:type:`v2f` structure is the C equivalent::
+
+        typedef struct {
+            float x, y;
+        } v2f;
+
+The following functions in ``pyframework.h`` perform conversions between Python and C:
+
+.. c:function:: PyObject *py_make_v2i(v2i *v)
+    PyObject *py_make_v2f(v2f *v)
+
+    Convert the C :c:type:`v2i` and :c:type:`v2f` types to
+    the equivalent Python :py:class:`v2i` and :py:class:`v2f`.
+
+.. c:function:: bool py_parse_v2i(PyObject *obj, v2i *v)
+    bool py_parse_v2f(PyObject *obj, v2f *v)
+
+    Parse Python integer or float tuples and store their values in *v* as the
+    equivalent :c:type:`v2i` and :c:type:`v2f` C types. If *obj* cannot be converted,
+    these functions set an exception and return false.
 
 box2i
 =====
