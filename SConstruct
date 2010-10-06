@@ -1,5 +1,14 @@
 import distutils.sysconfig, os.path, sys
+import fnmatch
 import SCons.Defaults
+
+# Recursive file match recipe: http://code.activestate.com/recipes/499305/
+def locate(pattern, root=os.curdir):
+    '''Locate all files matching supplied filename pattern in and below
+    supplied root directory.'''
+    for path, dirs, files in os.walk(os.path.abspath(root)):
+        for filename in fnmatch.filter(files, pattern):
+            yield os.path.join(path, filename)
 
 debug = ARGUMENTS.get('debug', 0)
 assembly = ARGUMENTS.get('assembly', 0)
@@ -193,8 +202,10 @@ Requires('test', process)
 Alias('all', 'test')
 
 # Documentation
-if env.WhereIs('naturaldocs'):
-    Command('docs/html/index.html', Glob('src/cprocess/*.c') + Glob('src/gtk/*.c') + Glob('src/process/*.c'), '@naturaldocs -i src -o HTML docs/html -p docs/natural -ro')
+if env.WhereIs('sphinx-build'):
+    node_list = []
+
+    Command('docs/html/index.html', File(list(locate('*.rst', 'docs/sphinx'))) + File(list(locate('*.py', 'fluggo'))), '@sphinx-build -b html docs/sphinx docs/html')
     Alias('docs', 'docs/html/index.html')
     Clean('docs', Glob('docs/html/*'))
     Alias('all', 'docs')
