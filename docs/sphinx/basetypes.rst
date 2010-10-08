@@ -184,3 +184,83 @@ These functions in ``framework.h`` are useful for manipulating :c:type:`box2i` v
 
     Get the size of the *box* and store it in *result*. If the box is empty, one or both of the axes will have a size of zero.
 
+:py:class:`rgba` - Colors
+=========================
+
+.. py:class:: rgba(r=0.0, g=0.0, b=0.0, a=1.0)
+
+    A tuple representing a floating-point color. *r*, *g*, and *b* can be any value
+    (though usually only non-negative values are meaningful). *a* should be between 0.0
+    and 1.0.
+
+    .. note:: Colors in the media library are currently *not* premultiplied with
+        respect to alpha (e.g. semi-transparent red would be ``rgba(1.0, 0.0, 0.0, 0.5)``).
+        This may change in a future release.
+
+    In Python, the precision of this type is the same as for the :py:class:`float`
+    type. Using it with the media library may reduce the precision to 32-bit or
+    16-bit floats.
+
+    The :c:type:`rgba_f32` structure is the C equivalent::
+
+        typedef struct {
+            float r, g, b, a;
+        } rgba_f32;
+
+The following functions in ``pyframework.h`` perform conversions between Python and C:
+
+.. c:function:: PyObject *py_make_rgba_f32(rgba_f32 *color)
+
+    Convert the C :c:type:`rgba_f32` value *color* to
+    the equivalent Python :py:class:`rgba`.
+
+.. c:function:: bool py_parse_rgba_f32(PyObject *obj, rgba_f32 *color)
+
+    Parse an :py:class:`rgba` value and store its value in *color*. Any tuple of
+    four floats will do. If *obj* cannot be converted,
+    this function sets an exception and returns false.
+
+Other color types
+-----------------
+
+``framework.h`` defines two other color structures::
+
+    typedef struct {
+        uint8_t r, g, b, a;
+    } rgba_u8;
+
+    typedef struct {
+        half r, g, b, a;
+    } rgba_f16;
+
+:c:type:`rgba_f16` represents the same *kind* of data as :c:type:`rgba_f32` and
+:py:class:`rgba`, but with half-float precision. :c:type:`rgba_f16` colors can be
+converted to :c:type:`rgba_f32` colors and back using the half-float API.
+
+:c:type:`rgba_u8` is the usual 8-bit color structure. Each channel has the
+range [0, 255], which maps onto the floating-point range [0.0, 1.0].
+
+:c:type:`rational` and :py:class:`fractions.Fraction` - Rationals
+=================================================================
+
+``framework.h`` defines the type :c:type:`rational` for precise fractions::
+
+    typedef struct {
+        int n;
+        unsigned int d;
+    } rational;
+
+This maps onto an existing Python type, :py:class:`fractions.Fraction`. The
+following functions in ``pyframework.h`` perform conversions between :c:type:`rational`
+and :py:class:`fractions.Fraction`:
+
+.. c:function:: PyObject *py_make_rational(rgba_f32 *in)
+
+    Convert the C :c:type:`rational` value *in* to
+    the equivalent Python :py:class:`fractions.Fraction`.
+
+.. c:function:: bool py_parse_rational(PyObject *obj, rgba_f32 *out)
+
+    Parse a :py:class:`fractions.Fraction` value and store its value in *out*.
+    If *obj* cannot be converted, this function sets an exception and returns false.
+
