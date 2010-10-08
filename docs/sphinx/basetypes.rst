@@ -11,8 +11,8 @@ equivalents.
 All of the C structures are defined in ``framework.h``; the functions to convert
 them to Python and back are all defined in ``pyframework.h``.
 
-Vectors
-=======
+:py:class:`v2i` and :py:class:`v2f` - Vectors
+=============================================
 
 .. py:class:: v2i(x, y)
 
@@ -51,8 +51,8 @@ The following functions in ``pyframework.h`` perform conversions between Python 
     equivalent :c:type:`v2i` and :c:type:`v2f` C types. If *obj* cannot be converted,
     these functions set an exception and return false.
 
-Rectangles
-==========
+:py:class:`box2i` and :py:class:`box2f` - Boxes
+===============================================
 
 :c:type:`box2i` and :c:type:`box2f` are the media library's rectangle types.
 :py:class:`box2i` describes a rectangle of pixels in terms of their minimum and
@@ -146,6 +146,9 @@ The following functions in ``pyframework.h`` perform conversions between Python 
     Parse Python integer or float tuples and store their values in *box* as the
     equivalent :c:type:`box2i` and :c:type:`box2f` C types. If *obj* cannot be converted,
     these functions set an exception and return false.
+
+Manipulating :c:type:`box2i` in C
+---------------------------------
 
 These functions in ``framework.h`` are useful for manipulating :c:type:`box2i` values in C:
 
