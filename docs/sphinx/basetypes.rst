@@ -11,8 +11,8 @@ equivalents.
 All of the C structures are defined in ``framework.h``; the functions to convert
 them to Python and back are all defined in ``pyframework.h``.
 
-:py:class:`v2i` and :py:class:`v2f` - Vectors
-=============================================
+:py:class:`v2i` and :py:class:`v2f` --- Vectors
+===============================================
 
 .. py:class:: v2i(x, y)
 
@@ -51,8 +51,8 @@ The following functions in ``pyframework.h`` perform conversions between Python 
     equivalent :c:type:`v2i` and :c:type:`v2f` C types. If *obj* cannot be converted,
     these functions set an exception and return false.
 
-:py:class:`box2i` and :py:class:`box2f` - Boxes
-===============================================
+:py:class:`box2i` and :py:class:`box2f` --- Boxes
+=================================================
 
 :c:type:`box2i` and :c:type:`box2f` are the media library's rectangle types.
 :py:class:`box2i` describes a rectangle of pixels in terms of their minimum and
@@ -184,8 +184,8 @@ These functions in ``framework.h`` are useful for manipulating :c:type:`box2i` v
 
     Get the size of the *box* and store it in *result*. If the box is empty, one or both of the axes will have a size of zero.
 
-:py:class:`rgba` - Colors
-=========================
+:py:class:`rgba` --- Colors
+===========================
 
 .. py:class:: rgba(r=0.0, g=0.0, b=0.0, a=1.0)
 
@@ -240,8 +240,8 @@ converted to :c:type:`rgba_f32` colors and back using the half-float API.
 :c:type:`rgba_u8` is the usual 8-bit color structure. Each channel has the
 range [0, 255], which maps onto the floating-point range [0.0, 1.0].
 
-:c:type:`rational` and :py:class:`fractions.Fraction` - Rationals
-=================================================================
+:c:type:`rational` and :py:class:`fractions.Fraction` --- Rationals
+===================================================================
 
 ``framework.h`` defines the type :c:type:`rational` for precise fractions::
 
