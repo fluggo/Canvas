@@ -1,4 +1,5 @@
 .. highlight:: c
+.. currentmodule:: fluggo.media.basetypes
 
 ***************************************************************
 :py:mod:`fluggo.media.basetypes` - Common types in C and Python
