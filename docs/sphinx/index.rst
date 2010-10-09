@@ -9,7 +9,7 @@ Welcome to Fluggo Media Library's documentation!
 Contents:
 
 .. toctree::
-    :maxdepth: 2
+    :numbered:
 
     canvas
     framework
