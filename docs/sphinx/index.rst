@@ -16,6 +16,7 @@ Contents:
     video_sources
     basetypes
     core
+    process
 
 Indices and tables
 ==================
