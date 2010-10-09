@@ -37,12 +37,12 @@ contains, but it's probably a bad idea to use it that way.)
     .. attribute:: full_min_sample
         full_max_sample
 
-        The range of samples the frame was allocated for.
+        Read-only. The range of samples the frame was allocated for.
 
     .. attribute:: current_min_sample
         current_max_sample
 
-        The range of samples for which the frame is defined. Data outside this
+        Read-only. The range of samples for which the frame is defined. Data outside this
         range but inside :attr:`full_min_sample` and :attr:`full_max_sample`
         is undefined and probably junk.
 
@@ -51,7 +51,7 @@ contains, but it's probably a bad idea to use it that way.)
 
     .. attribute:: channels
 
-        The number of channels the frame contains.
+        Read-only. The number of channels the frame contains.
 
     It also has a few methods for retrieving sample data:
 
