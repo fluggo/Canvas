@@ -10,5 +10,6 @@
     :maxdepth: 2
 
     process/audio
+    process/video
 
 
