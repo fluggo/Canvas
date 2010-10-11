@@ -46,19 +46,19 @@ RgbaFrameF16_get_funcs( PyObject *self, void *closure ) {
 }
 
 static PyObject *
-RgbaFrameF16_get_full_data_window( PyObject *self, void *closure ) {
+RgbaFrameF16_get_full_window( PyObject *self, void *closure ) {
     return py_make_box2i( &PRIV(self)->full_window );
 }
 
 static PyObject *
-RgbaFrameF16_get_current_data_window( PyObject *self, void *closure ) {
+RgbaFrameF16_get_current_window( PyObject *self, void *closure ) {
     return py_make_box2i( &PRIV(self)->current_window );
 }
 
 static PyGetSetDef RgbaFrameF16_getsetters[] = {
     { VIDEO_FRAME_SOURCE_FUNCS, (getter) RgbaFrameF16_get_funcs, NULL, "Video frame source C API." },
-    { "full_data_window", (getter) RgbaFrameF16_get_full_data_window, NULL, "The full data window for this frame." },
-    { "current_data_window", (getter) RgbaFrameF16_get_current_data_window, NULL, "The current (defined) data window for this frame." },
+    { "full_window", (getter) RgbaFrameF16_get_full_window, NULL, "The full data window for this frame." },
+    { "current_window", (getter) RgbaFrameF16_get_current_window, NULL, "The current (defined) data window for this frame." },
     { NULL }
 };
 

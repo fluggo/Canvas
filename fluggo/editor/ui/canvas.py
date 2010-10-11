@@ -847,7 +847,7 @@ class VideoItem(ClipItem):
             def callback(frame_index, frame, user_data):
                 (thumbnails, i) = user_data
 
-                size = frame.current_data_window.size()
+                size = frame.current_window.size()
                 img_str = frame.to_argb32_string()
 
                 thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
