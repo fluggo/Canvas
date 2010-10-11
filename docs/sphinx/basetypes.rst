@@ -103,11 +103,11 @@ zero for those axes.
 
         A :py:class:`v2i` value with the maximum coordinates of the box. Read-only.
 
-    .. py:attribute: box2i.width
+    .. py:attribute:: box2i.width
 
         The width of the box, which may be zero. Read-only.
 
-    .. py:attribute: box2i.height
+    .. py:attribute:: box2i.height
 
         The height of the box, which may be zero. Read-only.
 
