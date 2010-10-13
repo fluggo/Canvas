@@ -29,7 +29,7 @@ the same captured frame for all frame indexes.)
         get_frame_f32(frame_index, data_window)
 
         Produce the part of frame *frame_index* that appears inside *data_window*,
-        a :class:`~fluggo.media.basetypes.box2i`. :meth:`get_frame_f16` produces
+        which should be a :class:`~.box2i`. :meth:`get_frame_f16` produces
         a :class:`RgbaFrameF16` object and :meth:`get_frame_f32` produces a
         :class:`RgbaFrameF32` object. Hardware acceleration is not used.
 
@@ -46,12 +46,12 @@ the same captured frame for all frame indexes.)
 
     .. attribute:: full_window
 
-        Read-only. A :class:`~fluggo.media.basetypes.box2i` value with the full data window allocated for
+        Read-only. A :class:`~.box2i` value with the full data window allocated for
         the frame.
 
     .. attribute:: current_window
 
-        Read-only. A :class:`~fluggo.media.basetypes.box2i` value with the data window for which the frame
+        Read-only. A :class:`~.box2i` value with the data window for which the frame
         is defined. Data outside this window but inside :attr:`full_window`
         is undefined and probably junk. (It's usually safe to consider everything
         outside of the :attr:`current_window` to be transparent black, i.e.,
