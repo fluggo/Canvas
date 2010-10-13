@@ -5,6 +5,9 @@
 Audio support
 =============
 
+:class:`AudioSource` and :class:`AudioFrame`
+--------------------------------------------
+
 The media library deals with floating-point audio data, which *audio sources*
 produce as *audio frames*. (See :ref:`framework` for an overview.)
 When you request a frame, you specify the starting point
