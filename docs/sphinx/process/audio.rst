@@ -103,7 +103,7 @@ will add overlapping clips together when audio data is requested.
 
     :class:`AudioWorkspace` has the following public attributes:
 
-    .. method:: add(source[, offset=0[, x=0[, width=0[, tag=None]]]])
+    .. method:: add(source[, offset=0, x=0, width=0, tag=None])
 
         Add a new item to the workspace using source *source* starting *offset*
         samples in. The item is placed at *x* and runs for *width* samples. An

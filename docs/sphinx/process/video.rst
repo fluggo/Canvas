@@ -35,8 +35,9 @@ the same captured frame for all frame indexes.)
 
 .. class:: RgbaFrameF32
 
-    :class:`RgbaFrameF32` contains a frame of video in 32-bit floating point channels.
-    While this is useful for video filters that need to do heavy processing on the
+    :class:`RgbaFrameF32` contains a frame of RGBA video in 32-bit floating point channels.
+
+    While video stored in 32-bit float helps filters that need to do heavy processing on the
     image, it's not very useful as a container type since it uses a lot of memory.
     It's also not all that useful as a video source, since the frame data it contains
     may be converted to 16-bit float data at any time. For almost all uses, you
@@ -53,8 +54,8 @@ the same captured frame for all frame indexes.)
 
         Read-only. A :class:`~.box2i` value with the data window for which the frame
         is defined. Data outside this window but inside :attr:`full_window`
-        is undefined and probably junk. (It's usually safe to consider everything
-        outside of the :attr:`current_window` to be transparent black, i.e.,
+        is undefined and probably junk. (For filtering purposes, you should consider
+        everything outside of the :attr:`current_window` to be transparent black, i.e.,
         ``rgba(0, 0, 0, 0)``.)
 
         If :attr:`current_window` is empty, then there is no valid data in the frame.
@@ -63,8 +64,8 @@ the same captured frame for all frame indexes.)
 
     .. method:: pixel(x, y)
 
-        Get the value of the pixel at (*x*, *y*) (see :ref:`framework` for a
-        description of the coordinate system) as an :class:`~fluggo.media.basetypes.rgba`.
+        Get the :class:`~.rgba` color of the pixel at (*x*, *y*) (see
+        :ref:`framework` for a description of the coordinate system).
         If (*x*, *y*) is outside the :attr:`current_window` for this frame, ``None`` is returned.
 
         The index for (*x*, *y*) is given by::
