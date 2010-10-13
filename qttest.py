@@ -3,7 +3,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
 from fluggo import signal, sortlist
-from fluggo.media import process, timecode, qt, formats, sources
+from fluggo.media import process, timecode, qt, formats, sources, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
 from fluggo.editor import ui, canvas, graph
@@ -106,7 +106,7 @@ class MainWindow(QMainWindow):
         #self.space.append(clip)
 
         self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
-        self.audio_player = process.AlsaPlayer(48000, 2, self.audio_graph_manager)
+        self.audio_player = alsa.AlsaPlayer(48000, 2, self.audio_graph_manager)
 
         self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list)
         self.video_graph_manager.frames_updated.connect(self.handle_update_frames)

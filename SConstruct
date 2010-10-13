@@ -132,6 +132,18 @@ if not env.Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobje
 else:
     print 'Skipping GTK build'
 
+if not env.Execute('@pkg-config --exists alsa'):
+    alsa_env = python_env.Clone()
+    alsa_env.ParseConfig('pkg-config --libs --cflags alsa glib-2.0 gthread-2.0')
+    alsa_env.Append(LIBS=[process])
+    alsa = alsa_env.SharedLibrary('fluggo/media/alsa', alsa_env.Glob('src/alsa/*.c'))
+
+    Alias('alsa', alsa)
+    Alias('all', 'alsa')
+    Default('alsa')
+else:
+    print 'Skipping ALSA build'
+
 try:
     import PyQt4.pyqtconfig
     config = PyQt4.pyqtconfig.Configuration()
