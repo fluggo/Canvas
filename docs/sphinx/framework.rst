@@ -9,9 +9,6 @@ The core of the Fluggo Media Library is the processing framework, which lets
 users process audio and video by building filter chains. It can be
 found in the Python :py:mod:`fluggo.media.process` module.
 
-About
-=====
-
 The processing framework is designed for production-level video and audio work,
 as opposed to general media frameworks like GStreamer. It does this by making
 a few simplifying assumptions:
@@ -43,8 +40,59 @@ a few simplifying assumptions:
   things out of sync, apply different filters, or only use some of the streams
   from any given file.
 
-General
+Sources
 =======
+
+Data in the framework moves through *sources*. A *source* provides a single stream,
+usually random-access, of a single type of data. A source may produce its own data,
+retrieve it from a file, or pull and modify data from any number of other sources.
+Sources can also be used multiple times in a filter graph.
+
+There are six kinds of sources: video, audio, presentation clock, frame function,
+codec packet, and coded image.
+
+Audio sources
+-------------
+
+One of the simplest types of sources is the audio source, which produce blocks of
+floating-point audio samples as audio frames. Audio sources are random-access, meaning
+they can produce any part of their stream at any time. They can also contain any
+number of audio channels. In Python, audio sources are represented by the
+:class:`~.AudioSource` class.
+
+Audio data isn't complicated. Audio is indexed by samples (not time), and each
+sample is a floating-point number. Samples are nominally in the range [-1.0, 1.0],
+with silence at 0.0, but can extend outside this range during processing. Samples
+outside this range may be clipped during playback or while writing to a file.
+
+We can play back a simple stereo audio source with :class:`~.AlsaPlayer`::
+
+    from fluggo.media.alsa import AlsaPlayer
+
+    player = AlsaPlayer(rate=48000, channels=2, source=my_source)
+    player.play()
+
+.. digraph:: foo2
+
+    rankdir="LR";
+    node [shape=box]; src1 [label="my_source (AudioSource)"]; alsa [label="AlsaPlayer"];
+    src1->alsa;
+
+Note that we have to tell :class:`~.AlsaPlayer` the correct sample rate and number
+of channels; it doesn't know or care about the sample rate or channel count of
+``my_source``. :class:`~.AlsaPlayer` only asks ``my_source`` for data and plays it back
+at the given rate.
+
+Note also that giving the wrong *rate* isn't a crime: it will just speed up or slow
+down playback. The same goes for *channels*; setting ``channels=1`` will just play
+the first channel of ``my_source``. If you ask for too many channels, ``my_source``
+(and any other :class:`~.AudioSource`) will just fill the extra channels with
+silence. In this way, the framework is forgiving, but will only do exactly what
+you ask.
+
+Lastly, :class:`~.AlsaPlayer` will happily play the sound at half speed (``player.play(Fraction(1, 2))``),
+double speed (``player.play(2)``), and backwards (``player.play(-1)``). The random-access
+nature of audio sources makes this possible.
 
 Almost all of the work of the framework is done with sources, which are objects
 that can produce some kind of data on request, and usually at random.
