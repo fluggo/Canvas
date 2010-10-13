@@ -140,6 +140,9 @@ try:
 
     qt_env = python_env.Clone(tools=['default', 'qt4'], toolpath=['tools'])
 
+    # We need to publish initqt, let sip handle it
+    qt_env['CCFLAGS'].remove('-fvisibility=hidden')
+
     qt_env['SIP'] = config.sip_bin
     qt_env['SIPINCLUDE'] = config.pyqt_sip_dir
     qt_env['SIPFLAGS'] = config.pyqt_sip_flags
