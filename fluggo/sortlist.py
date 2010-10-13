@@ -89,8 +89,10 @@ class SortedList(collections.Sequence):
             keyfunc = Key
 
         if iterable:
-            self.list = AutoIndexList(iterable, index_attr)
+            self.list = list(iterable)
             self.list.sort(key=keyfunc)
+
+            self.list = AutoIndexList(self.list, index_attr)
 
             if keyfunc:
                 self.keys = [keyfunc(item) for item in self.list]
