@@ -22,9 +22,9 @@
 
 void init_AlsaPlayer( PyObject *module );
 
-EXPORT PyMODINIT_FUND
+EXPORT PyMODINIT_FUNC
 initalsa() {
-    PyObject *m = Py_InitModule3( "alsa", module_methods,
+    PyObject *m = Py_InitModule3( "alsa", NULL,
         "ALSA support for the Fluggo media processing library." );
 
     // Make sure process is available and initialized
