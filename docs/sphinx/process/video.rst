@@ -88,4 +88,165 @@ the same captured frame for all frame indexes.)
         The image is transformed from linear to 8-bit using a simple gamma ramp.
         The result is suitable for use with the QImage class in Qt.
 
+:class:`EmptyVideoSource` --- Produce blank video
+-------------------------------------------------
+
+.. class:: EmptyVideoSource
+
+    The simplest source is the :class:`EmptyVideoSource`, which takes no parameters
+    and only produces empty frames.
+
+:class:`SolidColorVideoSource` --- Produce solid colors
+-------------------------------------------------------
+
+.. class:: SolidColorVideoSource(color[, window])
+
+    Return a video source that produces frames filled with *color*.
+    If *window* is specified, the color is restrained to that area of the frame,
+    otherwise, the color covers the entire frame.
+
+:class:`Pulldown23RemovalFilter` --- Remove 2:3 pulldown from interlaced video
+------------------------------------------------------------------------------
+
+When working with 24 fps content, it's best to remove any pulldown (interlacing)
+present so that you can work with progressive frames. This filter does just that.
+
+Remember that there is nothing about a source or frame that indicates whether it
+is interlaced or not. :class:`Pulldown23RemovalFilter` assumes its source is
+interlaced. Remember also that the order of fields in interlaced content is determined
+by its placement in the frame; see :ref:`framework` for details.
+
+.. class:: Pulldown23RemovalFilter(source, cadence_offset)
+
+    Return a video source that removes 2:3 pulldown from interlaced source *source*,
+    starting at *cadence_offset*, which is one of:
+
+    ==========================  === === === === ===
+    ``cadence_offset``          0   1   2   3   4
+    ==========================  === === === === ===
+    First field/second field    AA  BB  BC  CD  DD
+    Whole/split                 W   W   S   S   W
+    ==========================  === === === === ===
+
+    The filter will produce four frames for every five in the source. If the source
+    starts or ends on a split, the incomplete field will be discarded.
+
+    :class:`Pulldown23RemovalFilter` offers a method that helps calculate what
+    the new length of a sequence will be:
+
+    .. method:: get_new_length(old_length)
+
+        Return the number of complete frames the filter will produce if the source
+        has *old_length* frames and you start reading at frame zero.
+
+:class:`VideoSequence` --- Combine video clips in sequence
+----------------------------------------------------------
+
+:class:`VideoSequence` is a way of arranging sections of video one after another.
+For a more powerful tool, see :class:`VideoWorkspace`, which can also composite
+clips that appear at the same time.
+
+.. class:: VideoSequence
+
+    A :class:`VideoSequence` acts as a list of clips, where the clips are represented
+    as 3-tuples: (*source*, *offset*, *length*). The *source* is a video source for
+    that clip, *offset* is the frame in *source* where the clip will start, and
+    *length* is the number of frames to produce from that source.
+
+    :class:`VideoSequence` has these public methods:
+
+    .. describe:: (source, offset, length) = seq[index]
+
+        Get the clip at *index*.
+
+    .. describe:: seq[index] = (source, offset, length)
+
+        Set the clip at *index*.
+
+    .. method:: append(clip)
+
+        Add *clip* to the end of the sequence, where *clip* is a tuple.
+
+    .. method:: insert(index, clip)
+
+        Insert *clip* at *index*.
+
+    .. method:: get_start_frame(index)
+
+        Return the frame index at which the clip at *index* will start.
+
+:class:`VideoWorkspace` --- Arrange and composite multiple clips
+----------------------------------------------------------------
+
+A :class:`VideoWorkspace` is a way of composing a set of video clips
+across time. Add your clips to the workspace as items, setting when they begin
+how long they last, and where to pull them from their original source. The workspace
+will composite overlapping clips when producing the resulting video.
+
+.. class:: VideoWorkspace
+
+    A source that combines video clips.
+
+    :class:`VideoWorkspace` has the following public attributes:
+
+    .. method:: add(source[, offset=0, x=0, width=0, z=0, tag=None])
+
+        Add a new item to the workspace using source *source* starting *offset*
+        frames in. The item starts at frame *x* and runs for *width* frames.
+        If it overlaps with other video clips, *z* will be used to determine the
+        compositing order. An
+        optional *tag* object lets you associate user data with the item. The new
+        item is returned (see :class:`VideoWorkspaceItem`).
+
+    .. method:: remove(item)
+
+        Remove *item* from the workspace.
+
+    .. describe:: len(workspace)
+
+        Get the number of items in the workspace.
+
+    .. describe:: workspace[i]
+
+        Get the item at index *i*. Note that the items in the workspace are in
+        no particular order, and the order may change when items are added, moved,
+        or removed.
+
+.. class:: VideoWorkspaceItem
+
+    A :class:`VideoWorkspaceItem` has these public attributes:
+
+    .. attribute:: x
+
+        Read-only. Sample in the workspace where the item starts.
+
+    .. attribute:: width
+
+        Read-only. Length of the item in frames.
+
+    .. attribute:: z
+
+        Relative order of the clip when compositing. Higher Z-order items composite
+        on top of lower Z-order items.
+
+    .. attribute:: tag
+
+        Optional user data for the item, can be any Python object. Defaults to ``None``.
+
+    .. attribute:: source
+
+        Video source for the item.
+
+    .. attribute:: offset
+
+        Frame in :attr:`source` where the item starts.
+
+    It also has this method:
+
+    .. method:: update(**kw)
+
+        Update one or more of the item's properties---any of ``x``, ``width``,
+        ``z``, ``source``, ``offset``, or ``tag``.
+
+
 
