@@ -1,6 +1,6 @@
 import distutils.sysconfig, os.path, sys
 import fnmatch
-import SCons.Defaults
+import SCons.Defaults, SCons.Errors
 
 # Recursive file match recipe: http://code.activestate.com/recipes/499305/
 def locate(pattern, root=os.curdir):
@@ -217,11 +217,20 @@ Requires('test', process)
 Alias('all', 'test')
 
 # Documentation
-if env.WhereIs('sphinx-build'):
-    node_list = []
+def ensure_sphinx_ver(target, source, env):
+    if not env.WhereIs('sphinx-build'):
+        raise SCons.Errors.StopError('Could not find sphinx-build')
 
-    Command('docs/html/index.html', File(list(locate('*.rst', 'docs/sphinx'))) + File(list(locate('*.py', 'fluggo'))), '@sphinx-build -b html docs/sphinx docs/html')
-    Alias('docs', 'docs/html/index.html')
-    Clean('docs', Glob('docs/html/*'))
-    Alias('all', 'docs')
+    return 0
+
+node_list = []
+
+env.Command('docs/html/index.html', File(list(locate('*.rst', 'docs/sphinx'))) + File(list(locate('*.py', 'fluggo'))), '@sphinx-build -b html docs/sphinx docs/html')
+env.AddPreAction('docs/html/index.html', env.Action(ensure_sphinx_ver, 'Checking Sphinx version...'))
+Alias('docs', 'docs/html/index.html')
+Clean('docs', Glob('docs/html/*'))
+
+Alias('all', 'docs')
+
+
 
