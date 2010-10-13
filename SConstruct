@@ -123,7 +123,7 @@ else:
 if not env.Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
     gtk_env = python_env.Clone()
     gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
-    gtk_env.Append(LIBS=['GLEW', process], CCFLAGS=['-fvisibility=hidden'])
+    gtk_env.Append(LIBS=['GLEW', process])
     gtk = gtk_env.SharedLibrary('fluggo/media/gtk', ['src/gtk/GtkVideoWidget.c'])
 
     Alias('gtk', gtk)
