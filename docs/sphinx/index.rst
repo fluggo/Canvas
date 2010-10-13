@@ -12,12 +12,12 @@ Contents:
     :maxdepth: 2
     :numbered:
 
-    canvas
     framework
     video_sources
     basetypes
     core
     process
+    canvas
 
 Indices and tables
 ==================
