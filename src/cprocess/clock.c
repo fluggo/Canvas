@@ -18,15 +18,14 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdint.h>
+#include "framework.h"
 #include <time.h>
 
 #if defined(WINNT)
-#include <glib.h>
 #include <windows.h>
 #endif
 
-int64_t gettime() {
+EXPORT int64_t gettime() {
 #if defined(WINNT)
     static gsize __init = 0;
     static LARGE_INTEGER resolution;
