@@ -76,7 +76,10 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
         if item.type() != 'audio':
             return
 
-        source = self.source_list.get_stream(item.source_name, item.source_stream_index)
+        source = None
+
+        if isinstance(item.source, canvas.StreamSourceRef):
+            source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
 
         workspace_item = self.workspace.add(x=item.x, width=item.width, offset=item.offset, source=source)
 
