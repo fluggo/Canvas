@@ -45,7 +45,7 @@ class AutoIndexList(ezlist.EZList):
         self.list[start:stop] = items
 
         if self.index_attr and stop - start != len(items):
-            for i, item in enumerate(self.list[stop:], stop):
+            for i, item in enumerate(self.list[start + len(items):], start + len(items)):
                 setattr(item, self.index_attr, i)
 
     def index(self, item):
