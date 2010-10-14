@@ -33,6 +33,3 @@ class test_LerpFunc(tupletester):
         for a, b in zip(a, b):
             self.assertTupleAlmost(a, b)
 
-if __name__ == '__main__':
-    unittest.main()
-

@@ -94,6 +94,3 @@ class test_parse(unittest.TestCase):
         self.assertEqual(t.parse('01:00:00;00'), 60*60*30000 // 1001)
         self.assertEqual(t.parse('00:59:59;29'), 60*60*30000 // 1001 - 1)
 
-if __name__ == '__main__':
-    unittest.main()
-
