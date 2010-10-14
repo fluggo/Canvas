@@ -1,9 +1,14 @@
 from __future__ import print_function
 
 import sys
+import os.path
 import unittest
 
-testmodule = __import__(sys.argv[1])
+path = sys.argv[1]
+
+sys.path.insert(0, os.path.dirname(path))
+
+testmodule = __import__(os.path.basename(path)[:-3])
 
 if __name__ == '__main__':
     print('Running tests from {0}...'.format(testmodule.__name__), end='')

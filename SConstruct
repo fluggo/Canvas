@@ -211,8 +211,8 @@ testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=['GLEW', cprocess])
 
 test_cprocess = testenv.Program('tests/cprocess_test', env.Glob('src/tests/*.c'))
 
-for testfile in Glob('tests/test_*.py'):
-    testenv.Alias('test', testenv.Command(None, testfile, '@python tests/testrunner.py $SOURCE.filebase'))
+for testfile in locate('*.py', 'tests'):
+    testenv.Alias('test', testenv.Command(None, testfile, '@python testrunner.py $SOURCE'))
 
 testenv.Alias('test', testenv.Command('test_dummy', 'tests/cprocess_test', '@tests/cprocess_test'))
 
