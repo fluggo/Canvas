@@ -117,6 +117,7 @@ FFVideoEncoder_dealloc( py_obj_FFVideoEncoder *self ) {
     if( self->context_initialized )
         avcodec_close( &self->context );
 
+    py_coded_image_take_source( NULL, &self->source );
     self->ob_type->tp_free( (PyObject*) self );
 }
 
