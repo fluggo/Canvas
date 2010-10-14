@@ -84,7 +84,7 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
     self->context = widget_gl_new();
     widget_gl_set_invalidate_func( self->context, (invalidate_func) GtkVideoWidget_invalidate_func, self );
 
-    if( !takePresentationClock( pyclock, &self->clock ) ) {
+    if( !py_presentation_clock_take_source( pyclock, &self->clock ) ) {
         widget_gl_free( self->context );
         return -1;
     }

@@ -85,7 +85,7 @@ FFMuxer_dealloc( py_obj_FFMuxer *self ) {
         stream_t *current = self->stream_list;
         self->stream_list = current->next;
 
-        py_codecPacket_takeSource( NULL, &current->source );
+        py_codec_packet_take_source( NULL, &current->source );
 
         if( current->stream->codec->extradata )
             g_slice_free1( current->stream->codec->extradata_size, current->stream->codec->extradata );
@@ -156,7 +156,7 @@ FFMuxer_add_video_stream( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     if( !stream->stream )
         return PyErr_NoMemory();
 
-    if( !py_codecPacket_takeSource( source_obj, &stream->source ) ) {
+    if( !py_codec_packet_take_source( source_obj, &stream->source ) ) {
         av_free( stream->stream );
         g_slice_free( stream_t, stream );
         return NULL;

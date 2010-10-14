@@ -139,14 +139,14 @@ FFVideoDecoder_init( py_obj_FFVideoDecoder *self, PyObject *args, PyObject *kw )
         return -1;
     }
 
-    if( !py_codecPacket_takeSource( source_obj, &self->source ) )
+    if( !py_codec_packet_take_source( source_obj, &self->source ) )
         return -1;
 
     avcodec_get_context_defaults( &self->context );
 
     if( (error = avcodec_open( &self->context, codec )) != 0 ) {
         PyErr_Format( PyExc_Exception, "Could not open the codec (%s).", g_strerror( -error ) );
-        py_codecPacket_takeSource( NULL, &self->source );
+        py_codec_packet_take_source( NULL, &self->source );
         return -1;
     }
 
@@ -163,7 +163,7 @@ static void
 FFVideoDecoder_dealloc( py_obj_FFVideoDecoder *self ) {
     avcodec_close( &self->context );
 
-    py_codecPacket_takeSource( NULL, &self->source );
+    py_codec_packet_take_source( NULL, &self->source );
     g_static_mutex_free( &self->mutex );
 
     self->ob_type->tp_free( (PyObject*) self );

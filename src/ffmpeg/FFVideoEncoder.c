@@ -61,7 +61,7 @@ FFVideoEncoder_init( py_obj_FFVideoEncoder *self, PyObject *args, PyObject *kw )
     rational sample_aspect_ratio, frame_rate;
     v2i frame_size;
 
-    if( !py_codedImage_takeSource( source_obj, &self->source ) )
+    if( !py_coded_image_take_source( source_obj, &self->source ) )
         return -1;
 
     if( !py_parse_rational( frame_rate_obj, &frame_rate ) )
@@ -103,7 +103,7 @@ FFVideoEncoder_init( py_obj_FFVideoEncoder *self, PyObject *args, PyObject *kw )
     // Open the codec
     if( (error = avcodec_open( &self->context, codec )) != 0 ) {
         PyErr_Format( PyExc_Exception, "Could not open the codec (%s).", g_strerror( -error ) );
-        py_codedImage_takeSource( NULL, &self->source );
+        py_coded_image_take_source( NULL, &self->source );
         return -1;
     }
 

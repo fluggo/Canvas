@@ -35,7 +35,7 @@ DVReconstructionFilter_init( py_obj_DVReconstructionFilter *self, PyObject *args
     if( !PyArg_ParseTupleAndKeywords( args, kw, "O", kwlist, &source_obj ) )
         return -1;
 
-    if( !py_codedImage_takeSource( source_obj, &self->source ) )
+    if( !py_coded_image_take_source( source_obj, &self->source ) )
         return -1;
 
     return 0;
@@ -43,7 +43,7 @@ DVReconstructionFilter_init( py_obj_DVReconstructionFilter *self, PyObject *args
 
 static void
 DVReconstructionFilter_dealloc( py_obj_DVReconstructionFilter *self ) {
-    py_codedImage_takeSource( NULL, &self->source );
+    py_coded_image_take_source( NULL, &self->source );
     self->ob_type->tp_free( (PyObject*) self );
 }
 

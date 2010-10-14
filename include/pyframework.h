@@ -130,7 +130,7 @@ typedef struct {
     PyObject *csource;
 } PresentationClockHolder;
 
-bool takePresentationClock( PyObject *source, PresentationClockHolder *holder );
+bool py_presentation_clock_take_source( PyObject *source, PresentationClockHolder *holder );
 
 extern PyTypeObject py_type_PresentationClock;
 
@@ -143,7 +143,7 @@ typedef struct {
     PyObject *csource;
 } CodecPacketSourceHolder;
 
-bool py_codecPacket_takeSource( PyObject *source, CodecPacketSourceHolder *holder );
+bool py_codec_packet_take_source( PyObject *source, CodecPacketSourceHolder *holder );
 
 extern PyTypeObject py_type_CodecPacketSource;
 
@@ -156,7 +156,7 @@ typedef struct {
     PyObject *csource;
 } CodedImageSourceHolder;
 
-bool py_codedImage_takeSource( PyObject *source, CodedImageSourceHolder *holder );
+bool py_coded_image_take_source( PyObject *source, CodedImageSourceHolder *holder );
 
 extern PyTypeObject py_type_CodedImageSource;
 

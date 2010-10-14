@@ -34,7 +34,7 @@ ClockCallbackHandle_unregister( py_obj_ClockCallbackHandle *self, PyObject *args
     Py_CLEAR( self->callable );
     Py_CLEAR( self->data );
 
-    takePresentationClock( NULL, &self->holder );
+    py_presentation_clock_take_source( NULL, &self->holder );
 
     Py_RETURN_NONE;
 }
@@ -44,7 +44,7 @@ ClockCallbackHandle_dealloc( py_obj_ClockCallbackHandle *self ) {
     Py_CLEAR( self->callable );
     Py_CLEAR( self->data );
 
-    takePresentationClock( NULL, &self->holder );
+    py_presentation_clock_take_source( NULL, &self->holder );
 
     self->ob_type->tp_free( (PyObject*) self );
 }
@@ -69,11 +69,11 @@ static PyObject *
 PresentationClock_get_presentation_time( PyObject *self, PyObject *args ) {
     PresentationClockHolder holder = { { NULL } };
 
-    if( !takePresentationClock( self, &holder ) )
+    if( !py_presentation_clock_take_source( self, &holder ) )
         return NULL;
 
     PyObject *result = Py_BuildValue( "L", holder.source.funcs->getPresentationTime( holder.source.obj ) );
-    takePresentationClock( NULL, &holder );
+    py_presentation_clock_take_source( NULL, &holder );
 
     return result;
 }
@@ -82,12 +82,12 @@ static PyObject *
 PresentationClock_get_speed( PyObject *self, PyObject *args ) {
     PresentationClockHolder holder = { { NULL } };
 
-    if( !takePresentationClock( self, &holder ) )
+    if( !py_presentation_clock_take_source( self, &holder ) )
         return NULL;
 
     rational result;
     holder.source.funcs->getSpeed( holder.source.obj, &result );
-    takePresentationClock( NULL, &holder );
+    py_presentation_clock_take_source( NULL, &holder );
 
     return py_make_rational( &result );
 }
@@ -141,7 +141,7 @@ PresentationClock_register_callback( PyObject *self, PyObject *args, PyObject *k
     handle->holder.source.obj = NULL;
     handle->holder.csource = NULL;
 
-    if( !takePresentationClock( self, &handle->holder ) ) {
+    if( !py_presentation_clock_take_source( self, &handle->holder ) ) {
         Py_DECREF(handle);
         return NULL;
     }
@@ -192,7 +192,7 @@ typedef struct __tag_callback_info {
     struct __tag_callback_info *next;
 } callback_info;
 
-EXPORT bool takePresentationClock( PyObject *source, PresentationClockHolder *holder ) {
+EXPORT bool py_presentation_clock_take_source( PyObject *source, PresentationClockHolder *holder ) {
     Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
     holder->source.funcs = NULL;

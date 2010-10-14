@@ -47,7 +47,7 @@ public:
 
     void setPresentationClock( SIP_PYOBJECT );
 %MethodCode
-        bool result = takePresentationClock( a0, &sipCpp->_clockHolder );
+        bool result = py_presentation_clock_take_source( a0, &sipCpp->_clockHolder );
 
         if( !result )
             sipIsErr = 1;

@@ -23,7 +23,7 @@
 static PyObject *py_type_packet;
 
 EXPORT bool
-py_codecPacket_takeSource( PyObject *source, CodecPacketSourceHolder *holder ) {
+py_codec_packet_take_source( PyObject *source, CodecPacketSourceHolder *holder ) {
     Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
     holder->source.funcs = NULL;
@@ -50,11 +50,11 @@ static PyObject *
 CodecPacketSource_get_header( PyObject *self, PyObject *args ) {
     CodecPacketSourceHolder holder = { { NULL } };
 
-    if( !py_codecPacket_takeSource( self, &holder ) )
+    if( !py_codec_packet_take_source( self, &holder ) )
         return NULL;
 
     if( !holder.source.funcs->getHeader ) {
-        py_codecPacket_takeSource( NULL, &holder );
+        py_codec_packet_take_source( NULL, &holder );
         PyErr_SetNone( PyExc_NotImplementedError );
         return NULL;
     }
@@ -62,24 +62,24 @@ CodecPacketSource_get_header( PyObject *self, PyObject *args ) {
     int header_size = holder.source.funcs->getHeader( holder.source.obj, NULL );
 
     if( !header_size ) {
-        py_codecPacket_takeSource( NULL, &holder );
+        py_codec_packet_take_source( NULL, &holder );
         Py_RETURN_NONE;
     }
 
     void *buffer = PyMem_Malloc( header_size );
 
     if( !buffer ) {
-        py_codecPacket_takeSource( NULL, &holder );
+        py_codec_packet_take_source( NULL, &holder );
         return PyErr_NoMemory();
     }
 
     if( !holder.source.funcs->getHeader( holder.source.obj, buffer ) ) {
         PyMem_Free( buffer );
-        py_codecPacket_takeSource( NULL, &holder );
+        py_codec_packet_take_source( NULL, &holder );
         PyErr_SetString( PyExc_Exception, "Couldn't retrieve the header." );
     }
 
-    py_codecPacket_takeSource( NULL, &holder );
+    py_codec_packet_take_source( NULL, &holder );
 
     // TODO: In Python 3, return a bytes object (same for get_next_packet below)
     PyObject *result = PyByteArray_FromStringAndSize( buffer, header_size );
@@ -92,17 +92,17 @@ static PyObject *
 CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
     CodecPacketSourceHolder holder = { { NULL } };
 
-    if( !py_codecPacket_takeSource( self, &holder ) )
+    if( !py_codec_packet_take_source( self, &holder ) )
         return NULL;
 
     if( !holder.source.funcs->getNextPacket ) {
-        py_codecPacket_takeSource( NULL, &holder );
+        py_codec_packet_take_source( NULL, &holder );
         PyErr_SetNone( PyExc_NotImplementedError );
         return NULL;
     }
 
     codec_packet *packet = holder.source.funcs->getNextPacket( holder.source.obj );
-    py_codecPacket_takeSource( NULL, &holder );
+    py_codec_packet_take_source( NULL, &holder );
 
     if( !packet )
         Py_RETURN_NONE;
@@ -149,17 +149,17 @@ CodecPacketSource_seek( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "L", &frame ) )
         return NULL;
 
-    if( !py_codecPacket_takeSource( self, &holder ) )
+    if( !py_codec_packet_take_source( self, &holder ) )
         return NULL;
 
     if( !holder.source.funcs->seek ) {
-        py_codecPacket_takeSource( NULL, &holder );
+        py_codec_packet_take_source( NULL, &holder );
         PyErr_SetNone( PyExc_NotImplementedError );
         return NULL;
     }
 
     bool result = holder.source.funcs->seek( holder.source.obj, frame );
-    py_codecPacket_takeSource( NULL, &holder );
+    py_codec_packet_take_source( NULL, &holder );
 
     if( !result ) {
         PyErr_SetString( PyExc_Exception, "Failed to seek to frame." );

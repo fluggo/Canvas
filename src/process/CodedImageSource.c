@@ -23,7 +23,7 @@
 static PyObject *py_type_packet;
 
 EXPORT bool
-py_codedImage_takeSource( PyObject *source, CodedImageSourceHolder *holder ) {
+py_coded_image_take_source( PyObject *source, CodedImageSourceHolder *holder ) {
     Py_CLEAR( holder->source.obj );
     Py_CLEAR( holder->csource );
     holder->source.funcs = NULL;
@@ -54,11 +54,11 @@ CodedImageSource_get_frame( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "i", &frame ) )
         return NULL;
 
-    if( !py_codedImage_takeSource( self, &holder ) )
+    if( !py_coded_image_take_source( self, &holder ) )
         return NULL;
 
     coded_image *image = holder.source.funcs->getFrame( holder.source.obj, frame );
-    py_codedImage_takeSource( NULL, &holder );
+    py_coded_image_take_source( NULL, &holder );
 
     if( !image )
         Py_RETURN_NONE;
