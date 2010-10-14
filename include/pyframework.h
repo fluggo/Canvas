@@ -86,6 +86,7 @@ typedef void (*framefunc_get_values_v2i_func)( PyObject *self, ssize_t count, in
 typedef void (*framefunc_get_values_v2f_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, v2f *out_values );
 typedef void (*framefunc_get_values_box2i_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, box2i *out_values );
 typedef void (*framefunc_get_values_box2f_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, box2f *out_values );
+typedef void (*framefunc_get_values_rgba_f32_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, rgba_f32 *out_values );
 
 typedef struct {
     int flags;
@@ -95,6 +96,7 @@ typedef struct {
     framefunc_get_values_v2f_func get_values_v2f;
     framefunc_get_values_box2i_func get_values_box2i;
     framefunc_get_values_box2f_func get_values_box2f;
+    framefunc_get_values_rgba_f32_func get_values_rgba_f32;
 } FrameFunctionFuncs;
 
 typedef struct {
@@ -110,6 +112,7 @@ typedef struct {
         float const_f32;
         v2f const_v2f;
         box2f const_box2f;
+        rgba_f32 const_rgba_f32;
         float const_f32_array[4];
     } constant;
     const_type constant_type;
@@ -120,6 +123,7 @@ int framefunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div )
 float framefunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
 void framefunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f *result );
 void framefunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, box2i *result );
+void framefunc_get_rgba_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div, rgba_f32 *result );
 
 #define FRAME_FUNCTION_FUNCS "_frame_function_funcs"
 

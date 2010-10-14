@@ -377,6 +377,36 @@ frameFunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, bo
         holder->funcs->get_values_box2i( holder->source, 1, &frame, div, result );
 }
 
+EXPORT void
+framefunc_get_rgba_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div, rgba_f32 *result ) {
+    *result = (rgba_f32) { 0 };
+
+    if( holder->constant_type == CONST_TYPE_FLOAT32 ) {
+        *result = holder->constant.const_rgba_f32;
+    }
+    else if( holder->constant_type == CONST_TYPE_INT32 ) {
+        // This doesn't really make much sense, but they asked for it
+        result->r = holder->constant.const_i32_array[0];
+        result->g = holder->constant.const_i32_array[1];
+        result->b = holder->constant.const_i32_array[2];
+        result->a = clampf(holder->constant.const_i32_array[3], 0.0f, 1.0f);
+    }
+
+    if( holder->funcs && holder->funcs->get_values_rgba_f32 ) {
+        holder->funcs->get_values_rgba_f32( holder->source, 1, &frame, div, result );
+    }
+    else if( holder->funcs && holder->funcs->get_values_box2f ) {
+        // We can make do with this one
+        box2f box = { { 0 } };
+
+        holder->funcs->get_values_box2f( holder->source, 1, &frame, div, &box );
+        result->r = box.min.x;
+        result->g = box.min.y;
+        result->b = box.max.x;
+        result->a = box.max.y;
+    }
+}
+
 PyObject *
 py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
     static char *kwlist[] = { "source", "frames", "div", NULL };
