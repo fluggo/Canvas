@@ -90,7 +90,7 @@ LinearFrameFunc_getValues_f32( py_obj_LinearFrameFunc *self, int count, int64_t 
 
 static FrameFunctionFuncs LinearFrameFunc_sourceFuncs = {
     0,
-    .getValues_f32 = (framefunc_getValues_f32_func) LinearFrameFunc_getValues_f32
+    .get_values_f32 = (framefunc_get_values_f32_func) LinearFrameFunc_getValues_f32
 };
 
 DECLARE_GETTER(LinearFrameFunc)
@@ -174,9 +174,9 @@ LerpFunc_getValues_box2f( py_obj_LerpFunc *self, int count, int64_t *frames, int
 
 static FrameFunctionFuncs LerpFunc_sourceFuncs = {
     0,
-    .getValues_f32 = (framefunc_getValues_f32_func) LerpFunc_getValues_f32,
-    .getValues_v2f = (framefunc_getValues_v2f_func) LerpFunc_getValues_v2f,
-    .getValues_box2f = (framefunc_getValues_box2f_func) LerpFunc_getValues_box2f
+    .get_values_f32 = (framefunc_get_values_f32_func) LerpFunc_getValues_f32,
+    .get_values_v2f = (framefunc_get_values_v2f_func) LerpFunc_getValues_v2f,
+    .get_values_box2f = (framefunc_get_values_box2f_func) LerpFunc_getValues_box2f
 };
 
 DECLARE_GETTER(LerpFunc)
@@ -185,7 +185,7 @@ DECLARE_FRAMEFUNC(LerpFunc, generic_dealloc)
 
 
 EXPORT bool
-py_frameFunc_takeSource( PyObject *source, FrameFunctionHolder *holder ) {
+py_framefunc_take_source( PyObject *source, FrameFunctionHolder *holder ) {
     Py_CLEAR( holder->source );
     Py_CLEAR( holder->csource );
 
@@ -324,8 +324,8 @@ frameFunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
     if( holder->constant_type == CONST_TYPE_INT32 )
         result = holder->constant.const_i32;
 
-    if( holder->funcs && holder->funcs->getValues_i32 )
-        holder->funcs->getValues_i32( holder->source, 1, &frame, div, &result );
+    if( holder->funcs && holder->funcs->get_values_i32 )
+        holder->funcs->get_values_i32( holder->source, 1, &frame, div, &result );
 
     return result;
 }
@@ -337,8 +337,8 @@ frameFunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
     if( holder->constant_type == CONST_TYPE_FLOAT32 )
         result = holder->constant.const_f32;
 
-    if( holder->funcs && holder->funcs->getValues_f32 )
-        holder->funcs->getValues_f32( holder->source, 1, &frame, div, &result );
+    if( holder->funcs && holder->funcs->get_values_f32 )
+        holder->funcs->get_values_f32( holder->source, 1, &frame, div, &result );
 
     return result;
 }
@@ -355,8 +355,8 @@ frameFunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f 
         result->y = holder->constant.const_v2i.y;
     }
 
-    if( holder->funcs && holder->funcs->getValues_v2f )
-        holder->funcs->getValues_v2f( holder->source, 1, &frame, div, result );
+    if( holder->funcs && holder->funcs->get_values_v2f )
+        holder->funcs->get_values_v2f( holder->source, 1, &frame, div, result );
 }
 
 EXPORT void
@@ -373,8 +373,8 @@ frameFunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, bo
         result->max.y = lroundf( holder->constant.const_box2f.max.y );
     }
 
-    if( holder->funcs && holder->funcs->getValues_box2i )
-        holder->funcs->getValues_box2i( holder->source, 1, &frame, div, result );
+    if( holder->funcs && holder->funcs->get_values_box2i )
+        holder->funcs->get_values_box2i( holder->source, 1, &frame, div, result );
 }
 
 PyObject *
@@ -420,7 +420,7 @@ py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
 
     FrameFunctionHolder holder = { .source = NULL };
 
-    if( !py_frameFunc_takeSource( source_obj, &holder ) ) {
+    if( !py_framefunc_take_source( source_obj, &holder ) ) {
         g_free( frames );
         return NULL;
     }
@@ -458,54 +458,54 @@ py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
         }
     }
     else {
-        if( holder.funcs->getValues_box2f ) {
+        if( holder.funcs->get_values_box2f ) {
             box2f *result = g_malloc( sizeof(box2f) * count );
-            holder.funcs->getValues_box2f( holder.source, count, frames, div, result );
+            holder.funcs->get_values_box2f( holder.source, count, frames, div, result );
 
             for( ssize_t i = 0; i < count; i++ )
                 PyList_SET_ITEM( result_obj, i, py_make_box2f( &result[i] ) );
 
             g_free( result );
         }
-        else if( holder.funcs->getValues_box2i ) {
+        else if( holder.funcs->get_values_box2i ) {
             box2i *result = g_malloc( sizeof(box2i) * count );
-            holder.funcs->getValues_box2i( holder.source, count, frames, div, result );
+            holder.funcs->get_values_box2i( holder.source, count, frames, div, result );
 
             for( ssize_t i = 0; i < count; i++ )
                 PyList_SET_ITEM( result_obj, i, py_make_box2i( &result[i] ) );
 
             g_free( result );
         }
-        else if( holder.funcs->getValues_v2f ) {
+        else if( holder.funcs->get_values_v2f ) {
             v2f *result = g_malloc( sizeof(v2f) * count );
-            holder.funcs->getValues_v2f( holder.source, count, frames, div, result );
+            holder.funcs->get_values_v2f( holder.source, count, frames, div, result );
 
             for( ssize_t i = 0; i < count; i++ )
                 PyList_SET_ITEM( result_obj, i, py_make_v2f( &result[i] ) );
 
             g_free( result );
         }
-        else if( holder.funcs->getValues_v2i ) {
+        else if( holder.funcs->get_values_v2i ) {
             v2i *result = g_malloc( sizeof(v2i) * count );
-            holder.funcs->getValues_v2i( holder.source, count, frames, div, result );
+            holder.funcs->get_values_v2i( holder.source, count, frames, div, result );
 
             for( ssize_t i = 0; i < count; i++ )
                 PyList_SET_ITEM( result_obj, i, py_make_v2i( &result[i] ) );
 
             g_free( result );
         }
-        else if( holder.funcs->getValues_f32 ) {
+        else if( holder.funcs->get_values_f32 ) {
             float *result = g_malloc( sizeof(float) * count );
-            holder.funcs->getValues_f32( holder.source, count, frames, div, result );
+            holder.funcs->get_values_f32( holder.source, count, frames, div, result );
 
             for( ssize_t i = 0; i < count; i++ )
                 PyList_SET_ITEM( result_obj, i, PyFloat_FromDouble( result[i] ) );
 
             g_free( result );
         }
-        else if( holder.funcs->getValues_i32 ) {
+        else if( holder.funcs->get_values_i32 ) {
             int *result = g_malloc( sizeof(int) * count );
-            holder.funcs->getValues_i32( holder.source, count, frames, div, result );
+            holder.funcs->get_values_i32( holder.source, count, frames, div, result );
 
             for( ssize_t i = 0; i < count; i++ )
                 PyList_SET_ITEM( result_obj, i, PyInt_FromLong( result[i] ) );
@@ -514,7 +514,7 @@ py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
         }
     }
 
-    py_frameFunc_takeSource( NULL, &holder );
+    py_framefunc_take_source( NULL, &holder );
     g_free( frames );
 
     return result_obj;

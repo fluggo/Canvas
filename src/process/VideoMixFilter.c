@@ -53,7 +53,7 @@ VideoMixFilter_init( py_obj_VideoMixFilter *self, PyObject *args, PyObject *kwds
     if( !py_video_take_source( srcB, &self->srcB ) )
         return -1;
 
-    if( !py_frameFunc_takeSource( mixB, &self->mixB ) )
+    if( !py_framefunc_take_source( mixB, &self->mixB ) )
         return -1;
 
     self->mode = MIXMODE_CROSSFADE;
@@ -63,7 +63,7 @@ VideoMixFilter_init( py_obj_VideoMixFilter *self, PyObject *args, PyObject *kwds
 
 static void
 VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_frame_f32 *frame ) {
-    float mixB = frameFunc_get_f32( &self->mixB, frameIndex, 1 );
+    float mixB = framefunc_get_f32( &self->mixB, frameIndex, 1 );
 
     video_mix_cross_f32_pull( frame, &self->srcA.source, frameIndex, &self->srcB.source, frameIndex, mixB );
 }
@@ -110,7 +110,7 @@ static void
 VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_frame_gl *frame ) {
     // Initial logic is the same as in software
     // Gather the mix factor
-    float mixB = frameFunc_get_f32( &self->mixB, frameIndex, 1 );
+    float mixB = framefunc_get_f32( &self->mixB, frameIndex, 1 );
     mixB = clampf(mixB, 0.0f, 1.0f);
 
     if( self->mode == MIXMODE_CROSSFADE && mixB == 1.0f ) {
@@ -183,7 +183,7 @@ static void
 VideoMixFilter_dealloc( py_obj_VideoMixFilter *self ) {
     py_video_take_source( NULL, &self->srcA );
     py_video_take_source( NULL, &self->srcB );
-    py_frameFunc_takeSource( NULL, &self->mixB );
+    py_framefunc_take_source( NULL, &self->mixB );
     self->ob_type->tp_free( (PyObject*) self );
 }
 

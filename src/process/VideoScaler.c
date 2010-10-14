@@ -42,16 +42,16 @@ VideoScaler_init( py_obj_VideoScaler *self, PyObject *args, PyObject *kw ) {
     if( !py_video_take_source( sourceObj, &self->source ) )
         return -1;
 
-    if( !py_frameFunc_takeSource( target_point_obj, &self->target_point ) )
+    if( !py_framefunc_take_source( target_point_obj, &self->target_point ) )
         return -1;
 
-    if( !py_frameFunc_takeSource( source_point_obj, &self->source_point ) )
+    if( !py_framefunc_take_source( source_point_obj, &self->source_point ) )
         return -1;
 
-    if( !py_frameFunc_takeSource( scale_factor_obj, &self->scale_factors ) )
+    if( !py_framefunc_take_source( scale_factor_obj, &self->scale_factors ) )
         return -1;
 
-    if( !py_frameFunc_takeSource( source_rect_obj, &self->source_rect ) )
+    if( !py_framefunc_take_source( source_rect_obj, &self->source_rect ) )
         return -1;
 
     return 0;
@@ -67,10 +67,10 @@ VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame
 
     v2f source_point, target_point, scale_factors;
     box2i source_rect;
-    frameFunc_get_v2f( &self->source_point, frame_index, 1, &source_point );
-    frameFunc_get_v2f( &self->target_point, frame_index, 1, &target_point );
-    frameFunc_get_v2f( &self->scale_factors, frame_index, 1, &scale_factors );
-    frameFunc_get_box2i( &self->source_rect, frame_index, 1, &source_rect );
+    framefunc_get_v2f( &self->source_point, frame_index, 1, &source_point );
+    framefunc_get_v2f( &self->target_point, frame_index, 1, &target_point );
+    framefunc_get_v2f( &self->scale_factors, frame_index, 1, &scale_factors );
+    framefunc_get_box2i( &self->source_rect, frame_index, 1, &source_rect );
 
     video_scale_bilinear_f32_pull( frame, target_point, &self->source.source, frame_index, &source_rect, source_point, scale_factors );
 }
@@ -78,9 +78,9 @@ VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame
 static void
 VideoScaler_dealloc( py_obj_VideoScaler *self ) {
     py_video_take_source( NULL, &self->source );
-    py_frameFunc_takeSource( NULL, &self->target_point );
-    py_frameFunc_takeSource( NULL, &self->source_point );
-    py_frameFunc_takeSource( NULL, &self->scale_factors );
+    py_framefunc_take_source( NULL, &self->target_point );
+    py_framefunc_take_source( NULL, &self->source_point );
+    py_framefunc_take_source( NULL, &self->scale_factors );
 
     self->ob_type->tp_free( (PyObject*) self );
 }
