@@ -13,7 +13,7 @@ def locate(pattern, root=os.curdir):
 debug = ARGUMENTS.get('debug', 0)
 assembly = ARGUMENTS.get('assembly', 0)
 profile = ARGUMENTS.get('profile', 0)
-test = ARGUMENTS.get('test', 0)
+release = ARGUMENTS.get('release', 0)
 
 check_env = Environment()
 tools = ['default']
@@ -43,15 +43,20 @@ if WhereIs('clang'):
 env.Append(CFLAGS=['-std=c99'])
 
 if int(debug):
+    # Debug: Debug info + no optimizations
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
+elif int(release):
+    # Release: No debug info + full optimizations + no asserts
+    env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 elif int(profile):
+    # Profile: Test mode + no asserts (test mode is probably just fine for profiling)
     env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
-elif int(test):
-    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DDEBUG'])
 elif int(assembly):
+    # Assembly: Produce assembler output
     env.Append(CCFLAGS = ['-S', '-O3', '-mtune=native', '-march=native', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 else:
-    env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
+    # Test mode is the default: Debug info + full optimizations
+    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DDEBUG'])
 
 # Set up a basic Python environment
 python_env = env.Clone(SHLIBPREFIX='')
