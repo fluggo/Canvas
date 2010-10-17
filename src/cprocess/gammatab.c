@@ -22,7 +22,7 @@ video_get_gamma45_ramp() {
         for( int i = 0; i < HALF_COUNT; i++ )
             h[i] = (half) i;
 
-        half_convert_to_float( h, f, HALF_COUNT );
+        half_convert_to_float( f, h, HALF_COUNT );
         g_free( h );
         gamma45 = g_malloc( HALF_COUNT );
 
@@ -94,7 +94,7 @@ video_transfer_rec709_to_linear_scene( const half *in, half *out, size_t count )
         for( int i = 0; i < HALF_COUNT; i++ )
             h[i] = (half) i;
 
-        half_convert_to_float( h, f, HALF_COUNT );
+        half_convert_to_float( f, h, HALF_COUNT );
         g_free( h );
 
         for( int i = 0; i < HALF_COUNT; i++ )
@@ -139,7 +139,7 @@ video_transfer_rec709_to_linear_display( const half *in, half *out, size_t count
         for( int i = 0; i < HALF_COUNT; i++ )
             h[i] = (half) i;
 
-        half_convert_to_float( h, f, HALF_COUNT );
+        half_convert_to_float( f, h, HALF_COUNT );
         g_free( h );
 
         for( int i = 0; i < HALF_COUNT; i++ ) {
@@ -182,7 +182,7 @@ video_transfer_linear_to_rec709( const half *in, half *out, size_t count ) {
         for( int i = 0; i < HALF_COUNT; i++ )
             h[i] = (half) i;
 
-        half_convert_to_float( h, f, HALF_COUNT );
+        half_convert_to_float( f, h, HALF_COUNT );
         g_free( h );
 
         for( int i = 0; i < HALF_COUNT; i++ )
@@ -234,7 +234,7 @@ video_transfer_linear_to_sRGB( const half *in, half *out, size_t count ) {
         for( int i = 0; i < HALF_COUNT; i++ )
             h[i] = (half) i;
 
-        half_convert_to_float( h, f, HALF_COUNT );
+        half_convert_to_float( f, h, HALF_COUNT );
         g_free( h );
 
         for( int i = 0; i < HALF_COUNT; i++ )

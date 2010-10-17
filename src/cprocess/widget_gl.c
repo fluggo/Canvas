@@ -882,7 +882,7 @@ widget_gl_set_rendering_intent( widget_gl_context *self, float rendering_intent 
     for( int i = 0; i < HALF_COUNT; i++ )
         h[i] = (half) i;
 
-    half_convert_to_float( h, f, HALF_COUNT );
+    half_convert_to_float( f, h, HALF_COUNT );
     g_free( h );
 
     for( int i = 0; i < HALF_COUNT; i++ )

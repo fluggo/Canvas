@@ -640,7 +640,7 @@ void init_FFVideoSource( PyObject *module ) {
     for( int i = 0; i < 65536; i++ )
         gamma22[i] = (uint16_t) i;
 
-    half_convert_to_float( gamma22, f, 65536 );
+    half_convert_to_float( f, gamma22, 65536 );
 
     for( int i = 0; i < 65536; i++ )
         f[i] = (f[i] < 0.0f) ? 0.0f : powf( f[i] / 255.0f, 2.2f );

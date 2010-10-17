@@ -73,7 +73,7 @@ RgbaFrameF16_size( PyObject *self ) {
 static PyObject *
 color_to_python( rgba_f16 *color ) {
     rgba_f32 result;
-    half_convert_to_float( &color->r, &result.r, 4 );
+    half_convert_to_float( &result.r, &color->r, 4 );
 
     return py_make_rgba_f32( &result );
 }

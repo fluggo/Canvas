@@ -145,7 +145,7 @@ video_subsample_dv( rgba_frame_f16 *frame ) {
         half *in = &video_get_pixel_f16( frame, window.min.x, row + picOffset.y )->r;
 
         video_transfer_linear_to_rec709( in, in, (sizeof(rgba_f16) / sizeof(half)) * window_width );
-        half_convert_to_float( in, &tempRow->r, (sizeof(rgba_f16) / sizeof(half)) * window_width );
+        half_convert_to_float( &tempRow->r, in, (sizeof(rgba_f16) / sizeof(half)) * window_width );
 
         for( int x = 0; x < window_width; x++ ) {
             float y = studio_float_to_luma8(

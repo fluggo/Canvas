@@ -68,7 +68,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     for( int i = 0; i < RAMP_SIZE; i++ )
         tempRampH[i] = (half) i;
 
-    half_convert_to_float( tempRampH, tempRampF, RAMP_SIZE );
+    half_convert_to_float( tempRampF, tempRampH, RAMP_SIZE );
     g_slice_free1( RAMP_SIZE * sizeof(half), tempRampH );
 
     for( int i = 0; i < RAMP_SIZE; i++ ) {

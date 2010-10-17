@@ -59,7 +59,7 @@ static inline half f2h_fast( float value ) {
 }
 
 // Naive implementations
-static void n_convert_h2f( const half *in, float *out, int count ) {
+static void n_convert_h2f( float *out, const half *in, int count ) {
     while( count-- )
         *out++ = h2f( *in++ );
 }
@@ -90,7 +90,7 @@ static void n_half_lookup( const half *table, const half *in, half *out, int cou
 #define EXPORT __attribute__((visibility("default")))
 #endif
 
-EXPORT void (*half_convert_to_float)( const half *, float *, int );
+EXPORT void (*half_convert_to_float)( float *, const half *, int );
 EXPORT void (*half_convert_from_float)( half *, const float *, int );
 EXPORT void (*half_convert_to_float_fast)( const half *, float *, int );
 EXPORT void (*half_convert_from_float_fast)( const float *, half *, int );
