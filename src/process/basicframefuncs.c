@@ -318,7 +318,7 @@ py_framefunc_take_source( PyObject *source, FrameFunctionHolder *holder ) {
 }
 
 EXPORT int
-frameFunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
+framefunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
     int result = 0;
 
     if( holder->constant_type == CONST_TYPE_INT32 )
@@ -331,7 +331,7 @@ frameFunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
 }
 
 EXPORT float
-frameFunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
+framefunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
     float result = 0;
 
     if( holder->constant_type == CONST_TYPE_FLOAT32 )
@@ -344,7 +344,7 @@ frameFunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
 }
 
 EXPORT void
-frameFunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f *result ) {
+framefunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f *result ) {
     *result = (v2f) { 0.0f, 0.0f };
 
     if( holder->constant_type == CONST_TYPE_FLOAT32 ) {
@@ -360,7 +360,7 @@ frameFunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f 
 }
 
 EXPORT void
-frameFunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, box2i *result ) {
+framefunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, box2i *result ) {
     *result = (box2i) { { 0 } };
 
     if( holder->constant_type == CONST_TYPE_INT32 ) {
