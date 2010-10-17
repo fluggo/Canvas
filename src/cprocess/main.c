@@ -63,10 +63,10 @@ EXPORT void video_get_frame_f16( video_source *source, int frameIndex, rgba_fram
 
         if( countX > 0 ) {
             for( int y = tempFrame.current_window.min.y; y <= tempFrame.current_window.max.y; y++ ) {
-                half_convert_from_float(
-                    &video_get_pixel_f16( targetFrame, tempFrame.current_window.min.x, y )->r,
-                    &video_get_pixel_f32( &tempFrame, tempFrame.current_window.min.x, y )->r,
-                    countX * 4 );
+                rgba_f32_to_f16(
+                    video_get_pixel_f16( targetFrame, tempFrame.current_window.min.x, y ),
+                    video_get_pixel_f32( &tempFrame, tempFrame.current_window.min.x, y ),
+                    countX );
             }
         }
     }
@@ -107,10 +107,10 @@ EXPORT void video_get_frame_f32( video_source *source, int frameIndex, rgba_fram
     int countX = tempFrame.current_window.max.x - tempFrame.current_window.min.x + 1;
 
     for( int y = tempFrame.current_window.min.y; y <= tempFrame.current_window.max.y; y++ ) {
-        half_convert_to_float(
-            &video_get_pixel_f32( targetFrame, tempFrame.current_window.min.x, y )->r,
-            &video_get_pixel_f16( &tempFrame, tempFrame.current_window.min.x, y )->r,
-            countX * 4 );
+        rgba_f16_to_f32(
+            video_get_pixel_f32( targetFrame, tempFrame.current_window.min.x, y ),
+            video_get_pixel_f16( &tempFrame, tempFrame.current_window.min.x, y ),
+            countX );
     }
 
     targetFrame->current_window = tempFrame.current_window;

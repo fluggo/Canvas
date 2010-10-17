@@ -120,11 +120,11 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
             tempRow[x].a = 1.0f;
         }
 
-        half *out = &video_get_pixel_f16( frame, frame->current_window.min.x, row + picOffset.y )->r;
+        rgba_f16 *out = video_get_pixel_f16( frame, frame->current_window.min.x, row + picOffset.y );
 
-        half_convert_from_float( out, (float*)(tempRow + frame->current_window.min.x - picOffset.x),
-            (sizeof(rgba_f16) / sizeof(half)) * (frame->current_window.max.x - frame->current_window.min.x + 1) );
-        video_transfer_rec709_to_linear_scene( out, out,
+        rgba_f32_to_f16( out, tempRow + frame->current_window.min.x - picOffset.x,
+            frame->current_window.max.x - frame->current_window.min.x + 1 );
+        video_transfer_rec709_to_linear_scene( &out->r, &out->r,
             (sizeof(rgba_f16) / sizeof(half)) * (frame->current_window.max.x - frame->current_window.min.x + 1) );
     }
 

@@ -50,7 +50,7 @@ SolidColorVideoSource_init( py_obj_SolidColorVideoSource *self, PyObject *args, 
     self->window = window;
     self->color_f32 = color;
 
-    half_convert_from_float( &self->color_f16.r, &color.r, 4 );
+    rgba_f32_to_f16( &self->color_f16, &color, 1 );
 
     return 0;
 }

@@ -198,6 +198,16 @@ typedef struct {
     video_frame_source_funcs *funcs;
 } video_source;
 
+static inline void
+rgba_f32_to_f16( rgba_f16 *out, const rgba_f32 *in, int count ) {
+    half_convert_from_float( &out->r, &in->r, count * 4 );
+}
+
+static inline void
+rgba_f16_to_f32( rgba_f32 *out, const rgba_f16 *in, int count ) {
+    half_convert_to_float( &out->r, &in->r, count * 4 );
+}
+
 void video_get_frame_f16( video_source *source, int frame_index, rgba_frame_f16 *frame );
 void video_get_frame_f32( video_source *source, int frame_index, rgba_frame_f32 *frame );
 void video_get_frame_gl( video_source *source, int frame_index, rgba_frame_gl *frame );
@@ -205,6 +215,7 @@ const uint8_t *video_get_gamma45_ramp();
 
 void video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in );
 void video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float alpha );
+void video_attenuate_f32( rgba_frame_f32 *frame, float alpha );
 void video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b );
 void video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_b );
 void video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *b, float mix_b );

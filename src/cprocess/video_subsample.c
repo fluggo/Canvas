@@ -142,10 +142,10 @@ video_subsample_dv( rgba_frame_f16 *frame ) {
         uint8_t *cbrow = (uint8_t*) planar->data[1] + (row * planar->stride[1]);
         uint8_t *crrow = (uint8_t*) planar->data[2] + (row * planar->stride[2]);
 
-        half *in = &video_get_pixel_f16( frame, window.min.x, row + picOffset.y )->r;
+        rgba_f16 *in = video_get_pixel_f16( frame, window.min.x, row + picOffset.y );
 
-        video_transfer_linear_to_rec709( in, in, (sizeof(rgba_f16) / sizeof(half)) * window_width );
-        half_convert_to_float( &tempRow->r, in, (sizeof(rgba_f16) / sizeof(half)) * window_width );
+        video_transfer_linear_to_rec709( &in->r, &in->r, (sizeof(rgba_f16) / sizeof(half)) * window_width );
+        rgba_f16_to_f32( tempRow, in, window_width );
 
         for( int x = 0; x < window_width; x++ ) {
             float y = studio_float_to_luma8(

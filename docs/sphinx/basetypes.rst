@@ -235,8 +235,18 @@ Other color types
     } rgba_f16;
 
 :c:type:`rgba_f16` represents the same *kind* of data as :c:type:`rgba_f32` and
-:py:class:`rgba`, but with half-float precision. :c:type:`rgba_f16` colors can be
-converted to :c:type:`rgba_f32` colors and back using the half-float API.
+:py:class:`rgba`, but with half-float precision. These functions are available
+for converting between :c:type:`rgba_f16` and :c:type:`rgba_f32`:
+
+.. c:function:: void rgba_f32_to_f16(rgba_f16 *out, const rgba_f32 *in, int count)
+
+    Convert *count* :c:type:`rgba_f32` values at *in* to :c:type:`rgba_f16` values
+    and store them in *out*.
+
+.. c:function:: void rgba_f16_to_f32(rgba_f32 *out, const rgba_f16 *in, int count)
+
+    Convert *count* :c:type:`rgba_f16` values at *in* to :c:type:`rgba_f32` values
+    and store them in *out*.
 
 :c:type:`rgba_u8` is the usual 8-bit color structure. Each channel has the
 range [0, 255], which maps onto the floating-point range [0.0, 1.0].
