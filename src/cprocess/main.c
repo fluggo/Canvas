@@ -64,8 +64,8 @@ EXPORT void video_get_frame_f16( video_source *source, int frameIndex, rgba_fram
         if( countX > 0 ) {
             for( int y = tempFrame.current_window.min.y; y <= tempFrame.current_window.max.y; y++ ) {
                 half_convert_from_float(
-                    &video_get_pixel_f32( &tempFrame, tempFrame.current_window.min.x, y )->r,
                     &video_get_pixel_f16( targetFrame, tempFrame.current_window.min.x, y )->r,
+                    &video_get_pixel_f32( &tempFrame, tempFrame.current_window.min.x, y )->r,
                     countX * 4 );
             }
         }

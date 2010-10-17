@@ -357,7 +357,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
 
         half *out = &video_get_pixel_f16( frame, frame->current_window.min.x, row + picOffset.y )->r;
 
-        half_convert_from_float( (float*)(tempRow + frame->current_window.min.x - picOffset.x), out,
+        half_convert_from_float( out, (float*)(tempRow + frame->current_window.min.x - picOffset.x),
             (sizeof(rgba_f16) / sizeof(half)) * (frame->current_window.max.x - frame->current_window.min.x + 1) );
         video_transfer_rec709_to_linear_scene( out, out,
             (sizeof(rgba_f16) / sizeof(half)) * (frame->current_window.max.x - frame->current_window.min.x + 1) );
@@ -645,7 +645,7 @@ void init_FFVideoSource( PyObject *module ) {
     for( int i = 0; i < 65536; i++ )
         f[i] = (f[i] < 0.0f) ? 0.0f : powf( f[i] / 255.0f, 2.2f );
 
-    half_convert_from_float( f, gamma22, 65536 );
+    half_convert_from_float( gamma22, f, 65536 );
 
     g_free( f );
 

@@ -100,7 +100,7 @@ video_transfer_rec709_to_linear_scene( const half *in, half *out, size_t count )
         for( int i = 0; i < HALF_COUNT; i++ )
             f[i] = rec709_to_linear( f[i] );
 
-        half_convert_from_float( f, __rec709_to_linear, HALF_COUNT );
+        half_convert_from_float( __rec709_to_linear, f, HALF_COUNT );
         g_free( f );
 
         g_once_init_leave( &__init, 1 );
@@ -149,7 +149,7 @@ video_transfer_rec709_to_linear_display( const half *in, half *out, size_t count
                 f[i] = powf( f[i], 2.5f );
         }
 
-        half_convert_from_float( f, __rec709_to_linear, HALF_COUNT );
+        half_convert_from_float( __rec709_to_linear, f, HALF_COUNT );
         g_free( f );
 
         g_once_init_leave( &__init, 1 );
@@ -188,7 +188,7 @@ video_transfer_linear_to_rec709( const half *in, half *out, size_t count ) {
         for( int i = 0; i < HALF_COUNT; i++ )
             f[i] = linear_to_rec709( f[i] );
 
-        half_convert_from_float( f, __linear_to_rec709, HALF_COUNT );
+        half_convert_from_float( __linear_to_rec709, f, HALF_COUNT );
         g_free( f );
 
         g_once_init_leave( &__init, 1 );
@@ -240,7 +240,7 @@ video_transfer_linear_to_sRGB( const half *in, half *out, size_t count ) {
         for( int i = 0; i < HALF_COUNT; i++ )
             f[i] = linear_to_sRGB( f[i] );
 
-        half_convert_from_float( f, __linear_to_sRGB, HALF_COUNT );
+        half_convert_from_float( __linear_to_sRGB, f, HALF_COUNT );
         g_free( f );
 
         g_once_init_leave( &__init, 1 );
