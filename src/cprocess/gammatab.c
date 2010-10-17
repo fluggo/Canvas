@@ -106,7 +106,7 @@ video_transfer_rec709_to_linear_scene( const half *in, half *out, size_t count )
         g_once_init_leave( &__init, 1 );
     }
 
-    half_lookup( __rec709_to_linear, in, out, count );
+    half_lookup( __rec709_to_linear, out, in, count );
 }
 
 
@@ -155,7 +155,7 @@ video_transfer_rec709_to_linear_display( const half *in, half *out, size_t count
         g_once_init_leave( &__init, 1 );
     }
 
-    half_lookup( __rec709_to_linear, in, out, count );
+    half_lookup( __rec709_to_linear, out, in, count );
 }
 
 /*
@@ -194,7 +194,7 @@ video_transfer_linear_to_rec709( const half *in, half *out, size_t count ) {
         g_once_init_leave( &__init, 1 );
     }
 
-    half_lookup( __linear_to_rec709, in, out, count );
+    half_lookup( __linear_to_rec709, out, in, count );
 }
 
 
@@ -246,6 +246,6 @@ video_transfer_linear_to_sRGB( const half *in, half *out, size_t count ) {
         g_once_init_leave( &__init, 1 );
     }
 
-    half_lookup( __linear_to_sRGB, in, out, count );
+    half_lookup( __linear_to_sRGB, out, in, count );
 }
 

@@ -30,8 +30,8 @@ void init_half();
 
 extern void (*half_convert_from_float)( half *out, const float *in, int count );
 extern void (*half_convert_to_float)( float *out, const half *in, int count );
-extern void (*half_convert_from_float_fast)( const float *in, half *out, int count );
-extern void (*half_convert_to_float_fast)( const half *in, float *out, int count );
-extern void (*half_lookup)( const half *table, const half *in, half *out, int count );
+extern void (*half_convert_from_float_fast)( half *out, const float *in, int count );
+extern void (*half_convert_to_float_fast)( float *out, const half *in, int count );
+extern void (*half_lookup)( const half *table, half *out, const half *in, int count );
 
 #endif

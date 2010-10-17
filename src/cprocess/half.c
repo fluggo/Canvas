@@ -69,17 +69,17 @@ static void n_convert_f2h( half *out, const float *in, int count ) {
         *out++ = f2h( *in++ );
 }
 
-static void n_convert_h2f_fast( const half *in, float *out, int count ) {
+static void n_convert_h2f_fast( float *out, const half *in, int count ) {
     while( count-- )
         *out++ = h2f_fast( *in++ );
 }
 
-static void n_convert_f2h_fast( const float *in, half *out, int count ) {
+static void n_convert_f2h_fast( half *out, const float *in, int count ) {
     while( count-- )
         *out++ = f2h_fast( *in++ );
 }
 
-static void n_half_lookup( const half *table, const half *in, half *out, int count ) {
+static void n_half_lookup( const half *table, half *out, const half *in, int count ) {
     while( count-- )
         *out++ = table[*in++];
 }
@@ -92,9 +92,9 @@ static void n_half_lookup( const half *table, const half *in, half *out, int cou
 
 EXPORT void (*half_convert_to_float)( float *, const half *, int );
 EXPORT void (*half_convert_from_float)( half *, const float *, int );
-EXPORT void (*half_convert_to_float_fast)( const half *, float *, int );
-EXPORT void (*half_convert_from_float_fast)( const float *, half *, int );
-EXPORT void (*half_lookup)( const half *, const half *, half *, int );
+EXPORT void (*half_convert_to_float_fast)( float *, const half *, int );
+EXPORT void (*half_convert_from_float_fast)( half *, const float *, int );
+EXPORT void (*half_lookup)( const half *, half *, const half *, int );
 
 EXPORT void init_half() {
     half_convert_to_float = n_convert_h2f;
