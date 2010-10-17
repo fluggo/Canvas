@@ -81,7 +81,7 @@ linear_to_rec709( float in ) {
     of the final display.
 */
 EXPORT void
-video_transfer_rec709_to_linear_scene( const half *in, half *out, size_t count ) {
+video_transfer_rec709_to_linear_scene( half *out, const half *in, size_t count ) {
     static half *__rec709_to_linear = NULL;
     static gsize __init = 0;
 
@@ -126,7 +126,7 @@ video_transfer_rec709_to_linear_scene( const half *in, half *out, size_t count )
     the scene's values.
 */
 EXPORT void
-video_transfer_rec709_to_linear_display( const half *in, half *out, size_t count ) {
+video_transfer_rec709_to_linear_display( half *out, const half *in, size_t count ) {
     static half *__rec709_to_linear = NULL;
     static gsize __init = 0;
 
@@ -169,7 +169,7 @@ video_transfer_rec709_to_linear_display( const half *in, half *out, size_t count
     count - Number of half values to convert.
 */
 EXPORT void
-video_transfer_linear_to_rec709( const half *in, half *out, size_t count ) {
+video_transfer_linear_to_rec709( half *out, const half *in, size_t count ) {
     static half *__linear_to_rec709 = NULL;
     static gsize __init = 0;
 
@@ -221,7 +221,7 @@ linear_to_sRGB( float in ) {
     count - Number of half values to convert.
 */
 EXPORT void
-video_transfer_linear_to_sRGB( const half *in, half *out, size_t count ) {
+video_transfer_linear_to_sRGB( half *out, const half *in, size_t count ) {
     static half *__linear_to_sRGB = NULL;
     static gsize __init = 0;
 

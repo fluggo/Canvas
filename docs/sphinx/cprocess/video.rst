@@ -127,7 +127,7 @@ Transfer functions
 
     ...but it may be changed to an sRGB transfer function in the future.
 
-.. c:function:: void video_transfer_linear_to_sRGB(const half *in, half *out, size_t count)
+.. c:function:: void video_transfer_linear_to_sRGB(half *out, const half *in, size_t count)
 
     Map *count* :c:type:`half` values from *in* to *out*, converting from
     linear to encoded using the sRGB transfer function:
@@ -146,7 +146,7 @@ Transfer functions
 Rec. 709
 """"""""
 
-.. c:function:: void video_transfer_linear_to_rec709(const half *in, half *out, size_t count)
+.. c:function:: void video_transfer_linear_to_rec709(half *out, const half *in, size_t count)
 
     Map *count* :c:type:`half` values from *in* to *out*, converting from
     linear to encoded using the Rec. 709 transfer function with scene intent:
@@ -162,7 +162,7 @@ Rec. 709
     or monitors in dim environments. Source values should nominally be in the range
     [0.0, 1.0], but can be outside this range.
 
-.. c:function:: void video_transfer_rec709_to_linear_scene(const half *in, half *out, size_t count)
+.. c:function:: void video_transfer_rec709_to_linear_scene(half *out, const half *in, size_t count)
 
     Map *count* :c:type:`half` values from *in* to *out*, converting from
     encoded to linear values using the inverse Rec. 709 transfer function with scene intent:
@@ -177,7 +177,7 @@ Rec. 709
     Use this function to recover the original luminance values from a Rec. 709-encoded scene.
     Source values should nominally be in the range [0.0, 1.0], but can be outside this range.
 
-.. c:function:: void video_transfer_rec709_to_linear_display(const half *in, half *out, size_t count)
+.. c:function:: void video_transfer_rec709_to_linear_display(half *out, const half *in, size_t count)
 
     Map *count* :c:type:`half` values from *in* to *out*, converting from
     encoded to linear using the Rec. 709 transfer function with display intent.

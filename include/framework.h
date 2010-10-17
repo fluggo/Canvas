@@ -213,10 +213,10 @@ void video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_fr
 void video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_source *source, int frame, box2i *source_rect, v2f source_point, v2f factors );
 
 // Transfer functions
-void video_transfer_rec709_to_linear_scene( const half *in, half *out, size_t count );
-void video_transfer_rec709_to_linear_display( const half *in, half *out, size_t count );
-void video_transfer_linear_to_rec709( const half *in, half *out, size_t count );
-void video_transfer_linear_to_sRGB( const half *in, half *out, size_t count );
+void video_transfer_rec709_to_linear_scene( half *out, const half *in, size_t count );
+void video_transfer_rec709_to_linear_display( half *out, const half *in, size_t count );
+void video_transfer_linear_to_rec709( half *out, const half *in, size_t count );
+void video_transfer_linear_to_sRGB( half *out, const half *in, size_t count );
 
 // OpenGL utility routines
 void *getCurrentGLContext();
