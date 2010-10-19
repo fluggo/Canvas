@@ -104,7 +104,8 @@ the same captured frame for all frame indexes.)
 
     Return a video source that produces frames filled with *color*.
     If *window* is specified, the color is restrained to that area of the frame,
-    otherwise, the color covers the entire frame.
+    otherwise, the color covers the entire frame. *color* and *window* can be
+    frame functions.
 
 :class:`Pulldown23RemovalFilter` --- Remove 2:3 pulldown from interlaced video
 ------------------------------------------------------------------------------
