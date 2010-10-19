@@ -179,11 +179,22 @@ LerpFunc_getValues_box2f( py_obj_LerpFunc *self, int count, int64_t *frames, int
     }
 }
 
+static void
+LerpFunc_getValues_box2i( py_obj_LerpFunc *self, int count, int64_t *frames, int64_t div, box2i *outValues ) {
+    for( int i = 0; i < count; i++ ) {
+        outValues[i].min.x = lroundf((frames[i] / (float)(div * self->length)) * (self->end.min.x - self->start.min.x) + self->start.min.x);
+        outValues[i].min.y = lroundf((frames[i] / (float)(div * self->length)) * (self->end.min.y - self->start.min.y) + self->start.min.y);
+        outValues[i].max.x = lroundf((frames[i] / (float)(div * self->length)) * (self->end.max.x - self->start.max.x) + self->start.max.x);
+        outValues[i].max.y = lroundf((frames[i] / (float)(div * self->length)) * (self->end.max.y - self->start.max.y) + self->start.max.y);
+    }
+}
+
 static FrameFunctionFuncs LerpFunc_sourceFuncs = {
     0,
     .get_values_f32 = (framefunc_get_values_f32_func) LerpFunc_getValues_f32,
     .get_values_v2f = (framefunc_get_values_v2f_func) LerpFunc_getValues_v2f,
-    .get_values_box2f = (framefunc_get_values_box2f_func) LerpFunc_getValues_box2f
+    .get_values_box2f = (framefunc_get_values_box2f_func) LerpFunc_getValues_box2f,
+    .get_values_box2i = (framefunc_get_values_box2i_func) LerpFunc_getValues_box2i,
 };
 
 DECLARE_GETTER(LerpFunc)
