@@ -19,7 +19,7 @@ class test_const(tupletester):
 class test_LerpFunc(tupletester):
 
     def test_quad(self):
-        func = process.LerpFunc((1.0, 2.0, 3.0, 4.0), (-1.0, -2.0, -3.0, -4.0), 4)
+        func = process.LerpFunc((1.0, 2.0, 3.0, 4.0), (-1.0, -2.0, -3.0, -4.0), 5)
 
         self.assertTupleAlmost(box2f(1.0, 2.0, 3.0, 4.0), process.frame_func_get(source=func, frames=0)[0])
         self.assertTupleAlmost(box2f(0.5, 1.0, 1.5, 2.0), process.frame_func_get(source=func, frames=1)[0])

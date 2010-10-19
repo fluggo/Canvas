@@ -112,6 +112,13 @@ LerpFunc_init( py_obj_LerpFunc *self, PyObject *args, PyObject *kwds ) {
     if( !PyArg_ParseTupleAndKeywords( args, kwds, "OOL", kwlist, &start_obj, &end_obj, &self->length ) )
         return -1;
 
+    if( self->length < 1 ) {
+        PyErr_SetString( PyExc_Exception, "length must be greater than 1." );
+        return -1;
+    }
+
+    self->length--;
+
     start_obj = PySequence_Fast( start_obj, "Expected a tuple or list for start." );
 
     if( !start_obj )
