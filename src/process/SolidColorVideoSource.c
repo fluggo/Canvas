@@ -38,8 +38,10 @@ SolidColorVideoSource_init( py_obj_SolidColorVideoSource *self, PyObject *args, 
     if( !py_framefunc_take_source( color_obj, &self->color_f32 ) )
         return -1;
 
-    self->window.constant_type = CONST_TYPE_INT32;
-    box2i_set( &self->window.constant.const_box2i, INT_MIN, INT_MIN, INT_MAX, INT_MAX );
+    self->window.constant[0] = INT_MIN;
+    self->window.constant[1] = INT_MIN;
+    self->window.constant[2] = INT_MAX;
+    self->window.constant[3] = INT_MAX;
 
     if( window_obj && !py_framefunc_take_source( window_obj, &self->window ) )
         return -1;

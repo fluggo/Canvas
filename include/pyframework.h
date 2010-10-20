@@ -71,51 +71,18 @@ extern PyTypeObject py_type_AudioSource;
 
 /*********** Frame functions *****/
 
-typedef enum _CONST_TYPE {
-    CONST_TYPE_INT32,
-    CONST_TYPE_FLOAT32,
-} const_type;
-
-// Frame functions: Given an array of *count* frame indexes in *frames*,
-// produce an equivalent array of *outValues* to use (allocated by the caller).
-// Each frame index is divided by *div* to support subframe calculations.
-
-typedef void (*framefunc_get_values_i32_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, int *out_values );
-typedef void (*framefunc_get_values_f32_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, float *out_values );
-typedef void (*framefunc_get_values_v2i_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, v2i *out_values );
-typedef void (*framefunc_get_values_v2f_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, v2f *out_values );
-typedef void (*framefunc_get_values_box2i_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, box2i *out_values );
-typedef void (*framefunc_get_values_box2f_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, box2f *out_values );
-typedef void (*framefunc_get_values_rgba_f32_func)( PyObject *self, ssize_t count, int64_t *frames, int64_t div, rgba_f32 *out_values );
+typedef void (*framefunc_get_values_func)( PyObject *self, ssize_t count, double *frames, double (*out_values)[4] );
 
 typedef struct {
     int flags;
-    framefunc_get_values_i32_func get_values_i32;
-    framefunc_get_values_f32_func get_values_f32;
-    framefunc_get_values_v2i_func get_values_v2i;
-    framefunc_get_values_v2f_func get_values_v2f;
-    framefunc_get_values_box2i_func get_values_box2i;
-    framefunc_get_values_box2f_func get_values_box2f;
-    framefunc_get_values_rgba_f32_func get_values_rgba_f32;
+    framefunc_get_values_func get_values;
 } FrameFunctionFuncs;
 
 typedef struct {
     PyObject *source;
     PyObject *csource;
     FrameFunctionFuncs *funcs;
-    union {
-        int const_i32;
-        v2i const_v2i;
-        box2i const_box2i;
-        int const_i32_array[4];
-
-        float const_f32;
-        v2f const_v2f;
-        box2f const_box2f;
-        rgba_f32 const_rgba_f32;
-        float const_f32_array[4];
-    } constant;
-    const_type constant_type;
+    double constant[4];
 } FrameFunctionHolder;
 
 bool py_framefunc_take_source( PyObject *source, FrameFunctionHolder *holder );
