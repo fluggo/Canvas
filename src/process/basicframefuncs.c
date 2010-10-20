@@ -275,12 +275,11 @@ py_framefunc_take_source( PyObject *source, FrameFunctionHolder *holder ) {
 }
 
 EXPORT int
-framefunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
+framefunc_get_i32( FrameFunctionHolder *holder, double frame ) {
     if( holder->funcs && holder->funcs->get_values ) {
-        double dframe = (double) frame / (double) div;
         double dresult[4];
 
-        holder->funcs->get_values( holder->source, 1, &dframe, &dresult );
+        holder->funcs->get_values( holder->source, 1, &frame, &dresult );
 
         return lround( dresult[0] );
     }
@@ -290,12 +289,11 @@ framefunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
 }
 
 EXPORT float
-framefunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
+framefunc_get_f32( FrameFunctionHolder *holder, double frame ) {
     if( holder->funcs && holder->funcs->get_values ) {
-        double dframe = (double) frame / (double) div;
         double dresult[4];
 
-        holder->funcs->get_values( holder->source, 1, &dframe, &dresult );
+        holder->funcs->get_values( holder->source, 1, &frame, &dresult );
 
         return (float) dresult[0];
     }
@@ -305,12 +303,11 @@ framefunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div ) {
 }
 
 EXPORT void
-framefunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f *result ) {
+framefunc_get_v2f( v2f *result, FrameFunctionHolder *holder, double frame ) {
     if( holder->funcs && holder->funcs->get_values ) {
-        double dframe = (double) frame / (double) div;
         double dresult[4];
 
-        holder->funcs->get_values( holder->source, 1, &dframe, &dresult );
+        holder->funcs->get_values( holder->source, 1, &frame, &dresult );
 
         *result = (v2f) { (float) dresult[0], (float) dresult[1] };
     }
@@ -320,12 +317,11 @@ framefunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f 
 }
 
 EXPORT void
-framefunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, box2i *result ) {
+framefunc_get_box2i( box2i *result, FrameFunctionHolder *holder, double frame ) {
     if( holder->funcs && holder->funcs->get_values ) {
-        double dframe = (double) frame / (double) div;
         double dresult[4];
 
-        holder->funcs->get_values( holder->source, 1, &dframe, &dresult );
+        holder->funcs->get_values( holder->source, 1, &frame, &dresult );
 
         *result = (box2i) { { lround( dresult[0] ), lround( dresult[1] ) },
             { lround( dresult[2] ), lround( dresult[3] ) } };
@@ -337,12 +333,11 @@ framefunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, bo
 }
 
 EXPORT void
-framefunc_get_rgba_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div, rgba_f32 *result ) {
+framefunc_get_rgba_f32( rgba_f32 *result, FrameFunctionHolder *holder, double frame ) {
     if( holder->funcs && holder->funcs->get_values ) {
-        double dframe = (double) frame / (double) div;
         double dresult[4];
 
-        holder->funcs->get_values( holder->source, 1, &dframe, &dresult );
+        holder->funcs->get_values( holder->source, 1, &frame, &dresult );
 
         *result = (rgba_f32) { (float) dresult[0], (float) dresult[1],
             (float) dresult[2], clampf( (float) dresult[3], 0.0f, 1.0f ) };

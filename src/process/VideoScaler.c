@@ -67,10 +67,10 @@ VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame
 
     v2f source_point, target_point, scale_factors;
     box2i source_rect;
-    framefunc_get_v2f( &self->source_point, frame_index, 1, &source_point );
-    framefunc_get_v2f( &self->target_point, frame_index, 1, &target_point );
-    framefunc_get_v2f( &self->scale_factors, frame_index, 1, &scale_factors );
-    framefunc_get_box2i( &self->source_rect, frame_index, 1, &source_rect );
+    framefunc_get_v2f( &source_point, &self->source_point, frame_index );
+    framefunc_get_v2f( &target_point, &self->target_point, frame_index );
+    framefunc_get_v2f( &scale_factors, &self->scale_factors, frame_index );
+    framefunc_get_box2i( &source_rect, &self->source_rect, frame_index );
 
     video_scale_bilinear_f32_pull( frame, target_point, &self->source.source, frame_index, &source_rect, source_point, scale_factors );
 }

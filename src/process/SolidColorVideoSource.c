@@ -54,7 +54,7 @@ SolidColorVideoSource_getFrame( py_obj_SolidColorVideoSource *self, int frameInd
     box2i window;
     v2i size;
 
-    framefunc_get_box2i( &self->window, frameIndex, 1, &window );
+    framefunc_get_box2i( &window, &self->window, frameIndex );
 
     box2i_intersect( &frame->current_window, &window, &frame->full_window );
     box2i_get_size( &frame->current_window, &size );
@@ -65,7 +65,7 @@ SolidColorVideoSource_getFrame( py_obj_SolidColorVideoSource *self, int frameInd
     rgba_f32 color_f32;
     rgba_f16 color_f16;
 
-    framefunc_get_rgba_f32( &self->color_f32, frameIndex, 1, &color_f32 );
+    framefunc_get_rgba_f32( &color_f32, &self->color_f32, frameIndex );
     rgba_f32_to_f16( &color_f16, &color_f32, 1 );
 
     for( int y = frame->current_window.min.y; y <= frame->current_window.max.y; y++ ) {
@@ -81,7 +81,7 @@ SolidColorVideoSource_getFrame32( py_obj_SolidColorVideoSource *self, int frameI
     box2i window;
     v2i size;
 
-    framefunc_get_box2i( &self->window, frameIndex, 1, &window );
+    framefunc_get_box2i( &window, &self->window, frameIndex );
 
     box2i_intersect( &frame->current_window, &window, &frame->full_window );
     box2i_get_size( &frame->current_window, &size );
@@ -90,7 +90,7 @@ SolidColorVideoSource_getFrame32( py_obj_SolidColorVideoSource *self, int frameI
         return;
 
     rgba_f32 color_f32;
-    framefunc_get_rgba_f32( &self->color_f32, frameIndex, 1, &color_f32 );
+    framefunc_get_rgba_f32( &color_f32, &self->color_f32, frameIndex );
 
     for( int y = frame->current_window.min.y; y <= frame->current_window.max.y; y++ ) {
         rgba_f32 *row = video_get_pixel_f32( frame, frame->current_window.min.x, y );
@@ -105,7 +105,7 @@ SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameI
     box2i window;
     v2i size, frameSize;
 
-    framefunc_get_box2i( &self->window, frameIndex, 1, &window );
+    framefunc_get_box2i( &window, &self->window, frameIndex );
 
     box2i_intersect( &frame->current_window, &window, &frame->full_window );
     box2i_get_size( &frame->current_window, &size );
@@ -116,7 +116,7 @@ SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameI
     box2i_get_size( &frame->full_window, &frameSize );
 
     rgba_f32 color_f32;
-    framefunc_get_rgba_f32( &self->color_f32, frameIndex, 1, &color_f32 );
+    framefunc_get_rgba_f32( &color_f32, &self->color_f32, frameIndex );
 
     glGenTextures( 1, &frame->texture );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frame->texture );

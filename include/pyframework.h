@@ -86,11 +86,11 @@ typedef struct {
 } FrameFunctionHolder;
 
 bool py_framefunc_take_source( PyObject *source, FrameFunctionHolder *holder );
-int framefunc_get_i32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
-float framefunc_get_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div );
-void framefunc_get_v2f( FrameFunctionHolder *holder, int64_t frame, int64_t div, v2f *result );
-void framefunc_get_box2i( FrameFunctionHolder *holder, int64_t frame, int64_t div, box2i *result );
-void framefunc_get_rgba_f32( FrameFunctionHolder *holder, int64_t frame, int64_t div, rgba_f32 *result );
+int framefunc_get_i32( FrameFunctionHolder *holder, double frame );
+float framefunc_get_f32( FrameFunctionHolder *holder, double frame );
+void framefunc_get_v2f( v2f *result, FrameFunctionHolder *holder, double frame );
+void framefunc_get_box2i( box2i *result, FrameFunctionHolder *holder, double frame );
+void framefunc_get_rgba_f32( rgba_f32 *result, FrameFunctionHolder *holder, double frame );
 
 #define FRAME_FUNCTION_FUNCS "_frame_function_funcs"
 
