@@ -92,6 +92,8 @@ void framefunc_get_v2f( v2f *result, FrameFunctionHolder *holder, double frame )
 void framefunc_get_box2i( box2i *result, FrameFunctionHolder *holder, double frame );
 void framefunc_get_rgba_f32( rgba_f32 *result, FrameFunctionHolder *holder, double frame );
 
+extern PyTypeObject py_type_FrameFunction;
+
 #define FRAME_FUNCTION_FUNCS "_frame_function_funcs"
 
 /**** Clock **/

@@ -145,8 +145,6 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     return Py_BuildValue( "L", endTime - startTime );
 }
 
-PyObject *py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw );
-
 static PyMethodDef module_methods[] = {
     { "get_frame_time", (PyCFunction) py_getFrameTime, METH_VARARGS,
         "get_frame_time(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
@@ -154,14 +152,6 @@ static PyMethodDef module_methods[] = {
         "get_time_frame(rate, time): Gets the frame containing the given time in nanoseconds at the given Fraction frame rate." },
     { "time_get_frame", (PyCFunction) py_timeGetFrame, METH_VARARGS | METH_KEYWORDS,
         "timeGetFrame(source, min_frame, max_frame, data_window=(0,0,1,1)): Retrieves min_frame through max_frame from the source and returns the time it took in nanoseconds." },
-    { "frame_func_get", (PyCFunction) py_frame_func_get, METH_VARARGS | METH_KEYWORDS,
-        "Get a list of values from a frame function.\n"
-        "\n"
-        "value_list = frame_func_get(source, frames[, div=1])\n"
-        "\n"
-        "source: A frame function.\n"
-        "frames: An integer or a list of integers of the frames to get values for.\n"
-        "div: Optional integer to divide each frame by, to support subsampling the function." },
     { NULL }
 };
 

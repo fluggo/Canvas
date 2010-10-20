@@ -32,6 +32,7 @@ generic_dealloc( PyObject *self ) {
         "fluggo.media.process." #name, \
         sizeof(py_obj_##name), \
         .tp_flags = Py_TPFLAGS_DEFAULT, \
+        .tp_base = &py_type_FrameFunction, \
         .tp_new = PyType_GenericNew, \
         .tp_dealloc = (destructor) deallocFunc, \
         .tp_init = (initproc) name##_init, \
@@ -348,13 +349,11 @@ framefunc_get_rgba_f32( rgba_f32 *result, FrameFunctionHolder *holder, double fr
     }
 }
 
-PyObject *
+static PyObject *
 py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
-    static char *kwlist[] = { "source", "frames", NULL };
-    PyObject *source_obj, *frames_obj;
+    PyObject *frames_obj;
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "OO", kwlist,
-            &source_obj, &frames_obj ) )
+    if( !PyArg_ParseTuple( args, "O", &frames_obj ) )
         return NULL;
 
     // For now, we'll be very specific about what we expect out of frames
@@ -392,7 +391,7 @@ py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
 
     FrameFunctionHolder holder = { .source = NULL };
 
-    if( !py_framefunc_take_source( source_obj, &holder ) ) {
+    if( !py_framefunc_take_source( self, &holder ) ) {
         g_free( frames );
         return NULL;
     }
@@ -427,6 +426,26 @@ py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
 
     return result_obj;
 }
+
+static PyMethodDef FrameFunction_methods[] = {
+    { "get_values", (PyCFunction) py_frame_func_get, METH_VARARGS,
+        "Get a list of values from a frame function.\n"
+        "\n"
+        "value_list = source.get_values(frames)\n"
+        "\n"
+        "source: A frame function.\n"
+        "frames: An float or a list of floats of the frames to get values for." },
+    { NULL }
+};
+
+EXPORT PyTypeObject py_type_FrameFunction = {
+    PyObject_HEAD_INIT(NULL)
+    0,            // ob_size
+    "fluggo.media.process.FrameFunction",    // tp_name
+    0,    // tp_basicsize
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_methods = FrameFunction_methods,
+};
 
 
 void init_basicframefuncs( PyObject *module ) {
