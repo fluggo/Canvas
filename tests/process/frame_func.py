@@ -26,3 +26,36 @@ class test_LerpFunc(tupletester):
         for a, b in zip(a, b):
             self.assertTupleAlmost(a, b)
 
+
+class test_AnimationFunc(tupletester):
+    def test_basic(self):
+        func = process.AnimationFunc()
+        func.add(process.AnimationPoint(process.POINT_HOLD, 0.0, 4.0))
+        func.add(process.AnimationPoint(process.POINT_LINEAR, 1.0, 2.0))
+        func.add(process.AnimationPoint(process.POINT_LINEAR, 2.0, 6.0))
+
+        self.assertAlmostEqual(4.0, func.get_values(-0.50)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 0.00)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 0.25)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 0.50)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 0.75)[0][0])
+        self.assertAlmostEqual(2.0, func.get_values( 1.00)[0][0])
+        self.assertAlmostEqual(3.0, func.get_values( 1.25)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 1.50)[0][0])
+        self.assertAlmostEqual(5.0, func.get_values( 1.75)[0][0])
+        self.assertAlmostEqual(6.0, func.get_values( 2.00)[0][0])
+        self.assertAlmostEqual(6.0, func.get_values( 2.50)[0][0])
+
+        # Now in random order
+        self.assertAlmostEqual(4.0, func.get_values(-0.50)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 0.75)[0][0])
+        self.assertAlmostEqual(3.0, func.get_values( 1.25)[0][0])
+        self.assertAlmostEqual(6.0, func.get_values( 2.50)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 0.00)[0][0])
+        self.assertAlmostEqual(6.0, func.get_values( 2.00)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 0.25)[0][0])
+        self.assertAlmostEqual(5.0, func.get_values( 1.75)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 0.50)[0][0])
+        self.assertAlmostEqual(2.0, func.get_values( 1.00)[0][0])
+        self.assertAlmostEqual(4.0, func.get_values( 1.50)[0][0])
+
