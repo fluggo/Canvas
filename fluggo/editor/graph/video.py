@@ -16,6 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# k
+# kr
+# kri
+# kris
+# krist
+# kristi
+# kristin
+# kristina!!!!!
+
 from fluggo import sortlist, signal
 from fluggo.editor import canvas
 from fluggo.media import process
