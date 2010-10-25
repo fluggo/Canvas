@@ -26,13 +26,15 @@ typedef struct {
     PyObject_HEAD
 
     VideoSourceHolder source;
+    int offset;
 } py_obj_VideoPassThroughFilter;
 
 static int
 VideoPassThroughFilter_init( py_obj_VideoPassThroughFilter *self, PyObject *args, PyObject *kwds ) {
     PyObject *source;
+    self->offset = 0;
 
-    if( !PyArg_ParseTuple( args, "O", &source ) )
+    if( !PyArg_ParseTuple( args, "O|i", &source, &self->offset ) )
         return -1;
 
     if( !py_video_take_source( source, &self->source ) )
@@ -49,7 +51,7 @@ VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameI
         return;
     }
 
-    video_get_frame_f16( &self->source.source, frameIndex, frame );
+    video_get_frame_f16( &self->source.source, frameIndex + self->offset, frame );
 }
 
 static void
@@ -60,7 +62,7 @@ VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int fram
         return;
     }
 
-    video_get_frame_f32( &self->source.source, frameIndex, frame );
+    video_get_frame_f32( &self->source.source, frameIndex + self->offset, frame );
 }
 
 static void
@@ -71,7 +73,7 @@ VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int fram
         return;
     }
 
-    video_get_frame_gl( &self->source.source, frameIndex, frame );
+    video_get_frame_gl( &self->source.source, frameIndex + self->offset, frame );
 }
 
 static void
@@ -102,6 +104,22 @@ VideoPassThroughFilter_setSource( py_obj_VideoPassThroughFilter *self, PyObject 
     Py_RETURN_NONE;
 }
 
+static PyObject *
+VideoPassThroughFilter_get_offset( py_obj_VideoPassThroughFilter *self, void *closure ) {
+    return PyInt_FromLong( self->offset );
+}
+
+static int
+VideoPassThroughFilter_set_offset( py_obj_VideoPassThroughFilter *self, PyObject *value, void *closure ) {
+    int offset = PyInt_AsLong( value );
+
+    if( offset == -1 && PyErr_Occurred() )
+        return -1;
+
+    self->offset = offset;
+    return 0;
+}
+
 static video_frame_source_funcs sourceFuncs = {
     .get_frame = (video_get_frame_func) VideoPassThroughFilter_getFrame,
     .get_frame_32 = (video_get_frame_32_func) VideoPassThroughFilter_getFrame32,
@@ -116,6 +134,7 @@ VideoPassThroughFilter_getFuncs( py_obj_VideoPassThroughFilter *self, void *clos
 
 static PyGetSetDef VideoPassThroughFilter_getsetters[] = {
     { VIDEO_FRAME_SOURCE_FUNCS, (getter) VideoPassThroughFilter_getFuncs, NULL, "Video frame source C API." },
+    { "offset", (getter) VideoPassThroughFilter_get_offset, (setter) VideoPassThroughFilter_set_offset, "Get or set the offset." },
     { NULL }
 };
 
