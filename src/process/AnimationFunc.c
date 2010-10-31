@@ -28,13 +28,13 @@ typedef struct {
     PyObject_HEAD
 
     GSequence *sequence;
-    GMutex *mutex;
+    GStaticRWLock lock;
     GSequenceIter *iter;
 } py_obj_AnimationFunc;
 
 typedef struct {
     PyObject_HEAD
-    PyObject *owner;
+    py_obj_AnimationFunc *owner;
     GSequenceIter *iter;
 
     int type;
@@ -138,8 +138,11 @@ AnimationPoint_set_frame( py_obj_AnimationPoint *self, PyObject *value, void *cl
 
     self->frame = frame;
 
-    if( self->iter )
+    if( self->iter ) {
+        g_static_rw_lock_writer_lock( &self->owner->lock );
         g_sequence_sort_changed( self->iter, (GCompareDataFunc) cmpx, NULL );
+        g_static_rw_lock_writer_unlock( &self->owner->lock );
+    }
 
     return 0;
 }
@@ -177,7 +180,7 @@ static PyTypeObject py_type_AnimationPoint = {
 static int
 AnimationFunc_init( py_obj_AnimationFunc *self, PyObject *args, PyObject *kwds ) {
     self->sequence = g_sequence_new( NULL );
-    self->mutex = g_mutex_new();
+    g_static_rw_lock_init( &self->lock );
     self->iter = g_sequence_get_begin_iter( self->sequence );
 
     return 0;
@@ -198,7 +201,7 @@ AnimationFunc_dealloc( py_obj_AnimationFunc *self ) {
     }
 
     g_sequence_free( self->sequence );
-    g_mutex_free( self->mutex );
+    g_static_rw_lock_free( &self->lock );
 
     self->ob_type->tp_free( (PyObject*) self );
 }
@@ -218,11 +221,16 @@ static PyGetSetDef AnimationFunc_getsetters[] = {
 
 static Py_ssize_t
 AnimationFunc_size( py_obj_AnimationFunc *self ) {
-    return g_sequence_get_length( self->sequence );
+    g_static_rw_lock_reader_lock( &self->lock );
+    Py_ssize_t result = g_sequence_get_length( self->sequence );
+    g_static_rw_lock_reader_unlock( &self->lock );
+
+    return result;
 }
 
 static PyObject *
 AnimationFunc_get_item( py_obj_AnimationFunc *self, Py_ssize_t i ) {
+    g_static_rw_lock_reader_lock( &self->lock );
     GSequenceIter *iter = g_sequence_get_iter_at_pos( self->sequence, i );
 
     if( g_sequence_iter_is_end( iter ) ) {
@@ -231,6 +239,7 @@ AnimationFunc_get_item( py_obj_AnimationFunc *self, Py_ssize_t i ) {
     }
 
     PyObject *result = g_sequence_get( iter );
+    g_static_rw_lock_reader_unlock( &self->lock );
 
     Py_INCREF( result );
     return result;
@@ -263,17 +272,19 @@ AnimationFunc_add( py_obj_AnimationFunc *self, PyObject *args, PyObject *kw ) {
         Py_INCREF(item);
     }
 
-    item->owner = (PyObject *) self;
+    item->owner = self;
     Py_INCREF(item->owner);
 
+    g_static_rw_lock_writer_lock( &self->lock );
     item->iter = g_sequence_insert_sorted( self->sequence, item, (GCompareDataFunc) cmpx, NULL );
+    g_static_rw_lock_writer_unlock( &self->lock );
 
     Py_INCREF(item);
     return item;
 }
 
 static PyObject *
-AnimationFunc_remove( PyObject *self, PyObject *args ) {
+AnimationFunc_remove( py_obj_AnimationFunc *self, PyObject *args ) {
     py_obj_AnimationPoint *item;
 
     if( !PyArg_ParseTuple( args, "O!", &py_type_AnimationPoint, &item ) )
@@ -282,7 +293,10 @@ AnimationFunc_remove( PyObject *self, PyObject *args ) {
     if( item->owner != self )
         Py_RETURN_NONE;
 
+    g_static_rw_lock_writer_lock( &self->lock );
     g_sequence_remove( item->iter );
+    g_static_rw_lock_writer_unlock( &self->lock );
+
     Py_CLEAR(item->owner);
     Py_CLEAR(item);
 
@@ -361,6 +375,8 @@ get_points( py_obj_AnimationFunc *self, double frame, py_obj_AnimationPoint **le
 
 static void
 AnimationFunc_get_values( py_obj_AnimationFunc *self, int count, double *frames, double (*result)[4] ) {
+    g_static_rw_lock_reader_lock( &self->lock );
+
     for( int i = 0; i < count; i++ ) {
         py_obj_AnimationPoint *left, *right;
 
@@ -402,6 +418,8 @@ AnimationFunc_get_values( py_obj_AnimationFunc *self, int count, double *frames,
             result[i][3] = 0.0;
         }
     }
+
+    g_static_rw_lock_reader_unlock( &self->lock );
 }
 
 static FrameFunctionFuncs AnimationFunc_sourceFuncs = {
