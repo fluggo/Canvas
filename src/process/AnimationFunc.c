@@ -226,26 +226,35 @@ static PySequenceMethods AnimationFunc_sequence = {
     .sq_item = (ssizeargfunc) AnimationFunc_get_item,
 };
 
-static PyObject *
-AnimationFunc_add( py_obj_AnimationFunc *self, PyObject *args ) {
+static py_obj_AnimationPoint *
+AnimationFunc_add( py_obj_AnimationFunc *self, PyObject *args, PyObject *kw ) {
     py_obj_AnimationPoint *item;
 
-    if( !PyArg_ParseTuple( args, "O!", &py_type_AnimationPoint, &item ) )
-        return NULL;
+    if( PyTuple_GET_SIZE( args ) == 3 ) {
+        item = (py_obj_AnimationPoint*) PyObject_Call( (PyObject *) &py_type_AnimationPoint, args, kw );
 
-    if( item->owner != NULL ) {
-        PyErr_SetString( PyExc_Exception, "This point already belongs to an animation." );
-        return NULL;
+        if( !item )
+            return NULL;
+    }
+    else {
+        if( !PyArg_ParseTuple( args, "O!", &py_type_AnimationPoint, &item ) )
+            return NULL;
+
+        if( item->owner != NULL ) {
+            PyErr_SetString( PyExc_Exception, "This point already belongs to an animation." );
+            return NULL;
+        }
+
+        Py_INCREF(item);
     }
 
     item->owner = (PyObject *) self;
-
     Py_INCREF(item->owner);
-    Py_INCREF(item);
 
     item->iter = g_sequence_insert_sorted( self->sequence, item, (GCompareDataFunc) cmpx, NULL );
 
-    Py_RETURN_NONE;
+    Py_INCREF(item);
+    return item;
 }
 
 static PyObject *
