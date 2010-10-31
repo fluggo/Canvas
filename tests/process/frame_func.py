@@ -59,3 +59,21 @@ class test_AnimationFunc(tupletester):
         self.assertAlmostEqual(2.0, func.get_values( 1.00)[0][0])
         self.assertAlmostEqual(4.0, func.get_values( 1.50)[0][0])
 
+    def test_move(self):
+        func = process.AnimationFunc()
+        pt1 = func.add(process.POINT_HOLD, 0.0, 4.0)
+        pt2 = func.add(process.POINT_LINEAR, 2.0, 6.0)
+        pt3 = func.add(process.POINT_LINEAR, 1.0, 2.0)
+
+        self.assertEqual(func[0], pt1)
+        self.assertEqual(func[1], pt3)
+        self.assertEqual(func[2], pt2)
+
+        pt3.frame = 3.0
+
+        self.assertEqual(func[0], pt1)
+        self.assertEqual(func[1], pt2)
+        self.assertEqual(func[2], pt3)
+
+
+

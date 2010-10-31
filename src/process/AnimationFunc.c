@@ -129,6 +129,21 @@ AnimationPoint_get_frame( py_obj_AnimationPoint *self, void *closure ) {
     return Py_BuildValue( "d", self->frame );
 }
 
+static int
+AnimationPoint_set_frame( py_obj_AnimationPoint *self, PyObject *value, void *closure ) {
+    double frame = PyFloat_AsDouble( value );
+
+    if( PyErr_Occurred() )
+        return -1;
+
+    self->frame = frame;
+
+    if( self->iter )
+        g_sequence_sort_changed( self->iter, (GCompareDataFunc) cmpx, NULL );
+
+    return 0;
+}
+
 static PyObject *
 AnimationPoint_get_type( py_obj_AnimationPoint *self, void *closure ) {
     return Py_BuildValue( "i", self->type );
@@ -136,7 +151,7 @@ AnimationPoint_get_type( py_obj_AnimationPoint *self, void *closure ) {
 
 static PyGetSetDef AnimationPoint_getsetters[] = {
     { "value", (getter) AnimationPoint_get_value, NULL, "Value at this point in the animation." },
-    { "frame", (getter) AnimationPoint_get_frame, NULL, "Frame for this animation point, which may be fractional." },
+    { "frame", (getter) AnimationPoint_get_frame, (setter) AnimationPoint_set_frame, "Frame for this animation point, which may be fractional." },
     { "type", (getter) AnimationPoint_get_type, NULL, "Type of this point." },
     { NULL }
 };
