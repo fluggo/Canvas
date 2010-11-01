@@ -159,6 +159,18 @@ static PyGetSetDef AnimationPoint_getsetters[] = {
     { NULL }
 };
 
+static int
+AnimationPoint_traverse( py_obj_AnimationPoint *self, visitproc visit, void *arg ) {
+    Py_VISIT( self->owner );
+    return 0;
+}
+
+static int
+AnimationPoint_clear( py_obj_AnimationPoint *self ) {
+    Py_CLEAR( self->owner );
+    return 0;
+}
+
 static void
 AnimationPoint_dealloc( py_obj_AnimationPoint *self ) {
     Py_CLEAR( self->owner );
@@ -170,10 +182,12 @@ static PyTypeObject py_type_AnimationPoint = {
     .ob_size = 0,
     .tp_name = "fluggo.media.process.AnimationPoint",
     .tp_basicsize = sizeof(py_obj_AnimationPoint),
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AnimationPoint_dealloc,
     .tp_init = (initproc) AnimationPoint_init,
+    .tp_traverse = (traverseproc) AnimationPoint_traverse,
+    .tp_clear = (inquiry) AnimationPoint_clear,
     .tp_getset = AnimationPoint_getsetters,
 };
 
@@ -204,6 +218,29 @@ AnimationFunc_dealloc( py_obj_AnimationFunc *self ) {
     g_static_rw_lock_free( &self->lock );
 
     self->ob_type->tp_free( (PyObject*) self );
+}
+
+static int
+AnimationFunc_traverse( py_obj_AnimationFunc *self, visitproc visit, void *arg ) {
+    g_static_rw_lock_reader_lock( &self->lock );
+
+    GSequenceIter *iter = g_sequence_get_begin_iter( self->sequence );
+
+    while( !g_sequence_iter_is_end( iter ) ) {
+        PyObject *item = (PyObject *) g_sequence_get( iter );
+
+        int result = visit( item, arg );
+
+        if( result ) {
+            g_static_rw_lock_reader_unlock( &self->lock );
+            return result;
+        }
+
+        iter = g_sequence_iter_next( iter );
+    }
+
+    g_static_rw_lock_reader_unlock( &self->lock );
+    return 0;
 }
 
 static PyObject *AnimationFunc_pysourceFuncs;
@@ -317,10 +354,11 @@ EXPORT PyTypeObject py_type_AnimationFunc = {
     .tp_name = "fluggo.media.process.AnimationFunc",
     .tp_basicsize = sizeof(py_obj_AnimationFunc),
     .tp_base = &py_type_FrameFunction,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AnimationFunc_dealloc,
     .tp_init = (initproc) AnimationFunc_init,
+    .tp_traverse = (traverseproc) AnimationFunc_traverse,
     .tp_getset = AnimationFunc_getsetters,
     .tp_methods = AnimationFunc_methods,
     .tp_as_sequence = &AnimationFunc_sequence,
