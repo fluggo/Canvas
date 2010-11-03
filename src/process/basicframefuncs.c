@@ -106,7 +106,7 @@ DECLARE_FRAMEFUNC(LinearFrameFunc, generic_dealloc)
 typedef struct {
     PyObject_HEAD
     box2f start, end;
-    int64_t length;
+    double length;
 } py_obj_LerpFunc;
 
 static int
@@ -114,15 +114,13 @@ LerpFunc_init( py_obj_LerpFunc *self, PyObject *args, PyObject *kwds ) {
     static char *kwlist[] = { "start", "end", "length", NULL };
     PyObject *start_obj, *end_obj;
 
-    if( !PyArg_ParseTupleAndKeywords( args, kwds, "OOL", kwlist, &start_obj, &end_obj, &self->length ) )
+    if( !PyArg_ParseTupleAndKeywords( args, kwds, "OOd", kwlist, &start_obj, &end_obj, &self->length ) )
         return -1;
 
-    if( self->length < 1 ) {
+    if( self->length <= 0.0f ) {
         PyErr_SetString( PyExc_Exception, "length must be greater than 1." );
         return -1;
     }
-
-    self->length--;
 
     start_obj = PySequence_Fast( start_obj, "Expected a tuple or list for start." );
 
