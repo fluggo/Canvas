@@ -196,6 +196,6 @@ class rgba(_rgba):
         return _rgba.__new__(class_, float(r), float(g), float(b), float(a))
 
     def __repr__(self):
-        return _rgba.__repr__(self)[1:]
+        return 'rgba({0.r:.6}, {0.g:.6}, {0.b:.6}, {0.a:.6})'.format(self)
 
 
