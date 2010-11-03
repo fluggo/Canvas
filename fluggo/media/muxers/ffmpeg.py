@@ -33,6 +33,10 @@ class FFMuxPlugin(object):
     supported_muxers = frozenset((KnownMuxers.AVI, KnownMuxers.DV, 'video/x-ffmpeg-avi', 'video/x-ffmpeg-dv'))
 
     @classmethod
+    def handles_container(cls, container):
+        return container.muxer in supported_muxers
+
+    @classmethod
     def get_stream(cls, container, index):
         # BJC: Naive version, this will need a change
         for stream in container.streams:

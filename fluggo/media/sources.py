@@ -77,7 +77,7 @@ class SourceList(collections.MutableMapping):
             raise KeyError('Could not find source "' + str(name) + '".')
 
         for muxer in self.muxers:
-            if container.muxer in muxer.supported_muxers:
+            if muxer.handles_container(container):
                 return muxer.get_stream(container, stream_index)
 
         return None
