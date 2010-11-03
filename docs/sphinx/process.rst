@@ -13,5 +13,5 @@
 
     process/audio
     process/video
-
+    process/framefunc
 
