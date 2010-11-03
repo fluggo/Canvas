@@ -142,7 +142,7 @@ class _ZSortKey():
     def __str__(self):
         return 'key(y={0.y}, z={0.z})'.format(self)
 
-class Item(yaml.YAMLObject):
+class Item(object):
     '''
     Class for all items that can appear in the canvas.
 
@@ -393,7 +393,7 @@ class Clip(Item):
     def offset(self):
         return self._offset
 
-class StreamSourceRef(yaml.YAMLObject):
+class StreamSourceRef(object):
     '''
     References a stream from a video or audio file.
     '''
@@ -460,7 +460,7 @@ class Timeline(Item):
 
         Item.update(self, width=total_width)
 
-class TimelineItem(yaml.YAMLObject):
+class TimelineItem(object):
     yaml_tag = u'!CanvasTimelineItem'
 
     def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0):
@@ -530,3 +530,13 @@ class TimelineItem(yaml.YAMLObject):
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
 
+
+def _yamlreg(cls):
+    yaml.add_representer(cls, cls.to_yaml)
+    yaml.add_constructor(cls.yaml_tag, cls.from_yaml)
+
+_yamlreg(Item)
+_yamlreg(Clip)
+_yamlreg(StreamSourceRef)
+_yamlreg(Timeline)
+_yamlreg(TimelineItem)
