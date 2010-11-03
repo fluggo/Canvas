@@ -67,7 +67,7 @@ pickElement_nolock( PyObject *self, int frameIndex ) {
 
     Element *elem = &SEQINDEX(self, i);
 
-    if( !elem->source.source.funcs || elem->startFrame + elem->length < frameIndex )
+    if( !elem->source.source.funcs || elem->startFrame + elem->length <= frameIndex )
         return NULL;
 
     return elem;
