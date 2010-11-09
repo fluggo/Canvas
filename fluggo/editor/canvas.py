@@ -422,7 +422,7 @@ class StreamSourceRef(object):
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
 
-class Timeline(Item):
+class Timeline(Item, ezlist.EZList):
     yaml_tag = u'!CanvasTimeline'
 
     def __init__(self, type=None, items=None, expanded=False, **kw):
@@ -430,6 +430,12 @@ class Timeline(Item):
         self._type = type
         self._items = items if items is not None else []
         self._expanded = False
+
+        # Signal with signature signal(item)
+        self.item_added = signal.Signal()
+
+        # Signal with signature signal(start, stop)
+        self.items_removed = signal.Signal()
 
         #: Signal with signature item_updated(item, **kw)
         self.item_updated = signal.Signal()
@@ -448,6 +454,37 @@ class Timeline(Item):
 
     def __iter__(self):
         return self._items.__iter__()
+
+    def _replace_range(self, start, stop, items):
+        old_item_set = frozenset(self._items[start:stop])
+        new_item_set = frozenset(items)
+
+        for item in sorted(old_item_set - new_item_set, key=lambda a: -a.index):
+            self._width -= item.length - item.transition_length
+
+            if item.index == 0:
+                self._width -= item.transition_length
+
+            item.kill()
+
+        if stop > start:
+            self._items[start:stop] = []
+            self.items_removed(start, stop)
+
+        self._items[start:start] = items
+
+        for i, item in enumerate(self._items[start:], start):
+            item._timeline = self
+
+        for item in (new_item_set - old_item_set):
+            self._width += item.length - item.transition_length
+
+            if item.index == 0:
+                self._width += item.transition_length
+
+            self.item_added(item)
+
+        Item.update(self, width=self._width)
 
     def fixup(self):
         Item.fixup(self)
@@ -549,6 +586,9 @@ class TimelineItem(object):
     @classmethod
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
+
+    def kill(self):
+        pass
 
 
 def _yamlreg(cls):
