@@ -96,18 +96,22 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
                 self.handle_item_added(item)
 
     def handle_item_added(self, item):
-        if not isinstance(item, canvas.Clip):
+        if not isinstance(item, canvas.Item):
             return
 
         if item.type() != 'video':
             return
 
         source = None
+        offset = 0
 
-        if isinstance(item.source, canvas.StreamSourceRef):
+        if isinstance(item, canvas.Timeline):
+            source = TimelineVideoManager(item, self.source_list)
+        elif isinstance(item.source, canvas.StreamSourceRef):
             source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
+            offset = item.offset
 
-        workspace_item = self.workspace.add(x=item.x, width=item.width, z=item.z, offset=item.offset, source=source)
+        workspace_item = self.workspace.add(x=item.x, width=item.width, z=item.z, offset=offset, source=source)
 
         watcher = self.ItemWatcher(self, item, workspace_item)
         self.watchers[id(item)] = watcher
@@ -121,4 +125,144 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
         watcher.unwatch()
         self.watchers_sorted.remove(watcher)
         self.workspace.remove(watcher.workspace_item)
+
+class TimelineVideoManager(process.VideoPassThroughFilter):
+    class ItemWatcher(process.VideoPassThroughFilter):
+        def __init__(self, owner, timeline, timeline_item):
+            self.owner = owner
+            self.timeline = timeline
+            self.timeline_item = timeline_item
+            self.source_a = process.VideoPassThroughFilter(None)
+            self.source_b = process.VideoPassThroughFilter(None)
+
+            self.mix_b = process.AnimationFunc()
+            self.mix_b.add(process.POINT_HOLD, 0.0, 0.0)
+            self.fade_point = self.mix_b.add(process.POINT_LINEAR, 0.0, 0.0)
+            self.out_point = self.mix_b.add(process.POINT_HOLD, 0.0, 1.0)
+
+            self.mix_filter = process.VideoMixFilter(self.source_a, self.source_b, self.mix_b)
+            process.VideoPassThroughFilter.__init__(self, self.mix_filter)
+
+    def __init__(self, timeline, source_list):
+        self.sequence = process.VideoSequence()
+        process.VideoPassThroughFilter.__init__(self, self.sequence)
+
+        self.timeline = timeline
+        self.source_list = source_list
+        self.frames_updated = signal.Signal()
+
+        self.timeline.item_added.connect(self._handle_item_added)
+        self.timeline.items_removed.connect(self._handle_items_removed)
+        self.timeline.item_updated.connect(self._handle_item_updated)
+
+        self.watchers = []
+
+        for item in self.timeline:
+            self._handle_item_added(item)
+
+    def unwatch(self):
+        self.timeline.item_added.disconnect(self._handle_item_added)
+        self.timeline.items_removed.disconnect(self._handle_items_removed)
+        self.timeline.item_updated.disconnect(self._handle_item_updated)
+
+    def _handle_item_added(self, item):
+        # Insert a watcher at the same index
+        watcher = self.ItemWatcher(self, self.timeline, item)
+        self.watchers.insert(item.index, watcher)
+        self.sequence.insert(item.index, (watcher, 0, item.length))
+
+        self._handle_item_updated(item, offset=item.offset, source=item.source,
+            length=item.length, transition_length=item.transition_length)
+
+    def _handle_items_removed(self, start, stop):
+        # Get enough info to send an update
+        start_frame = self.sequence.get_start_frame(start)
+        end_frame = self.sequence.get_start_frame(len(self.sequence) - 1) + self.sequence[-1][2] - 1
+
+        # Remove the watchers in this range
+        del self.watchers[start:stop]
+
+        for i in range(stop - 1, start - 1, -1):
+            del self.sequence[i]
+
+        # Redo the item afterward (now at start)
+        if start < len(self.watchers):
+            item = self.watchers[start].timeline_item
+
+            self._handle_item_updated(item, source=item.source,
+                transition_length=item.transition_length)
+        elif len(self.watchers):
+            # There is no item afterward; clear source_b and reset its transition_point
+            watcher = self.watchers[-1]
+            item = watcher.timeline_item
+
+            watcher.source_b.set_source(None)
+            watcher.fade_point.frame = item.length - item.transition_length
+
+        self.frames_updated(start_frame, end_frame)
+
+    def _handle_item_updated(self, item, **kw):
+        watcher = self.watchers[item.index]
+        prev_watcher = item.index > 0 and self.watchers[item.index - 1]
+        prev_item = prev_watcher and prev_watcher.timeline_item
+        next_watcher = item.index + 1 < len(self.watchers) and self.watchers[item.index + 1]
+        next_item = next_watcher and next_watcher.timeline_item
+
+        start_frame = self.sequence.get_start_frame(item.index)
+        length = item.length - item.transition_length
+        mid_width = length
+
+        # Update source offsets regardless; this is cheap
+        if next_item:
+            mid_width -= next_item.transition_length
+            watcher.source_b.offset = next_item.offset - mid_width
+
+        if prev_item:
+            prev_length = prev_item.length - prev_item.transition_length
+            prev_watcher.source_b.offset = item.offset - (prev_length - item.transition_length)
+
+        watcher.source_a.offset = item.offset + item.transition_length
+
+        if 'offset' in kw:
+            self.frames_updated(start_frame - item.transition_length, start_frame + length - 1)
+
+        if 'source' in kw:
+            source = None
+
+            if isinstance(item.source, canvas.StreamSourceRef):
+                source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
+
+            watcher.source_a.set_source(source)
+
+            if prev_watcher:
+                prev_watcher.source_b.set_source(source)
+
+            self.frames_updated(start_frame - item.transition_length, start_frame + length - 1)
+
+        if 'transition_length' in kw or 'length' in kw:
+            # Altering length messes with this item's length and transition points;
+            # Altering transition length also messes with this item's offset
+            # and the previous item's transition points
+            old_fade_point = int(round(watcher.fade_point.frame))
+            old_length = int(round(watcher.out_point.frame))
+
+            watcher.out_point.frame = length
+            watcher.fade_point.frame = mid_width
+
+            if 'transition_length' in kw and prev_item:
+                old_trans_length = int(round(prev_watcher.out_point.frame - prev_watcher.fade_point.frame))
+
+                prev_watcher.out_point.frame = prev_length
+                prev_watcher.fade_point.frame = prev_length - item.transition_length
+                self.frames_updated(start_frame - max(old_trans_length, item.transition_length),
+                    self.timeline.width + max(0, old_length - length) - 1)
+            else:
+                self.frames_updated(start_frame + min(old_fade_point, mid_width),
+                    self.timeline.width + max(0, old_length - length) - 1)
+
+            self.sequence[item.index] = (watcher, 0, length)
+
+        if 'transition' in kw:
+            pass
+
 
