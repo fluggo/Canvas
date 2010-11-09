@@ -513,6 +513,14 @@ class TimelineItem(object):
     def transition_length(self):
         return self._transition_length
 
+    @property
+    def index(self):
+        return self._index
+
+    @property
+    def timeline(self):
+        return self._timeline
+
     @classmethod
     def to_yaml(cls, dumper, data):
         mapping = {'source': self._source,
