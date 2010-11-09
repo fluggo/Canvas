@@ -449,7 +449,7 @@ class Timeline(Item):
     def fixup(self):
         Item.fixup(self)
 
-        self._items = sortlist.AutoIndexList(self._items)
+        self._items = sortlist.AutoIndexList(self._items, index_attr='_index')
 
         # Count up the proper width and set it on the item
         total_width = len(self) and self[0].transition_length or 0
