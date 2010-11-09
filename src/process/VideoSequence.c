@@ -165,22 +165,24 @@ VideoSequence_getStartFrame( PyObject *self, PyObject *args ) {
 static int
 _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
     PyObject *sourceObj;
-    int length, offset;
+    int length = 0, offset;
     VideoSourceHolder source = { { NULL } };
 
-    // Parse everything and make sure it's okay
-    if( !PyArg_ParseTuple( v, "Oii", &sourceObj, &offset, &length ) )
-        return -1;
+    if( v ) {
+        // Parse everything and make sure it's okay
+        if( !PyArg_ParseTuple( v, "Oii", &sourceObj, &offset, &length ) )
+            return -1;
 
-    if( length < 1 ) {
-        PyErr_SetString( PyExc_ValueError, "Length cannot be less than one." );
-        return -1;
+        if( length < 1 ) {
+            PyErr_SetString( PyExc_ValueError, "Length cannot be less than one." );
+            return -1;
+        }
+
+        if( !py_video_take_source( sourceObj, &source ) )
+            return -1;
+
+        Py_INCREF( v );
     }
-
-    if( !py_video_take_source( sourceObj, &source ) )
-        return -1;
-
-    Py_INCREF( v );
 
     // Replace the current holder
     Element *entry = &g_array_index( PRIV(self)->sequence, Element, i );
@@ -189,12 +191,24 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
 
     int lengthAdjust = length - entry->length;
 
-    entry->source = source;
-    entry->tuple = v;
-    entry->length = length;
-    entry->offset = offset;
+    if( v ) {
+        entry->source = source;
+        entry->tuple = v;
+        entry->length = length;
+        entry->offset = offset;
+    }
+    else {
+        g_array_remove_index( PRIV(self)->sequence, i );
 
-    if( i != 0 && entry->startFrame == 0 ) {
+        entry = NULL;
+
+        if( i < PRIV(self)->sequence->len ) {
+            entry = &g_array_index( PRIV(self)->sequence, Element, i );
+            entry->startFrame = 0;
+        }
+    }
+
+    if( entry && i != 0 && entry->startFrame == 0 ) {
         Element *prevEntry = &g_array_index( PRIV(self)->sequence, Element, i - 1 );
         entry->startFrame = prevEntry->startFrame + prevEntry->length;
     }
