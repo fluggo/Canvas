@@ -73,7 +73,8 @@ class Scene(QGraphicsScene):
             elif item.type() == 'audio':
                 ui_item = AudioItem(item, 'Clip')
         elif isinstance(item, canvas.Timeline):
-            return
+            if item.type() == 'video':
+                ui_item = VideoTimeline(item)
         else:
             return
 
@@ -904,6 +905,10 @@ class AudioItem(ClipItem):
         painter.drawText(rect, Qt.TextSingleLine, self.name)
 
         painter.restore()
+
+class VideoTimeline(VideoItem):
+    def __init__(self, timeline):
+        VideoItem.__init__(self, timeline, None)
 
 class PlaceholderItem(QGraphicsItem):
     def __init__(self, source_name, stream_format, x, y, height):
