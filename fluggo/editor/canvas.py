@@ -428,11 +428,14 @@ class Timeline(Item):
     def __init__(self, type=None, items=None, expanded=False, **kw):
         Item.__init__(self, **kw)
         self._type = type
-        self._items = items
+        self._items = items if items is not None else []
         self._expanded = False
 
         #: Signal with signature item_updated(item, **kw)
         self.item_updated = signal.Signal()
+
+        if items:
+            self.fixup()
 
     def type(self):
         return self._type
