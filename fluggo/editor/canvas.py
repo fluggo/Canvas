@@ -476,6 +476,8 @@ class TimelineItem(object):
         '''
         Update the attributes of this item.
         '''
+        adj_timeline_width = 0
+
         if 'source' in kw:
             self._source = kw['source']
 
@@ -483,13 +485,20 @@ class TimelineItem(object):
             self._offset = int(kw['offset'])
 
         if 'length' in kw:
-            self._length = int(kw['length'])
+            new_length = int(kw['length'])
+            adj_timeline_width += new_length - self._length
+            self._length = new_length
 
         if 'transition' in kw:
             self._transition = kw['transition']
 
         if 'transition_length' in kw:
-            self._transition_length = int(kw['transition_length'])
+            new_length = int(kw['transition_length'])
+            adj_timeline_width -= new_length - self._transition_length
+            self._transition_length = new_length
+
+        if adj_timeline_width:
+            self._timeline.update(width=self._timeline.width + adj_timeline_width)
 
         self._timeline.item_updated(self, **kw)
 
