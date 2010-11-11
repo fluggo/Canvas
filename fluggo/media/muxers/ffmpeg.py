@@ -34,7 +34,7 @@ class FFMuxPlugin(object):
 
     @classmethod
     def handles_container(cls, container):
-        return container.muxer in supported_muxers
+        return container.muxer in cls.supported_muxers
 
     @classmethod
     def get_stream(cls, container, index):
