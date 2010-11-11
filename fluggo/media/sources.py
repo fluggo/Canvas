@@ -83,15 +83,15 @@ class SourceList(collections.MutableMapping):
         return None
 
 class VideoSource(process.VideoPassThroughFilter):
-    def __init__(self, source, format):
-        self.format = format
+    def __init__(self, source, format=None):
+        self.format = format or source.format
         self.length = self.format.adjusted_length
 
         process.VideoPassThroughFilter.__init__(self, source)
 
 class AudioSource(process.AudioPassThroughFilter):
-    def __init__(self, source, format):
-        self.format = format
+    def __init__(self, source, format=None):
+        self.format = format or source.format
         self.length = self.format.adjusted_length
 
         process.AudioPassThroughFilter.__init__(self, source)
