@@ -21,7 +21,7 @@ import fractions, math
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from fluggo import sortlist, signal
-from fluggo.media import process, timecode
+from fluggo.media import process, timecode, sources
 from fluggo.editor import canvas
 from fluggo.media.basetypes import *
 from . import ruler
@@ -660,7 +660,8 @@ class ClipItem(QGraphicsItem, Draggable):
     def stream(self):
         if not self._stream:
             if isinstance(self.item.source, canvas.StreamSourceRef):
-                self._stream = self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index)
+                self._stream = sources.VideoSource(self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index))
+                self._stream.offset = self.item.offset
 
         return self._stream
 
@@ -765,79 +766,68 @@ class ClipItem(QGraphicsItem, Draggable):
     def drag_end(self, view, abs_pos, rel_pos):
         self._clear_snap_markers()
 
-class VideoItem(ClipItem):
-    def __init__(self, item, name):
-        ClipItem.__init__(self, item, name)
-        self.thumbnails = []
-        self.thumbnail_indexes = []
-        self.thumbnail_width = 1.0
+class ThumbnailPainter(object):
+    def __init__(self):
+        self._thumbnails = []
+        self._thumbnail_indexes = []
+        self._thumbnail_width = 1.0
+        self._stream = None
+        self.updated = signal.Signal()
+        self._length = 1
 
-    @property
-    def units_per_second(self):
-        return float(self.scene().frame_rate)
+    def set_stream(self, stream):
+        self.clear()
+        self._stream = stream
 
-    def _update(self, **kw):
-        '''
-        Called by the item model to update our appearance.
-        '''
-        # Changes requiring a reset of the thumbnails
-        # TODO: This resets thumbnails *way* more than is necessary
-        if 'height' in kw or 'width' in kw or 'offset' in kw:
-            self._cancel_all_thumbnails()
-            self.thumbnails = []
+    def set_width(self, length):
+        # TODO: Really, we should work to preserve as many
+        # thumbnails as we can
+        self.clear()
+        self._length = length
 
-        ClipItem._update(self, **kw)
-
-    def _cancel_all_thumbnails(self):
-        for frame in self.thumbnails:
+    def clear(self):
+        for frame in self._thumbnails:
             if hasattr(frame, 'cancel'):
                 frame.cancel()
 
-    def _create_thumbnails(self, total_width):
+        self._thumbnails = []
+
+    def _create_thumbnails(self, total_width, height):
         # Calculate how many thumbnails fit
-        box = self.stream.format.thumbnail_box
-        aspect = self.stream.format.pixel_aspect_ratio
-        start_frame = self.item.offset
-        frame_count = self.item.width
+        box = self._stream.format.thumbnail_box
+        aspect = self._stream.format.pixel_aspect_ratio
+        frame_count = self._length
 
-        self.thumbnail_width = (self.item.height * float(box.width) * float(aspect)) / float(box.height)
-        count = min(max(int(total_width / self.thumbnail_width), 1), frame_count)
+        self._thumbnail_width = (height * float(box.width) * float(aspect)) / float(box.height)
+        count = min(max(int(total_width / self._thumbnail_width), 1), frame_count)
 
-        if len(self.thumbnails) == count:
+        if len(self._thumbnails) == count:
             return
 
-        self._cancel_all_thumbnails()
-        self.thumbnails = [None for a in range(count)]
+        self.clear()
+        self._thumbnails = [None for a in range(count)]
 
         if count == 1:
-            self.thumbnail_indexes = [start_frame]
+            self._thumbnail_indexes = [0]
         else:
-            self.thumbnail_indexes = [start_frame + int(float(a) * frame_count / (count - 1)) for a in range(count)]
+            self._thumbnail_indexes = [0 + int(float(a) * frame_count / (count - 1)) for a in range(count)]
 
-    def paint(self, painter, option, widget):
-        rect = painter.transform().mapRect(self.boundingRect())
-        clip_rect = painter.transform().mapRect(option.exposedRect)
-
-        painter.save()
-        painter.resetTransform()
-
-        painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QColor.fromRgbF(0.9, 0.9, 0.8))
-
+    def paint(self, painter, rect, clip_rect):
         # Figure out which thumbnails belong here and paint them
         # The thumbnail lefts are at (i * (rect.width - thumbnail_width) / (len(thumbnails) - 1)) + rect.x()
         # Rights are at left + thumbnail_width
-        stream = self.stream
+        stream = self._stream
 
         if stream:
-            self._create_thumbnails(rect.width())
+            self._create_thumbnails(rect.width(), rect.height())
             box = stream.format.thumbnail_box
 
-            left_nail = int((clip_rect.x() - self.thumbnail_width - rect.x()) *
-                (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width))
+            left_nail = int((clip_rect.x() - self._thumbnail_width - rect.x()) *
+                (len(self._thumbnails) - 1) / (rect.width() - self._thumbnail_width))
             right_nail = int((clip_rect.x() + clip_rect.width() - rect.x()) *
-                (len(self.thumbnails) - 1) / (rect.width() - self.thumbnail_width)) + 1
+                (len(self._thumbnails) - 1) / (rect.width() - self._thumbnail_width)) + 1
             left_nail = max(0, left_nail)
-            right_nail = min(len(self.thumbnails), right_nail)
+            right_nail = min(len(self._thumbnails), right_nail)
 
             scale = process.VideoScaler(stream,
                 target_point=v2f(0, 0), source_point=box.min,
@@ -854,26 +844,68 @@ class VideoItem(ClipItem):
                 thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
 
                 # TODO: limit to thumbnail's area
-                self.update()
+                self.updated()
 
             for i in range(left_nail, right_nail):
-                # Later we'll delegate this to another thread
-                if not self.thumbnails[i]:
-                    self.thumbnails[i] = _queue.enqueue(source=scale, frame_index=self.thumbnail_indexes[i],
+                if not self._thumbnails[i]:
+                    self._thumbnails[i] = _queue.enqueue(source=scale, frame_index=self._thumbnail_indexes[i],
                         window=stream.format.thumbnail_box,
-                        callback=callback, user_data=(self.thumbnails, i))
+                        callback=callback, user_data=(self._thumbnails, i))
 
-                # TODO: Scale existing thumbnails to fit (removing last thumbnails = [] in _update)
-                if isinstance(self.thumbnails[i], QImage):
-                    if len(self.thumbnails) == 1:
-                        painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width)),
-                            rect.y(), self.thumbnails[i])
+                # TODO: Scale existing thumbnails to fit
+                if isinstance(self._thumbnails[i], QImage):
+                    if len(self._thumbnails) == 1:
+                        painter.drawImage(rect.x() + (i * (rect.width() - self._thumbnail_width)),
+                            rect.y(), self._thumbnails[i])
                     else:
-                        painter.drawImage(rect.x() + (i * (rect.width() - self.thumbnail_width) / (len(self.thumbnails) - 1)),
-                            rect.y(), self.thumbnails[i])
+                        painter.drawImage(rect.x() + (i * (rect.width() - self._thumbnail_width) / (len(self._thumbnails) - 1)),
+                            rect.y(), self._thumbnails[i])
         else:
             # TODO: Show a slug or something?
             pass
+
+class VideoItem(ClipItem):
+    def __init__(self, item, name):
+        ClipItem.__init__(self, item, name)
+        self._thumbnail_painter = ThumbnailPainter()
+        self._thumbnail_painter.updated.connect(self._handle_thumbnails_updated)
+        self._thumbnail_painter.set_width(self.item.width)
+
+    @property
+    def units_per_second(self):
+        return float(self.scene().frame_rate)
+
+    def added_to_scene(self):
+        ClipItem.added_to_scene(self)
+        self._thumbnail_painter.set_stream(self.stream)
+
+    def _handle_thumbnails_updated(self):
+        self.update()
+
+    def _update(self, **kw):
+        '''
+        Called by the item model to update our appearance.
+        '''
+        # Changes requiring a reset of the thumbnails
+        # TODO: This resets thumbnails *way* more than is necessary
+        if 'width' in kw:
+            self._thumbnail_painter.set_width(self.item.width)
+
+        if 'offset' in kw:
+            self._thumbnail_painter.cancel_all_thumbnails()
+
+        ClipItem._update(self, **kw)
+
+    def paint(self, painter, option, widget):
+        rect = painter.transform().mapRect(self.boundingRect())
+        clip_rect = painter.transform().mapRect(option.exposedRect)
+
+        painter.save()
+        painter.resetTransform()
+
+        painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QColor.fromRgbF(0.9, 0.9, 0.8))
+
+        self._thumbnail_painter.paint(painter, rect, clip_rect)
 
         if self.isSelected():
             painter.fillRect(rect, QColor.fromRgbF(1.0, 0, 0, 0.5))
