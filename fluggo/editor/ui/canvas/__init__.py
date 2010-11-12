@@ -127,7 +127,7 @@ class VideoItem(ClipItem):
             self._thumbnail_painter.set_width(self.item.width)
 
         if 'offset' in kw:
-            self._thumbnail_painter.cancel_all_thumbnails()
+            self._thumbnail_painter.clear()
 
         ClipItem._update(self, **kw)
 
