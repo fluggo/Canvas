@@ -2,7 +2,7 @@ import unittest
 from fluggo.media import process, sources
 from fluggo.media.basetypes import *
 from fluggo.editor.graph.video import TimelineVideoManager
-from fluggo.editor import canvas
+from fluggo.editor import model
 
 class DeadMuxer(object):
     @classmethod
@@ -77,20 +77,20 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_start(self):
         '''Start in the correct position'''
-        timeline = canvas.Timeline(type='video', items=[
-            canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=1, length=10),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=1, length=10),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
+        timeline = model.Timeline(type='video', items=[
+            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
 
         manager = TimelineVideoManager(timeline, slist)
         self.check1(manager)
 
     def test_1_adjlen1(self):
         '''Adjust the length of an item'''
-        timeline = canvas.Timeline(type='video', items=[
-            canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=1, length=7),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=1, length=19),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=1, length=100, transition_length=5)])
+        timeline = model.Timeline(type='video', items=[
+            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=7),
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=19),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=100, transition_length=5)])
 
         manager = TimelineVideoManager(timeline, slist)
         track = UpdateTracker(manager)
@@ -114,10 +114,10 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_adjlen2(self):
         '''Adjust the length of an item (different order)'''
-        timeline = canvas.Timeline(type='video', items=[
-            canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=1, length=17),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=1, length=5),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=1, length=22, transition_length=5)])
+        timeline = model.Timeline(type='video', items=[
+            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=17),
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=5),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=22, transition_length=5)])
 
         manager = TimelineVideoManager(timeline, slist)
         track = UpdateTracker(manager)
@@ -141,10 +141,10 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_adjtranslength(self):
         '''Adjust the transition_length of an item'''
-        timeline = canvas.Timeline(type='video', items=[
-            canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=1, length=10),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=1, length=10, transition_length=3),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=7)])
+        timeline = model.Timeline(type='video', items=[
+            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=3),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=7)])
 
         manager = TimelineVideoManager(timeline, slist)
         track = UpdateTracker(manager)
@@ -163,18 +163,18 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_add(self):
         '''Add items one at a time'''
-        timeline = canvas.Timeline(type='video', items=[
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=1, length=10)])
+        timeline = model.Timeline(type='video', items=[
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10)])
 
         manager = TimelineVideoManager(timeline, slist)
         track = UpdateTracker(manager)
 
-        timeline.append(canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5))
+        timeline.append(model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5))
         self.assertEqual(track.min_frame, 5)
         self.assertEqual(track.max_frame, 14)
         track.reset()
 
-        timeline.insert(0, canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=1, length=10))
+        timeline.insert(0, model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10))
         self.assertEqual(track.min_frame, 0)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 5 - 1)
         track.reset()
@@ -183,15 +183,15 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_addmultiple(self):
         '''Add multiple items at once'''
-        timeline = canvas.Timeline(type='video', items=[
-            canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=1, length=10)])
+        timeline = model.Timeline(type='video', items=[
+            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10)])
 
         manager = TimelineVideoManager(timeline, slist)
         track = UpdateTracker(manager)
 
         timeline.extend([
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=1, length=10),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
         self.assertEqual(track.min_frame, 10)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 5 - 1)
 
@@ -199,12 +199,12 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_remove(self):
         '''Remove items one at a time'''
-        timeline = canvas.Timeline(type='video', items=[
-            canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=1, length=10),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=25, length=14, transition_length=2),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=1, length=10),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=9, length=7),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
+        timeline = model.Timeline(type='video', items=[
+            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=25, length=14, transition_length=2),
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=9, length=7),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
 
         manager = TimelineVideoManager(timeline, slist)
         track = UpdateTracker(manager)
@@ -223,13 +223,13 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_removeends(self):
         '''Remove items at the ends'''
-        timeline = canvas.Timeline(type='video', items=[
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=9, length=114),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=23, length=8, transition_length=5),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('red', 0), offset=1, length=10),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('green', 0), offset=1, length=10),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5),
-            canvas.TimelineItem(source=canvas.StreamSourceRef('blue', 0), offset=9, length=7),
+        timeline = model.Timeline(type='video', items=[
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=9, length=114),
+            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=23, length=8, transition_length=5),
+            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5),
+            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=9, length=7),
             ])
 
         manager = TimelineVideoManager(timeline, slist)

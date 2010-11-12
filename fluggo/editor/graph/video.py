@@ -26,7 +26,7 @@
 # kristina!!!!!
 
 from fluggo import sortlist, signal
-from fluggo.editor import canvas
+from fluggo.editor import model
 from fluggo.media import process
 
 class SpaceVideoManager(process.VideoPassThroughFilter):
@@ -96,7 +96,7 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
                 self.handle_item_added(item)
 
     def handle_item_added(self, item):
-        if not isinstance(item, canvas.Item):
+        if not isinstance(item, model.Item):
             return
 
         if item.type() != 'video':
@@ -105,9 +105,9 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
         source = None
         offset = 0
 
-        if isinstance(item, canvas.Timeline):
+        if isinstance(item, model.Timeline):
             source = TimelineVideoManager(item, self.source_list)
-        elif isinstance(item.source, canvas.StreamSourceRef):
+        elif isinstance(item.source, model.StreamSourceRef):
             source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
             offset = item.offset
 
@@ -229,7 +229,7 @@ class TimelineVideoManager(process.VideoPassThroughFilter):
         if 'source' in kw:
             source = None
 
-            if isinstance(item.source, canvas.StreamSourceRef):
+            if isinstance(item.source, model.StreamSourceRef):
                 source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
 
             watcher.source_a.set_source(source)

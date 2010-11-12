@@ -21,7 +21,7 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from ..canvas import *
 from fluggo import sortlist, signal
-from fluggo.editor import canvas
+from fluggo.editor import model
 
 class Scene(QtGui.QGraphicsScene):
     DEFAULT_HEIGHT = 40
@@ -54,12 +54,12 @@ class Scene(QtGui.QGraphicsScene):
     def handle_item_added(self, item):
         ui_item = None
 
-        if isinstance(item, canvas.Clip):
+        if isinstance(item, model.Clip):
             if item.type() == 'video':
                 ui_item = VideoItem(item, 'Clip')
             elif item.type() == 'audio':
                 ui_item = AudioItem(item, 'Clip')
-        elif isinstance(item, canvas.Timeline):
+        elif isinstance(item, model.Timeline):
             if item.type() == 'video':
                 ui_item = VideoTimeline(item)
         else:
@@ -146,8 +146,8 @@ class Scene(QtGui.QGraphicsScene):
             if item.stream_format.type == 'audio':
                 rate = self.sample_rate
 
-            items.append(canvas.Clip(type=item.stream_format.type,
-                source=canvas.StreamSourceRef(source_name=item.source_name, stream_index=item.stream_format.index),
+            items.append(model.Clip(type=item.stream_format.type,
+                source=model.StreamSourceRef(source_name=item.source_name, stream_index=item.stream_format.index),
                 x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), width=item.width, height=item.height))
 
             self.removeItem(item)

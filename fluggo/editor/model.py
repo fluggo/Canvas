@@ -600,3 +600,4 @@ _yamlreg(Clip)
 _yamlreg(StreamSourceRef)
 _yamlreg(Timeline)
 _yamlreg(TimelineItem)
+

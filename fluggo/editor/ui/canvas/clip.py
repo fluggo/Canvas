@@ -18,7 +18,7 @@
 
 from ..canvas import *
 from .markers import *
-from fluggo.editor import canvas
+from fluggo.editor import model
 from fluggo.media import sources
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
@@ -164,7 +164,7 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
     @property
     def stream(self):
         if not self._stream:
-            if isinstance(self.item.source, canvas.StreamSourceRef):
+            if isinstance(self.item.source, model.StreamSourceRef):
                 self._stream = sources.VideoSource(self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index))
                 self._stream.offset = self.item.offset
 

@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from fluggo import signal
-from fluggo.editor import canvas
+from fluggo.editor import model
 from fluggo.media import process
 
 class SpaceAudioManager(process.AudioPassThroughFilter):
@@ -70,7 +70,7 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
                 self.handle_item_added(item)
 
     def handle_item_added(self, item):
-        if not isinstance(item, canvas.Clip):
+        if not isinstance(item, model.Clip):
             return
 
         if item.type() != 'audio':
@@ -78,7 +78,7 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
 
         source = None
 
-        if isinstance(item.source, canvas.StreamSourceRef):
+        if isinstance(item.source, model.StreamSourceRef):
             source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
 
         workspace_item = self.workspace.add(x=item.x, width=item.width, offset=item.offset, source=source)
