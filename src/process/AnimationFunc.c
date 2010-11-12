@@ -341,7 +341,7 @@ AnimationFunc_remove( py_obj_AnimationFunc *self, PyObject *args ) {
 }
 
 static PyMethodDef AnimationFunc_methods[] = {
-    { "add", (PyCFunction) AnimationFunc_add, METH_VARARGS,
+    { "add", (PyCFunction) AnimationFunc_add, METH_VARARGS | METH_KEYWORDS,
         "Adds a new point to the animation." },
     { "remove", (PyCFunction) AnimationFunc_remove, METH_VARARGS,
         "Removes a point from the animation." },
