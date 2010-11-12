@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt4 import QtCore, QtGui
+from PyQt4.QtCore import Qt
 from fluggo import signal
 from fluggo.media import process
 from fluggo.media.basetypes import *
@@ -99,7 +99,7 @@ class ThumbnailPainter(object):
                 size = frame.current_window.size()
                 img_str = frame.to_argb32_string()
 
-                thumbnails[i] = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
+                thumbnails[i] = QtGui.QImage(img_str, size.x, size.y, QtGui.QImage.Format_ARGB32_Premultiplied).copy()
 
                 # TODO: limit to thumbnail's area
                 self.updated()
@@ -111,7 +111,7 @@ class ThumbnailPainter(object):
                         callback=callback, user_data=(self._thumbnails, i))
 
                 # TODO: Scale existing thumbnails to fit
-                if isinstance(self._thumbnails[i], QImage):
+                if isinstance(self._thumbnails[i], QtGui.QImage):
                     if len(self._thumbnails) == 1:
                         painter.drawImage(rect.x() + (i * (rect.width() - self._thumbnail_width)),
                             rect.y(), self._thumbnails[i])

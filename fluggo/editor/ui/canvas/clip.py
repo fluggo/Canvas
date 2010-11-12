@@ -20,21 +20,21 @@ from ..canvas import *
 from .markers import *
 from fluggo.editor import canvas
 from fluggo.media import sources
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt4 import QtCore, QtGui
+from PyQt4.QtCore import Qt
 
-class _Handle(QGraphicsRectItem, Draggable):
-    invisibrush = QBrush(QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
+class _Handle(QtGui.QGraphicsRectItem, Draggable):
+    invisibrush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
     horizontal = True
 
     def __init__(self, rect, parent):
-        QGraphicsRectItem.__init__(self, rect, parent)
+        QtGui.QGraphicsRectItem.__init__(self, rect, parent)
         Draggable.__init__(self)
-        self.brush = QBrush(QColor.fromRgbF(0.0, 1.0, 0.0))
+        self.brush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 1.0, 0.0))
         self.setAcceptHoverEvents(True)
         self.setOpacity(0.45)
         self.setBrush(self.invisibrush)
-        self.setPen(QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
+        self.setPen(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
         self.setCursor(self.horizontal and Qt.SizeHorCursor or Qt.SizeVerCursor)
 
         self.original_x = None
@@ -103,25 +103,25 @@ class _BottomHandle(_Handle):
         else:
             self.parentItem().item.update(height=1)
 
-class ClipItem(QGraphicsItem, Draggable):
+class ClipItem(QtGui.QGraphicsItem, Draggable):
     def __init__(self, item, name):
-        QGraphicsItem.__init__(self)
-        Draggable.__init__(self, QGraphicsItem)
+        QtGui.QGraphicsItem.__init__(self)
+        Draggable.__init__(self, QtGui.QGraphicsItem)
         self.item = item
         self.item.updated.connect(self._update)
 
         self.name = name
-        self.setFlags(QGraphicsItem.ItemIsSelectable |
-            QGraphicsItem.ItemUsesExtendedStyleOption)
+        self.setFlags(QtGui.QGraphicsItem.ItemIsSelectable |
+            QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
 
         self._stream = None
 
-        self.left_handle = _LeftHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
-        self.right_handle = _RightHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.left_handle = _LeftHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.right_handle = _RightHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.right_handle.setPos(self.item.width, 0.0)
-        self.top_handle = _TopHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
-        self.bottom_handle = _BottomHandle(QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.top_handle = _TopHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.bottom_handle = _BottomHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.bottom_handle.setPos(0.0, self.item.height)
 
         self.view_reset_needed = False
@@ -191,10 +191,10 @@ class ClipItem(QGraphicsItem, Draggable):
         hx = view.handle_width / float(view.scale_x)
         hy = view.handle_width / float(view.scale_y)
 
-        self.left_handle.setRect(QRectF(0.0, 0.0, hx, self.item.height))
-        self.right_handle.setRect(QRectF(-hx, 0.0, hx, self.item.height))
-        self.top_handle.setRect(QRectF(0.0, 0.0, self.item.width / self.units_per_second, hy))
-        self.bottom_handle.setRect(QRectF(0.0, -hy, self.item.width / self.units_per_second, hy))
+        self.left_handle.setRect(QtCore.QRectF(0.0, 0.0, hx, self.item.height))
+        self.right_handle.setRect(QtCore.QRectF(-hx, 0.0, hx, self.item.height))
+        self.top_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.width / self.units_per_second, hy))
+        self.bottom_handle.setRect(QtCore.QRectF(0.0, -hy, self.item.width / self.units_per_second, hy))
 
     def hoverEnterEvent(self, event):
         view = event.widget().parentWidget()
@@ -207,7 +207,7 @@ class ClipItem(QGraphicsItem, Draggable):
             self.view_reset_needed = False
 
     def boundingRect(self):
-        return QRectF(0.0, 0.0, self.item.width / self.units_per_second, self.item.height)
+        return QtCore.QRectF(0.0, 0.0, self.item.width / self.units_per_second, self.item.height)
 
     def drag_start(self, view):
         self._drag_start_x = self.item.x

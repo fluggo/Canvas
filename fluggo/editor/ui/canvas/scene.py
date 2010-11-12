@@ -17,17 +17,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fractions
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt4 import QtCore, QtGui
+from PyQt4.QtCore import Qt
 from ..canvas import *
 from fluggo import sortlist, signal
 from fluggo.editor import canvas
 
-class Scene(QGraphicsScene):
+class Scene(QtGui.QGraphicsScene):
     DEFAULT_HEIGHT = 40
 
     def __init__(self, space, source_list):
-        QGraphicsScene.__init__(self)
+        QtGui.QGraphicsScene.__init__(self)
         self.source_list = source_list
         self.space = space
         self.space.item_added.connect(self.handle_item_added)
