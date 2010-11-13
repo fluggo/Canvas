@@ -395,8 +395,8 @@ class StreamSourceRef(object):
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        result = {'source_name': self._source_name,
-            'stream_index': self._stream_index}
+        result = {'source_name': data._source_name,
+            'stream_index': data._stream_index}
 
         return dumper.represent_mapping(cls.yaml_tag, result)
 
@@ -554,14 +554,14 @@ class TimelineItem(object):
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        mapping = {'source': self._source,
-            'offset': self._offset, 'length': self._length}
+        mapping = {'source': data._source,
+            'offset': data._offset, 'length': data._length}
 
-        if self._transition_length:
-            mapping['transition_length'] = self._transition_length
+        if data._transition_length:
+            mapping['transition_length'] = data._transition_length
 
-            if self._transition:
-                mapping['transition'] = self._transition
+            if data._transition:
+                mapping['transition'] = data._transition
 
         return dumper.represent_mapping(cls.yaml_tag, mapping)
 
