@@ -177,6 +177,10 @@ class VideoTimeline(VideoItem):
     def __init__(self, timeline):
         VideoItem.__init__(self, timeline, None)
 
+    @property
+    def stream(self):
+        return None
+
 class PlaceholderItem(QtGui.QGraphicsItem):
     def __init__(self, source_name, stream_format, x, y, height):
         QtGui.QGraphicsItem.__init__(self)
