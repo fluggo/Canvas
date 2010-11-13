@@ -171,7 +171,7 @@ class Item(object):
 
     yaml_tag = u'!CanvasItem'
 
-    def __init__(self, x=0, y=0.0, width=1, height=1.0, type=None, source=None, anchor=None,
+    def __init__(self, x=0, y=0.0, width=1, height=1.0, type=None, anchor=None,
             anchor_target_offset=None, anchor_source_offset=None, anchor_visible=False, tags=None,
             ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None):
         self._scene = None
@@ -181,7 +181,6 @@ class Item(object):
         self._height = height
         self._width = width
         self._type = type
-        self._source = source
         self._ease_in_type = ease_in_type
         self._ease_in = ease_in
         self._ease_out_type = ease_out_type
@@ -227,9 +226,6 @@ class Item(object):
         if self._tags:
             result['tags'] = list(tags)
 
-        if self._source:
-            result['source'] = self._source
-
         return result
 
     @classmethod
@@ -263,10 +259,6 @@ class Item(object):
     @property
     def height(self):
         return self._height
-
-    @property
-    def source(self):
-        return self._source
 
     def z_sort_key(self, y=None, z=None):
         '''
@@ -312,9 +304,6 @@ class Item(object):
         if 'z' in kw:
             self._z = int(kw['z'])
 
-        if 'source' in kw:
-            self._source = kw['source']
-
         self.updated(**kw)
 
     def overlap_items(self):
@@ -357,18 +346,18 @@ class Clip(Item):
     '''
     yaml_tag = u'!CanvasClip'
 
-    def __init__(self, type=None, offset=0, source_name=None, source_stream_index=None, **kw):
+    def __init__(self, type=None, offset=0, source=None, **kw):
         Item.__init__(self, **kw)
         self._type = type
-        self._source_name = source_name
-        self._source_stream_index = source_stream_index
+        self._source = source
         self._offset = offset
 
     def _create_repr_dict(self):
         dict = Item._create_repr_dict(self)
-        dict['source_name'] = self._source_name
-        dict['source_stream_index'] = self._source_stream_index
         dict['offset'] = self._offset
+
+        if self._source:
+            dict['source'] = self._source
 
         return dict
 
@@ -379,15 +368,14 @@ class Clip(Item):
         if 'offset' in kw:
             self._offset = int(kw['offset'])
 
+        if 'source' in kw:
+            self._source = kw['source']
+
         Item.update(self, **kw)
 
     @property
-    def source_name(self):
-        return self._source_name
-
-    @property
-    def source_stream_index(self):
-        return self._source_stream_index
+    def source(self):
+        return self._source
 
     @property
     def offset(self):
