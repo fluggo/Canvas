@@ -6,7 +6,7 @@ from fluggo import signal, sortlist
 from fluggo.media import process, timecode, qt, formats, sources, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
-from fluggo.editor import ui, canvas, graph
+from fluggo.editor import ui, model, graph
 
 from fluggo.media.muxers.ffmpeg import FFMuxPlugin
 
@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
         self.source_list = sources.SourceList(muxers)
 
         # Only one space for now, we'll do multiple later
-        self.space = canvas.Space()
+        self.space = model.Space()
         #self.space.append(clip)
 
         self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
