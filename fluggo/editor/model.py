@@ -425,6 +425,15 @@ class Timeline(Item, ezlist.EZList):
         if items:
             self.fixup()
 
+    def _create_repr_dict(self):
+        dict_ = Item._create_repr_dict(self)
+        dict_['type'] = self._type
+        dict_['items'] = list(self._items)
+        dict_['expanded'] = self._expanded
+        del dict_['width']
+
+        return dict_
+
     def type(self):
         return self._type
 
