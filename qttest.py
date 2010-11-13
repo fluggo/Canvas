@@ -172,6 +172,8 @@ class MainWindow(QMainWindow):
     def create_actions(self):
         self.open_space_action = QAction('&Open...', self,
             statusTip='Open a Canvas file', triggered=self.open_space)
+        self.save_space_action = QAction('&Save...', self,
+            statusTip='Save a Canvas file', triggered=self.save_space)
         self.quit_action = QAction('&Quit', self, shortcut=QKeySequence.Quit,
             statusTip='Quit the application', triggered=self.close, menuRole=QAction.QuitRole)
 
@@ -208,6 +210,7 @@ class MainWindow(QMainWindow):
     def create_menus(self):
         self.file_menu = self.menuBar().addMenu('&File')
         self.file_menu.addAction(self.open_space_action)
+        self.file_menu.addAction(self.save_space_action)
         self.file_menu.addAction(self.render_dv_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.quit_action)
@@ -238,10 +241,16 @@ class MainWindow(QMainWindow):
         if path:
             self.open_file(path)
 
+    def save_space(self):
+        path = QFileDialog.getSaveFileName(self, "Save File", filter='YAML Files (*.yaml)')
+
+        if path:
+            self.save_file(path)
+
     def open_file(self, path):
         sources, space = None, None
 
-        with file(path) as stream:
+        with open(path) as stream:
             (sources, space) = yaml.load_all(stream)
 
         self.space[:] = []
@@ -254,6 +263,10 @@ class MainWindow(QMainWindow):
         # TODO: Replace the whole space here; this requires
         # swapping it out for the view and workspace managers also
         self.space[:] = space[:]
+
+    def save_file(self, path):
+        with open(path, 'w') as stream:
+            yaml.dump_all((self.source_list.get_source_list(), self.space), stream)
 
     def render_dv(self):
         if not len(self.space):
