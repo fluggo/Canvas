@@ -267,12 +267,6 @@ class Item(object):
         '''
         return _ZSortKey(self, self.overlap_items(), self._y if y is None else y, self._z if z is None else z)
 
-    def __cmp__(self, other):
-        if self is other:
-            return 0
-
-        return cmp(self.z_sort_key(), other.z_sort_key())
-
     def overlaps(self, other):
         '''
         Return True if *other* overlaps this item.
