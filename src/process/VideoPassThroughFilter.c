@@ -45,35 +45,35 @@ VideoPassThroughFilter_init( py_obj_VideoPassThroughFilter *self, PyObject *args
 
 static void
 VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_f16 *frame ) {
-    if( self->source.source.obj == NULL ) {
+    if( self->source.source == NULL ) {
         // No result
         box2i_set_empty( &frame->current_window );
         return;
     }
 
-    video_get_frame_f16( &self->source.source, frameIndex + self->offset, frame );
+    video_get_frame_f16( self->source.source, frameIndex + self->offset, frame );
 }
 
 static void
 VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_f32 *frame ) {
-    if( self->source.source.obj == NULL ) {
+    if( self->source.source == NULL ) {
         // No result
         box2i_set_empty( &frame->current_window );
         return;
     }
 
-    video_get_frame_f32( &self->source.source, frameIndex + self->offset, frame );
+    video_get_frame_f32( self->source.source, frameIndex + self->offset, frame );
 }
 
 static void
 VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_gl *frame ) {
-    if( self->source.source.obj == NULL ) {
+    if( self->source.source == NULL ) {
         // No result
         box2i_set_empty( &frame->current_window );
         return;
     }
 
-    video_get_frame_gl( &self->source.source, frameIndex + self->offset, frame );
+    video_get_frame_gl( self->source.source, frameIndex + self->offset, frame );
 }
 
 static void
@@ -84,11 +84,11 @@ VideoPassThroughFilter_dealloc( py_obj_VideoPassThroughFilter *self ) {
 
 static PyObject *
 VideoPassThroughFilter_getSource( py_obj_VideoPassThroughFilter *self ) {
-    if( self->source.source.obj == NULL )
+    if( self->source.source == NULL )
         Py_RETURN_NONE;
 
-    Py_INCREF((PyObject *) self->source.source.obj);
-    return (PyObject *) self->source.source.obj;
+    Py_INCREF((PyObject *) self->source.source->obj);
+    return (PyObject *) self->source.source->obj;
 }
 
 static PyObject *

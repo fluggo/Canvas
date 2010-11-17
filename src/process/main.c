@@ -22,25 +22,44 @@
 #include <structmember.h>
 #include <time.h>
 
-EXPORT bool py_video_take_source( PyObject *source, VideoSourceHolder *holder ) {
-    Py_CLEAR( holder->source.obj );
-    Py_CLEAR( holder->csource );
-    holder->source.funcs = NULL;
+typedef struct {
+    video_source source;
+    PyObject *csource;
+} py_video_source;
 
-    if( source == NULL || source == Py_None )
+EXPORT bool py_video_take_source( PyObject *obj, VideoSourceHolder *holder ) {
+    py_video_source *source = (py_video_source *) holder->source;
+
+    if( source ) {
+        // TODO: If we get beyond Python, just put a full ref/unref system
+        // in and unref here
+        Py_CLEAR( source->source.obj );
+        Py_CLEAR( source->csource );
+        source->source.funcs = NULL;
+
+        g_slice_free( py_video_source, source );
+        holder->source = NULL;
+    }
+
+    if( obj == NULL || obj == Py_None )
         return true;
 
-    Py_INCREF( source );
-    holder->source.obj = source;
-    holder->csource = PyObject_GetAttrString( source, VIDEO_FRAME_SOURCE_FUNCS );
+    source = g_slice_new( py_video_source );
 
-    if( holder->csource == NULL ) {
-        Py_CLEAR( holder->source.obj );
+    Py_INCREF( obj );
+    source->source.obj = obj;
+    source->csource = PyObject_GetAttrString( obj, VIDEO_FRAME_SOURCE_FUNCS );
+
+    if( source->csource == NULL ) {
+        Py_DECREF( obj );
+        g_slice_free( py_video_source, source );
+
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " VIDEO_FRAME_SOURCE_FUNCS " attribute." );
         return false;
     }
 
-    holder->source.funcs = (video_frame_source_funcs*) PyCObject_AsVoidPtr( holder->csource );
+    source->source.funcs = (video_frame_source_funcs*) PyCObject_AsVoidPtr( source->csource );
+    holder->source = (video_source *) source;
 
     return true;
 }
@@ -125,7 +144,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     if( !frame.data )
         return PyErr_NoMemory();
 
-    VideoSourceHolder source = { .csource = NULL };
+    VideoSourceHolder source = { NULL };
 
     if( !py_video_take_source( sourceObj, &source ) ) {
         PyMem_Free( frame.data );
@@ -134,7 +153,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     int64_t startTime = gettime();
     for( int i = minFrame; i <= maxFrame; i++ )
-        source.source.funcs->get_frame( source.source.obj, i, &frame );
+        video_get_frame_f16( source.source, i, &frame );
     int64_t endTime = gettime();
 
     PyMem_Free( frame.data );

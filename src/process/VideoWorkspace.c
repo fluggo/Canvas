@@ -397,7 +397,7 @@ Workspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
     if( tag )
         Py_INCREF(tag);
 
-    return item_to_python( self, workspace_add_item( PRIV(self)->workspace, &holder->source, x, width, offset, z, tag ) );
+    return item_to_python( self, workspace_add_item( PRIV(self)->workspace, holder->source, x, width, offset, z, tag ) );
 }
 
 static PyObject *

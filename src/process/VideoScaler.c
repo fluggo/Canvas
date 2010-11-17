@@ -59,7 +59,7 @@ VideoScaler_init( py_obj_VideoScaler *self, PyObject *args, PyObject *kw ) {
 
 static void
 VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame_f32 *frame ) {
-    if( self->source.source.obj == NULL ) {
+    if( self->source.source == NULL ) {
         // No result
         box2i_set_empty( &frame->current_window );
         return;
@@ -72,7 +72,7 @@ VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame
     framefunc_get_v2f( &scale_factors, &self->scale_factors, frame_index );
     framefunc_get_box2i( &source_rect, &self->source_rect, frame_index );
 
-    video_scale_bilinear_f32_pull( frame, target_point, &self->source.source, frame_index, &source_rect, source_point, scale_factors );
+    video_scale_bilinear_f32_pull( frame, target_point, self->source.source, frame_index, &source_rect, source_point, scale_factors );
 }
 
 static void
@@ -102,11 +102,11 @@ static PyGetSetDef VideoScaler_getsetters[] = {
 
 static PyObject *
 VideoScaler_source( py_obj_VideoScaler *self, PyObject *dummy ) {
-    if( !self->source.source.obj )
+    if( !self->source.source )
         Py_RETURN_NONE;
 
-    Py_INCREF(self->source.source.obj);
-    return self->source.source.obj;
+    Py_INCREF(self->source.source->obj);
+    return self->source.source->obj;
 }
 
 static PyObject *

@@ -46,8 +46,7 @@ bool py_parse_v2i( PyObject *obj, v2i *v );
 /**** Video **/
 
 typedef struct {
-    video_source source;
-    PyObject *csource;
+    video_source *source;
 } VideoSourceHolder;
 
 bool py_video_take_source( PyObject *source, VideoSourceHolder *holder );

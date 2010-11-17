@@ -42,7 +42,7 @@ public:
         if( !result )
             sipIsErr = 1;
         else
-            sipCpp->setVideoSource( &sipCpp->_sourceHolder.source );
+            sipCpp->setVideoSource( sipCpp->_sourceHolder.source );
 %End
 
     void setPresentationClock( SIP_PYOBJECT );
