@@ -154,10 +154,12 @@ WorkspaceItem_set_source( py_obj_WorkspaceItem *self, PyObject *value, void *clo
         return -1;
     }
 
-    VideoSourceHolder *holder = workspace_get_item_source( self->item );
+    video_source *source = workspace_get_item_source( self->item );
 
-    if( !py_video_take_source( value, holder ) )
+    if( !py_video_take_source( value, &source ) )
         return -1;
+
+    workspace_set_item_source( self->item, source );
 
     return 0;
 }
@@ -212,11 +214,11 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
         return NULL;
     }
 
-    VideoSourceHolder *holder = workspace_get_item_source( self->item );
+    video_source *source = workspace_get_item_source( self->item );
     PyObject *old_tag = (PyObject *) workspace_get_item_tag( self->item );
 
     int64_t x = 0, z = 0, width = 0, offset = 0;
-    PyObject *source = NULL, *tag = old_tag;
+    PyObject *source_obj = NULL, *tag = old_tag;
 
     workspace_get_item_pos( self->item, &x, &width, &z );
     offset = workspace_get_item_offset( self->item );
@@ -224,11 +226,11 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
     static char *kwlist[] = { "x", "width", "z", "offset", "source", "tag", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "|LLLLOO", kwlist,
-            &x, &width, &z, &offset, &source, &tag ) )
+            &x, &width, &z, &offset, &source_obj, &tag ) )
         return NULL;
 
-    if( source ) {
-        if( !py_video_take_source( source, holder ) )
+    if( source_obj ) {
+        if( !py_video_take_source( source_obj, &source ) )
             return NULL;
     }
 
@@ -237,10 +239,9 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
         Py_DECREF(old_tag);
     }
 
-    gpointer sourceptr = &holder->source;
     gpointer tagptr = tag;
 
-    workspace_update_item( self->item, &x, &width, &z, &offset, &sourceptr, &tagptr );
+    workspace_update_item( self->item, &x, &width, &z, &offset, (gpointer *) &source, &tagptr );
     Py_RETURN_NONE;
 }
 
@@ -323,8 +324,8 @@ Workspace_dealloc( PyObject *self ) {
     for( gint i = 0; i < item_count; i++ ) {
         workspace_item_t *item = workspace_get_item( PRIV(self)->workspace, i );
 
-        VideoSourceHolder *holder = (VideoSourceHolder *) workspace_get_item_source( item );
-        py_video_take_source( NULL, holder );
+        video_source *source = (video_source *) workspace_get_item_source( item );
+        py_video_take_source( NULL, &source );
 
         PyObject *tag = (PyObject *) workspace_get_item_tag( item );
 
@@ -382,22 +383,22 @@ Workspace_getItem( PyObject *self, Py_ssize_t i ) {
 static PyObject *
 Workspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
     int64_t x = 0, z = 0, width = 0, offset = 0;
-    VideoSourceHolder *holder = g_slice_new0( VideoSourceHolder );
-    PyObject *source = NULL, *tag = NULL;
+    video_source *source = NULL;
+    PyObject *source_obj = NULL, *tag = NULL;
 
     static char *kwlist[] = { "source", "offset", "x", "width", "z", "tag", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "O|LLLLO", kwlist,
-            &source, &offset, &x, &width, &z, &tag ) )
+            &source_obj, &offset, &x, &width, &z, &tag ) )
         return NULL;
 
-    if( !py_video_take_source( source, holder ) )
+    if( !py_video_take_source( source_obj, &source ) )
         return NULL;
 
     if( tag )
         Py_INCREF(tag);
 
-    return item_to_python( self, workspace_add_item( PRIV(self)->workspace, holder->source, x, width, offset, z, tag ) );
+    return item_to_python( self, workspace_add_item( PRIV(self)->workspace, source, x, width, offset, z, tag ) );
 }
 
 static PyObject *
@@ -407,8 +408,8 @@ Workspace_remove( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "O!", &py_type_WorkspaceItem, &item ) )
         return NULL;
 
-    VideoSourceHolder *holder = (VideoSourceHolder *) workspace_get_item_source( item->item );
-    py_video_take_source( NULL, holder );
+    video_source *source = (video_source *) workspace_get_item_source( item->item );
+    py_video_take_source( NULL, &source );
 
     PyObject *tag = (PyObject *) workspace_get_item_tag( item->item );
 

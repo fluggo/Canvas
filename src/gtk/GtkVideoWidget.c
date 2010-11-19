@@ -35,7 +35,7 @@ typedef struct {
     GdkGLConfig *glConfig;
     GtkWidget *drawingArea;
     PyObject *drawingAreaObj;
-    VideoSourceHolder frameSource;
+    video_source *frameSource;
     PresentationClockHolder clock;
 
     widget_gl_context *context;
@@ -96,7 +96,7 @@ GtkVideoWidget_init( py_obj_GtkVideoWidget *self, PyObject *args, PyObject *kwds
         return -1;
     }
 
-    widget_gl_set_video_source( self->context, self->frameSource.source );
+    widget_gl_set_video_source( self->context, self->frameSource );
 
     self->glConfig = gdk_gl_config_new_by_mode ( (GdkGLConfigMode) (GDK_GL_MODE_RGB    |
                                         GDK_GL_MODE_DEPTH  |
@@ -183,11 +183,11 @@ GtkVideoWidget_setDisplayWindow( py_obj_GtkVideoWidget *self, PyObject *args ) {
 
 static PyObject *
 GtkVideoWidget_getSource( py_obj_GtkVideoWidget *self ) {
-    if( self->frameSource.source == NULL )
+    if( self->frameSource == NULL )
         Py_RETURN_NONE;
 
-    Py_INCREF((PyObject *) self->frameSource.source->obj);
-    return (PyObject *) self->frameSource.source->obj;
+    Py_INCREF((PyObject *) self->frameSource->obj);
+    return (PyObject *) self->frameSource->obj;
 }
 
 static PyObject *
@@ -198,7 +198,7 @@ GtkVideoWidget_setSource( py_obj_GtkVideoWidget *self, PyObject *args, void *clo
         return NULL;
 
     bool result = py_video_take_source( source, &self->frameSource );
-    widget_gl_set_video_source( self->context, self->frameSource.source );
+    widget_gl_set_video_source( self->context, self->frameSource );
 
     if( !result )
         return NULL;

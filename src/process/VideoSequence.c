@@ -26,7 +26,7 @@ typedef struct {
     PyObject *tuple;
     int length, offset;                // Copied from tuple
     int startFrame;
-    VideoSourceHolder source;
+    video_source *source;
 } Element;
 
 typedef struct {
@@ -67,7 +67,7 @@ pickElement_nolock( PyObject *self, int frameIndex ) {
 
     Element *elem = &SEQINDEX(self, i);
 
-    if( !elem->source.source || elem->startFrame + elem->length <= frameIndex )
+    if( !elem->source || elem->startFrame + elem->length <= frameIndex )
         return NULL;
 
     return elem;
@@ -88,7 +88,7 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) 
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    video_get_frame_f16( elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
+    video_get_frame_f16( elem.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static void
@@ -106,7 +106,7 @@ VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame 
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    video_get_frame_f32( elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
+    video_get_frame_f32( elem.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static void
@@ -124,7 +124,7 @@ VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame )
     Element elem = *elemPtr;
     g_mutex_unlock( PRIV(self)->mutex );
 
-    video_get_frame_gl( elem.source.source, frameIndex - elem.startFrame + elem.offset, frame );
+    video_get_frame_gl( elem.source, frameIndex - elem.startFrame + elem.offset, frame );
 }
 
 static Py_ssize_t
@@ -166,7 +166,7 @@ static int
 _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
     PyObject *sourceObj;
     int length = 0, offset;
-    VideoSourceHolder source = { NULL };
+    video_source *source = NULL;
 
     if( v ) {
         // Parse everything and make sure it's okay

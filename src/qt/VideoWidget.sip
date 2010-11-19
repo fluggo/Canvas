@@ -37,12 +37,12 @@ public:
 
     void setVideoSource( SIP_PYOBJECT );
 %MethodCode
-        bool result = py_video_take_source( a0, &sipCpp->_sourceHolder );
+        bool result = py_video_take_source( a0, &sipCpp->_source );
 
         if( !result )
             sipIsErr = 1;
         else
-            sipCpp->setVideoSource( sipCpp->_sourceHolder.source );
+            sipCpp->setVideoSource( sipCpp->_source );
 %End
 
     void setPresentationClock( SIP_PYOBJECT );

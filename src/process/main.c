@@ -27,8 +27,8 @@ typedef struct {
     PyObject *csource;
 } py_video_source;
 
-EXPORT bool py_video_take_source( PyObject *obj, VideoSourceHolder *holder ) {
-    py_video_source *source = (py_video_source *) holder->source;
+EXPORT bool py_video_take_source( PyObject *obj, video_source **source_ ) {
+    py_video_source *source = (py_video_source *) (*source_);
 
     if( source ) {
         // TODO: If we get beyond Python, just put a full ref/unref system
@@ -38,7 +38,7 @@ EXPORT bool py_video_take_source( PyObject *obj, VideoSourceHolder *holder ) {
         source->source.funcs = NULL;
 
         g_slice_free( py_video_source, source );
-        holder->source = NULL;
+        *source_ = NULL;
     }
 
     if( obj == NULL || obj == Py_None )
@@ -59,7 +59,7 @@ EXPORT bool py_video_take_source( PyObject *obj, VideoSourceHolder *holder ) {
     }
 
     source->source.funcs = (video_frame_source_funcs*) PyCObject_AsVoidPtr( source->csource );
-    holder->source = (video_source *) source;
+    *source_ = (video_source *) source;
 
     return true;
 }
@@ -144,7 +144,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     if( !frame.data )
         return PyErr_NoMemory();
 
-    VideoSourceHolder source = { NULL };
+    video_source *source = NULL;
 
     if( !py_video_take_source( sourceObj, &source ) ) {
         PyMem_Free( frame.data );
@@ -153,7 +153,7 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
 
     int64_t startTime = gettime();
     for( int i = minFrame; i <= maxFrame; i++ )
-        video_get_frame_f16( source.source, i, &frame );
+        video_get_frame_f16( source, i, &frame );
     int64_t endTime = gettime();
 
     PyMem_Free( frame.data );

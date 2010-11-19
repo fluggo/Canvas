@@ -42,7 +42,7 @@ PyObject *py_RgbaFrameF16_new( box2i *full_data_window, rgba_frame_f16 **frame )
 typedef struct {
     PyObject_HEAD
     PyObject *callback, *user_data, *pyframe, *owner;
-    VideoSourceHolder source;
+    video_source *source;
     int frame_index;
     rgba_frame_f16 *frame;
     volatile bool active;
@@ -97,7 +97,7 @@ _timeout_callback( py_obj_VideoPullQueueItem *item ) {
 static void
 _thread_func( py_obj_VideoPullQueueItem *item, py_obj_VideoPullQueue *self ) {
     if( item->active )
-        video_get_frame_f16( item->source.source, item->frame_index, item->frame );
+        video_get_frame_f16( item->source, item->frame_index, item->frame );
 
     g_timeout_add_full( G_PRIORITY_DEFAULT, 0, (GSourceFunc) _timeout_callback, item, NULL );
 }

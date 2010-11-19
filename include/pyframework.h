@@ -45,11 +45,7 @@ bool py_parse_v2i( PyObject *obj, v2i *v );
 
 /**** Video **/
 
-typedef struct {
-    video_source *source;
-} VideoSourceHolder;
-
-bool py_video_take_source( PyObject *source, VideoSourceHolder *holder );
+bool py_video_take_source( PyObject *obj, video_source **source );
 
 extern PyTypeObject py_type_VideoSource;
 

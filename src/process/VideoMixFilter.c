@@ -33,7 +33,7 @@ static PyObject *pysourceFuncs;
 typedef struct {
     PyObject_HEAD
 
-    VideoSourceHolder srcA, srcB;
+    video_source *srcA, *srcB;
     FrameFunctionHolder mixB;
     MixMode mode;
 } py_obj_VideoMixFilter;
@@ -65,7 +65,7 @@ static void
 VideoMixFilter_getFrame32( py_obj_VideoMixFilter *self, int frameIndex, rgba_frame_f32 *frame ) {
     float mixB = framefunc_get_f32( &self->mixB, frameIndex );
 
-    video_mix_cross_f32_pull( frame, self->srcA.source, frameIndex, self->srcB.source, frameIndex, mixB );
+    video_mix_cross_f32_pull( frame, self->srcA, frameIndex, self->srcB, frameIndex, mixB );
 }
 
 // This crossfade is based on the associative alpha blending formula from:
@@ -115,11 +115,11 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_fra
 
     if( self->mode == MIXMODE_CROSSFADE && mixB == 1.0f ) {
         // We only need frame B
-        video_get_frame_gl( self->srcB.source, frameIndex, frame );
+        video_get_frame_gl( self->srcB, frameIndex, frame );
         return;
     }
     else if( mixB == 0.0f ) {
-        video_get_frame_gl( self->srcA.source, frameIndex, frame );
+        video_get_frame_gl( self->srcA, frameIndex, frame );
         return;
     }
 
@@ -142,8 +142,8 @@ VideoMixFilter_getFrameGL( py_obj_VideoMixFilter *self, int frameIndex, rgba_fra
 
     rgba_frame_gl frameA = *frame, frameB = *frame;
 
-    video_get_frame_gl( self->srcA.source, frameIndex, &frameA );
-    video_get_frame_gl( self->srcB.source, frameIndex, &frameB );
+    video_get_frame_gl( self->srcA, frameIndex, &frameA );
+    video_get_frame_gl( self->srcB, frameIndex, &frameB );
 
     glUseProgramObjectARB( shader->program );
     glUniform1iARB( shader->texA, 0 );
@@ -184,6 +184,7 @@ VideoMixFilter_dealloc( py_obj_VideoMixFilter *self ) {
     py_video_take_source( NULL, &self->srcA );
     py_video_take_source( NULL, &self->srcB );
     py_framefunc_take_source( NULL, &self->mixB );
+
     self->ob_type->tp_free( (PyObject*) self );
 }
 

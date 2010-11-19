@@ -7,7 +7,7 @@ static void invalidate( VideoWidget *widget ) {
     widget->update();
 }
 
-VideoWidget::VideoWidget( const QGLFormat &format, QWidget *parent ) : QGLWidget( format, parent ), _clockHolder(), _sourceHolder() {
+VideoWidget::VideoWidget( const QGLFormat &format, QWidget *parent ) : QGLWidget( format, parent ), _clockHolder(), _source() {
     _context = widget_gl_new();
     widget_gl_set_invalidate_func( _context, (invalidate_func) invalidate, this );
 }

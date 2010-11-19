@@ -22,7 +22,7 @@ public:
     // BJC: I'd rather these be protected at worst, but right
     // now I don't know a better place to put them (they support the SIP code)
     PresentationClockHolder _clockHolder;
-    VideoSourceHolder _sourceHolder;
+    video_source *_source;
 
     virtual QSize sizeHint() const;
 
