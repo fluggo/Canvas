@@ -269,8 +269,6 @@ playbackThread( widget_gl_context *self ) {
 
         // Pull the frame data from the chain
         g_static_rw_lock_reader_lock( &self->frame_read_rwlock );
-        frame.current_window = target->fullDataWindow;
-
         if( self->frameSource != NULL ) {
             video_get_frame_f16( self->frameSource, nextFrame, &frame );
         }
