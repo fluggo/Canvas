@@ -27,6 +27,7 @@ typedef struct {
 
     video_source *source;
     int offset;
+    GStaticRWLock rwlock;
 } py_obj_VideoPassThroughFilter;
 
 static int
@@ -40,45 +41,58 @@ VideoPassThroughFilter_init( py_obj_VideoPassThroughFilter *self, PyObject *args
     if( !py_video_take_source( source, &self->source ) )
         return -1;
 
+    g_static_rw_lock_init( &self->rwlock );
+
     return 0;
 }
 
 static void
 VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_f16 *frame ) {
-    if( self->source == NULL ) {
-        // No result
-        box2i_set_empty( &frame->current_window );
-        return;
-    }
-
+    g_static_rw_lock_reader_lock( &self->rwlock );
     video_get_frame_f16( self->source, frameIndex + self->offset, frame );
+    g_static_rw_lock_reader_unlock( &self->rwlock );
 }
 
 static void
 VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_f32 *frame ) {
-    if( self->source == NULL ) {
-        // No result
-        box2i_set_empty( &frame->current_window );
-        return;
-    }
-
+    g_static_rw_lock_reader_lock( &self->rwlock );
     video_get_frame_f32( self->source, frameIndex + self->offset, frame );
+    g_static_rw_lock_reader_unlock( &self->rwlock );
 }
 
 static void
 VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_gl *frame ) {
-    if( self->source == NULL ) {
-        // No result
-        box2i_set_empty( &frame->current_window );
-        return;
-    }
-
+    g_static_rw_lock_reader_lock( &self->rwlock );
     video_get_frame_gl( self->source, frameIndex + self->offset, frame );
+    g_static_rw_lock_reader_unlock( &self->rwlock );
 }
 
 static void
 VideoPassThroughFilter_dealloc( py_obj_VideoPassThroughFilter *self ) {
+    // BJC: This is the first time I'm writing r/w lock code for a filter, so
+    // let me try to explain here why that is, and why there's no need to lock
+    // in a dealloc.
+    //
+    // First, the problem: Without any kind of locking, it is possible to try
+    // to call into the get_frame of an object that has been freed. It's a race
+    // between one of the many threads that are trying to render and code that
+    // calls py_video_take_source. If all filters cooperate with locking-- that
+    // is, ensuring that each filter does not remove a reference to any video
+    // source that it might be calling into-- the problem should be solved.
+    //
+    // There are two exceptions: init and dealloc. init is obvious-- nobody has
+    // a reference to the object yet, so there can be no simultaneous get_frame
+    // calls. dealloc is less obvious, because you might conceive of a situation
+    // where an upstream has called get_frame, but then the Python thread
+    // executes and deallocates the entire filter network. This is why it's very
+    // important that EVERY filter and everything that calls get_frame
+    // participates-- the top sink must make sure to finish any get_frame calls
+    // before dealloc'ing sources. As long as it does that, no filter should
+    // have to worry about syncing in dealloc.
+
     py_video_take_source( NULL, &self->source );
+    g_static_rw_lock_free( &self->rwlock );
+
     self->ob_type->tp_free( (PyObject*) self );
 }
 
@@ -98,8 +112,14 @@ VideoPassThroughFilter_setSource( py_obj_VideoPassThroughFilter *self, PyObject 
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return NULL;
 
-    if( !py_video_take_source( source, &self->source ) )
+    g_static_rw_lock_writer_lock( &self->rwlock );
+
+    if( !py_video_take_source( source, &self->source ) ) {
+        g_static_rw_lock_writer_unlock( &self->rwlock );
         return NULL;
+    }
+
+    g_static_rw_lock_writer_unlock( &self->rwlock );
 
     Py_RETURN_NONE;
 }
