@@ -460,12 +460,36 @@ workspace_remove_item( workspace_item_t *item ) {
     workspace_t *self = item->workspace;
     g_static_mutex_lock( &self->mutex );
 
+    // Remove from leftsort (delicately)
+    bool match_left = (g_sequence_iter_compare( self->leftiter, item->leftiter ) == 0);
+
     g_sequence_remove( item->leftiter );
+    item->leftiter = NULL;
+
+    if( match_left )
+        self->leftiter = g_sequence_get_begin_iter( self->leftsort );
+
+    workspace_fix_leftiter( self );
+
+    // Remove from rightsort (also delicately)
+    bool match_right = (g_sequence_iter_compare( self->rightiter, item->rightiter ) == 0);
+
     g_sequence_remove( item->rightiter );
+    item->rightiter = NULL;
 
-    if( item->compiter )
+    if( match_right )
+        self->rightiter = g_sequence_get_begin_iter( self->rightsort );
+
+    workspace_fix_rightiter( self );
+
+    // Remove from compiter (grab it!)
+    if( item->compiter ) {
         g_sequence_remove( item->compiter );
+        item->compiter = NULL;
+    }
 
+    item->workspace = NULL;
+    g_slice_free( workspace_item_t, item );
     g_static_mutex_unlock( &self->mutex );
 }
 
