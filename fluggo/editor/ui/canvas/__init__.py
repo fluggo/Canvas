@@ -202,7 +202,7 @@ class PlaceholderItem(QtGui.QGraphicsItem):
         painter.save()
         painter.resetTransform()
 
-        painter.setPen(QtGui.QPen(GtGui.QColor.fromRgbF(1.0, 1.0, 1.0), WIDTH))
+        painter.setPen(QtGui.QPen(QtGui.QColor.fromRgbF(1.0, 1.0, 1.0), WIDTH))
         painter.drawRect(QtCore.QRectF(rect.x() + WIDTH/2, rect.y() + WIDTH/2, rect.width() - WIDTH, rect.height() - WIDTH))
 
         painter.restore()
