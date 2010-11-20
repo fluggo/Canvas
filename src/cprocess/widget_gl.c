@@ -42,6 +42,7 @@ struct __tag_widget_gl_context {
 
     video_source *frameSource;
     presentation_clock clock;
+    GStaticRWLock frame_read_rwlock;
     GMutex *frameReadMutex;
     GCond *frameReadCond;
     int nextToRenderFrame;
@@ -267,6 +268,7 @@ playbackThread( widget_gl_context *self ) {
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
 
         // Pull the frame data from the chain
+        g_static_rw_lock_reader_lock( &self->frame_read_rwlock );
         frame.current_window = target->fullDataWindow;
 
         if( self->frameSource != NULL ) {
@@ -276,6 +278,7 @@ playbackThread( widget_gl_context *self ) {
             // No result
             box2i_set_empty( &frame.current_window );
         }
+        g_static_rw_lock_reader_unlock( &self->frame_read_rwlock );
 
         target->currentDataWindow = frame.current_window;
 
@@ -392,6 +395,7 @@ widget_gl_new() {
     self->hardModeDisable = false;
     self->bufferCount = SOFT_MODE_BUFFERS;
 
+    g_static_rw_lock_init( &self->frame_read_rwlock );
     self->frameReadMutex = g_mutex_new();
     self->frameReadCond = g_cond_new();
     self->nextToRenderFrame = 0;
@@ -440,6 +444,8 @@ widget_gl_free( widget_gl_context *self ) {
 
     if( self->renderThread != NULL )
         g_thread_join( self->renderThread );
+
+    g_static_rw_lock_free( &self->frame_read_rwlock );
 
     if( self->clock.funcs && self->clock_callback_handle )
         self->clock.funcs->unregister_callback( self->clock.obj, self->clock_callback_handle );
@@ -537,6 +543,8 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
         self->hardTextureId = 0;
     }
 
+    // Since this is on the main thread, we don't
+    // worry about locking
     if( self->frameSource == NULL ) {
         box2i_set_empty( &self->currentDataWindow );
         return;
@@ -754,9 +762,13 @@ widget_gl_set_display_window( widget_gl_context *self, box2i *display_window ) {
 
 EXPORT void
 widget_gl_set_video_source( widget_gl_context *self, video_source *source ) {
-    g_mutex_lock( self->frameReadMutex );
-    g_mutex_unlock( self->frameReadMutex );
+    // Since widget_gl doesn't dealloc/deref its source, this lock may
+    // seem almost superfluous, but it serves as a "write barrier" for anyone
+    // setting the source: they shouldn't deallocate the old pointer until this
+    // call returns.
+    g_static_rw_lock_writer_lock( &self->frame_read_rwlock );
     self->frameSource = source;
+    g_static_rw_lock_writer_unlock( &self->frame_read_rwlock );
 }
 
 static void _clock_callback( widget_gl_context *self, rational *speed, int64_t time );
