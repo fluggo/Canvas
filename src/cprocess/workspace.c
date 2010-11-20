@@ -21,8 +21,6 @@
 #include "framework.h"
 
 struct workspace_t_tag {
-    GStaticMutex mutex;
-
     // leftsort and rightsort both contain all items in the workspace. leftsort is sorted
     // on item->x, rightsort is sorted backwards on (item->x + item->width).
     GSequence *leftsort, *rightsort;
@@ -49,6 +47,8 @@ struct workspace_t_tag {
     // There are better ways to do this for random-access, most importantly the interval tree.
     // This is quick and dirty and works.
 
+    // mutex - protects leftiter, rightiter, start_frame, end_frame, and composite_list
+    GStaticMutex mutex;
     GSequenceIter *leftiter, *rightiter;
     int start_frame, end_frame;
 
@@ -118,11 +118,7 @@ workspace_create() {
 
 EXPORT gint
 workspace_get_length( workspace_t *self ) {
-    g_static_mutex_lock( &self->mutex );
-    gint result = g_sequence_get_length( self->leftsort );
-    g_static_mutex_unlock( &self->mutex );
-
-    return result;
+    return g_sequence_get_length( self->leftsort );
 }
 
 /*
@@ -340,10 +336,8 @@ workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t width
 
 EXPORT workspace_item_t *
 workspace_get_item( workspace_t *self, gint index ) {
-    g_static_mutex_lock( &self->mutex );
     GSequenceIter *iter = g_sequence_get_iter_at_pos( self->leftsort, index );
     workspace_item_t *result = (workspace_item_t *) g_sequence_get( iter );
-    g_static_mutex_unlock( &self->mutex );
 
     return result;
 }
@@ -501,22 +495,35 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
     workspace_move_it( self, frame_index, frame_index );
 
     // Now composite everything in it
-    if( g_sequence_get_length( self->composite_list ) == 0 ) {
+    int item_count = g_sequence_get_length( self->composite_list );
+
+    if( !item_count ) {
         box2i_set_empty( &frame->current_window );
         g_static_mutex_unlock( &self->mutex );
         return;
     }
 
+    workspace_item_t **items = g_slice_alloc( sizeof(workspace_item_t*) * item_count );
+    GSequenceIter *iter = g_sequence_iter_prev( g_sequence_get_end_iter( self->composite_list ) );
+
+    for( int i = 0; i < item_count; i++ ) {
+        items[i] = (workspace_item_t *) g_sequence_get( iter );
+
+        if( g_sequence_iter_is_begin( iter ) )
+            break;
+
+        iter = g_sequence_iter_prev( iter );
+    }
+
+    g_static_mutex_unlock( &self->mutex );
+
     // Start at the *top* and move our way to the *bottom*
     // When we get the opaque hint later, this will save us tons of time
     // (Also, this only works if we have only "over" operations; add, for example,
     // must be done in-order)
-    GSequenceIter *iter = g_sequence_iter_prev( g_sequence_get_end_iter( self->composite_list ) );
-    workspace_item_t *item = (workspace_item_t *) g_sequence_get( iter );
+    video_get_frame_f32( (video_source *) items[0]->source, frame_index - items[0]->x + items[0]->offset, frame );
 
-    video_get_frame_f32( (video_source *) item->source, frame_index - item->x + item->offset, frame );
-
-    if( !g_sequence_iter_is_begin( iter ) ) {
+    if( item_count > 1 ) {
         rgba_frame_f32 tempFrame;
         v2i size;
 
@@ -525,18 +532,15 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
         tempFrame.data = g_slice_alloc( sizeof(rgba_f32) * size.y * size.x );
         tempFrame.full_window = frame->full_window;
 
-        while( !g_sequence_iter_is_begin( iter ) ) {
-            iter = g_sequence_iter_prev( iter );
-            item = (workspace_item_t *) g_sequence_get( iter );
-
-            video_get_frame_f32( (video_source *) item->source, frame_index - item->x + item->offset, &tempFrame );
+        for( int i = 1; i < item_count; i++ ) {
+            video_get_frame_f32( (video_source *) items[i]->source, frame_index - items[i]->x + items[i]->offset, &tempFrame );
             video_mix_over_f32( frame, &tempFrame, 1.0f );
         }
 
         g_slice_free1( sizeof(rgba_f32) * size.y * size.x, tempFrame.data );
     }
 
-    g_static_mutex_unlock( &self->mutex );
+    g_slice_free1( sizeof(workspace_item_t *) * item_count, items );
 }
 
 static video_frame_source_funcs workspace_video_funcs = {
