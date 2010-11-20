@@ -40,7 +40,7 @@ struct __tag_widget_gl_context {
     invalidate_func invalidate_func;
     void *invalidate_closure;
 
-    video_source frameSource;
+    video_source *frameSource;
     presentation_clock clock;
     GMutex *frameReadMutex;
     GCond *frameReadCond;
@@ -259,8 +259,6 @@ playbackThread( widget_gl_context *self ) {
         target->fullDataWindow = self->displayWindow;
         frame.full_window = self->displayWindow;
 
-        video_frame_source_funcs *funcs = self->frameSource.funcs;
-
         bool wasRenderOneFrame = self->renderOneFrame;
         self->renderOneFrame = false;
 
@@ -271,8 +269,8 @@ playbackThread( widget_gl_context *self ) {
         // Pull the frame data from the chain
         frame.current_window = target->fullDataWindow;
 
-        if( funcs != NULL ) {
-            video_get_frame_f16( &self->frameSource, nextFrame, &frame );
+        if( self->frameSource != NULL ) {
+            video_get_frame_f16( self->frameSource, nextFrame, &frame );
         }
         else {
             // No result
@@ -447,7 +445,7 @@ widget_gl_free( widget_gl_context *self ) {
         self->clock.funcs->unregister_callback( self->clock.obj, self->clock_callback_handle );
 
     self->clock.funcs = NULL;
-    self->frameSource.funcs = NULL;
+    self->frameSource = NULL;
 
     if( self->frameReadMutex != NULL ) {
         g_mutex_free( self->frameReadMutex );
@@ -539,7 +537,7 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
         self->hardTextureId = 0;
     }
 
-    if( self->frameSource.obj == NULL ) {
+    if( self->frameSource == NULL ) {
         box2i_set_empty( &self->currentDataWindow );
         return;
     }
@@ -558,7 +556,7 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
         .current_window = self->displayWindow
     };
 
-    video_get_frame_gl( &self->frameSource, frameIndex, &frame );
+    video_get_frame_gl( self->frameSource, frameIndex, &frame );
 
     self->hardTextureId = frame.texture;
     self->lastHardFrame = frameIndex;
@@ -757,8 +755,8 @@ widget_gl_set_display_window( widget_gl_context *self, box2i *display_window ) {
 EXPORT void
 widget_gl_set_video_source( widget_gl_context *self, video_source *source ) {
     g_mutex_lock( self->frameReadMutex );
-    self->frameSource = *source;
     g_mutex_unlock( self->frameReadMutex );
+    self->frameSource = source;
 }
 
 static void _clock_callback( widget_gl_context *self, rational *speed, int64_t time );
