@@ -404,8 +404,8 @@ class StreamSourceRef(object):
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
 
-class Timeline(Item, ezlist.EZList):
-    yaml_tag = u'!CanvasTimeline'
+class Sequence(Item, ezlist.EZList):
+    yaml_tag = u'!CanvasSequence'
 
     def __init__(self, type=None, items=None, expanded=False, **kw):
         Item.__init__(self, **kw)
@@ -465,7 +465,7 @@ class Timeline(Item, ezlist.EZList):
         self._items[start:start] = items
 
         for i, item in enumerate(self._items[start:], start):
-            item._timeline = self
+            item._sequence = self
 
         for item in (new_item_set - old_item_set):
             self._width += item.length - item.transition_length
@@ -486,13 +486,13 @@ class Timeline(Item, ezlist.EZList):
         total_width = len(self) and self[0].transition_length or 0
 
         for item in self._items:
-            item._timeline = self
+            item._sequence = self
             total_width += item.length - item.transition_length
 
         Item.update(self, width=total_width)
 
-class TimelineItem(object):
-    yaml_tag = u'!CanvasTimelineItem'
+class SequenceItem(object):
+    yaml_tag = u'!CanvasSequenceItem'
 
     def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0):
         self._source = source
@@ -500,14 +500,14 @@ class TimelineItem(object):
         self._length = length
         self._transition = transition
         self._transition_length = transition_length
-        self._timeline = None
+        self._sequence = None
         self._index = None
 
     def update(self, **kw):
         '''
         Update the attributes of this item.
         '''
-        adj_timeline_width = 0
+        adj_sequence_width = 0
 
         if 'source' in kw:
             self._source = kw['source']
@@ -517,7 +517,7 @@ class TimelineItem(object):
 
         if 'length' in kw:
             new_length = int(kw['length'])
-            adj_timeline_width += new_length - self._length
+            adj_sequence_width += new_length - self._length
             self._length = new_length
 
         if 'transition' in kw:
@@ -525,13 +525,13 @@ class TimelineItem(object):
 
         if 'transition_length' in kw:
             new_length = int(kw['transition_length'])
-            adj_timeline_width -= new_length - self._transition_length
+            adj_sequence_width -= new_length - self._transition_length
             self._transition_length = new_length
 
-        if adj_timeline_width:
-            self._timeline.update(width=self._timeline.width + adj_timeline_width)
+        if adj_sequence_width:
+            self._sequence.update(width=self._sequence.width + adj_sequence_width)
 
-        self._timeline.item_updated(self, **kw)
+        self._sequence.item_updated(self, **kw)
 
     @property
     def source(self):
@@ -558,8 +558,8 @@ class TimelineItem(object):
         return self._index
 
     @property
-    def timeline(self):
-        return self._timeline
+    def sequence(self):
+        return self._sequence
 
     @classmethod
     def to_yaml(cls, dumper, data):
@@ -579,7 +579,8 @@ class TimelineItem(object):
         return cls(**loader.construct_mapping(node))
 
     def kill(self):
-        pass
+        self._sequence = None
+        self._index = None
 
 
 def _yamlreg(cls):
@@ -589,6 +590,6 @@ def _yamlreg(cls):
 _yamlreg(Item)
 _yamlreg(Clip)
 _yamlreg(StreamSourceRef)
-_yamlreg(Timeline)
-_yamlreg(TimelineItem)
+_yamlreg(Sequence)
+_yamlreg(SequenceItem)
 

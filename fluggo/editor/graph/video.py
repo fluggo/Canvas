@@ -105,8 +105,8 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
         source = None
         offset = 0
 
-        if isinstance(item, model.Timeline):
-            source = TimelineVideoManager(item, self.source_list)
+        if isinstance(item, model.Sequence):
+            source = SequenceVideoManager(item, self.source_list)
         elif isinstance(item.source, model.StreamSourceRef):
             source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
             offset = item.offset
@@ -126,12 +126,12 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
         self.watchers_sorted.remove(watcher)
         self.workspace.remove(watcher.workspace_item)
 
-class TimelineVideoManager(process.VideoPassThroughFilter):
+class SequenceVideoManager(process.VideoPassThroughFilter):
     class ItemWatcher(process.VideoPassThroughFilter):
-        def __init__(self, owner, timeline, timeline_item):
+        def __init__(self, owner, seq, seq_item):
             self.owner = owner
-            self.timeline = timeline
-            self.timeline_item = timeline_item
+            self.seq = seq
+            self.seq_item = seq_item
             self.source_a = process.VideoPassThroughFilter(None)
             self.source_b = process.VideoPassThroughFilter(None)
 
@@ -143,58 +143,58 @@ class TimelineVideoManager(process.VideoPassThroughFilter):
             self.mix_filter = process.VideoMixFilter(self.source_a, self.source_b, self.mix_b)
             process.VideoPassThroughFilter.__init__(self, self.mix_filter)
 
-    def __init__(self, timeline, source_list):
-        self.sequence = process.VideoSequence()
-        process.VideoPassThroughFilter.__init__(self, self.sequence)
+    def __init__(self, sequence, source_list):
+        self.seqfilter = process.VideoSequence()
+        process.VideoPassThroughFilter.__init__(self, self.seqfilter)
 
-        self.timeline = timeline
+        self.sequence = sequence
         self.source_list = source_list
         self.frames_updated = signal.Signal()
 
-        self.timeline.item_added.connect(self._handle_item_added)
-        self.timeline.items_removed.connect(self._handle_items_removed)
-        self.timeline.item_updated.connect(self._handle_item_updated)
+        self.sequence.item_added.connect(self._handle_item_added)
+        self.sequence.items_removed.connect(self._handle_items_removed)
+        self.sequence.item_updated.connect(self._handle_item_updated)
 
         self.watchers = []
 
-        for item in self.timeline:
+        for item in self.sequence:
             self._handle_item_added(item)
 
     def unwatch(self):
-        self.timeline.item_added.disconnect(self._handle_item_added)
-        self.timeline.items_removed.disconnect(self._handle_items_removed)
-        self.timeline.item_updated.disconnect(self._handle_item_updated)
+        self.sequence.item_added.disconnect(self._handle_item_added)
+        self.sequence.items_removed.disconnect(self._handle_items_removed)
+        self.sequence.item_updated.disconnect(self._handle_item_updated)
 
     def _handle_item_added(self, item):
         # Insert a watcher at the same index
-        watcher = self.ItemWatcher(self, self.timeline, item)
+        watcher = self.ItemWatcher(self, self.sequence, item)
         self.watchers.insert(item.index, watcher)
-        self.sequence.insert(item.index, (watcher, 0, item.length))
+        self.seqfilter.insert(item.index, (watcher, 0, item.length))
 
         self._handle_item_updated(item, offset=item.offset, source=item.source,
             length=item.length, transition_length=item.transition_length)
 
     def _handle_items_removed(self, start, stop):
         # Get enough info to send an update
-        start_frame = self.sequence.get_start_frame(start)
-        end_frame = self.sequence.get_start_frame(len(self.sequence) - 1) + self.sequence[-1][2] - 1
+        start_frame = self.seqfilter.get_start_frame(start)
+        end_frame = self.seqfilter.get_start_frame(len(self.seqfilter) - 1) + self.seqfilter[-1][2] - 1
 
         # Remove the watchers in this range
         del self.watchers[start:stop]
 
         for i in range(stop - 1, start - 1, -1):
-            del self.sequence[i]
+            del self.seqfilter[i]
 
         # Redo the item afterward (now at start)
         if start < len(self.watchers):
-            item = self.watchers[start].timeline_item
+            item = self.watchers[start].seq_item
 
             self._handle_item_updated(item, source=item.source,
                 transition_length=item.transition_length)
         elif len(self.watchers):
             # There is no item afterward; clear source_b and reset its transition_point
             watcher = self.watchers[-1]
-            item = watcher.timeline_item
+            item = watcher.seq_item
 
             watcher.source_b.set_source(None)
             watcher.fade_point.frame = item.length - item.transition_length
@@ -204,11 +204,11 @@ class TimelineVideoManager(process.VideoPassThroughFilter):
     def _handle_item_updated(self, item, **kw):
         watcher = self.watchers[item.index]
         prev_watcher = item.index > 0 and self.watchers[item.index - 1]
-        prev_item = prev_watcher and prev_watcher.timeline_item
+        prev_item = prev_watcher and prev_watcher.seq_item
         next_watcher = item.index + 1 < len(self.watchers) and self.watchers[item.index + 1]
-        next_item = next_watcher and next_watcher.timeline_item
+        next_item = next_watcher and next_watcher.seq_item
 
-        start_frame = self.sequence.get_start_frame(item.index)
+        start_frame = self.seqfilter.get_start_frame(item.index)
         length = item.length - item.transition_length
         mid_width = length
 
@@ -255,12 +255,12 @@ class TimelineVideoManager(process.VideoPassThroughFilter):
                 prev_watcher.out_point.frame = prev_length
                 prev_watcher.fade_point.frame = prev_length - item.transition_length
                 self.frames_updated(start_frame - max(old_trans_length, item.transition_length),
-                    self.timeline.width + max(0, old_length - length) - 1)
+                    self.sequence.width + max(0, old_length - length) - 1)
             else:
                 self.frames_updated(start_frame + min(old_fade_point, mid_width),
-                    self.timeline.width + max(0, old_length - length) - 1)
+                    self.sequence.width + max(0, old_length - length) - 1)
 
-            self.sequence[item.index] = (watcher, 0, length)
+            self.seqfilter[item.index] = (watcher, 0, length)
 
         if 'transition' in kw:
             pass

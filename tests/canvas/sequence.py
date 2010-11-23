@@ -1,7 +1,7 @@
 import unittest
 from fluggo.media import process, sources
 from fluggo.media.basetypes import *
-from fluggo.editor.graph.video import TimelineVideoManager
+from fluggo.editor.graph.video import SequenceVideoManager
 from fluggo.editor import model
 
 class DeadMuxer(object):
@@ -33,7 +33,7 @@ class UpdateTracker(object):
     def reset(self):
         self.min_frame, self.max_frame = None, None
 
-class test_TimelineVideoManager(unittest.TestCase):
+class test_SequenceVideoManager(unittest.TestCase):
     def check1(self, source):
         # A lot of tests produce this same sequence:
         # Ten frames of red, cut to green, then fade to blue
@@ -77,35 +77,35 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_start(self):
         '''Start in the correct position'''
-        timeline = model.Timeline(type='video', items=[
-            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
 
-        manager = TimelineVideoManager(timeline, slist)
+        manager = SequenceVideoManager(sequence, slist)
         self.check1(manager)
 
     def test_1_adjlen1(self):
         '''Adjust the length of an item'''
-        timeline = model.Timeline(type='video', items=[
-            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=7),
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=19),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=100, transition_length=5)])
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=7),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=19),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=100, transition_length=5)])
 
-        manager = TimelineVideoManager(timeline, slist)
+        manager = SequenceVideoManager(sequence, slist)
         track = UpdateTracker(manager)
 
-        timeline[0].update(length=10)
+        sequence[0].update(length=10)
         self.assertEqual(track.min_frame, 7)
         self.assertEqual(track.max_frame, 10 + 19 + 100 - 5 - 1)
         track.reset()
 
-        timeline[1].update(length=10)
+        sequence[1].update(length=10)
         self.assertEqual(track.min_frame, 15)
         self.assertEqual(track.max_frame, 10 + 19 + 100 - 5 - 1)
         track.reset()
 
-        timeline[2].update(length=10)
+        sequence[2].update(length=10)
         self.assertEqual(track.min_frame, 25)
         self.assertEqual(track.max_frame, 10 + 10 + 100 - 5 - 1)
         track.reset()
@@ -114,25 +114,25 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_adjlen2(self):
         '''Adjust the length of an item (different order)'''
-        timeline = model.Timeline(type='video', items=[
-            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=17),
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=5),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=22, transition_length=5)])
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=17),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=5),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=22, transition_length=5)])
 
-        manager = TimelineVideoManager(timeline, slist)
+        manager = SequenceVideoManager(sequence, slist)
         track = UpdateTracker(manager)
 
-        timeline[2].update(length=10)
+        sequence[2].update(length=10)
         self.assertEqual(track.min_frame, 27)
         self.assertEqual(track.max_frame, 17 + 5 + 22 - 5 - 1)
         track.reset()
 
-        timeline[0].update(length=10)
+        sequence[0].update(length=10)
         self.assertEqual(track.min_frame, 10)
         self.assertEqual(track.max_frame, 17 + 5 + 10 - 5 - 1)
         track.reset()
 
-        timeline[1].update(length=10)
+        sequence[1].update(length=10)
         self.assertEqual(track.min_frame, 10)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 5 - 1)
         track.reset()
@@ -141,20 +141,20 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_adjtranslength(self):
         '''Adjust the transition_length of an item'''
-        timeline = model.Timeline(type='video', items=[
-            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=3),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=7)])
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=3),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=7)])
 
-        manager = TimelineVideoManager(timeline, slist)
+        manager = SequenceVideoManager(sequence, slist)
         track = UpdateTracker(manager)
 
-        timeline[1].update(transition_length=0)
+        sequence[1].update(transition_length=0)
         self.assertEqual(track.min_frame, 7)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 7 - 1)
         track.reset()
 
-        timeline[2].update(transition_length=5)
+        sequence[2].update(transition_length=5)
         self.assertEqual(track.min_frame, 13)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 5 - 1)
         track.reset()
@@ -163,18 +163,18 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_add(self):
         '''Add items one at a time'''
-        timeline = model.Timeline(type='video', items=[
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10)])
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10)])
 
-        manager = TimelineVideoManager(timeline, slist)
+        manager = SequenceVideoManager(sequence, slist)
         track = UpdateTracker(manager)
 
-        timeline.append(model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5))
+        sequence.append(model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5))
         self.assertEqual(track.min_frame, 5)
         self.assertEqual(track.max_frame, 14)
         track.reset()
 
-        timeline.insert(0, model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10))
+        sequence.insert(0, model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10))
         self.assertEqual(track.min_frame, 0)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 5 - 1)
         track.reset()
@@ -183,15 +183,15 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_addmultiple(self):
         '''Add multiple items at once'''
-        timeline = model.Timeline(type='video', items=[
-            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10)])
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10)])
 
-        manager = TimelineVideoManager(timeline, slist)
+        manager = SequenceVideoManager(sequence, slist)
         track = UpdateTracker(manager)
 
-        timeline.extend([
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
+        sequence.extend([
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
         self.assertEqual(track.min_frame, 10)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 5 - 1)
 
@@ -199,22 +199,22 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_remove(self):
         '''Remove items one at a time'''
-        timeline = model.Timeline(type='video', items=[
-            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=25, length=14, transition_length=2),
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=9, length=7),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=25, length=14, transition_length=2),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=9, length=7),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
 
-        manager = TimelineVideoManager(timeline, slist)
+        manager = SequenceVideoManager(sequence, slist)
         track = UpdateTracker(manager)
 
-        del timeline[1]
+        del sequence[1]
         self.assertEqual(track.min_frame, 8)
         self.assertEqual(track.max_frame, 10 + 14 + 10 + 7 + 10 - 5 - 2 - 1)
         track.reset()
 
-        del timeline[2]
+        del sequence[2]
         self.assertEqual(track.min_frame, 15)
         self.assertEqual(track.max_frame, 10 + 10 + 7 + 10 - 5 - 1)
         track.reset()
@@ -223,24 +223,24 @@ class test_TimelineVideoManager(unittest.TestCase):
 
     def test_1_removeends(self):
         '''Remove items at the ends'''
-        timeline = model.Timeline(type='video', items=[
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=9, length=114),
-            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=23, length=8, transition_length=5),
-            model.TimelineItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
-            model.TimelineItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5),
-            model.TimelineItem(source=model.StreamSourceRef('blue', 0), offset=9, length=7),
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=9, length=114),
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=23, length=8, transition_length=5),
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=9, length=7),
             ])
 
-        manager = TimelineVideoManager(timeline, slist)
+        manager = SequenceVideoManager(sequence, slist)
         track = UpdateTracker(manager)
 
-        timeline[0:2] = []
+        sequence[0:2] = []
         self.assertEqual(track.min_frame, 0)
         self.assertEqual(track.max_frame, 114 + 8 + 10 + 10 + 10 + 7 - 5 - 5 - 1)
         track.reset()
 
-        del timeline[3]
+        del sequence[3]
         self.assertEqual(track.min_frame, 10 + 10 + 10 - 5)
         self.assertEqual(track.max_frame, 10 + 10 + 10 + 7 - 5 - 1)
         track.reset()

@@ -26,13 +26,13 @@
 items:
 - !CanvasClip {height: 40.0, offset: 0, source: !StreamSourceRef {source_name: 79b, stream_index: 0},
   type: video, width: 100, x: 60, y: 30.0}
-- !CanvasTimeline
+- !CanvasSequence
   x: 0
   y: 50.0
   height: 30.0
   type: video
   items:
-  - !CanvasTimelineItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 0, length: 300}
-  - !CanvasTimelineItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 1050, length: 300,
+  - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 0, length: 300}
+  - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 1050, length: 300,
     transition_length: 48}
 

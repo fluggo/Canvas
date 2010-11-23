@@ -173,9 +173,9 @@ class AudioItem(ClipItem):
 
         painter.restore()
 
-class VideoTimeline(VideoItem):
-    def __init__(self, timeline):
-        VideoItem.__init__(self, timeline, None)
+class VideoSequnce(VideoItem):
+    def __init__(self, sequence):
+        VideoItem.__init__(self, sequence, None)
 
     @property
     def stream(self):
