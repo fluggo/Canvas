@@ -12,6 +12,7 @@ testmodule = __import__(os.path.basename(path)[:-3])
 
 if __name__ == '__main__':
     print('Running tests from {0}...'.format(path[:-3]), end='')
+    sys.stdout.flush()
 
     suite = unittest.defaultTestLoader.loadTestsFromModule(testmodule)
 
