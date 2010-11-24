@@ -173,7 +173,7 @@ class AudioItem(ClipItem):
 
         painter.restore()
 
-class VideoSequnce(VideoItem):
+class VideoSequence(VideoItem):
     def __init__(self, sequence):
         VideoItem.__init__(self, sequence, None)
 
