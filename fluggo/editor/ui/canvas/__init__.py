@@ -19,15 +19,6 @@
 from fluggo.media import process
 from PyQt4 import QtCore, QtGui
 
-#import fractions, math
-#from PyQt4.QtCore import *
-#from PyQt4.QtGui import *
-#from fluggo import sortlist, signal
-#from fluggo.media import process, timecode, sources
-#from fluggo.editor import canvas
-#from fluggo.media.basetypes import *
-#from . import ruler
-
 def _rectf_to_rect(rect):
     '''Finds the smallest QRect enclosing the given QRectF.'''
     return QtCore.QRect(
@@ -98,80 +89,6 @@ class Draggable(object):
         self.drag_move(view, pos, pos - self.drag_start_pos)
 
 from .clip import *
-
-class VideoItem(ClipItem):
-    def __init__(self, item, name):
-        ClipItem.__init__(self, item, name)
-        self._thumbnail_painter = ThumbnailPainter()
-        self._thumbnail_painter.updated.connect(self._handle_thumbnails_updated)
-        self._thumbnail_painter.set_width(self.item.width)
-
-    @property
-    def units_per_second(self):
-        return float(self.scene().frame_rate)
-
-    def added_to_scene(self):
-        ClipItem.added_to_scene(self)
-        self._thumbnail_painter.set_stream(self.stream)
-
-    def _handle_thumbnails_updated(self):
-        self.update()
-
-    def _update(self, **kw):
-        '''
-        Called by the item model to update our appearance.
-        '''
-        # Changes requiring a reset of the thumbnails
-        # TODO: This resets thumbnails *way* more than is necessary
-        if 'width' in kw:
-            self._thumbnail_painter.set_width(self.item.width)
-
-        if 'offset' in kw:
-            self._thumbnail_painter.clear()
-
-        ClipItem._update(self, **kw)
-
-    def paint(self, painter, option, widget):
-        rect = painter.transform().mapRect(self.boundingRect())
-        clip_rect = painter.transform().mapRect(option.exposedRect)
-
-        painter.save()
-        painter.resetTransform()
-
-        painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QtGui.QColor.fromRgbF(0.9, 0.9, 0.8))
-
-        self._thumbnail_painter.paint(painter, rect, clip_rect)
-
-        if self.isSelected():
-            painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0, 0.5))
-
-        if self.name:
-            painter.setBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0))
-            painter.drawText(rect, Qt.TextSingleLine, self.name)
-
-        painter.restore()
-
-class AudioItem(ClipItem):
-    def __init__(self, item, name):
-        ClipItem.__init__(self, item, name)
-
-    @property
-    def units_per_second(self):
-        return float(self.scene().sample_rate)
-
-    def paint(self, painter, option, widget):
-        rect = painter.transform().mapRect(self.boundingRect())
-        clip_rect = painter.transform().mapRect(option.exposedRect)
-
-        painter.save()
-        painter.resetTransform()
-
-        painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QtGui.QColor.fromRgbF(0.9, 0.9, 0.8))
-
-        painter.setBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0))
-        painter.drawText(rect, Qt.TextSingleLine, self.name)
-
-        painter.restore()
 
 class VideoSequence(VideoItem):
     def __init__(self, sequence):

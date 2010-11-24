@@ -56,9 +56,9 @@ class Scene(QtGui.QGraphicsScene):
 
         if isinstance(item, model.Clip):
             if item.type() == 'video':
-                ui_item = VideoItem(item, 'Clip')
+                ui_item = VideoClip(item, 'Clip')
             elif item.type() == 'audio':
-                ui_item = AudioItem(item, 'Clip')
+                ui_item = AudioClip(item, 'Clip')
         elif isinstance(item, model.Sequence):
             if item.type() == 'video':
                 ui_item = VideoSequence(item)
