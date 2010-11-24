@@ -27,6 +27,26 @@ def _rectf_to_rect(rect):
         math.ceil(rect.width() + rect.x() - math.floor(rect.x())),
         math.ceil(rect.height() + rect.y() - math.floor(rect.y())))
 
+class Controller1D(object):
+    def move(self, x):
+        pass
+
+    def finalize(self):
+        pass
+
+    def cancel(self):
+        pass
+
+class Controller2D(object):
+    def move(self, x, y):
+        pass
+
+    def finalize(self):
+        pass
+
+    def cancel(self):
+        pass
+
 class Draggable(object):
     def __init__(self, drag_base=None):
         self.drag_active = False
