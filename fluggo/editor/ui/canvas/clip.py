@@ -116,8 +116,6 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
             QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
 
-        self._stream = None
-
         self.left_handle = _LeftHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.right_handle = _RightHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
         self.right_handle.setPos(self.item.width, 0.0)
@@ -164,12 +162,7 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
 
     @property
     def stream(self):
-        if not self._stream:
-            if isinstance(self.item.source, model.StreamSourceRef):
-                self._stream = sources.VideoSource(self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index))
-                self._stream.offset = self.item.offset
-
-        return self._stream
+        return None
 
     @property
     def max_length(self):
@@ -325,7 +318,17 @@ class VideoItem(ClipItem):
         painter.restore()
 
 class VideoClip(VideoItem):
-    pass
+    def __init__(self, clip, name):
+        VideoItem.__init__(self, clip, name)
+        self._stream = None
+
+    @property
+    def stream(self):
+        if not self._stream:
+            self._stream = sources.VideoSource(self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index))
+            self._stream.offset = self.item.offset
+
+        return self._stream
 
 class AudioItem(ClipItem):
     def __init__(self, item, name):
