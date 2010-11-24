@@ -104,6 +104,73 @@ class _BottomHandle(_Handle):
         else:
             self.parentItem().item.update(height=1)
 
+class ItemPositionController(Controller2D):
+    def __init__(self, item, view, units_per_second):
+        self.item = item
+        self.view = view
+        self.units_per_second = units_per_second
+        self._left_snap_marker = None
+        self._right_snap_marker = None
+
+    def _clear_snap_markers(self):
+        scene = self.view.scene()
+
+        if self._left_snap_marker:
+            scene.remove_marker(self._left_snap_marker)
+            self._left_snap_marker = None
+
+        if self._right_snap_marker:
+            scene.remove_marker(self._right_snap_marker)
+            self._right_snap_marker = None
+
+    def move(self, x, y):
+        item = self.item.item
+        view = self.view
+        units_per_second = self.units_per_second
+
+        self._clear_snap_markers()
+
+        left_snap = view.find_snap_items_horizontal(self.item, x / units_per_second)
+        right_snap = view.find_snap_items_horizontal(self.item, (x + item.width) / units_per_second)
+
+        # left_snap and right_snap are in seconds; convert back to our units
+        if left_snap is not None:
+            left_snap = int(round(left_snap * units_per_second))
+
+        if right_snap is not None:
+            right_snap = int(round(right_snap * units_per_second))
+
+        # Place the snap markers and accept snaps
+        if left_snap is not None:
+            if right_snap is not None:
+                if abs(left_snap - x) < abs(right_snap - x + item.width):
+                    self._left_snap_marker = VerticalSnapMarker(left_snap / units_per_second)
+                    view.scene().add_marker(self._left_snap_marker)
+                    x = left_snap
+                elif abs(left_snap - pos_x) > abs(right_snap - pos_x + item.width):
+                    self._right_snap_marker = VerticalSnapMarker(right_snap / units_per_second)
+                    view.scene().add_marker(self._right_snap_marker)
+                    x = right_snap - item.width
+                else:
+                    self._left_snap_marker = VerticalSnapMarker(left_snap / units_per_second)
+                    view.scene().add_marker(self._left_snap_marker)
+                    self._right_snap_marker = VerticalSnapMarker(right_snap / units_per_second)
+                    view.scene().add_marker(self._right_snap_marker)
+                    x = left_snap
+            else:
+                self._left_snap_marker = VerticalSnapMarker(left_snap / units_per_second)
+                view.scene().add_marker(self._left_snap_marker)
+                x = left_snap
+        elif right_snap is not None:
+            self._right_snap_marker = VerticalSnapMarker(right_snap / units_per_second)
+            view.scene().add_marker(self._right_snap_marker)
+            x = right_snap - item.width
+
+        item.update(x=x, y=y)
+
+    def finalize(self):
+        self._clear_snap_markers()
+
 class ClipItem(QtGui.QGraphicsItem, Draggable):
     def __init__(self, item, name):
         QtGui.QGraphicsItem.__init__(self)
@@ -206,64 +273,16 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
     def drag_start(self, view):
         self._drag_start_x = self.item.x
         self._drag_start_y = self.item.y
-        self._left_snap_marker = None
-        self._right_snap_marker = None
-
-    def _clear_snap_markers(self):
-        if self._left_snap_marker:
-            self.scene().remove_marker(self._left_snap_marker)
-            self._left_snap_marker = None
-
-        if self._right_snap_marker:
-            self.scene().remove_marker(self._right_snap_marker)
-            self._right_snap_marker = None
+        self._drag_controller = ItemPositionController(self, view, self.units_per_second)
 
     def drag_move(self, view, abs_pos, rel_pos):
         pos_x = int(round(rel_pos.x() * self.units_per_second)) + self._drag_start_x
         pos_y = rel_pos.y() + self._drag_start_y
 
-        self._clear_snap_markers()
-
-        left_snap = view.find_snap_items_horizontal(self, pos_x / self.units_per_second)
-        right_snap = view.find_snap_items_horizontal(self, (pos_x + self.item.width) / self.units_per_second)
-
-        # left_snap and right_snap are in seconds; convert back to our units
-        if left_snap is not None:
-            left_snap = int(round(left_snap * self.units_per_second))
-
-        if right_snap is not None:
-            right_snap = int(round(right_snap * self.units_per_second))
-
-        # Place the snap markers and accept snaps
-        if left_snap is not None:
-            if right_snap is not None:
-                if abs(left_snap - pos_x) < abs(right_snap - pos_x + self.item.width):
-                    self._left_snap_marker = VerticalSnapMarker(left_snap / self.units_per_second)
-                    self.scene().add_marker(self._left_snap_marker)
-                    pos_x = left_snap
-                elif abs(left_snap - pos_x) > abs(right_snap - pos_x + self.item.width):
-                    self._right_snap_marker = VerticalSnapMarker(right_snap / self.units_per_second)
-                    self.scene().add_marker(self._right_snap_marker)
-                    pos_x = right_snap - self.item.width
-                else:
-                    self._left_snap_marker = VerticalSnapMarker(left_snap / self.units_per_second)
-                    self.scene().add_marker(self._left_snap_marker)
-                    self._right_snap_marker = VerticalSnapMarker(right_snap / self.units_per_second)
-                    self.scene().add_marker(self._right_snap_marker)
-                    pos_x = left_snap
-            else:
-                self._left_snap_marker = VerticalSnapMarker(left_snap / self.units_per_second)
-                self.scene().add_marker(self._left_snap_marker)
-                pos_x = left_snap
-        elif right_snap is not None:
-            self._right_snap_marker = VerticalSnapMarker(right_snap / self.units_per_second)
-            self.scene().add_marker(self._right_snap_marker)
-            pos_x = right_snap - self.item.width
-
-        self.item.update(x=pos_x, y=pos_y)
+        self._drag_controller.move(pos_x, pos_y)
 
     def drag_end(self, view, abs_pos, rel_pos):
-        self._clear_snap_markers()
+        self._drag_controller.finalize()
 
 class VideoItem(ClipItem):
     def __init__(self, item, name):
