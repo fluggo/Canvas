@@ -52,7 +52,8 @@ struct __tag_widget_gl_context {
     box2i displayWindow, currentDataWindow;
     int firstFrame, lastFrame;
     float pixelAspectRatio;
-    bool renderOneFrame, drawOneFrame;
+    bool renderOneFrame;
+    int drawOneFrame;
     int lastHardFrame;
 
     rgb8 checkerColors[2];
@@ -85,25 +86,32 @@ playSingleFrame( widget_gl_context *self ) {
     if( self->softMode ) {
         if( self->filled > 0 || self->drawOneFrame ) {
             g_mutex_lock( self->frameReadMutex );
+            // BJC: There's probably a better way of determining this, such as
+            // whether or not we're playing
+            bool was_draw_one_frame = self->drawOneFrame ? true : false;
+            int draw_one_frame = self->drawOneFrame;
             int filled = self->filled;
 
-            if( !self->drawOneFrame )
+            if( !draw_one_frame )
                 self->readBuffer = (self->readBuffer + 1) % self->bufferCount;
+            else
+                self->drawOneFrame--;
 
             int64_t nextPresentationTime = self->softTargets[self->readBuffer].nextTime;
             g_mutex_unlock( self->frameReadMutex );
 
-            if( filled != 0 || self->drawOneFrame ) {
+            if( filled != 0 || draw_one_frame ) {
                 if( self->invalidate_func )
                     self->invalidate_func( self->invalidate_closure );
 
-                //printf( "Painted %d from %d...\n", getTimeFrame( &self->frameRate, self->targets[self->readBuffer].time ), self->readBuffer );
+                //g_print( "Painted %d from %d...\n", get_time_frame( &self->frameRate, self->softTargets[self->readBuffer].time ), self->readBuffer );
 
-                if( self->drawOneFrame ) {
+                if( was_draw_one_frame ) {
                     // We're done here, go back to sleep
-                    self->drawOneFrame = false;
+                    //g_print( "Drew one frame\n" );
                 }
                 else {
+                    //g_print( "Preparing next frame\n" );
                     g_mutex_lock( self->frameReadMutex );
 
                     self->filled--;
@@ -337,7 +345,7 @@ playbackThread( widget_gl_context *self ) {
         if( wasRenderOneFrame ) {
             // Draw the frame at the next opportunity
             self->readBuffer = writeBuffer;
-            self->drawOneFrame = true;
+            self->drawOneFrame++;
             g_timeout_add_full( G_PRIORITY_DEFAULT, 0, (GSourceFunc) playSingleFrame, self, NULL );
 
             // Otherwise, loop around and do it again
