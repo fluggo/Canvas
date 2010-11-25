@@ -27,9 +27,9 @@
 
 from fluggo import sortlist, signal
 from fluggo.editor import model
-from fluggo.media import process
+from fluggo.media import process, sources
 
-class SpaceVideoManager(process.VideoPassThroughFilter):
+class SpaceVideoManager(sources.VideoSource):
     class ItemWatcher(object):
         def __init__(self, owner, canvas_item, workspace_item):
             self.owner = owner
@@ -79,9 +79,9 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
         def unwatch(self):
             self.canvas_item.updated.disconnect(self.handle_updated)
 
-    def __init__(self, canvas_space, source_list):
+    def __init__(self, canvas_space, source_list, format):
         self.workspace = process.VideoWorkspace()
-        process.VideoPassThroughFilter.__init__(self, self.workspace)
+        sources.VideoSource.__init__(self, self.workspace, format)
 
         self.canvas_space = canvas_space
         self.canvas_space.item_added.connect(self.handle_item_added)
@@ -106,7 +106,7 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
         offset = 0
 
         if isinstance(item, model.Sequence):
-            source = SequenceVideoManager(item, self.source_list)
+            source = SequenceVideoManager(item, self.source_list, self.format)
         elif isinstance(item.source, model.StreamSourceRef):
             source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
             offset = item.offset
@@ -126,7 +126,7 @@ class SpaceVideoManager(process.VideoPassThroughFilter):
         self.watchers_sorted.remove(watcher)
         self.workspace.remove(watcher.workspace_item)
 
-class SequenceVideoManager(process.VideoPassThroughFilter):
+class SequenceVideoManager(sources.VideoSource):
     class ItemWatcher(process.VideoPassThroughFilter):
         def __init__(self, owner, seq, seq_item):
             self.owner = owner
@@ -143,9 +143,9 @@ class SequenceVideoManager(process.VideoPassThroughFilter):
             self.mix_filter = process.VideoMixFilter(self.source_a, self.source_b, self.mix_b)
             process.VideoPassThroughFilter.__init__(self, self.mix_filter)
 
-    def __init__(self, sequence, source_list):
+    def __init__(self, sequence, source_list, format):
         self.seqfilter = process.VideoSequence()
-        process.VideoPassThroughFilter.__init__(self, self.seqfilter)
+        sources.VideoSource.__init__(self, self.seqfilter, format)
 
         self.sequence = sequence
         self.source_list = source_list

@@ -102,13 +102,21 @@ class MainWindow(QMainWindow):
         self.source_list = sources.SourceList(muxers)
 
         # Only one space for now, we'll do multiple later
-        self.space = model.Space()
+        vidformat = formats.StreamFormat('video')
+        vidformat.override[formats.VideoAttribute.SAMPLE_ASPECT_RATIO] = fractions.Fraction(40, 33)
+        vidformat.override[formats.VideoAttribute.FRAME_RATE] = fractions.Fraction(24000, 1001)
+        vidformat.override[formats.VideoAttribute.MAX_DATA_WINDOW] = box2i((0, -1), (719, 478))
+        audformat = formats.StreamFormat('audio')
+        audformat.override[formats.AudioAttribute.SAMPLE_RATE] = 48000
+        audformat.override[formats.AudioAttribute.CHANNELS] = ['FL', 'FR']
+
+        self.space = model.Space(vidformat, audformat)
         #self.space.append(clip)
 
         self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
         self.audio_player = alsa.AlsaPlayer(48000, 2, self.audio_graph_manager)
 
-        self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list)
+        self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list, vidformat)
         self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
 
         # Set up canvas
@@ -125,10 +133,9 @@ class MainWindow(QMainWindow):
         self.video_widget = qt.VideoWidget(format, self.video_dock)
         self.video_dock.setWidget(self.video_widget)
 
-        self.video_widget.setDisplayWindow(box2i(0, -1, 719, 478))
-
         self.video_widget.setRenderingIntent(1.5)
-        self.video_widget.setPixelAspectRatio(640.0/704.0)
+        self.video_widget.setDisplayWindow(self.space.video_format.max_data_window)
+        self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
         self.video_widget.setPresentationClock(self.clock)
         self.video_widget.setVideoSource(self.video_graph_manager)
 
@@ -263,6 +270,8 @@ class MainWindow(QMainWindow):
         # TODO: Replace the whole space here; this requires
         # swapping it out for the view and workspace managers also
         self.space[:] = space[:]
+        self.video_widget.setDisplayWindow(self.space.video_format.max_data_window)
+        self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
 
     def save_file(self, path):
         with open(path, 'w') as stream:

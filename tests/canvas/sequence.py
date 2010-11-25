@@ -1,5 +1,5 @@
 import unittest
-from fluggo.media import process, sources
+from fluggo.media import process, sources, formats
 from fluggo.media.basetypes import *
 from fluggo.editor.graph.video import SequenceVideoManager
 from fluggo.editor import model
@@ -82,7 +82,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist)
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
         self.check1(manager)
 
     def test_1_adjlen1(self):
@@ -92,7 +92,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=19),
             model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=100, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist)
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
         track = UpdateTracker(manager)
 
         sequence[0].update(length=10)
@@ -119,7 +119,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=5),
             model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=22, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist)
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
         track = UpdateTracker(manager)
 
         sequence[2].update(length=10)
@@ -146,7 +146,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=3),
             model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=7)])
 
-        manager = SequenceVideoManager(sequence, slist)
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
         track = UpdateTracker(manager)
 
         sequence[1].update(transition_length=0)
@@ -166,7 +166,7 @@ class test_SequenceVideoManager(unittest.TestCase):
         sequence = model.Sequence(type='video', items=[
             model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist)
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
         track = UpdateTracker(manager)
 
         sequence.append(model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5))
@@ -186,7 +186,7 @@ class test_SequenceVideoManager(unittest.TestCase):
         sequence = model.Sequence(type='video', items=[
             model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist)
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
         track = UpdateTracker(manager)
 
         sequence.extend([
@@ -206,7 +206,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=9, length=7),
             model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist)
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
         track = UpdateTracker(manager)
 
         del sequence[1]
@@ -232,7 +232,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=9, length=7),
             ])
 
-        manager = SequenceVideoManager(sequence, slist)
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
         track = UpdateTracker(manager)
 
         sequence[0:2] = []

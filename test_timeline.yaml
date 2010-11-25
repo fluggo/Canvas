@@ -23,6 +23,15 @@
     override: {}
     type: audio
 --- !CanvasSpace
+video_format: !StreamFormat
+  override:
+    frame_rate: !rational [24000, 1001]
+    max_data_window: !box2i [!v2i '(0, -1)', !v2i '(719, 478)']
+    sample_aspect_ratio: !rational [40, 33]
+audio_format: !StreamFormat
+  override:
+    sample_rate: 48000
+    channels: [FL, FR]
 items:
 - !CanvasClip {height: 40.0, offset: 0, source: !StreamSourceRef {source_name: 79b, stream_index: 0},
   type: video, width: 100, x: 60, y: 30.0}

@@ -22,16 +22,26 @@ from fluggo import ezlist, sortlist, signal
 class Space(ezlist.EZList):
     yaml_tag = u'!CanvasSpace'
 
-    def __init__(self):
+    def __init__(self, video_format, audio_format):
         self.item_added = signal.Signal()
         self.item_removed = signal.Signal()
         self._items = []
+        self._video_format = video_format
+        self._audio_format = audio_format
 
     def __len__(self):
         return len(self._items)
 
     def __getitem__(self, key):
         return self._items[key]
+
+    @property
+    def video_format(self):
+        return self._video_format
+
+    @property
+    def audio_format(self):
+        return self._audio_format
 
     def _replace_range(self, start, stop, items):
         old_item_set = frozenset(self._items[start:stop])
@@ -115,7 +125,7 @@ def _space_represent(dumper, data):
 
 def _space_construct(loader, node):
     mapping = loader.construct_mapping(node)
-    result = Space()
+    result = Space(mapping['video_format'], mapping['audio_format'])
     result._items = mapping['items']
     return result
 
