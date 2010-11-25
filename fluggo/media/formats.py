@@ -45,6 +45,11 @@ class KnownMuxers:
 class KnownVideoCodecs:
     DV = 'video/DV'
 
+class AudioAttribute:
+    SAMPLE_RATE = 'sample_rate'
+    CHANNELS = 'channels'
+    CODEC = 'codec'
+
 class VideoAttribute:
     # Video frame rate (Fraction)
     FRAME_RATE = 'frame_rate'
@@ -146,7 +151,7 @@ class StreamFormat(yaml.YAMLObject):
     def pixel_aspect_ratio(self):
         return (
             self.override.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or
-            self.detected.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or '')
+            self.detected.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or fractions.Fraction(1, 1))
 
     @property
     def pulldown_type(self):
@@ -159,6 +164,12 @@ class StreamFormat(yaml.YAMLObject):
         return (
             self.override.get(VideoAttribute.PULLDOWN_PHASE) or
             self.detected.get(VideoAttribute.PULLDOWN_PHASE) or 0)
+
+    @property
+    def max_data_window(self):
+        return (
+            self.override.get(VideoAttribute.MAX_DATA_WINDOW) or
+            self.detected.get(VideoAttribute.MAX_DATA_WINDOW))
 
     @property
     def thumbnail_box(self):
