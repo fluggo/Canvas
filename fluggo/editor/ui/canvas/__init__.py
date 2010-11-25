@@ -109,14 +109,7 @@ class Draggable(object):
         self.drag_move(view, pos, pos - self.drag_start_pos)
 
 from .clip import *
-
-class VideoSequence(VideoItem):
-    def __init__(self, sequence):
-        VideoItem.__init__(self, sequence, None)
-
-    @property
-    def stream(self):
-        return None
+from .sequence import *
 
 class PlaceholderItem(QtGui.QGraphicsItem):
     def __init__(self, source_name, stream_format, x, y, height):
