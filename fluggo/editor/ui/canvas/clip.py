@@ -26,7 +26,6 @@ from .thumbnails import ThumbnailPainter
 
 class _Handle(QtGui.QGraphicsRectItem, Draggable):
     invisibrush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
-    horizontal = True
 
     def __init__(self, rect, parent):
         QtGui.QGraphicsRectItem.__init__(self, rect, parent)
@@ -36,20 +35,6 @@ class _Handle(QtGui.QGraphicsRectItem, Draggable):
         self.setOpacity(0.45)
         self.setBrush(self.invisibrush)
         self.setPen(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
-        self.setCursor(self.horizontal and Qt.SizeHorCursor or Qt.SizeVerCursor)
-
-        self.original_x = None
-        self.original_width = None
-        self.original_offset = None
-        self.original_y = None
-        self.original_height = None
-
-    def drag_start(self, view):
-        self.original_x = int(round(self.parentItem().pos().x() * self.parentItem().units_per_second))
-        self.original_width = self.parentItem().item.width
-        self.original_offset = self.parentItem().item.offset
-        self.original_y = self.parentItem().pos().y()
-        self.original_height = self.parentItem().item.height
 
     def hoverEnterEvent(self, event):
         self.setBrush(self.brush)
@@ -57,52 +42,94 @@ class _Handle(QtGui.QGraphicsRectItem, Draggable):
     def hoverLeaveEvent(self, event):
         self.setBrush(self.invisibrush)
 
-class _LeftHandle(_Handle):
-    def drag_move(self, view, abs_pos, rel_pos):
-        x = int(round(rel_pos.x() * self.parentItem().units_per_second))
+class _HorizontalHandle(_Handle):
+    def __init__(self, rect, parent, ctrlcls):
+        _Handle.__init__(self, rect, parent)
+        self.controller = None
+        self.ctrlcls = ctrlcls
+        self.setCursor(Qt.SizeHorCursor)
 
+    def drag_start(self, view):
+        self.controller = self.ctrlcls(self.parentItem())
+
+    def drag_move(self, view, abs_pos, rel_pos):
+        self.controller.move(int(round(rel_pos.x() * self.parentItem().units_per_second)))
+
+    def drag_end(self, view, abs_pos, rel_pos):
+        self.controller.finalize()
+        self.controller = None
+
+class _VerticalHandle(_Handle):
+    def __init__(self, rect, parent, ctrlcls):
+        _Handle.__init__(self, rect, parent)
+        self.controller = None
+        self.ctrlcls = ctrlcls
+        self.setCursor(Qt.SizeVerCursor)
+
+    def drag_start(self, view):
+        self.controller = self.ctrlcls(self.parentItem())
+
+    def drag_move(self, view, abs_pos, rel_pos):
+        self.controller.move(rel_pos.y())
+
+    def drag_end(self, view, abs_pos, rel_pos):
+        self.controller.finalize()
+        self.controller = None
+
+class _ClipLeftController(Controller1D):
+    def __init__(self, item):
+        self.item = item.item
+        self.original_x = self.item.x
+        self.original_width = self.item.width
+        self.original_offset = self.item.offset
+
+    def move(self, x):
         if self.original_offset + x < 0:
-            self.parentItem().item.update(x=self.original_x - self.original_offset, width=self.original_width + self.original_offset,
+            self.item.update(x=self.original_x - self.original_offset, width=self.original_width + self.original_offset,
                 offset=0)
         elif self.original_width > x:
-            self.parentItem().item.update(x=self.original_x + x, width=self.original_width - x,
+            self.item.update(x=self.original_x + x, width=self.original_width - x,
                 offset=self.original_offset + x)
         else:
-            self.parentItem().item.update(x=self.original_x + self.original_width - 1, width=1,
+            self.item.update(x=self.original_x + self.original_width - 1, width=1,
                 offset=self.original_offset + self.original_width - 1)
 
-class _RightHandle(_Handle):
-    def drag_move(self, view, abs_pos, rel_pos):
-        x = int(round(rel_pos.x() * self.parentItem().units_per_second))
+class _ClipRightController(Controller1D):
+    def __init__(self, item):
+        self.item = item.item
+        self.original_width = self.item.width
+        self.max_length = item.max_length
 
-        if self.original_width + x > self.parentItem().max_length:
-            self.parentItem().item.update(width=self.parentItem().max_length)
+    def move(self, x):
+        if self.original_width + x > self.max_length:
+            self.item.update(width=self.max_length)
         elif self.original_width > -x:
-            self.parentItem().item.update(width=self.original_width + x)
+            self.item.update(width=self.original_width + x)
         else:
-            self.parentItem().item.update(width=1)
+            self.item.update(width=1)
 
-class _TopHandle(_Handle):
-    horizontal = False
+class _ClipTopController(Controller1D):
+    def __init__(self, item):
+        self.item = item.item
+        self.original_y = self.item.y
+        self.original_height = self.item.height
 
-    def drag_move(self, view, abs_pos, rel_pos):
-        y = rel_pos.y()
-
+    def move(self, y):
         if self.original_height > y:
-            self.parentItem().item.update(y=self.original_y + y, height=self.original_height - y)
+            self.item.update(y=self.original_y + y, height=self.original_height - y)
         else:
-            self.parentItem().item.update(y=self.original_y + self.original_height - 1, height=1)
+            self.item.update(y=self.original_y + self.original_height - 1, height=1)
 
-class _BottomHandle(_Handle):
-    horizontal = False
+class _ClipBottomController(Controller1D):
+    def __init__(self, item):
+        self.item = item.item
+        self.original_height = self.item.height
 
-    def drag_move(self, view, abs_pos, rel_pos):
-        y = rel_pos.y()
-
+    def move(self, y):
         if self.original_height > -y:
-            self.parentItem().item.update(height=self.original_height + y)
+            self.item.update(height=self.original_height + y)
         else:
-            self.parentItem().item.update(height=1)
+            self.item.update(height=1)
 
 class ItemPositionController(Controller2D):
     def __init__(self, item, view, units_per_second):
@@ -183,11 +210,11 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
             QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
 
-        self.left_handle = _LeftHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
-        self.right_handle = _RightHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.left_handle = _HorizontalHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self, _ClipLeftController)
+        self.right_handle = _HorizontalHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self, _ClipRightController)
         self.right_handle.setPos(self.item.width, 0.0)
-        self.top_handle = _TopHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
-        self.bottom_handle = _BottomHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self)
+        self.top_handle = _VerticalHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self, _ClipTopController)
+        self.bottom_handle = _VerticalHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self, _ClipBottomController)
         self.bottom_handle.setPos(0.0, self.item.height)
 
         self.view_reset_needed = False
