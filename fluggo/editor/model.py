@@ -470,12 +470,34 @@ class Sequence(Item, ezlist.EZList):
 
         if stop > start:
             self._items[start:stop] = []
+
+            # Reset the x values once
+            x = 0
+
+            if start > 0:
+                prev_item = self._items[start - 1]
+                x = prev_item._x + prev_item.length
+
+            for i, item in enumerate(self._items[start:], start):
+                item._sequence = self
+                item._x = x - item.transition_length
+                x += item.length - item.transition_length
+
             self.items_removed(start, stop)
 
         self._items[start:start] = items
 
+        # Reset the x values again
+        x = 0
+
+        if start > 0:
+            prev_item = self._items[start - 1]
+            x = prev_item._x + prev_item.length
+
         for i, item in enumerate(self._items[start:], start):
             item._sequence = self
+            item._x = x - item.transition_length
+            x += item.length - item.transition_length
 
         for item in (new_item_set - old_item_set):
             self._width += item.length - item.transition_length
@@ -487,6 +509,18 @@ class Sequence(Item, ezlist.EZList):
 
         Item.update(self, width=self._width)
 
+    def _move_items(self, start_index, xdiff, lendiff):
+        if xdiff:
+            item = self._items[start_index]
+            item._x += xdiff
+            self.item_updated(item, x=item._x)
+
+        for item in self._items[start_index + 1:]:
+            item._x += xdiff + lendiff
+            self.item_updated(item, x=item._x)
+
+        self.update(width=self.width + xdiff + lendiff)
+
     def fixup(self):
         Item.fixup(self)
 
@@ -497,6 +531,7 @@ class Sequence(Item, ezlist.EZList):
 
         for item in self._items:
             item._sequence = self
+            item._x = total_width - item.transition_length
             total_width += item.length - item.transition_length
 
         Item.update(self, width=total_width)
@@ -512,12 +547,14 @@ class SequenceItem(object):
         self._transition_length = transition_length
         self._sequence = None
         self._index = None
+        self._x = 0
 
     def update(self, **kw):
         '''
         Update the attributes of this item.
         '''
-        adj_sequence_width = 0
+        xdiff = 0
+        lendiff = 0
 
         if 'source' in kw:
             self._source = kw['source']
@@ -527,7 +564,7 @@ class SequenceItem(object):
 
         if 'length' in kw:
             new_length = int(kw['length'])
-            adj_sequence_width += new_length - self._length
+            lendiff += new_length - self._length
             self._length = new_length
 
         if 'transition' in kw:
@@ -535,11 +572,11 @@ class SequenceItem(object):
 
         if 'transition_length' in kw:
             new_length = int(kw['transition_length'])
-            adj_sequence_width -= new_length - self._transition_length
+            xdiff -= new_length - self._transition_length
             self._transition_length = new_length
 
-        if adj_sequence_width:
-            self._sequence.update(width=self._sequence.width + adj_sequence_width)
+        if xdiff or lendiff:
+            self._sequence._move_items(self._index, xdiff, lendiff)
 
         self._sequence.item_updated(self, **kw)
 
@@ -570,6 +607,10 @@ class SequenceItem(object):
     @property
     def sequence(self):
         return self._sequence
+
+    @property
+    def x(self):
+        return self._x
 
     @classmethod
     def to_yaml(cls, dumper, data):

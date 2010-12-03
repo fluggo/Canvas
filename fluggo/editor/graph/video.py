@@ -176,7 +176,7 @@ class SequenceVideoManager(sources.VideoSource):
 
     def _handle_items_removed(self, start, stop):
         # Get enough info to send an update
-        start_frame = self.seqfilter.get_start_frame(start)
+        start_frame = self.watchers[start].seq_item.x
         end_frame = self.seqfilter.get_start_frame(len(self.seqfilter) - 1) + self.seqfilter[-1][2] - 1
 
         # Remove the watchers in this range
@@ -202,13 +202,16 @@ class SequenceVideoManager(sources.VideoSource):
         self.frames_updated(start_frame, end_frame)
 
     def _handle_item_updated(self, item, **kw):
+        if frozenset(('offset', 'source', 'transition_length', 'length')) .isdisjoint(frozenset(kw.keys())):
+            return
+
         watcher = self.watchers[item.index]
         prev_watcher = item.index > 0 and self.watchers[item.index - 1]
         prev_item = prev_watcher and prev_watcher.seq_item
         next_watcher = item.index + 1 < len(self.watchers) and self.watchers[item.index + 1]
         next_item = next_watcher and next_watcher.seq_item
 
-        start_frame = self.seqfilter.get_start_frame(item.index)
+        start_frame = item.x + item.transition_length
         length = item.length - item.transition_length
         mid_width = length
 
@@ -254,7 +257,7 @@ class SequenceVideoManager(sources.VideoSource):
 
                 prev_watcher.out_point.frame = prev_length
                 prev_watcher.fade_point.frame = prev_length - item.transition_length
-                self.frames_updated(start_frame - max(old_trans_length, item.transition_length),
+                self.frames_updated(start_frame - item.transition_length - max(old_trans_length - item.transition_length, 0),
                     self.sequence.width + max(0, old_length - length) - 1)
             else:
                 self.frames_updated(start_frame + min(old_fade_point, mid_width),
