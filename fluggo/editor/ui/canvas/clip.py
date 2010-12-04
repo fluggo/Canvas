@@ -220,6 +220,9 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
 
         self.view_reset_needed = False
 
+    @property
+    def height(self):
+        return self.item.height
 
     def itemChange(self, change, value):
         if change == QtGui.QGraphicsItem.ItemSceneHasChanged:

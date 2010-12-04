@@ -25,10 +25,61 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from .thumbnails import ThumbnailPainter
 
+class _ItemLeftController(Controller1D):
+    def __init__(self, owner):
+        self.owner = owner
+
+class _ItemRightController(Controller1D):
+    def __init__(self, owner):
+        self.owner = owner
+
+class _SequenceItem(VideoItem):
+    def __init__(self, item, parent):
+        VideoItem.__init__(self, item, None)
+        self.setParentItem(parent)
+        self.item = item
+        self.top_handle.setVisible(False)
+        self.bottom_handle.setVisible(False)
+
+        # Let hover events pass through (hover-transparent) when collapsed
+        self.setAcceptHoverEvents(False)
+
+    def view_scale_changed(self, view):
+        # BJC I tried to keep it view-independent, but the handles need to have different sizes
+        # depending on the level of zoom in the view (not to mention separate sets of thumbnails)
+        hx = view.handle_width / float(view.scale_x)
+
+        self.left_handle.setRect(QtCore.QRectF(0.0, 0.0, hx, self.parentItem().item_display_height))
+        self.right_handle.setRect(QtCore.QRectF(-hx, 0.0, hx, self.parentItem().item_display_height))
+
+    def _added_to_scene(self):
+        # Set the things we couldn't without self.units_per_second
+        self.setPos(self.item.x / self.units_per_second, 0.0)
+        self.right_handle.setPos(self.item.length / self.units_per_second, 0.0)
+
+    @property
+    def height(self):
+        return self.parentItem().height
+
+    def paint(self, painter, option, widget):
+        pass
+
 class VideoSequence(VideoItem):
     def __init__(self, sequence):
         VideoItem.__init__(self, sequence, None)
         self.manager = None
+        self.left_handle.hide()
+        self.right_handle.hide()
+        self.seq_items = [_SequenceItem(item, self) for item in sequence]
+        x = 0
+
+        for seq_item in self.seq_items:
+            seq_item.x = x
+            x += seq_item.item.length - seq_item.item.transition_length
+
+    @property
+    def item_display_height(self):
+        return self.item.height
 
     @property
     def stream(self):
@@ -36,4 +87,20 @@ class VideoSequence(VideoItem):
             self.manager = graph.SequenceVideoManager(self.item, self.scene().source_list, self.scene().space.video_format)
 
         return self.manager
+
+    def view_scale_changed(self, view):
+        VideoItem.view_scale_changed(self, view)
+
+        for item in self.seq_items:
+            item.view_scale_changed(view)
+
+    def _handle_item_added(self, item):
+        pass
+
+    def _handle_items_removed(self, start, stop):
+        pass
+
+    def _handle_item_updated(self, item):
+        pass
+
 
