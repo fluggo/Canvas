@@ -203,7 +203,9 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
         QtGui.QGraphicsItem.__init__(self)
         Draggable.__init__(self, QtGui.QGraphicsItem)
         self.item = item
-        self.item.updated.connect(self._update)
+
+        if hasattr(self.item, 'updated'):
+            self.item.updated.connect(self._update)
 
         self.name = name
         self.setFlags(QtGui.QGraphicsItem.ItemIsSelectable |
