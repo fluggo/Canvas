@@ -24,11 +24,11 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from .thumbnails import ThumbnailPainter
 
-class _Handle(QtGui.QGraphicsRectItem, Draggable):
+class Handle(QtGui.QGraphicsRectItem, Draggable):
     invisibrush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
 
-    def __init__(self, rect, parent):
-        QtGui.QGraphicsRectItem.__init__(self, rect, parent)
+    def __init__(self, parent):
+        QtGui.QGraphicsRectItem.__init__(self, QtCore.QRectF(), parent)
         Draggable.__init__(self)
         self.brush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 1.0, 0.0))
         self.setAcceptHoverEvents(True)
@@ -42,9 +42,9 @@ class _Handle(QtGui.QGraphicsRectItem, Draggable):
     def hoverLeaveEvent(self, event):
         self.setBrush(self.invisibrush)
 
-class _HorizontalHandle(_Handle):
-    def __init__(self, rect, parent, ctrlcls):
-        _Handle.__init__(self, rect, parent)
+class HorizontalHandle(Handle):
+    def __init__(self, parent, ctrlcls):
+        Handle.__init__(self, parent)
         self.controller = None
         self.ctrlcls = ctrlcls
         self.setCursor(Qt.SizeHorCursor)
@@ -59,9 +59,9 @@ class _HorizontalHandle(_Handle):
         self.controller.finalize()
         self.controller = None
 
-class _VerticalHandle(_Handle):
-    def __init__(self, rect, parent, ctrlcls):
-        _Handle.__init__(self, rect, parent)
+class VerticalHandle(Handle):
+    def __init__(self, parent, ctrlcls):
+        Handle.__init__(self, parent)
         self.controller = None
         self.ctrlcls = ctrlcls
         self.setCursor(Qt.SizeVerCursor)
@@ -75,61 +75,6 @@ class _VerticalHandle(_Handle):
     def drag_end(self, view, abs_pos, rel_pos):
         self.controller.finalize()
         self.controller = None
-
-class _ClipLeftController(Controller1D):
-    def __init__(self, item):
-        self.item = item.item
-        self.original_x = self.item.x
-        self.original_width = self.item.width
-        self.original_offset = self.item.offset
-
-    def move(self, x):
-        if self.original_offset + x < 0:
-            self.item.update(x=self.original_x - self.original_offset, width=self.original_width + self.original_offset,
-                offset=0)
-        elif self.original_width > x:
-            self.item.update(x=self.original_x + x, width=self.original_width - x,
-                offset=self.original_offset + x)
-        else:
-            self.item.update(x=self.original_x + self.original_width - 1, width=1,
-                offset=self.original_offset + self.original_width - 1)
-
-class _ClipRightController(Controller1D):
-    def __init__(self, item):
-        self.item = item.item
-        self.original_width = self.item.width
-        self.max_length = item.max_length
-
-    def move(self, x):
-        if self.original_width + x > self.max_length:
-            self.item.update(width=self.max_length)
-        elif self.original_width > -x:
-            self.item.update(width=self.original_width + x)
-        else:
-            self.item.update(width=1)
-
-class _ClipTopController(Controller1D):
-    def __init__(self, item):
-        self.item = item.item
-        self.original_y = self.item.y
-        self.original_height = self.item.height
-
-    def move(self, y):
-        if self.original_height > y:
-            self.item.update(y=self.original_y + y, height=self.original_height - y)
-        else:
-            self.item.update(y=self.original_y + self.original_height - 1, height=1)
-
-class _ClipBottomController(Controller1D):
-    def __init__(self, item):
-        self.item = item.item
-        self.original_height = self.item.height
-
-    def move(self, y):
-        if self.original_height > -y:
-            self.item.update(height=self.original_height + y)
-        else:
-            self.item.update(height=1)
 
 class ItemPositionController(Controller2D):
     def __init__(self, item, view, units_per_second):
@@ -158,7 +103,7 @@ class ItemPositionController(Controller2D):
         self._clear_snap_markers()
 
         left_snap = view.find_snap_items_horizontal(self.item, x / units_per_second)
-        right_snap = view.find_snap_items_horizontal(self.item, (x + item.width) / units_per_second)
+        right_snap = view.find_snap_items_horizontal(self.item, (x + item.length) / units_per_second)
 
         # left_snap and right_snap are in seconds; convert back to our units
         if left_snap is not None:
@@ -170,14 +115,14 @@ class ItemPositionController(Controller2D):
         # Place the snap markers and accept snaps
         if left_snap is not None:
             if right_snap is not None:
-                if abs(left_snap - x) < abs(right_snap - x + item.width):
+                if abs(left_snap - x) < abs(right_snap - x + item.length):
                     self._left_snap_marker = VerticalSnapMarker(left_snap / units_per_second)
                     view.scene().add_marker(self._left_snap_marker)
                     x = left_snap
-                elif abs(left_snap - pos_x) > abs(right_snap - pos_x + item.width):
+                elif abs(left_snap - pos_x) > abs(right_snap - pos_x + item.length):
                     self._right_snap_marker = VerticalSnapMarker(right_snap / units_per_second)
                     view.scene().add_marker(self._right_snap_marker)
-                    x = right_snap - item.width
+                    x = right_snap - item.length
                 else:
                     self._left_snap_marker = VerticalSnapMarker(left_snap / units_per_second)
                     view.scene().add_marker(self._left_snap_marker)
@@ -191,7 +136,7 @@ class ItemPositionController(Controller2D):
         elif right_snap is not None:
             self._right_snap_marker = VerticalSnapMarker(right_snap / units_per_second)
             view.scene().add_marker(self._right_snap_marker)
-            x = right_snap - item.width
+            x = right_snap - item.length
 
         item.update(x=x, y=y)
 
@@ -199,6 +144,61 @@ class ItemPositionController(Controller2D):
         self._clear_snap_markers()
 
 class ClipItem(QtGui.QGraphicsItem, Draggable):
+    class LeftController(Controller1D):
+        def __init__(self, item):
+            self.item = item.item
+            self.original_x = self.item.x
+            self.original_length = self.item.length
+            self.original_offset = self.item.offset
+
+        def move(self, x):
+            if self.original_offset + x < 0:
+                self.item.update(x=self.original_x - self.original_offset, length=self.original_length + self.original_offset,
+                    offset=0)
+            elif self.original_length > x:
+                self.item.update(x=self.original_x + x, length=self.original_length - x,
+                    offset=self.original_offset + x)
+            else:
+                self.item.update(x=self.original_x + self.original_length - 1, length=1,
+                    offset=self.original_offset + self.original_length - 1)
+
+    class RightController(Controller1D):
+        def __init__(self, item):
+            self.item = item.item
+            self.original_length = self.item.length
+            self.max_length = item.max_length
+
+        def move(self, x):
+            if self.original_length + x > self.max_length:
+                self.item.update(length=self.max_length)
+            elif self.original_length > -x:
+                self.item.update(length=self.original_length + x)
+            else:
+                self.item.update(length=1)
+
+    class TopController(Controller1D):
+        def __init__(self, item):
+            self.item = item.item
+            self.original_y = self.item.y
+            self.original_height = self.item.height
+
+        def move(self, y):
+            if self.original_height > y:
+                self.item.update(y=self.original_y + y, height=self.original_height - y)
+            else:
+                self.item.update(y=self.original_y + self.original_height - 1, height=1)
+
+    class BottomController(Controller1D):
+        def __init__(self, item):
+            self.item = item.item
+            self.original_height = self.item.height
+
+        def move(self, y):
+            if self.original_height > -y:
+                self.item.update(height=self.original_height + y)
+            else:
+                self.item.update(height=1)
+
     def __init__(self, item, name):
         QtGui.QGraphicsItem.__init__(self)
         Draggable.__init__(self, QtGui.QGraphicsItem)
@@ -210,19 +210,18 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
             QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
 
-        self.left_handle = _HorizontalHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self, _ClipLeftController)
-        self.right_handle = _HorizontalHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self, _ClipRightController)
-        self.right_handle.setPos(self.item.width, 0.0)
-        self.top_handle = _VerticalHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self, _ClipTopController)
-        self.bottom_handle = _VerticalHandle(QtCore.QRectF(0.0, 0.0, 0.0, 0.0), self, _ClipBottomController)
-        self.bottom_handle.setPos(0.0, self.item.height)
+        self.left_handle = HorizontalHandle(self, self.LeftController)
+        self.right_handle = HorizontalHandle(self, self.RightController)
+        self.top_handle = VerticalHandle(self, self.TopController)
+        self.bottom_handle = VerticalHandle(self, self.BottomController)
+        self.bottom_handle.setPos(0.0, self.height)
 
         self.view_reset_needed = False
 
     def added_to_scene(self):
         # Set the things we couldn't without self.units_per_second
         self.setPos(self.item.x / self.units_per_second, self.item.y)
-        self.right_handle.setPos(self.item.width / self.units_per_second, 0.0)
+        self.right_handle.setPos(self.item.length / self.units_per_second, 0.0)
 
     def _update(self, **kw):
         '''
@@ -239,8 +238,8 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
             self.setPos(kw.get('x', pos.x() * self.units_per_second) / self.units_per_second, kw.get('y', pos.y()))
 
         # Changes in item size
-        if 'width' in kw or 'height' in kw:
-            self.right_handle.setPos(self.item.width / self.units_per_second, 0.0)
+        if 'length' in kw or 'height' in kw:
+            self.right_handle.setPos(self.item.length / self.units_per_second, 0.0)
             self.bottom_handle.setPos(0.0, self.item.height)
             self.view_reset_needed = True
 
@@ -281,8 +280,8 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
 
         self.left_handle.setRect(QtCore.QRectF(0.0, 0.0, hx, self.item.height))
         self.right_handle.setRect(QtCore.QRectF(-hx, 0.0, hx, self.item.height))
-        self.top_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.width / self.units_per_second, hy))
-        self.bottom_handle.setRect(QtCore.QRectF(0.0, -hy, self.item.width / self.units_per_second, hy))
+        self.top_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, hy))
+        self.bottom_handle.setRect(QtCore.QRectF(0.0, -hy, self.item.length / self.units_per_second, hy))
 
     def hoverEnterEvent(self, event):
         view = event.widget().parentWidget()
@@ -295,7 +294,7 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
             self.view_reset_needed = False
 
     def boundingRect(self):
-        return QtCore.QRectF(0.0, 0.0, self.item.width / self.units_per_second, self.item.height)
+        return QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.height)
 
     def drag_start(self, view):
         self._drag_start_x = self.item.x
@@ -316,7 +315,7 @@ class VideoItem(ClipItem):
         ClipItem.__init__(self, item, name)
         self._thumbnail_painter = ThumbnailPainter()
         self._thumbnail_painter.updated.connect(self._handle_thumbnails_updated)
-        self._thumbnail_painter.set_width(self.item.width)
+        self._thumbnail_painter.set_length(self.item.length)
 
     @property
     def units_per_second(self):
@@ -335,8 +334,8 @@ class VideoItem(ClipItem):
         '''
         # Changes requiring a reset of the thumbnails
         # TODO: This resets thumbnails *way* more than is necessary
-        if 'width' in kw:
-            self._thumbnail_painter.set_width(self.item.width)
+        if 'length' in kw:
+            self._thumbnail_painter.set_length(self.item.length)
 
         if 'offset' in kw:
             self._thumbnail_painter.clear()

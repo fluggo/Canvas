@@ -229,8 +229,8 @@ class View(QtGui.QGraphicsView):
                 x = item.item.x / item.units_per_second
                 distance = abs(x - time)
 
-            if abs((item.item.x + item.item.width) / item.units_per_second - time) < distance:
-                x = (item.item.x + item.item.width) / item.units_per_second
+            if abs((item.item.x + item.item.length) / item.units_per_second - time) < distance:
+                x = (item.item.x + item.item.length) / item.units_per_second
                 distance = abs(x - time)
 
         return x

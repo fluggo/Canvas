@@ -181,7 +181,7 @@ class Item(object):
 
     yaml_tag = u'!CanvasItem'
 
-    def __init__(self, x=0, y=0.0, width=1, height=1.0, type=None, anchor=None,
+    def __init__(self, x=0, y=0.0, length=1, height=1.0, type=None, anchor=None,
             anchor_target_offset=None, anchor_source_offset=None, anchor_visible=False, tags=None,
             ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None):
         self._scene = None
@@ -189,7 +189,7 @@ class Item(object):
         self._y = y
         self._z = 0
         self._height = height
-        self._width = width
+        self._length = length
         self._type = type
         self._ease_in_type = ease_in_type
         self._ease_in = ease_in
@@ -205,7 +205,7 @@ class Item(object):
     def _create_repr_dict(self):
         result = {
             'x': self._x, 'y': self._y,
-            'width': self._width, 'height': self._height,
+            'length': self._length, 'height': self._height,
             'type': self._type
         }
 
@@ -263,8 +263,8 @@ class Item(object):
         return self._z
 
     @property
-    def width(self):
-        return self._width
+    def length(self):
+        return self._length
 
     @property
     def height(self):
@@ -281,7 +281,7 @@ class Item(object):
         '''
         Return True if *other* overlaps this item.
         '''
-        if self.x >= (other.x + other.width) or (self.x + self.width) <= other.x:
+        if self.x >= (other.x + other.length) or (self.x + self.length) <= other.x:
             return False
 
         if self.y >= (other.y + other.height) or (self.y + self.height) <= other.y:
@@ -296,8 +296,8 @@ class Item(object):
         if 'x' in kw:
             self._x = int(kw['x'])
 
-        if 'width' in kw:
-            self._width = int(kw['width'])
+        if 'length' in kw:
+            self._length = int(kw['length'])
 
         if 'y' in kw:
             self._y = float(kw['y'])
@@ -440,7 +440,7 @@ class Sequence(Item, ezlist.EZList):
         dict_['type'] = self._type
         dict_['items'] = list(self._items)
         dict_['expanded'] = self._expanded
-        del dict_['width']
+        del dict_['length']
 
         return dict_
 
@@ -461,10 +461,10 @@ class Sequence(Item, ezlist.EZList):
         new_item_set = frozenset(items)
 
         for item in sorted(old_item_set - new_item_set, key=lambda a: -a.index):
-            self._width -= item.length - item.transition_length
+            self._length -= item.length - item.transition_length
 
             if item.index == 0:
-                self._width -= item.transition_length
+                self._length -= item.transition_length
 
             item.kill()
 
@@ -500,14 +500,14 @@ class Sequence(Item, ezlist.EZList):
             x += item.length - item.transition_length
 
         for item in (new_item_set - old_item_set):
-            self._width += item.length - item.transition_length
+            self._length += item.length - item.transition_length
 
             if item.index == 0:
-                self._width += item.transition_length
+                self._length += item.transition_length
 
             self.item_added(item)
 
-        Item.update(self, width=self._width)
+        Item.update(self, length=self._length)
 
     def _move_items(self, start_index, xdiff, lendiff):
         if xdiff:
@@ -519,22 +519,22 @@ class Sequence(Item, ezlist.EZList):
             item._x += xdiff + lendiff
             self.item_updated(item, x=item._x)
 
-        self.update(width=self.width + xdiff + lendiff)
+        self.update(length=self.length + xdiff + lendiff)
 
     def fixup(self):
         Item.fixup(self)
 
         self._items = sortlist.AutoIndexList(self._items, index_attr='_index')
 
-        # Count up the proper width and set it on the item
-        total_width = len(self) and self[0].transition_length or 0
+        # Count up the proper length and set it on the item
+        total_length = len(self) and self[0].transition_length or 0
 
         for item in self._items:
             item._sequence = self
-            item._x = total_width - item.transition_length
-            total_width += item.length - item.transition_length
+            item._x = total_length - item.transition_length
+            total_length += item.length - item.transition_length
 
-        Item.update(self, width=total_width)
+        Item.update(self, length=total_length)
 
 class SequenceItem(object):
     yaml_tag = u'!CanvasSequenceItem'

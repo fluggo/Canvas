@@ -40,14 +40,14 @@ class SpaceVideoManager(sources.VideoSource):
 
         def handle_updated(self, **kw):
             # Raise the frames_updated signal if the content of frames changed
-            if 'x' in kw or 'width' in kw or 'offset' in kw:
-                old_x, old_width, old_offset = self.workspace_item.x, self.workspace_item.width, self.workspace_item.offset
-                new_x, new_width, new_offset = kw.get('x', old_x), kw.get('width', old_width), kw.get('offset', old_offset)
-                old_right, new_right = old_x + old_width, new_x + new_width
+            if 'x' in kw or 'length' in kw or 'offset' in kw:
+                old_x, old_length, old_offset = self.workspace_item.x, self.workspace_item.length, self.workspace_item.offset
+                new_x, new_length, new_offset = kw.get('x', old_x), kw.get('length', old_length), kw.get('offset', old_offset)
+                old_right, new_right = old_x + old_length, new_x + new_length
 
                 self.workspace_item.update(
                     x=kw.get('x', old_x),
-                    width=kw.get('width', old_width),
+                    length=kw.get('length', old_length),
                     offset=kw.get('offset', old_offset)
                 )
 
@@ -74,7 +74,7 @@ class SpaceVideoManager(sources.VideoSource):
 
             if value != self.workspace_item.z:
                 self.workspace_item.update(z=value)
-                self.owner.frames_updated(self.workspace_item.x, self.workspace_item.x + self.workspace_item.width - 1)
+                self.owner.frames_updated(self.workspace_item.x, self.workspace_item.x + self.workspace_item.length - 1)
 
         def unwatch(self):
             self.canvas_item.updated.disconnect(self.handle_updated)
@@ -111,7 +111,7 @@ class SpaceVideoManager(sources.VideoSource):
             source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
             offset = item.offset
 
-        workspace_item = self.workspace.add(x=item.x, width=item.width, z=item.z, offset=offset, source=source)
+        workspace_item = self.workspace.add(x=item.x, length=item.length, z=item.z, offset=offset, source=source)
 
         watcher = self.ItemWatcher(self, item, workspace_item)
         self.watchers[id(item)] = watcher
@@ -258,10 +258,10 @@ class SequenceVideoManager(sources.VideoSource):
                 prev_watcher.out_point.frame = prev_length
                 prev_watcher.fade_point.frame = prev_length - item.transition_length
                 self.frames_updated(start_frame - item.transition_length - max(old_trans_length - item.transition_length, 0),
-                    self.sequence.width + max(0, old_length - length) - 1)
+                    self.sequence.length + max(0, old_length - length) - 1)
             else:
                 self.frames_updated(start_frame + min(old_fade_point, mid_width),
-                    self.sequence.width + max(0, old_length - length) - 1)
+                    self.sequence.length + max(0, old_length - length) - 1)
 
             self.seqfilter[item.index] = (watcher, 0, length)
 

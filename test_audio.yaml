@@ -25,7 +25,7 @@
 --- !CanvasSpace
 items:
 - !CanvasClip {height: 40.0, offset: 0, source: !StreamSourceRef {source_name: 79b, stream_index: 0},
-  type: video, width: 100, x: 60, y: 30.0}
+  type: video, length: 100, x: 60, y: 30.0}
 - !CanvasClip {height: 40.0, offset: 0, source: !StreamSourceRef {source_name: 79b, stream_index: 1},
-  type: audio, width: 100000, x: 0, y: 70.0}
+  type: audio, length: 100000, x: 0, y: 70.0}
 

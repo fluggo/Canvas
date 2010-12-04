@@ -59,16 +59,16 @@ WorkspaceItem_get_x( py_obj_WorkspaceItem *self, void *closure ) {
 }
 
 static PyObject *
-WorkspaceItem_get_width( py_obj_WorkspaceItem *self, void *closure ) {
+WorkspaceItem_get_length( py_obj_WorkspaceItem *self, void *closure ) {
     if( !self->item ) {
         PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
         return NULL;
     }
 
-    int64_t width;
-    workspace_get_item_pos( self->item, NULL, &width, NULL );
+    int64_t length;
+    workspace_get_item_pos( self->item, NULL, &length, NULL );
 
-    return Py_BuildValue( "L", width );
+    return Py_BuildValue( "L", length );
 }
 
 static PyObject *
@@ -204,7 +204,7 @@ WorkspaceItem_set_tag( py_obj_WorkspaceItem *self, PyObject *value, void *closur
 
 static PyGetSetDef WorkspaceItem_getsetters[] = {
     { "x", (getter) WorkspaceItem_get_x, NULL, "X coordinate (start frame) of this item." },
-    { "width", (getter) WorkspaceItem_get_width, NULL, "Width (duration) of this item." },
+    { "length", (getter) WorkspaceItem_get_length, NULL, "Length (duration) of this item." },
     { "z", (getter) WorkspaceItem_get_z, (setter) WorkspaceItem_set_z, "Z coordinate (sort order) of this item. Higher-Z items composite on top of lower-Z items." },
     { "source", (getter) WorkspaceItem_get_source, (setter) WorkspaceItem_set_source, "Source for this item." },
     { "offset", (getter) WorkspaceItem_get_offset, (setter) WorkspaceItem_set_offset, "Offset into the source." },
@@ -222,16 +222,16 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
     video_source *source = workspace_get_item_source( self->item );
     PyObject *old_tag = (PyObject *) workspace_get_item_tag( self->item );
 
-    int64_t x = 0, z = 0, width = 0, offset = 0;
+    int64_t x = 0, z = 0, length = 0, offset = 0;
     PyObject *source_obj = NULL, *tag = old_tag;
 
-    workspace_get_item_pos( self->item, &x, &width, &z );
+    workspace_get_item_pos( self->item, &x, &length, &z );
     offset = workspace_get_item_offset( self->item );
 
-    static char *kwlist[] = { "x", "width", "z", "offset", "source", "tag", NULL };
+    static char *kwlist[] = { "x", "length", "z", "offset", "source", "tag", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "|LLLLOO", kwlist,
-            &x, &width, &z, &offset, &source_obj, &tag ) )
+            &x, &length, &z, &offset, &source_obj, &tag ) )
         return NULL;
 
     g_static_rw_lock_writer_lock( &PRIV(self->workspace)->rwlock );
@@ -249,7 +249,7 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
     }
 
     gpointer tagptr = tag;
-    workspace_update_item( self->item, &x, &width, &z, &offset, (gpointer *) &source, &tagptr );
+    workspace_update_item( self->item, &x, &length, &z, &offset, (gpointer *) &source, &tagptr );
 
     g_static_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
     Py_RETURN_NONE;
@@ -257,7 +257,7 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
 
 static PyMethodDef WorkspaceItem_methods[] = {
     { "update", (PyCFunction) WorkspaceItem_update, METH_VARARGS | METH_KEYWORDS,
-        "Update the properties of an item all at once. All are optional; specify x, width, z, offset, source, and tag as keyword parameters." },
+        "Update the properties of an item all at once. All are optional; specify x, length, z, offset, source, and tag as keyword parameters." },
     { NULL }
 };
 
@@ -398,14 +398,14 @@ Workspace_getItem( PyObject *self, Py_ssize_t i ) {
 
 static PyObject *
 Workspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
-    int64_t x = 0, z = 0, width = 0, offset = 0;
+    int64_t x = 0, z = 0, length = 0, offset = 0;
     video_source *source = NULL;
     PyObject *source_obj = NULL, *tag = NULL;
 
-    static char *kwlist[] = { "source", "offset", "x", "width", "z", "tag", NULL };
+    static char *kwlist[] = { "source", "offset", "x", "length", "z", "tag", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "O|LLLLO", kwlist,
-            &source_obj, &offset, &x, &width, &z, &tag ) )
+            &source_obj, &offset, &x, &length, &z, &tag ) )
         return NULL;
 
     g_static_rw_lock_writer_lock( &PRIV(self)->rwlock );
@@ -418,7 +418,7 @@ Workspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
     if( tag )
         Py_INCREF(tag);
 
-    PyObject *ret = item_to_python( self, workspace_add_item( PRIV(self)->workspace, source, x, width, offset, z, tag ) );
+    PyObject *ret = item_to_python( self, workspace_add_item( PRIV(self)->workspace, source, x, length, offset, z, tag ) );
     g_static_rw_lock_writer_unlock( &PRIV(self)->rwlock );
 
     return ret;

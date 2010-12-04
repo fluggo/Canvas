@@ -37,7 +37,7 @@ class ThumbnailPainter(object):
         self.clear()
         self._stream = stream
 
-    def set_width(self, length):
+    def set_length(self, length):
         # TODO: Really, we should work to preserve as many
         # thumbnails as we can
         self.clear()

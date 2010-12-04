@@ -22,7 +22,7 @@
 
 struct workspace_t_tag {
     // leftsort and rightsort both contain all items in the workspace. leftsort is sorted
-    // on item->x, rightsort is sorted backwards on (item->x + item->width).
+    // on item->x, rightsort is sorted backwards on (item->x + item->length).
     GSequence *leftsort, *rightsort;
 
     // This is a more generic workspace than the last iteration. In audio, we're concerned about
@@ -38,7 +38,7 @@ struct workspace_t_tag {
     // leftiter sits on the first item for which item->x > end_frame (that is, the next
     // item to enter the composite_list if end_frame increases).
 
-    // rightiter sits on the last item for which (item->x + item->width) <= start_frame (that is,
+    // rightiter sits on the last item for which (item->x + item->length) <= start_frame (that is,
     // the next item to enter the composite_list if start_frame decreases).
 
     // When start_frame increases or end_frame decreases, the composite_list is just scanned for
@@ -57,7 +57,7 @@ struct workspace_t_tag {
 
 struct workspace_item_t_tag {
     workspace_t *workspace;
-    int64_t x, z, width;
+    int64_t x, z, length;
     gpointer source, tag;
     GSequenceIter *leftiter, *rightiter, *compiter;
     int64_t offset;
@@ -87,7 +87,7 @@ G_GNUC_PURE static int cmp_left( gconstpointer aptr, gconstpointer bptr, gpointe
 G_GNUC_PURE static int cmp_right( gconstpointer aptr, gconstpointer bptr, gpointer user_data ) {
     const workspace_item_t *a = (workspace_item_t *) aptr, *b = (workspace_item_t *) bptr;
 
-    int result = cmpl( a->x + a->width, b->x + b->width );
+    int result = cmpl( a->x + a->length, b->x + b->length );
 
     if( result != 0 )
         return -result;
@@ -191,7 +191,7 @@ workspace_fix_rightiter( workspace_t *self ) {
         item = (workspace_item_t *) g_sequence_get( iter );
 
         // If the item is potentially "in-range" then it's definitely not next
-        if( (item->x + item->width) > self->start_frame )
+        if( (item->x + item->length) > self->start_frame )
             return;
 
         self->rightiter = iter;
@@ -199,13 +199,13 @@ workspace_fix_rightiter( workspace_t *self ) {
 
     item = (workspace_item_t *) g_sequence_get( iter );
 
-    if( (item->x + item->width) <= self->start_frame ) {
+    if( (item->x + item->length) <= self->start_frame ) {
         // Iterate backwards to see if there's one closer to current_frame
         while( !g_sequence_iter_is_begin( iter ) ) {
             iter = g_sequence_iter_prev( iter );
             item = (workspace_item_t *) g_sequence_get( iter );
 
-            if( (item->x + item->width) <= self->start_frame )
+            if( (item->x + item->length) <= self->start_frame )
                 self->rightiter = iter;
             else
                 break;
@@ -223,7 +223,7 @@ workspace_fix_rightiter( workspace_t *self ) {
 
             item = (workspace_item_t *) g_sequence_get( iter );
 
-            if( (item->x + item->width) <= self->start_frame ) {
+            if( (item->x + item->length) <= self->start_frame ) {
                 self->rightiter = iter;
                 break;
             }
@@ -250,7 +250,7 @@ workspace_move_it( workspace_t *self, int start_frame, int end_frame ) {
 
         workspace_item_t *item = (workspace_item_t *) g_sequence_get( current );
 
-        if( end_frame < item->x || start_frame >= (item->x + item->width) ) {
+        if( end_frame < item->x || start_frame >= (item->x + item->length) ) {
             g_sequence_remove( current );
             item->compiter = NULL;
         }
@@ -267,7 +267,7 @@ workspace_move_it( workspace_t *self, int start_frame, int end_frame ) {
 
             if( end_frame >= item->x ) {
                 // See if this frame is in this item
-                if( start_frame < (item->x + item->width) )
+                if( start_frame < (item->x + item->length) )
                     item->compiter = g_sequence_insert_sorted( self->composite_list, item, cmpz, NULL );
 
                 // Move ahead for the next time we ask
@@ -282,7 +282,7 @@ workspace_move_it( workspace_t *self, int start_frame, int end_frame ) {
         while( !g_sequence_iter_is_end( self->rightiter ) ) {
             workspace_item_t *item = (workspace_item_t *) g_sequence_get( self->rightiter );
 
-            if( start_frame < (item->x + item->width) ) {
+            if( start_frame < (item->x + item->length) ) {
                 // Add it to the composite list if the frame is in this item
                 if( end_frame >= item->x )
                     item->compiter = g_sequence_insert_sorted( self->composite_list, item, cmpz, NULL );
@@ -303,13 +303,13 @@ workspace_move_it( workspace_t *self, int start_frame, int end_frame ) {
 }
 
 EXPORT workspace_item_t *
-workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t width, int64_t offset, int64_t z, gpointer tag ) {
+workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t length, int64_t offset, int64_t z, gpointer tag ) {
     workspace_item_t *item = g_slice_new( workspace_item_t );
 
     item->workspace = self;
     item->x = x;
     item->z = z;
-    item->width = width;
+    item->length = length;
     item->offset = offset;
     item->source = source;
     item->tag = tag;
@@ -324,7 +324,7 @@ workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t width
     workspace_fix_rightiter( self );
 
     // If necessary, add to composite_list
-    if( self->end_frame >= x && self->start_frame < (x + width) )
+    if( self->end_frame >= x && self->start_frame < (x + length) )
         item->compiter = g_sequence_insert_sorted( self->composite_list, item, cmpz, NULL );
     else
         item->compiter = NULL;
@@ -343,12 +343,12 @@ workspace_get_item( workspace_t *self, gint index ) {
 }
 
 EXPORT void
-workspace_get_item_pos( workspace_item_t *item, int64_t *x, int64_t *width, int64_t *z ) {
+workspace_get_item_pos( workspace_item_t *item, int64_t *x, int64_t *length, int64_t *z ) {
     if( x )
         *x = item->x;
 
-    if( width )
-        *width = item->width;
+    if( length )
+        *length = item->length;
 
     if( z )
         *z = item->z;
@@ -385,11 +385,11 @@ workspace_set_item_tag( workspace_item_t *item, gpointer tag ) {
 }
 
 static void
-workspace_move_item_x( workspace_item_t *item, int64_t x, int64_t width ) {
+workspace_move_item_x( workspace_item_t *item, int64_t x, int64_t length ) {
     workspace_t *self = item->workspace;
 
     item->x = x;
-    item->width = width;
+    item->length = length;
 
     g_sequence_sort_changed( item->leftiter, cmp_left, NULL );
     workspace_fix_leftiter( self );
@@ -397,7 +397,7 @@ workspace_move_item_x( workspace_item_t *item, int64_t x, int64_t width ) {
     g_sequence_sort_changed( item->rightiter, cmp_right, NULL );
     workspace_fix_rightiter( self );
 
-    if( (self->end_frame >= x) && (self->start_frame < (x + width)) ) {
+    if( (self->end_frame >= x) && (self->start_frame < (x + length)) ) {
         if( !item->compiter )
             item->compiter = g_sequence_insert_sorted( self->composite_list, item, cmpz, NULL );
     }
@@ -418,20 +418,20 @@ workspace_move_item_z( workspace_item_t *item, int64_t z ) {
 }
 
 EXPORT void
-workspace_update_item( workspace_item_t *item, int64_t *x, int64_t *width, int64_t *z, int64_t *offset, gpointer *source, gpointer *tag ) {
+workspace_update_item( workspace_item_t *item, int64_t *x, int64_t *length, int64_t *z, int64_t *offset, gpointer *source, gpointer *tag ) {
     workspace_t *self = item->workspace;
     g_static_mutex_lock( &self->mutex );
 
-    if( x || width ) {
-        int64_t old_x = item->x, old_width = item->width;
+    if( x || length ) {
+        int64_t old_x = item->x, old_length = item->length;
 
         if( !x )
             x = &old_x;
 
-        if( !width )
-            width = &old_width;
+        if( !length )
+            length = &old_length;
 
-        workspace_move_item_x( item, *x, *width );
+        workspace_move_item_x( item, *x, *length );
     }
 
     if( z )
@@ -577,9 +577,9 @@ workspace_audio_get_frame( workspace_t *self, audio_frame *frame ) {
         // Construct a ghost of the output frame so as to limit the composite to the current item
         audio_frame in_frame = {
             .full_min_sample = max(frame->full_min_sample, item->x),
-            .full_max_sample = min(frame->full_max_sample, item->x + item->width - 1),
+            .full_max_sample = min(frame->full_max_sample, item->x + item->length - 1),
             .current_min_sample = max(frame->current_min_sample, item->x),
-            .current_max_sample = min(frame->current_max_sample, item->x + item->width - 1),
+            .current_max_sample = min(frame->current_max_sample, item->x + item->length - 1),
             .channels = frame->channels
         };
 
