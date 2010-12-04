@@ -220,7 +220,14 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
 
         self.view_reset_needed = False
 
-    def added_to_scene(self):
+
+    def itemChange(self, change, value):
+        if change == QtGui.QGraphicsItem.ItemSceneHasChanged:
+            self._added_to_scene()
+
+        return value
+
+    def _added_to_scene(self):
         # Set the things we couldn't without self.units_per_second
         self.setPos(self.item.x / self.units_per_second, self.item.y)
         self.right_handle.setPos(self.item.length / self.units_per_second, 0.0)
@@ -323,8 +330,8 @@ class VideoItem(ClipItem):
     def units_per_second(self):
         return float(self.scene().frame_rate)
 
-    def added_to_scene(self):
-        ClipItem.added_to_scene(self)
+    def _added_to_scene(self):
+        ClipItem._added_to_scene(self)
         self._thumbnail_painter.set_stream(self.stream)
 
     def _handle_thumbnails_updated(self):

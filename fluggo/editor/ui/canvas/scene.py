@@ -66,8 +66,6 @@ class Scene(QtGui.QGraphicsScene):
             return
 
         self.addItem(ui_item)
-        ui_item.added_to_scene()
-
         self.sort_list.add(ui_item)
 
     def selected_items(self):
