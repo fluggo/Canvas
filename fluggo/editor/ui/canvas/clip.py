@@ -216,7 +216,6 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
         self.right_handle = HorizontalHandle(self, self.RightController)
         self.top_handle = VerticalHandle(self, self.TopController)
         self.bottom_handle = VerticalHandle(self, self.BottomController)
-        self.bottom_handle.setPos(0.0, self.height)
 
         self.view_reset_needed = False
 
@@ -231,8 +230,9 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
         return value
 
     def _added_to_scene(self):
-        # Set the things we couldn't without self.units_per_second
+        # Set the things we couldn't without a parent
         self.setPos(self.item.x / self.units_per_second, self.item.y)
+        self.bottom_handle.setPos(0.0, self.height)
         self.right_handle.setPos(self.item.length / self.units_per_second, 0.0)
 
     def _update(self, **kw):
