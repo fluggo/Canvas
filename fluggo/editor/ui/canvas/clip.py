@@ -72,12 +72,14 @@ class VerticalHandle(Handle):
         self.controller.move(rel_pos.y())
 
 class ItemPositionController(Controller2D):
-    def __init__(self, item, view, units_per_second):
+    def __init__(self, item, view):
         self.item = item
         self.view = view
-        self.units_per_second = units_per_second
+        self.units_per_second = item.units_per_second
         self._left_snap_marker = None
         self._right_snap_marker = None
+        self.original_x = item.item.x
+        self.original_y = item.item.y
 
     def _clear_snap_markers(self):
         scene = self.view.scene()
@@ -94,6 +96,8 @@ class ItemPositionController(Controller2D):
         item = self.item.item
         view = self.view
         units_per_second = self.units_per_second
+        x = self.original_x + x
+        y = self.original_y + y
 
         self._clear_snap_markers()
 
@@ -138,7 +142,7 @@ class ItemPositionController(Controller2D):
     def finalize(self):
         self._clear_snap_markers()
 
-class ClipItem(QtGui.QGraphicsItem, Draggable):
+class ClipItem(QtGui.QGraphicsItem):
     class LeftController(Controller1D):
         def __init__(self, item, view):
             self.item = item.item
@@ -196,7 +200,6 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
 
     def __init__(self, item, name):
         QtGui.QGraphicsItem.__init__(self)
-        Draggable.__init__(self, QtGui.QGraphicsItem)
         self.item = item
 
         if hasattr(self.item, 'updated'):
@@ -207,6 +210,7 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
             QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
 
+        self.move_handle = Handle(self, ItemPositionController)
         self.left_handle = HorizontalHandle(self, self.LeftController)
         self.right_handle = HorizontalHandle(self, self.RightController)
         self.top_handle = VerticalHandle(self, self.TopController)
@@ -285,6 +289,7 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
         hx = view.handle_width / float(view.scale_x)
         hy = view.handle_width / float(view.scale_y)
 
+        self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.item.height))
         self.left_handle.setRect(QtCore.QRectF(0.0, 0.0, hx, self.item.height))
         self.right_handle.setRect(QtCore.QRectF(-hx, 0.0, hx, self.item.height))
         self.top_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, hy))
@@ -302,20 +307,6 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
 
     def boundingRect(self):
         return QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.height)
-
-    def drag_start(self, view):
-        self._drag_start_x = self.item.x
-        self._drag_start_y = self.item.y
-        self._drag_controller = ItemPositionController(self, view, self.units_per_second)
-
-    def drag_move(self, view, abs_pos, rel_pos):
-        pos_x = int(round(rel_pos.x() * self.units_per_second)) + self._drag_start_x
-        pos_y = rel_pos.y() + self._drag_start_y
-
-        self._drag_controller.move(pos_x, pos_y)
-
-    def drag_end(self, view, abs_pos, rel_pos):
-        self._drag_controller.finalize()
 
 class VideoItem(ClipItem):
     def __init__(self, item, name):
