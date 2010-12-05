@@ -40,6 +40,7 @@ class _SequenceItem(VideoItem):
         self.item = item
         self.top_handle.setVisible(False)
         self.bottom_handle.setVisible(False)
+        self._stream = None
 
         # Let hover events pass through (hover-transparent) when collapsed
         self.setAcceptHoverEvents(False)
@@ -56,6 +57,14 @@ class _SequenceItem(VideoItem):
         # Set the things we couldn't without self.units_per_second
         self.setPos(self.item.x / self.units_per_second, 0.0)
         self.right_handle.setPos(self.item.length / self.units_per_second, 0.0)
+
+    @property
+    def stream(self):
+        if not self._stream:
+            self._stream = sources.VideoSource(self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index))
+            self._stream.offset = self.item.offset
+
+        return self._stream
 
     @property
     def height(self):
