@@ -68,8 +68,12 @@ class VideoSequence(VideoItem):
     def __init__(self, sequence):
         VideoItem.__init__(self, sequence, None)
         self.manager = None
+
         self.left_handle.hide()
         self.right_handle.hide()
+        self.top_handle.setZValue(1)
+        self.bottom_handle.setZValue(1)
+
         self.seq_items = [_SequenceItem(item, self) for item in sequence]
         x = 0
 
