@@ -27,7 +27,7 @@ from .thumbnails import ThumbnailPainter
 class Handle(QtGui.QGraphicsRectItem, Draggable):
     invisibrush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
 
-    def __init__(self, parent):
+    def __init__(self, parent, ctrlcls):
         QtGui.QGraphicsRectItem.__init__(self, QtCore.QRectF(), parent)
         Draggable.__init__(self)
         self.brush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 1.0, 0.0))
@@ -35,6 +35,9 @@ class Handle(QtGui.QGraphicsRectItem, Draggable):
         self.setOpacity(0.45)
         self.setBrush(self.invisibrush)
         self.setPen(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
+        self.setCursor(Qt.ArrowCursor)
+        self.controller = None
+        self.ctrlcls = ctrlcls
 
     def hoverEnterEvent(self, event):
         self.setBrush(self.brush)
@@ -42,39 +45,31 @@ class Handle(QtGui.QGraphicsRectItem, Draggable):
     def hoverLeaveEvent(self, event):
         self.setBrush(self.invisibrush)
 
+    def drag_start(self, view):
+        self.controller = self.ctrlcls(self.parentItem(), view)
+
+    def drag_move(self, view, abs_pos, rel_pos):
+        self.controller.move(int(round(rel_pos.x() * self.parentItem().units_per_second)), rel_pos.y())
+
+    def drag_end(self, view, abs_pos, rel_pos):
+        self.controller.finalize()
+        self.controller = None
+
 class HorizontalHandle(Handle):
     def __init__(self, parent, ctrlcls):
-        Handle.__init__(self, parent)
-        self.controller = None
-        self.ctrlcls = ctrlcls
-        self.setCursor(Qt.SizeHorCursor)
-
-    def drag_start(self, view):
-        self.controller = self.ctrlcls(self.parentItem())
+        Handle.__init__(self, parent, ctrlcls)
+        self.setCursor(Qt.SplitHCursor)
 
     def drag_move(self, view, abs_pos, rel_pos):
         self.controller.move(int(round(rel_pos.x() * self.parentItem().units_per_second)))
 
-    def drag_end(self, view, abs_pos, rel_pos):
-        self.controller.finalize()
-        self.controller = None
-
 class VerticalHandle(Handle):
     def __init__(self, parent, ctrlcls):
-        Handle.__init__(self, parent)
-        self.controller = None
-        self.ctrlcls = ctrlcls
-        self.setCursor(Qt.SizeVerCursor)
-
-    def drag_start(self, view):
-        self.controller = self.ctrlcls(self.parentItem())
+        Handle.__init__(self, parent, ctrlcls)
+        self.setCursor(Qt.SplitVCursor)
 
     def drag_move(self, view, abs_pos, rel_pos):
         self.controller.move(rel_pos.y())
-
-    def drag_end(self, view, abs_pos, rel_pos):
-        self.controller.finalize()
-        self.controller = None
 
 class ItemPositionController(Controller2D):
     def __init__(self, item, view, units_per_second):
@@ -145,7 +140,7 @@ class ItemPositionController(Controller2D):
 
 class ClipItem(QtGui.QGraphicsItem, Draggable):
     class LeftController(Controller1D):
-        def __init__(self, item):
+        def __init__(self, item, view):
             self.item = item.item
             self.original_x = self.item.x
             self.original_length = self.item.length
@@ -163,7 +158,7 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
                     offset=self.original_offset + self.original_length - 1)
 
     class RightController(Controller1D):
-        def __init__(self, item):
+        def __init__(self, item, view):
             self.item = item.item
             self.original_length = self.item.length
             self.max_length = item.max_length
@@ -177,7 +172,7 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
                 self.item.update(length=1)
 
     class TopController(Controller1D):
-        def __init__(self, item):
+        def __init__(self, item, view):
             self.item = item.item
             self.original_y = self.item.y
             self.original_height = self.item.height
@@ -189,7 +184,7 @@ class ClipItem(QtGui.QGraphicsItem, Draggable):
                 self.item.update(y=self.original_y + self.original_height - 1, height=1)
 
     class BottomController(Controller1D):
-        def __init__(self, item):
+        def __init__(self, item, view):
             self.item = item.item
             self.original_height = self.item.height
 
