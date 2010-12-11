@@ -38,6 +38,8 @@ class View(QtGui.QGraphicsView):
         self.setViewportMargins(0, 30, 0, 0)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.setViewportUpdateMode(self.FullViewportUpdate)
+        self.setResizeAnchor(self.AnchorUnderMouse)
+        self.setTransformationAnchor(self.AnchorUnderMouse)
 
         self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
         self.ruler.move(self.frameWidth(), self.frameWidth())
@@ -78,21 +80,13 @@ class View(QtGui.QGraphicsView):
     def selected_items(self):
         return self.scene().selected_items()
 
-    def scale(self, sx, sy, scale_center=None):
-        # Find the current center
-        center = QtCore.QRectF(self.mapToScene(0, 0), self.mapToScene(self.width(), self.height())).center()
-
-        if scale_center is None:
-            scale_center = center.x()
-
+    def scale(self, sx, sy):
         self.scale_x = fractions.Fraction(sx)
         self.scale_y = fractions.Fraction(sy)
 
         self.ruler.set_scale(sx / self.scene().frame_rate)
 
-        self.resetTransform()
-        QtGui.QGraphicsView.scale(self, float(sx), float(sy))
-        self.centerOn(scale_center, center.x())
+        self.setTransform(QtGui.QTransform.fromScale(float(sx), float(sy)))
         self._reset_ruler_scroll()
 
     def set_current_frame(self, frame):
@@ -135,14 +129,14 @@ class View(QtGui.QGraphicsView):
             if self.scale_x * factor > self.max_zoom_x:
                 return
 
-            self.scale(self.scale_x * factor, self.scale_y, scale_center=self.mapToScene(event.pos()).x())
+            self.scale(self.scale_x * factor, self.scale_y)
         else:
             factor = 2 ** (-event.delta() / 120)
 
             if self.scale_x / factor < self.min_zoom_x:
                 return
 
-            self.scale(self.scale_x / factor, self.scale_y, scale_center=self.mapToScene(event.pos()).x())
+            self.scale(self.scale_x / factor, self.scale_y)
 
     def handle_scene_rect_changed(self, rect):
         self._reset_ruler_scroll()
