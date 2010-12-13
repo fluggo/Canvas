@@ -30,14 +30,14 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
 
         def handle_updated(self, **kw):
             # Raise the frames_updated signal if the content of frames changed
-            if 'x' in kw or 'width' in kw or 'offset' in kw:
-                old_x, old_width, old_offset = self.workspace_item.x, self.workspace_item.width, self.workspace_item.offset
-                new_x, new_width, new_offset = kw.get('x', old_x), kw.get('width', old_width), kw.get('offset', old_offset)
+            if 'x' in kw or 'length' in kw or 'offset' in kw:
+                old_x, old_length, old_offset = self.workspace_item.x, self.workspace_item.length, self.workspace_item.offset
+                new_x, new_length, new_offset = kw.get('x', old_x), kw.get('length', old_length), kw.get('offset', old_offset)
                 old_right, new_right = old_x + old_width, new_x + new_width
 
                 self.workspace_item.update(
                     x=kw.get('x', old_x),
-                    width=kw.get('width', old_width),
+                    length=kw.get('length', old_length),
                     offset=kw.get('offset', old_offset)
                 )
 
@@ -81,7 +81,7 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
         if isinstance(item.source, model.StreamSourceRef):
             source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
 
-        workspace_item = self.workspace.add(x=item.x, width=item.width, offset=item.offset, source=source)
+        workspace_item = self.workspace.add(x=item.x, length=item.length, offset=item.offset, source=source)
 
         watcher = self.ItemWatcher(self, item, workspace_item)
         self.watchers[id(item)] = watcher

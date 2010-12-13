@@ -58,16 +58,16 @@ WorkspaceItem_get_x( py_obj_WorkspaceItem *self, void *closure ) {
 }
 
 static PyObject *
-WorkspaceItem_get_width( py_obj_WorkspaceItem *self, void *closure ) {
+WorkspaceItem_get_length( py_obj_WorkspaceItem *self, void *closure ) {
     if( !self->item ) {
         PyErr_SetString( PyExc_RuntimeError, "This object doesn't refer to a valid item anymore." );
         return NULL;
     }
 
-    int64_t width;
-    workspace_get_item_pos( self->item, NULL, &width, NULL );
+    int64_t length;
+    workspace_get_item_pos( self->item, NULL, &length, NULL );
 
-    return Py_BuildValue( "L", width );
+    return Py_BuildValue( "L", length );
 }
 
 static PyObject *
@@ -165,7 +165,7 @@ WorkspaceItem_set_tag( py_obj_WorkspaceItem *self, PyObject *value, void *closur
 
 static PyGetSetDef WorkspaceItem_getsetters[] = {
     { "x", (getter) WorkspaceItem_get_x, NULL, "X coordinate (start frame) of this item." },
-    { "width", (getter) WorkspaceItem_get_width, NULL, "Width (duration) of this item." },
+    { "length", (getter) WorkspaceItem_get_length, NULL, "Length (duration) of this item." },
     { "source", (getter) WorkspaceItem_get_source, (setter) WorkspaceItem_set_source, "Source for this item." },
     { "offset", (getter) WorkspaceItem_get_offset, (setter) WorkspaceItem_set_offset, "Offset into the source." },
     { "tag", (getter) WorkspaceItem_get_tag, (setter) WorkspaceItem_set_tag, "Optional user tag for data on this item." },
@@ -182,16 +182,16 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
     AudioSourceHolder *holder = workspace_get_item_source( self->item );
     PyObject *old_tag = (PyObject *) workspace_get_item_tag( self->item );
 
-    int64_t x = 0, z = 0, width = 0, offset = 0;
+    int64_t x = 0, z = 0, length = 0, offset = 0;
     PyObject *source = NULL, *tag = old_tag;
 
-    workspace_get_item_pos( self->item, &x, &width, &z );
+    workspace_get_item_pos( self->item, &x, &length, &z );
     offset = workspace_get_item_offset( self->item );
 
-    static char *kwlist[] = { "x", "width", "offset", "source", "tag", NULL };
+    static char *kwlist[] = { "x", "length", "offset", "source", "tag", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "|LLLOO", kwlist,
-            &x, &width, &z, &offset, &source, &tag ) )
+            &x, &length, &z, &offset, &source, &tag ) )
         return NULL;
 
     if( source ) {
@@ -207,13 +207,13 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
     gpointer sourceptr = &holder->source;
     gpointer tagptr = tag;
 
-    workspace_update_item( self->item, &x, &width, &z, &offset, &sourceptr, &tagptr );
+    workspace_update_item( self->item, &x, &length, &z, &offset, &sourceptr, &tagptr );
     Py_RETURN_NONE;
 }
 
 static PyMethodDef WorkspaceItem_methods[] = {
     { "update", (PyCFunction) WorkspaceItem_update, METH_VARARGS | METH_KEYWORDS,
-        "Update the properties of an item all at once. All are optional; specify x, width, offset, source, and tag as keyword parameters." },
+        "Update the properties of an item all at once. All are optional; specify x, length, offset, source, and tag as keyword parameters." },
     { NULL }
 };
 
@@ -348,14 +348,14 @@ AudioWorkspace_getItem( PyObject *self, Py_ssize_t i ) {
 
 static PyObject *
 AudioWorkspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
-    int64_t x = 0, width = 0, offset = 0;
+    int64_t x = 0, length = 0, offset = 0;
     AudioSourceHolder *holder = g_slice_new0( AudioSourceHolder );
     PyObject *source = NULL, *tag = NULL;
 
-    static char *kwlist[] = { "source", "offset", "x", "width", "tag", NULL };
+    static char *kwlist[] = { "source", "offset", "x", "length", "tag", NULL };
 
     if( !PyArg_ParseTupleAndKeywords( args, kw, "O|LLLO", kwlist,
-            &source, &offset, &x, &width, &tag ) )
+            &source, &offset, &x, &length, &tag ) )
         return NULL;
 
     if( !py_audio_take_source( source, holder ) )
@@ -364,7 +364,7 @@ AudioWorkspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
     if( tag )
         Py_INCREF(tag);
 
-    return item_to_python( self, workspace_add_item( PRIV(self)->workspace, &holder->source, x, width, offset, 0, tag ) );
+    return item_to_python( self, workspace_add_item( PRIV(self)->workspace, &holder->source, x, length, offset, 0, tag ) );
 }
 
 static PyObject *
