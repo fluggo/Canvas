@@ -27,7 +27,7 @@ from .thumbnails import ThumbnailPainter
 class Handle(QtGui.QGraphicsRectItem, Draggable):
     invisibrush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
 
-    def __init__(self, parent, ctrlcls):
+    def __init__(self, parent, ctrlcls, item=None):
         QtGui.QGraphicsRectItem.__init__(self, QtCore.QRectF(), parent)
         Draggable.__init__(self)
         self.brush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 1.0, 0.0))
@@ -38,6 +38,7 @@ class Handle(QtGui.QGraphicsRectItem, Draggable):
         self.setCursor(Qt.ArrowCursor)
         self.controller = None
         self.ctrlcls = ctrlcls
+        self.item = item or parent
 
     def hoverEnterEvent(self, event):
         self.setBrush(self.brush)
@@ -46,7 +47,7 @@ class Handle(QtGui.QGraphicsRectItem, Draggable):
         self.setBrush(self.invisibrush)
 
     def drag_start(self, view):
-        self.controller = self.ctrlcls(self.parentItem(), view)
+        self.controller = self.ctrlcls(self.item, view)
 
     def drag_move(self, view, abs_pos, rel_pos):
         self.controller.move(int(round(rel_pos.x() * self.parentItem().units_per_second)), rel_pos.y())
@@ -56,16 +57,16 @@ class Handle(QtGui.QGraphicsRectItem, Draggable):
         self.controller = None
 
 class HorizontalHandle(Handle):
-    def __init__(self, parent, ctrlcls):
-        Handle.__init__(self, parent, ctrlcls)
+    def __init__(self, parent, ctrlcls, item=None):
+        Handle.__init__(self, parent, ctrlcls, item=item)
         self.setCursor(Qt.SplitHCursor)
 
     def drag_move(self, view, abs_pos, rel_pos):
         self.controller.move(int(round(rel_pos.x() * self.parentItem().units_per_second)))
 
 class VerticalHandle(Handle):
-    def __init__(self, parent, ctrlcls):
-        Handle.__init__(self, parent, ctrlcls)
+    def __init__(self, parent, ctrlcls, item=None):
+        Handle.__init__(self, parent, ctrlcls, item=item)
         self.setCursor(Qt.SplitVCursor)
 
     def drag_move(self, view, abs_pos, rel_pos):
