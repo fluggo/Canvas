@@ -183,8 +183,8 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
         if( !PyArg_ParseTuple( v, "Oii", &sourceObj, &offset, &length ) )
             return -1;
 
-        if( length < 1 ) {
-            PyErr_SetString( PyExc_ValueError, "Length cannot be less than one." );
+        if( length < 0 ) {
+            PyErr_SetString( PyExc_ValueError, "Length cannot be less than zero." );
             return -1;
         }
 
