@@ -68,7 +68,7 @@ class ThumbnailPainter(object):
         if count == 1:
             self._thumbnail_indexes = [0]
         else:
-            self._thumbnail_indexes = [0 + int(float(a) * frame_count / (count - 1)) for a in range(count)]
+            self._thumbnail_indexes = [0 + int(float(a) * (frame_count - 1) / (count - 1)) for a in range(count)]
 
     def paint(self, painter, rect, clip_rect):
         # Figure out which thumbnails belong here and paint them
