@@ -227,7 +227,7 @@ class SceneItem(QtGui.QGraphicsItem):
 
     @property
     def max_length(self):
-        return self.format.length
+        return self.format.adjusted_length
 
     @property
     def z_order(self):
