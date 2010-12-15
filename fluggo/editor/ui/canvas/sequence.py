@@ -116,28 +116,78 @@ class _SequenceItemHandler(SceneItem):
         self.owner = owner
         self.item = item
         self._format = None
+        self._stream = None
 
         self.left_handle = HorizontalHandle(owner, _ItemLeftController, item)
-        self.left_handle.setZValue(1)
+        self.left_handle.setZValue(2)
         self.right_handle = HorizontalHandle(owner, _ItemRightController, self)
-        self.right_handle.setZValue(1)
+        self.right_handle.setZValue(2)
+
+    @property
+    def length(self):
+        return self.item.length
+
+    @property
+    def units_per_second(self):
+        return self.owner.units_per_second
+
+    @property
+    def height(self):
+        return self.owner.item_display_height
+
+    @property
+    def type(self):
+        return self.owner.type
+
+    @property
+    def source_ref(self):
+        return self.item.source
 
     def added_to_scene(self):
-        self.left_handle.setPos(float(self.item.x / self.owner.units_per_second), 0.0)
-        self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), 0.0)
+        SceneItem.added_to_scene(self)
 
-    def view_scale_changed(self, view):
+        self.setPos(float(self.item.x / self.owner.units_per_second), 0.0 if (self.item.index & 1 == 0) else self.owner.height - self.height)
+        self.left_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
+        self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), self.y())
+
+    def update_view_decorations(self, view):
         hx = view.handle_width / float(view.scale_x)
 
         self.left_handle.setRect(QtCore.QRectF(0.0, 0.0, hx, self.owner.item_display_height))
         self.right_handle.setRect(QtCore.QRectF(-hx, 0.0, hx, self.owner.item_display_height))
 
+    def y(self):
+        return 0.0 if (self.item.index & 1 == 0) else self.owner.height - self.height
+
     def item_updated(self, **kw):
         if 'x' in kw:
-            self.left_handle.setPos(float(self.item.x / self.owner.units_per_second), 0.0)
-            self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), 0.0)
+            self.left_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
+            self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), self.y())
         elif 'length' in kw:
-            self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), 0.0)
+            self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), self.y())
+            self.prepareGeometryChange()
+
+        # Changes requiring a reset of the thumbnails
+        # TODO: This resets thumbnails *way* more than is necessary
+        if self.painter and 'length' in kw:
+            self.painter.set_length(self.length)
+
+        if self.painter and 'offset' in kw:
+            self.painter.clear()
+
+        if 'x' in kw or 'height' in kw:
+            self.setPos(float(self.item.x / self.owner.units_per_second), self.y())
+
+    @property
+    def stream(self):
+        if not self._stream and self.source_ref:
+            source_ref = self.source_ref
+
+            if self.type == 'video':
+                self._stream = sources.VideoSource(self.scene().source_list.get_stream(source_ref.source_name, source_ref.stream_index))
+                self._stream.offset = self.item.offset
+
+        return self._stream
 
     @property
     def format(self):
@@ -148,6 +198,7 @@ class _SequenceItemHandler(SceneItem):
 
     def kill(self):
         self.owner.scene().removeItem(self.left_handle)
+        self.owner.scene().removeItem(self.right_handle)
 
 class VideoSequence(ClipItem):
     def __init__(self, sequence):
@@ -160,15 +211,14 @@ class VideoSequence(ClipItem):
 
         self.left_handle.hide()
         self.right_handle.hide()
-        self.top_handle.setZValue(2)
-        self.bottom_handle.setZValue(2)
+        self.top_handle.setZValue(3)
+        self.bottom_handle.setZValue(3)
 
         self.seq_items = [_SequenceItemHandler(item, self) for item in sequence]
-        x = 0
 
         for seq_item in self.seq_items:
-            seq_item.x = x
-            x += seq_item.item.length - seq_item.item.transition_length
+            seq_item.setParentItem(self)
+            seq_item.setVisible(self.item.expanded)
 
     @property
     def item_display_height(self):
@@ -177,6 +227,15 @@ class VideoSequence(ClipItem):
             return self.item.height * 3.0 / 7.0
         else:
             return self.item.height
+
+    def _update(self, **kw):
+        if 'height' in kw:
+            height = kw['height']
+
+            for seq_item in self.seq_items:
+                seq_item.item_updated(height=height)
+
+        ClipItem._update(self, **kw)
 
     def paint(self, painter, option, widget):
         if self.item.expanded:
@@ -200,12 +259,6 @@ class VideoSequence(ClipItem):
 
         for item in self.seq_items:
             item.added_to_scene()
-
-    def update_view_decorations(self, view):
-        ClipItem.update_view_decorations(self, view)
-
-        for item in self.seq_items:
-            item.view_scale_changed(view)
 
     def _handle_item_added(self, item):
         pass
