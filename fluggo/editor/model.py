@@ -54,7 +54,7 @@ class Space(ezlist.EZList):
         self._items[start:stop] = items
 
         for i, item in enumerate(self._items[start:], start):
-            item._scene = self
+            item._space = self
             item._z = i
 
         if len(old_item_set) > len(new_item_set):
@@ -80,7 +80,7 @@ class Space(ezlist.EZList):
         '''
         # Number the items as above
         for i, item in enumerate(self._items):
-            item._scene = self
+            item._space = self
             item._z = i
             item.fixup()
 
@@ -184,7 +184,7 @@ class Item(object):
     def __init__(self, x=0, y=0.0, length=1, height=1.0, type=None, anchor=None,
             anchor_target_offset=None, anchor_source_offset=None, anchor_visible=False, tags=None,
             ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None):
-        self._scene = None
+        self._space = None
         self._x = x
         self._y = y
         self._z = 0
@@ -270,6 +270,10 @@ class Item(object):
     def height(self):
         return self._height
 
+    @property
+    def space(self):
+        return self._space
+
     def z_sort_key(self, y=None, z=None):
         '''
         Get an object that can be used to sort items in video overlay order. *y* and *z*
@@ -314,10 +318,10 @@ class Item(object):
         '''
         Get a list of all items that directly or indirectly overlap this one.
         '''
-        return self._scene.find_overlaps_recursive(self)
+        return self._space.find_overlaps_recursive(self)
 
     def kill(self):
-        self._scene = None
+        self._space = None
 
     def fixup(self):
         '''
