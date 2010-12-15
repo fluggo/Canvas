@@ -451,6 +451,10 @@ class Sequence(Item, ezlist.EZList):
     def type(self):
         return self._type
 
+    @property
+    def expanded(self):
+        return self._expanded
+
     def __getitem__(self, index):
         return self._items[index]
 

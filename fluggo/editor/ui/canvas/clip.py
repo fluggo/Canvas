@@ -143,7 +143,141 @@ class ItemPositionController(Controller2D):
     def finalize(self):
         self._clear_snap_markers()
 
-class ClipItem(QtGui.QGraphicsItem):
+class SceneItem(QtGui.QGraphicsItem):
+    def __init__(self, painter, name):
+        QtGui.QGraphicsItem.__init__(self)
+
+        self.name = name
+        self.painter = painter
+
+        if self.painter:
+            self.painter.updated.connect(self._update_from_painter)
+
+        self._stream = None
+        self._format = None
+
+        self.setFlags(QtGui.QGraphicsItem.ItemIsSelectable |
+            QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
+        self.setAcceptHoverEvents(True)
+
+        self.view_reset_needed = False
+
+    def _update_from_painter(self):
+        self.update()
+
+    def itemChange(self, change, value):
+        if change == QtGui.QGraphicsItem.ItemSceneHasChanged:
+            self.added_to_scene()
+
+        return value
+
+    def reset_view_decorations(self):
+        self.view_reset_needed = True
+
+    def added_to_scene(self):
+        '''
+        Called when the item has been added to the scene, which is a fine time
+        to update any properties that require the scene, including the frame rate.
+        '''
+        if self.painter:
+            self.painter.set_stream(self.stream)
+            self.painter.set_length(self.length)
+
+    @property
+    def units_per_second(self):
+        '''
+        A float giving the number of units per second in the X axis.
+        This will typically be float(scene().frame_rate) or float(scene().sample_rate).
+        '''
+        if self.type == 'video':
+            return self.scene().frame_rate
+        elif self.type == 'audio':
+            return self.scene().sample_rate
+
+    @property
+    def source_ref(self):
+        return None
+
+    @property
+    def format(self):
+        if not self._format and self.source_ref:
+            source_ref = self.source_ref
+            self._format = self.scene().source_list[source_ref.source_name].streams[source_ref.stream_index]
+
+        return self._format
+
+    @property
+    def stream(self):
+        if not self._stream and self.source_ref:
+            source_ref = self.source_ref
+
+            if self.type == 'video':
+                self._stream = sources.VideoSource(self.scene().source_list.get_stream(source_ref.source_name, source_ref.stream_index))
+                self._stream.offset = self.item.offset
+
+        return self._stream
+
+    @property
+    def type(self):
+        return None
+
+    @property
+    def length(self):
+        return None
+
+    @property
+    def max_length(self):
+        return self.format.length
+
+    @property
+    def z_order(self):
+        return self._z_order
+
+    @z_order.setter
+    def z_order(self, value):
+        self._z_order = value
+
+        if -value != self.zValue():
+            self.setZValue(-value)
+
+    def update_view_decorations(self, view):
+        pass
+
+    def hoverEnterEvent(self, event):
+        view = event.widget().parentWidget()
+        self.update_view_decorations(view)
+
+    def hoverMoveEvent(self, event):
+        if self.view_reset_needed:
+            view = event.widget().parentWidget()
+            self.update_view_decorations(view)
+            self.view_reset_needed = False
+
+    def boundingRect(self):
+        return QtCore.QRectF(0.0, 0.0, self.length / self.units_per_second, self.height)
+
+    def paint(self, painter, option, widget):
+        rect = painter.transform().mapRect(self.boundingRect())
+        clip_rect = painter.transform().mapRect(option.exposedRect)
+
+        painter.save()
+        painter.resetTransform()
+
+        painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QtGui.QColor.fromRgbF(0.9, 0.9, 0.8))
+
+        if self.painter:
+            self.painter.paint(painter, rect, clip_rect)
+
+        if self.isSelected():
+            painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0, 0.5))
+
+        if self.name:
+            painter.setBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0))
+            painter.drawText(rect, Qt.TextSingleLine, self.name)
+
+        painter.restore()
+
+class ClipItem(SceneItem):
     class LeftController(Controller1D):
         def __init__(self, item, view):
             self.item = item.item
@@ -200,16 +334,15 @@ class ClipItem(QtGui.QGraphicsItem):
                 self.item.update(height=1)
 
     def __init__(self, item, name):
-        QtGui.QGraphicsItem.__init__(self)
+        painter = None
+
+        if item.type() == 'video':
+            painter = ThumbnailPainter()
+
+        SceneItem.__init__(self, painter, name)
+
         self.item = item
-
-        if hasattr(self.item, 'updated'):
-            self.item.updated.connect(self._update)
-
-        self.name = name
-        self.setFlags(QtGui.QGraphicsItem.ItemIsSelectable |
-            QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
-        self.setAcceptHoverEvents(True)
+        self.item.updated.connect(self._update)
 
         self.move_handle = Handle(self, ItemPositionController)
         self.left_handle = HorizontalHandle(self, self.LeftController)
@@ -217,23 +350,29 @@ class ClipItem(QtGui.QGraphicsItem):
         self.top_handle = VerticalHandle(self, self.TopController)
         self.bottom_handle = VerticalHandle(self, self.BottomController)
 
-        self.view_reset_needed = False
-
     @property
     def height(self):
         return self.item.height
 
-    def itemChange(self, change, value):
-        if change == QtGui.QGraphicsItem.ItemSceneHasChanged:
-            self._added_to_scene()
+    @property
+    def length(self):
+        return self.item.length
 
-        return value
+    @property
+    def type(self):
+        return self.item.type()
 
-    def _added_to_scene(self):
+    @property
+    def source_ref(self):
+        return self.item.source
+
+    def added_to_scene(self):
+        SceneItem.added_to_scene(self)
+
         # Set the things we couldn't without a parent
         self.setPos(self.item.x / self.units_per_second, self.item.y)
         self.bottom_handle.setPos(0.0, self.height)
-        self.right_handle.setPos(self.item.length / self.units_per_second, 0.0)
+        self.right_handle.setPos(self.length / self.units_per_second, 0.0)
 
     def _update(self, **kw):
         '''
@@ -250,41 +389,22 @@ class ClipItem(QtGui.QGraphicsItem):
             self.setPos(kw.get('x', pos.x() * self.units_per_second) / self.units_per_second, kw.get('y', pos.y()))
 
         # Changes in item size
+        # Changes requiring a reset of the thumbnails
+        # TODO: This resets thumbnails *way* more than is necessary
+        if self.painter and 'length' in kw:
+            self.painter.set_length(self.length)
+
+        if self.painter and 'offset' in kw:
+            self.painter.clear()
+
         if 'length' in kw or 'height' in kw:
-            self.right_handle.setPos(self.item.length / self.units_per_second, 0.0)
-            self.bottom_handle.setPos(0.0, self.item.height)
-            self.view_reset_needed = True
+            self.right_handle.setPos(self.length / self.units_per_second, 0.0)
+            self.bottom_handle.setPos(0.0, self.height)
+            self.reset_view_decorations()
 
             self.prepareGeometryChange()
 
-    @property
-    def units_per_second(self):
-        '''
-        A float giving the number of units per second in the X axis.
-        This will typically be float(scene().frame_rate) or float(scene().sample_rate).
-        '''
-        raise NotImplementedError
-
-    @property
-    def stream(self):
-        return None
-
-    @property
-    def max_length(self):
-        return self.stream.length
-
-    @property
-    def z_order(self):
-        return self._z_order
-
-    @z_order.setter
-    def z_order(self, value):
-        self._z_order = value
-
-        if -value != self.zValue():
-            self.setZValue(-value)
-
-    def view_scale_changed(self, view):
+    def update_view_decorations(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes
         # depending on the level of zoom in the view (not to mention separate sets of thumbnails)
         hx = view.handle_width / float(view.scale_x)
@@ -295,107 +415,4 @@ class ClipItem(QtGui.QGraphicsItem):
         self.right_handle.setRect(QtCore.QRectF(-hx, 0.0, hx, self.item.height))
         self.top_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, hy))
         self.bottom_handle.setRect(QtCore.QRectF(0.0, -hy, self.item.length / self.units_per_second, hy))
-
-    def hoverEnterEvent(self, event):
-        view = event.widget().parentWidget()
-        self.view_scale_changed(view)
-
-    def hoverMoveEvent(self, event):
-        if self.view_reset_needed:
-            view = event.widget().parentWidget()
-            self.view_scale_changed(view)
-            self.view_reset_needed = False
-
-    def boundingRect(self):
-        return QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.height)
-
-class VideoItem(ClipItem):
-    def __init__(self, item, name):
-        ClipItem.__init__(self, item, name)
-        self._thumbnail_painter = ThumbnailPainter()
-        self._thumbnail_painter.updated.connect(self._handle_thumbnails_updated)
-        self._thumbnail_painter.set_length(self.item.length)
-
-    @property
-    def units_per_second(self):
-        return float(self.scene().frame_rate)
-
-    def _added_to_scene(self):
-        ClipItem._added_to_scene(self)
-        self._thumbnail_painter.set_stream(self.stream)
-
-    def _handle_thumbnails_updated(self):
-        self.update()
-
-    def _update(self, **kw):
-        '''
-        Called by the item model to update our appearance.
-        '''
-        # Changes requiring a reset of the thumbnails
-        # TODO: This resets thumbnails *way* more than is necessary
-        if 'length' in kw:
-            self._thumbnail_painter.set_length(self.item.length)
-
-        if 'offset' in kw:
-            self._thumbnail_painter.clear()
-
-        ClipItem._update(self, **kw)
-
-    def paint(self, painter, option, widget):
-        rect = painter.transform().mapRect(self.boundingRect())
-        clip_rect = painter.transform().mapRect(option.exposedRect)
-
-        painter.save()
-        painter.resetTransform()
-
-        painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QtGui.QColor.fromRgbF(0.9, 0.9, 0.8))
-
-        self._thumbnail_painter.paint(painter, rect, clip_rect)
-
-        if self.isSelected():
-            painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0, 0.5))
-
-        if self.name:
-            painter.setBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0))
-            painter.drawText(rect, Qt.TextSingleLine, self.name)
-
-        painter.restore()
-
-class VideoClip(VideoItem):
-    def __init__(self, clip, name):
-        VideoItem.__init__(self, clip, name)
-        self._stream = None
-
-    @property
-    def stream(self):
-        if not self._stream:
-            self._stream = sources.VideoSource(self.scene().source_list.get_stream(self.item.source.source_name, self.item.source.stream_index))
-            self._stream.offset = self.item.offset
-
-        return self._stream
-
-class AudioItem(ClipItem):
-    def __init__(self, item, name):
-        ClipItem.__init__(self, item, name)
-
-    @property
-    def units_per_second(self):
-        return float(self.scene().sample_rate)
-
-    def paint(self, painter, option, widget):
-        rect = painter.transform().mapRect(self.boundingRect())
-        clip_rect = painter.transform().mapRect(option.exposedRect)
-
-        painter.save()
-        painter.resetTransform()
-
-        painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QtGui.QColor.fromRgbF(0.9, 0.9, 0.8))
-
-        painter.setBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0))
-        painter.drawText(rect, Qt.TextSingleLine, self.name)
-
-        painter.restore()
-
-class AudioClip(AudioItem):
-    pass
 

@@ -109,8 +109,10 @@ class _ItemRightController(Controller1D):
         if self.next_item:
             self.next_item.update(transition_length=self.original_trans_length + delta)
 
-class _SequenceItemHandler(object):
+class _SequenceItemHandler(SceneItem):
     def __init__(self, item, owner):
+        SceneItem.__init__(self, ThumbnailPainter(), None)
+
         self.owner = owner
         self.item = item
         self._format = None
@@ -147,9 +149,9 @@ class _SequenceItemHandler(object):
     def kill(self):
         self.owner.scene().removeItem(self.left_handle)
 
-class VideoSequence(VideoItem):
+class VideoSequence(ClipItem):
     def __init__(self, sequence):
-        VideoItem.__init__(self, sequence, None)
+        ClipItem.__init__(self, sequence, None)
         self.manager = None
 
         self.item.item_added.connect(self._handle_item_added)
@@ -170,7 +172,17 @@ class VideoSequence(VideoItem):
 
     @property
     def item_display_height(self):
-        return self.item.height
+        if self.item.expanded:
+            # Temporary: 3 top, 3 bottom, 1 middle
+            return self.item.height * 3.0 / 7.0
+        else:
+            return self.item.height
+
+    def paint(self, painter, option, widget):
+        if self.item.expanded:
+            painter.fillRect(self.boundingRect(), QtGui.QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QtGui.QColor.fromRgbF(0.9, 0.9, 0.8))
+        else:
+            ClipItem.paint(self, painter, option, widget)
 
     @property
     def stream(self):
@@ -179,14 +191,18 @@ class VideoSequence(VideoItem):
 
         return self.manager
 
-    def _added_to_scene(self):
-        VideoItem._added_to_scene(self)
+    @property
+    def format(self):
+        return self.scene().space.video_format
+
+    def added_to_scene(self):
+        ClipItem.added_to_scene(self)
 
         for item in self.seq_items:
             item.added_to_scene()
 
-    def view_scale_changed(self, view):
-        VideoItem.view_scale_changed(self, view)
+    def update_view_decorations(self, view):
+        ClipItem.update_view_decorations(self, view)
 
         for item in self.seq_items:
             item.view_scale_changed(view)

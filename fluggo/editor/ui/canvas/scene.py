@@ -45,20 +45,11 @@ class Scene(QtGui.QGraphicsScene):
         for item in self.space:
             self.handle_item_added(item)
 
-    def get_rate(self, item_type):
-        if item_type == 'video':
-            return self.frame_rate
-        elif item_type == 'audio':
-            return self.sample_rate
-
     def handle_item_added(self, item):
         ui_item = None
 
         if isinstance(item, model.Clip):
-            if item.type() == 'video':
-                ui_item = VideoClip(item, 'Clip')
-            elif item.type() == 'audio':
-                ui_item = AudioClip(item, 'Clip')
+            ui_item = ClipItem(item, 'Clip')
         elif isinstance(item, model.Sequence):
             if item.type() == 'video':
                 ui_item = VideoSequence(item)
