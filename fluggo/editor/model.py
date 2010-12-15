@@ -425,7 +425,7 @@ class Sequence(Item, ezlist.EZList):
         Item.__init__(self, **kw)
         self._type = type
         self._items = items if items is not None else []
-        self._expanded = False
+        self._expanded = expanded
 
         # Signal with signature signal(item)
         self.item_added = signal.Signal()
