@@ -160,7 +160,7 @@ class SceneItem(QtGui.QGraphicsItem):
             QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
 
-        self.view_reset_needed = False
+        self.view_reset_needed = True
 
     def _update_from_painter(self):
         self.update()
@@ -243,20 +243,15 @@ class SceneItem(QtGui.QGraphicsItem):
     def update_view_decorations(self, view):
         pass
 
-    def hoverEnterEvent(self, event):
-        view = event.widget().parentWidget()
-        self.update_view_decorations(view)
-
-    def hoverMoveEvent(self, event):
-        if self.view_reset_needed:
-            view = event.widget().parentWidget()
-            self.update_view_decorations(view)
-            self.view_reset_needed = False
-
     def boundingRect(self):
         return QtCore.QRectF(0.0, 0.0, self.length / self.units_per_second, self.height)
 
     def paint(self, painter, option, widget):
+        if self.view_reset_needed:
+            view = widget.parentWidget()
+            self.update_view_decorations(view)
+            self.view_reset_needed = False
+
         rect = painter.transform().mapRect(self.boundingRect())
         clip_rect = painter.transform().mapRect(option.exposedRect)
 

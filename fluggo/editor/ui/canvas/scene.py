@@ -151,4 +151,8 @@ class Scene(QtGui.QGraphicsScene):
     def scene_bottom(self):
         return 20000.0
 
+    def update_view_decorations(self, view):
+        for item in self.items():
+            if isinstance(item, SceneItem):
+                item.update_view_decorations(view)
 

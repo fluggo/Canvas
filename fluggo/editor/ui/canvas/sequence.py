@@ -239,6 +239,11 @@ class VideoSequence(ClipItem):
 
     def paint(self, painter, option, widget):
         if self.item.expanded:
+            if self.view_reset_needed:
+                view = widget.parentWidget()
+                self.update_view_decorations(view)
+                self.view_reset_needed = False
+
             painter.fillRect(self.boundingRect(), QtGui.QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QtGui.QColor.fromRgbF(0.9, 0.9, 0.8))
         else:
             ClipItem.paint(self, painter, option, widget)

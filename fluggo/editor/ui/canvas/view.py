@@ -88,6 +88,7 @@ class View(QtGui.QGraphicsView):
 
         self.setTransform(QtGui.QTransform.fromScale(float(sx), float(sy)))
         self._reset_ruler_scroll()
+        self.scene().update_view_decorations(self)
 
     def set_current_frame(self, frame):
         '''
