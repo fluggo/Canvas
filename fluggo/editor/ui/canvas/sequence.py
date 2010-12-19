@@ -25,6 +25,8 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from .thumbnails import ThumbnailPainter
 
+(LEVEL_ITEMS, LEVEL_MOVE_HANDLES, LEVEL_TRANSITION_HANDLES, LEVEL_TIME_HANDLES, LEVEL_HEIGHT_HANDLES) = range(5)
+
 class _ItemLeftController(Controller1D):
     def __init__(self, item, view):
         self.item = item
@@ -119,9 +121,9 @@ class _SequenceItemHandler(SceneItem):
         self._stream = None
 
         self.left_handle = HorizontalHandle(owner, _ItemLeftController, item)
-        self.left_handle.setZValue(2)
+        self.left_handle.setZValue(LEVEL_TIME_HANDLES)
         self.right_handle = HorizontalHandle(owner, _ItemRightController, self)
-        self.right_handle.setZValue(2)
+        self.right_handle.setZValue(LEVEL_TIME_HANDLES)
 
     @property
     def length(self):
@@ -211,14 +213,15 @@ class VideoSequence(ClipItem):
 
         self.left_handle.hide()
         self.right_handle.hide()
-        self.top_handle.setZValue(3)
-        self.bottom_handle.setZValue(3)
+        self.top_handle.setZValue(LEVEL_HEIGHT_HANDLES)
+        self.bottom_handle.setZValue(LEVEL_HEIGHT_HANDLES)
 
         self.seq_items = [_SequenceItemHandler(item, self) for item in sequence]
 
         for seq_item in self.seq_items:
             seq_item.setParentItem(self)
             seq_item.setVisible(self.item.expanded)
+            seq_item.setZValue(LEVEL_ITEMS)
 
     @property
     def item_display_height(self):
