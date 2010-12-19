@@ -366,6 +366,7 @@ class ClipItem(SceneItem):
 
         # Set the things we couldn't without a parent
         self.setPos(self.item.x / self.units_per_second, self.item.y)
+        self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.item.height))
         self.bottom_handle.setPos(0.0, self.height)
         self.right_handle.setPos(self.length / self.units_per_second, 0.0)
 
@@ -393,6 +394,7 @@ class ClipItem(SceneItem):
             self.painter.clear()
 
         if 'length' in kw or 'height' in kw:
+            self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.item.height))
             self.right_handle.setPos(self.length / self.units_per_second, 0.0)
             self.bottom_handle.setPos(0.0, self.height)
             self.reset_view_decorations()
@@ -405,7 +407,6 @@ class ClipItem(SceneItem):
         hx = view.handle_width / float(view.scale_x)
         hy = view.handle_width / float(view.scale_y)
 
-        self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.item.height))
         self.left_handle.setRect(QtCore.QRectF(0.0, 0.0, hx, self.item.height))
         self.right_handle.setRect(QtCore.QRectF(-hx, 0.0, hx, self.item.height))
         self.top_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, hy))
