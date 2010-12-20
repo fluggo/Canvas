@@ -295,8 +295,8 @@ class ClipItem(SceneItem):
             self.max_length = item.max_length
 
         def move(self, x):
-            if self.original_length + x > self.max_length:
-                self.item.update(length=self.max_length)
+            if self.original_length + self.item.offset + x > self.max_length:
+                self.item.update(length=self.max_length - self.item.offset)
             elif self.original_length > -x:
                 self.item.update(length=self.original_length + x)
             else:

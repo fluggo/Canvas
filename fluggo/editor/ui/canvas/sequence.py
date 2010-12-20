@@ -86,8 +86,8 @@ class _ItemRightController(Controller1D):
 
     def move(self, delta):
         # Don't move past the end of the clip
-        if self.original_length + delta > self.max_length:
-            delta = self.max_length - self.original_length
+        if self.original_length + self.item.offset + delta > self.max_length:
+            delta = self.max_length - self.original_length - self.item.offset
 
         # Don't make the clip shorter than one frame
         if self.original_length + delta < 1:
