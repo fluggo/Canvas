@@ -189,10 +189,7 @@ class SceneItem(QtGui.QGraphicsItem):
         A float giving the number of units per second in the X axis.
         This will typically be float(scene().frame_rate) or float(scene().sample_rate).
         '''
-        if self.type == 'video':
-            return self.scene().frame_rate
-        elif self.type == 'audio':
-            return self.scene().sample_rate
+        return self.scene().get_rate(self.type)
 
     @property
     def source_ref(self):

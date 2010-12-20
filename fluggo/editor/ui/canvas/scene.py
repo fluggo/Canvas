@@ -45,6 +45,12 @@ class Scene(QtGui.QGraphicsScene):
         for item in self.space:
             self.handle_item_added(item)
 
+    def get_rate(self, type_):
+        if type_ == 'video':
+            return self.frame_rate
+        elif type_ == 'audio':
+            return self.sample_rate
+
     def handle_item_added(self, item):
         ui_item = None
 
