@@ -7,6 +7,7 @@ from fluggo.media import process, timecode, qt, formats, sources, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
 from fluggo.editor import ui, model, graph
+import fluggo.editor
 
 from fluggo.media.muxers.ffmpeg import FFMuxPlugin
 
@@ -57,7 +58,7 @@ class SourceSearchModel(QAbstractTableModel):
     def mimeData(self, indexes):
         index = indexes[0]
         data = QMimeData()
-        data.source_name = self.current_list[index.row()]
+        data.obj = fluggo.editor.DragDropSource(self.current_list[index.row()])
 
         return data
 

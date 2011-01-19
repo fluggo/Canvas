@@ -22,9 +22,61 @@ from PyQt4.QtCore import Qt
 from ..canvas import *
 from fluggo import sortlist, signal
 from fluggo.editor import model
+import fluggo.editor
 
 class Scene(QtGui.QGraphicsScene):
     DEFAULT_HEIGHT = 40
+
+    class DragOp(object):
+        def lay_out(self, pos):
+            raise NotImplementedError
+
+        def leave(self):
+            raise NotImplementedError
+
+        def drop(self):
+            raise NotImplementedError
+
+    class SourceDragOp(DragOp):
+        def __init__(self, scene, source_name):
+            self.source_name = source_name
+            self.scene = scene
+
+            default_streams = scene.source_list.get_default_streams(source_name)
+
+            self.drag_items = [PlaceholderItem(source_name, stream_format, 0, 0, self.scene.DEFAULT_HEIGHT) for stream_format in default_streams]
+            self.drag_key_index = 0
+
+            for placeholder in self.drag_items:
+                scene.addItem(placeholder)
+
+        def lay_out(self, pos):
+            # All other items are placed in relation to the item at drag_key_index
+            item = self.drag_items[self.drag_key_index]
+            time = round(pos.x() * self.scene.get_rate(item.stream_format.type)) / self.scene.get_rate(item.stream_format.type)
+
+            for i, item in enumerate(self.drag_items):
+                item_time = round(time * self.scene.get_rate(item.stream_format.type)) / self.scene.get_rate(item.stream_format.type)
+                item.setPos(item_time, pos.y() + self.scene.DEFAULT_HEIGHT * (float(i) - 0.5))
+
+        def leave(self):
+            for item in self.drag_items:
+                self.scene.removeItem(item)
+
+        def drop(self):
+            # Turn them into real boys and girls
+            items = []
+
+            for item in self.drag_items:
+                rate = self.scene.get_rate(item.stream_format.type)
+
+                items.append(model.Clip(type=item.stream_format.type,
+                    source=model.StreamSourceRef(source_name=item.source_name, stream_index=item.stream_format.index),
+                    x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), length=item.width, height=item.height))
+
+                self.scene.removeItem(item)
+
+            self.scene.space[0:0] = items
 
     def __init__(self, space, source_list):
         QtGui.QGraphicsScene.__init__(self)
@@ -32,8 +84,7 @@ class Scene(QtGui.QGraphicsScene):
         self.space = space
         self.space.item_added.connect(self.handle_item_added)
         self.space.item_removed.connect(self.handle_item_removed)
-        self.drag_items = None
-        self.drag_key_index = 0
+        self.drag_op = None
         self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z, index_attr='z_order')
         self.marker_added = signal.Signal()
         self.marker_removed = signal.Signal()
@@ -82,20 +133,6 @@ class Scene(QtGui.QGraphicsScene):
     def resort_item(self, item):
         self.sort_list.move(item.z_order)
 
-    def _lay_out_drag_items(self, pos):
-        '''
-        Arrange the drag items in the scene.
-
-        pos - Position of the cursor in scene coordinates.
-        '''
-        # All other items are placed in relation to the item at drag_key_index
-        item = self.drag_items[self.drag_key_index]
-        time = round(pos.x() * self.get_rate(item.stream_format.type)) / self.get_rate(item.stream_format.type)
-
-        for i, item in enumerate(self.drag_items):
-            item_time = round(time * self.get_rate(item.stream_format.type)) / self.get_rate(item.stream_format.type)
-            item.setPos(item_time, pos.y() + self.DEFAULT_HEIGHT * (float(i) - 0.5))
-
     def add_marker(self, marker):
         self.markers.add(marker)
         self.marker_added(marker)
@@ -106,48 +143,26 @@ class Scene(QtGui.QGraphicsScene):
 
     def dragEnterEvent(self, event):
         data = event.mimeData()
+        obj = data.obj if hasattr(data, 'obj') else None
 
-        if hasattr(data, 'source_name'):
+        if isinstance(obj, fluggo.editor.DragDropSource):
+            self.drag_op = Scene.SourceDragOp(self, obj.source_name)
+            self.drag_op.lay_out(event.scenePos())
             event.accept()
-            source_name = data.source_name
-            default_streams = self.source_list.get_default_streams(source_name)
-
-            self.drag_items = [PlaceholderItem(source_name, stream_format, 0, 0, self.DEFAULT_HEIGHT) for stream_format in default_streams]
-
-            for placeholder in self.drag_items:
-                self.addItem(placeholder)
-
-            self._lay_out_drag_items(event.scenePos())
         else:
             event.ignore()
 
     def dragMoveEvent(self, event):
-        self._lay_out_drag_items(event.scenePos())
+        if self.drag_op:
+            self.drag_op.lay_out(event.scenePos())
 
     def dragLeaveEvent(self, event):
-        if self.drag_items:
-            for item in self.drag_items:
-                self.removeItem(item)
-
-            self.drag_items = None
+        if self.drag_op:
+            self.drag_op.leave()
 
     def dropEvent(self, event):
-        # Turn them into real boys and girls
-        items = []
-
-        for item in self.drag_items:
-            rate = self.frame_rate
-
-            if item.stream_format.type == 'audio':
-                rate = self.sample_rate
-
-            items.append(model.Clip(type=item.stream_format.type,
-                source=model.StreamSourceRef(source_name=item.source_name, stream_index=item.stream_format.index),
-                x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), length=item.width, height=item.height))
-
-            self.removeItem(item)
-
-        self.space[0:0] = items
+        if self.drag_op:
+            self.drag_op.drop()
 
     @property
     def scene_top(self):
