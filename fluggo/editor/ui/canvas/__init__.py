@@ -47,6 +47,12 @@ class Controller2D(object):
     def cancel(self):
         pass
 
+class DragDropSelection(object):
+    def __init__(self, space, objects, grab_pos):
+        self.space = space
+        self.objects = objects
+        self.grab_pos = grab_pos
+
 class Draggable(object):
     def __init__(self, drag_base=None):
         self.drag_active = False

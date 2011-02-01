@@ -159,6 +159,7 @@ class SceneItem(QtGui.QGraphicsItem):
         self.setFlags(QtGui.QGraphicsItem.ItemIsSelectable |
             QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
+        self.setCursor(Qt.ArrowCursor)
 
         self.view_reset_needed = True
 
@@ -269,6 +270,19 @@ class SceneItem(QtGui.QGraphicsItem):
 
         painter.restore()
 
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.LeftButton != Qt.LeftButton:
+            return
+
+        print 'clip start drag'
+        drag = QtGui.QDrag(event.widget())
+        data = QtCore.QMimeData()
+        data.obj = DragDropSelection(self.scene().space, self.scene().selected_items(), event.scenePos())
+        drag.setMimeData(data)
+        drag.setPixmap(QtGui.QPixmap())
+
+        drop_action = drag.exec_(Qt.CopyAction | Qt.MoveAction)
+
 class ClipItem(SceneItem):
     class LeftController(Controller1D):
         def __init__(self, item, view):
@@ -336,7 +350,6 @@ class ClipItem(SceneItem):
         self.item = item
         self.item.updated.connect(self._update)
 
-        self.move_handle = Handle(self, ItemPositionController)
         self.left_handle = HorizontalHandle(self, self.LeftController)
         self.right_handle = HorizontalHandle(self, self.RightController)
         self.top_handle = VerticalHandle(self, self.TopController)
@@ -363,7 +376,6 @@ class ClipItem(SceneItem):
 
         # Set the things we couldn't without a parent
         self.setPos(self.item.x / self.units_per_second, self.item.y)
-        self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.item.height))
         self.bottom_handle.setPos(0.0, self.height)
         self.right_handle.setPos(self.length / self.units_per_second, 0.0)
 
@@ -391,7 +403,6 @@ class ClipItem(SceneItem):
             self.painter.clear()
 
         if 'length' in kw or 'height' in kw:
-            self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.item.length / self.units_per_second, self.item.height))
             self.right_handle.setPos(self.length / self.units_per_second, 0.0)
             self.bottom_handle.setPos(0.0, self.height)
             self.reset_view_decorations()

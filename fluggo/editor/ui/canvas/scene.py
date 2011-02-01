@@ -84,6 +84,32 @@ class Scene(QtGui.QGraphicsScene):
 
             self.scene.space[0:0] = items
 
+    class SelectionDragOp(DragOp):
+        def __init__(self, scene, objects, grab_pos):
+            self.scene = scene
+            self.objects = objects
+            self.grab_pos = grab_pos
+            self.original_pos = [(item.x, item.y) if isinstance(item, model.Clip) else None for item in objects]
+            self.offset_pos = [(pos[0] - int(round(grab_pos.x() * float(self.scene.get_rate(objects[i].type())))), pos[1] - grab_pos.y()) if pos else None for i, pos in enumerate(self.original_pos)]
+
+        def lay_out(self, pos):
+            for i, item in enumerate(self.objects):
+                if self.original_pos[i] is None:
+                    continue
+
+                item.update(x=int(round(pos.x() * float(self.scene.get_rate(item.type())))) + self.offset_pos[i][0],
+                    y=pos.y() + self.offset_pos[i][1])
+
+        def leave(self):
+            for i, item in enumerate(self.objects):
+                if self.original_pos[i] is None:
+                    continue
+
+                item.update(x=self.original_pos[i][0], y=self.original_pos[i][1])
+
+        def drop(self):
+            pass
+
     def __init__(self, space, source_list):
         QtGui.QGraphicsScene.__init__(self)
         self.source_list = source_list
@@ -148,27 +174,51 @@ class Scene(QtGui.QGraphicsScene):
         self.marker_removed(marker)
 
     def dragEnterEvent(self, event):
-        data = event.mimeData()
-        obj = data.obj if hasattr(data, 'obj') else None
-
-        if isinstance(obj, fluggo.editor.DragDropSource):
-            self.drag_op = Scene.SourceDragOp(self, obj.source_name)
-            self.drag_op.lay_out(event.scenePos())
-            event.accept()
-        else:
-            event.ignore()
+        QtGui.QGraphicsScene.dragEnterEvent(self, event)
 
     def dragMoveEvent(self, event):
         if self.drag_op:
-            self.drag_op.lay_out(event.scenePos())
-
-    def dragLeaveEvent(self, event):
-        if self.drag_op:
             self.drag_op.leave()
 
-    def dropEvent(self, event):
+        QtGui.QGraphicsScene.dragMoveEvent(self, event)
+
         if self.drag_op:
+            if not event.isAccepted():
+                event.accept()
+                self.drag_op.lay_out(event.scenePos())
+            else:
+                self.drag_op = None
+        elif not event.isAccepted():
+            data = event.mimeData()
+            obj = data.obj if hasattr(data, 'obj') else None
+
+            if isinstance(obj, fluggo.editor.DragDropSource):
+                event.accept()
+                self.drag_op = Scene.SourceDragOp(self, obj.source_name)
+                self.drag_op.lay_out(event.scenePos())
+            elif isinstance(obj, DragDropSelection) and obj.space == self.space:
+                # Our own drag-and-drop items
+                event.accept()
+                self.drag_op = Scene.SelectionDragOp(self, obj.objects, obj.grab_pos)
+                self.drag_op.lay_out(event.scenePos())
+            else:
+                event.ignore()
+
+    def dragLeaveEvent(self, event):
+        QtGui.QGraphicsScene.dragLeaveEvent(self, event)
+
+        if self.drag_op:
+            event.accept()
+            self.drag_op.leave()
+            self.drag_op = None
+
+    def dropEvent(self, event):
+        QtGui.QGraphicsScene.dropEvent(self, event)
+
+        if self.drag_op:
+            event.accept()
             self.drag_op.drop()
+            self.drag_op = None
 
     @property
     def scene_top(self):

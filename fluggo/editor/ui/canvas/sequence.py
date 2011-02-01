@@ -264,6 +264,7 @@ class _SequenceItemHandler(SceneItem):
 class VideoSequence(ClipItem):
     def __init__(self, sequence):
         ClipItem.__init__(self, sequence, None)
+        self.setAcceptDrops(True)
         self.manager = None
 
         self.item.item_added.connect(self._handle_item_added)
@@ -326,6 +327,17 @@ class VideoSequence(ClipItem):
 
         for item in self.seq_items:
             item.added_to_scene()
+
+    def dragEnterEvent(self, event):
+        print 'sequence dragEnterEvent'
+        event.accept()
+
+    def dragMoveEvent(self, event):
+        print 'sequence dragMoveEvent'
+
+    def dragLeaveEvent(self, event):
+        print 'sequence dragLeaveEvent'
+        event.accept()
 
     def _handle_item_added(self, item):
         pass
