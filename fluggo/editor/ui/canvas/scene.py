@@ -41,14 +41,12 @@ class Scene(QtGui.QGraphicsScene):
         def __init__(self, scene, source_name):
             self.source_name = source_name
             self.scene = scene
+            self.present = False
 
             default_streams = scene.source_list.get_default_streams(source_name)
 
             self.drag_items = [PlaceholderItem(source_name, stream_format, 0, 0, self.scene.DEFAULT_HEIGHT) for stream_format in default_streams]
             self.drag_key_index = 0
-
-            for placeholder in self.drag_items:
-                scene.addItem(placeholder)
 
         def lay_out(self, pos):
             # All other items are placed in relation to the item at drag_key_index
@@ -59,9 +57,17 @@ class Scene(QtGui.QGraphicsScene):
                 item_time = round(time * self.scene.get_rate(item.stream_format.type)) / self.scene.get_rate(item.stream_format.type)
                 item.setPos(item_time, pos.y() + self.scene.DEFAULT_HEIGHT * (float(i) - 0.5))
 
+            if not self.present:
+                for placeholder in self.drag_items:
+                    self.scene.addItem(placeholder)
+
+                self.present = True
+
         def leave(self):
             for item in self.drag_items:
                 self.scene.removeItem(item)
+
+            self.present = False
 
         def drop(self):
             # Turn them into real boys and girls
