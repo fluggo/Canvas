@@ -22,6 +22,32 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from fluggo.media import timecode, process
 
+class RulerView(QtGui.QWidget):
+    '''This is a view combined with a ruler separately. It's a workaround for
+    a bug in whatever version of Qt is running on Ubuntu 10.04. Qt ignores the
+    viewport margins for determining where a drag operation has hit the scene;
+    it works just fine for normal mouse ops.'''
+    def __init__(self, clock, space, source_list):
+        QtGui.QWidget.__init__(self)
+        self.vbox = QtGui.QVBoxLayout(self)
+        self.vbox.setStretch(1, 1)
+        self.vbox.setSpacing(0)
+
+        width = self.style().pixelMetric(QtGui.QStyle.PM_DefaultFrameWidth)
+        self.vbox.setContentsMargins(width, 0, width, 0)
+
+        self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
+        self.view = View(clock, space, source_list, ruler=self.ruler)
+        self.view.setFrameShape(QtGui.QFrame.NoFrame)
+
+        self.vbox.addWidget(self.ruler)
+        self.vbox.addWidget(self.view)
+        self.setLayout(self.vbox)
+
+    def __getattr__(self, name):
+        # Pass on to the view
+        return getattr(self.view, name)
+
 class View(QtGui.QGraphicsView):
     black_pen = QtGui.QPen(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0))
     white_pen = QtGui.QPen(QtGui.QColor.fromRgbF(1.0, 1.0, 1.0))
@@ -32,17 +58,21 @@ class View(QtGui.QGraphicsView):
     max_zoom_x = 100000.0
     min_zoom_x = 0.01
 
-    def __init__(self, clock, space, source_list):
+    def __init__(self, clock, space, source_list, ruler=None):
         QtGui.QGraphicsView.__init__(self)
         self.setScene(Scene(space, source_list))
-        self.setViewportMargins(0, 30, 0, 0)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.setViewportUpdateMode(self.FullViewportUpdate)
         self.setResizeAnchor(self.AnchorUnderMouse)
         self.setTransformationAnchor(self.AnchorUnderMouse)
 
-        self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
-        self.ruler.move(self.frameWidth(), self.frameWidth())
+        self.ruler = ruler
+
+        if not self.ruler:
+            self.setViewportMargins(0, 30, 0, 0)
+            self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
+            self.ruler.move(self.frameWidth(), self.frameWidth())
+
         self._reset_ruler_scroll()
 
         # A warning: clock and clock_callback_handle will create a pointer cycle here,

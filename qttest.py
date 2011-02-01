@@ -125,7 +125,10 @@ class MainWindow(QMainWindow):
         self.clock = self.audio_player
         self.frame_rate = fractions.Fraction(24000, 1001)
 
-        self.view = ui.canvas.View(self.clock, self.space, self.source_list)
+        # Workaround for Qt bug (see RulerView)
+        #self.view = ui.canvas.View(self.clock, self.space, self.source_list)
+        self.view = ui.canvas.RulerView(self.clock, self.space, self.source_list)
+
         #self.view.setViewport(QGLWidget())
         self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
 
