@@ -72,6 +72,22 @@ class VerticalHandle(Handle):
     def drag_move(self, view, abs_pos, rel_pos):
         self.controller.move(rel_pos.y())
 
+class ItemDragController(Controller2D):
+    def __init__(self, item, view):
+        self.item = item
+        self.view = view
+
+        drag = QtGui.QDrag(self.view)
+        data = QtCore.QMimeData()
+        data.data_type = 'clip_selection'
+        data.items = [item]
+        drag.setMimeData(data)
+
+        drop_action = drag.exec_(Qt.MoveAction)
+
+    def move(self, x, y):
+        pass
+
 class ItemPositionController(Controller2D):
     def __init__(self, item, view):
         self.item = item
@@ -279,7 +295,10 @@ class SceneItem(QtGui.QGraphicsItem):
         data = QtCore.QMimeData()
         data.obj = DragDropSelection(self.scene().space, self.scene().selected_items(), event.scenePos())
         drag.setMimeData(data)
-        drag.setPixmap(QtGui.QPixmap())
+
+        pixmap = QtGui.QPixmap(1, 1)
+        pixmap.fill(QtGui.QColor(Qt.transparent))
+        drag.setPixmap(pixmap)
 
         drop_action = drag.exec_(Qt.CopyAction | Qt.MoveAction)
 

@@ -38,8 +38,9 @@ items:
 - !CanvasSequence
   x: 0
   y: 50.0
-  height: 30.0
+  height: 70.0
   type: video
+  expanded: true
   items:
   - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 0, length: 300}
   - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 1050, length: 300,

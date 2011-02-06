@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import yaml, collections
+import yaml, collections, itertools
 from fluggo import ezlist, sortlist, signal
 
 class Space(ezlist.EZList):
@@ -151,6 +151,7 @@ class _ZSortKey():
 
     def __str__(self):
         return 'key(y={0.y}, z={0.z})'.format(self)
+
 
 class Item(object):
     '''
@@ -651,4 +652,118 @@ _yamlreg(Clip)
 _yamlreg(StreamSourceRef)
 _yamlreg(Sequence)
 _yamlreg(SequenceItem)
+
+class ItemManipulator(object):
+    # TODO
+    # Identify adjacent items in a sequence and manipulate them as a unit
+    # Identify groups and manipulate them as a unit
+    # Find good algorithm for turning loose items into sequences
+    #  ^    Scratch: Only the item/sequence directly grabbed (listed first in self.items)
+    #       is placed in a sequence, and the rest arranged around it accordingly
+
+    class ClipManipulator(object):
+        '''Manipulates a lone clip.'''
+        def __init__(self, item, grab_x, grab_y):
+            self.item = item
+            self.original_x = item.x
+            self.original_y = item.y
+            self.original_scene = item.scene
+            self.offset_x = item.x - grab_x
+            self.offset_y = item.y - grab_y
+
+        def can_set_space_item(self, space, x, y):
+            return True
+
+        def set_space_item(self, space, x, y):
+            self.item.update(x=x + self.offset_x, y=y + self.offset_y)
+
+        def can_set_sequence_item(self, sequence, x):
+            return False
+
+        def set_sequence_item(self, sequence, x):
+            pass
+
+        def reset(self):
+            self.item.update(x=self.original_x, y=self.original_y)
+
+    class SequenceItemGroupManipulator(object):
+        '''Manipulates a set of adjacent sequence items.'''
+        def __init__(self, items, grab_x, grab_y):
+            self.items = items
+
+        def can_set_space_item(self, space, x, y):
+            return False
+
+        def set_space_item(self, space, x, y):
+            return False
+
+        def can_set_sequence_item(self, sequence, x):
+            return False
+
+        def set_sequence_item(self, sequence, x):
+            return False
+
+        def reset(self):
+            pass
+
+    class SequenceManipulator(object):
+        '''Manipulates an entire existing sequence.'''
+        def __init__(self, item, grab_x, grab_y):
+            self.seq = item
+            self.original_x = item.x
+            self.original_y = item.y
+            self.original_scene = item.scene
+            self.offset_x = item.x - grab_x
+            self.offset_y = item.y - grab_y
+
+        def can_set_space_item(self, space, x, y):
+            return True
+
+        def set_space_item(self, space, x, y):
+            self.item.update(x=x + self.offset_x, y=y + self.offset_y)
+
+        def can_set_sequence_item(self, sequence, x):
+            return False
+
+        def set_sequence_item(self, sequence, x):
+            pass
+
+        def reset(self):
+            self.item.update(x=self.original_x, y=self.original_y)
+
+    def __init__(self, items, grab_x, grab_y):
+        self.items = items
+        self.manips = []
+        seq_items = []
+
+        for item in items:
+            if isinstance(item, Clip):
+                self.manips.append(ClipManipulator(item, grab_x, grab_y))
+            elif isinstance(item, Sequence):
+                self.manips.append(SequenceManipulator(item, grab_x))
+            elif isinstance(item, SequenceItem):
+                seq_items.append(item)
+
+        # Sort and combine the sequence items
+        for itemlist in itertools.groupby(sorted(seq_items, cmp=lambda a, b: cmp(a.sequence, b.sequence) or cmp(a.index, b.index)), key=lambda a: a.sequence):
+            self.manips.append(SequenceItemGroupManipulator(itemlist, grab_x, grab_y)
+
+    def set_space_item(self, space, x, y):
+        if all(manip.set_space_item(space, x, y) for manip in self.manips):
+            return True
+
+        self.reset()
+        return False
+
+    def set_sequence_item(self, sequence, x):
+        if all(manip.set_sequence_item(sequence, x) for manip in self.manips):
+            return True
+
+        self.reset()
+        return False
+
+    def reset(self):
+        for manip in self.manips:
+            manip.reset()
+
 

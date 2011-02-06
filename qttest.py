@@ -99,6 +99,7 @@ muxers = (FFMuxPlugin,)
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
+        self.setMinimumHeight(600)
 
         self.source_list = sources.SourceList(muxers)
 
@@ -178,7 +179,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(center_widget)
 
         # FOR TESTING
-        #self.open_file('test.yaml')
+        self.open_file('test_timeline.yaml')
 
     def create_actions(self):
         self.open_space_action = QAction('&Open...', self,
