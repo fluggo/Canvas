@@ -163,6 +163,8 @@ class _ItemMoveController(Controller2D):
             self.next_item.update(transition_length=self.original_next_transition_length + delta)
 
 class _SequenceItemHandler(SceneItem):
+    drop_opaque = False
+
     def __init__(self, item, owner):
         SceneItem.__init__(self, ThumbnailPainter(), None)
 
@@ -268,47 +270,8 @@ class _SequenceItemHandler(SceneItem):
         self.owner.scene().removeItem(self.right_handle)
 
 class VideoSequence(ClipItem):
-    class DragOp(object):
-        def lay_out(self, pos):
-            raise NotImplementedError
-
-        def leave(self):
-            raise NotImplementedError
-
-        def drop(self):
-            raise NotImplementedError
-
-    class SelectionDragOp(DragOp):
-        def __init__(self, sequence, objects, grab_pos):
-            self.sequence = sequence
-            self.objects = objects
-            self.grab_pos = grab_pos
-            self.original_pos = [(item.x, item.y) if isinstance(item, model.Clip) else None for item in objects]
-            self.offset_pos = [(pos[0] - int(round(grab_pos.x() * float(self.scene.get_rate(objects[i].type())))), pos[1] - grab_pos.y()) if pos else None for i, pos in enumerate(self.original_pos)]
-            self.space = objects[0].space
-
-        def lay_out(self, pos):
-            for i, item in enumerate(self.objects):
-                if self.original_pos[i] is None:
-                    continue
-
-                if item.space:
-                    del self.space[item.z]
-
-        def leave(self):
-            for i, item in reversed(enumerate(self.objects)):
-                if self.original_pos[i] is None:
-                    continue
-
-                if not item.space:
-                    self.space.insert(item.z, item)
-
-        def drop(self):
-            pass
-
     def __init__(self, sequence):
         ClipItem.__init__(self, sequence, None)
-        self.setAcceptDrops(True)
         self.manager = None
 
         self.item.item_added.connect(self._handle_item_added)
@@ -371,33 +334,6 @@ class VideoSequence(ClipItem):
 
         for item in self.seq_items:
             item.added_to_scene()
-
-    def dragEnterEvent(self, event):
-        if QtGui.QApplication.keyboardModifiers() & Qt.ShiftModifier == Qt.ShiftModifier:
-            data = event.mimeData()
-            obj = data.obj if hasattr(data, 'obj') else None
-
-            if isinstance(obj, DragDropSelection) and obj.space == self.space:
-                # Our own drag-and-drop items
-                event.accept()
-                self.drag_op = Scene.SelectionDragOp(self, obj.objects, obj.grab_pos)
-                self.drag_op.lay_out(event.scenePos())
-            else:
-                event.ignore()
-        else:
-            event.ignore()
-
-    def dragMoveEvent(self, event):
-        if QtGui.QApplication.keyboardModifiers() & Qt.ShiftModifier == Qt.ShiftModifier:
-            event.accept()
-
-            # Position the item
-            
-        else:
-            event.ignore()
-
-    def dragLeaveEvent(self, event):
-        event.accept()
 
     def _handle_item_added(self, item):
         pass

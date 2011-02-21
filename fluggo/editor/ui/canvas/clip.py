@@ -160,6 +160,8 @@ class ItemPositionController(Controller2D):
         self._clear_snap_markers()
 
 class SceneItem(QtGui.QGraphicsItem):
+    drop_opaque = True
+
     def __init__(self, painter, name):
         QtGui.QGraphicsItem.__init__(self)
 
@@ -427,6 +429,9 @@ class ClipItem(SceneItem):
             self.reset_view_decorations()
 
             self.prepareGeometryChange()
+
+        if 'in_motion' in kw:
+            self.setOpacity(0.5 if self.item.in_motion else 1.0)
 
     def update_view_decorations(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes

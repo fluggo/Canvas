@@ -202,6 +202,7 @@ class Item(object):
         self._anchor_source_offset = anchor_source_offset
         self._anchor_visible = anchor_visible
         self._tags = set(tags) if tags else set()
+        self.in_motion = False
 
     def _create_repr_dict(self):
         result = {
@@ -313,6 +314,9 @@ class Item(object):
         if 'z' in kw:
             self._z = int(kw['z'])
 
+        if 'in_motion' in kw:
+            self.in_motion = bool(kw['in_motion'])
+
         self.updated(**kw)
 
     def overlap_items(self):
@@ -389,6 +393,18 @@ class Clip(Item):
     @property
     def offset(self):
         return self._offset
+
+class PlaceholderItem(Item):
+    def __init__(self, copy):
+        Item.__init__(self,
+            x=copy.x,
+            y=copy.y,
+            length=copy.length,
+            height=copy.height,
+            type=copy.type())
+
+    def _create_repr_dict(self):
+        raise NotImplementedError
 
 class StreamSourceRef(object):
     '''
@@ -549,6 +565,12 @@ class SequenceItem(object):
     yaml_tag = u'!CanvasSequenceItem'
 
     def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0):
+        if length < 1:
+            raise ValueError('length cannot be less than 1 ({0} was given)'.format(length))
+
+        if transition_length < 0:
+            raise ValueError('transition_length cannot be less than 0 ({0} was given)'.format(length))
+
         self._source = source
         self._offset = offset
         self._length = length
@@ -557,6 +579,7 @@ class SequenceItem(object):
         self._sequence = None
         self._index = None
         self._x = 0
+        self.in_motion = False
 
     def update(self, **kw):
         '''
@@ -573,14 +596,25 @@ class SequenceItem(object):
 
         if 'length' in kw:
             new_length = int(kw['length'])
+
+            if new_length < 1:
+                raise ValueError('length cannot be less than 1 ({0} was given)'.format(new_length))
+
             lendiff += new_length - self._length
             self._length = new_length
+
+        if 'in_motion' in kw:
+            self.in_motion = bool(kw['in_motion'])
 
         if 'transition' in kw:
             self._transition = kw['transition']
 
         if 'transition_length' in kw:
             new_length = int(kw['transition_length'])
+
+            if new_length < 0:
+                raise ValueError('transition_length cannot be less than zero ({0} was given)'.format(new_length))
+
             xdiff -= new_length - self._transition_length
             self._transition_length = new_length
 
@@ -642,6 +676,9 @@ class SequenceItem(object):
         self._sequence = None
         self._index = None
 
+    def __str__(self):
+        return yaml.dump(self)
+
 
 def _yamlreg(cls):
     yaml.add_representer(cls, cls.to_yaml)
@@ -667,24 +704,110 @@ class ItemManipulator(object):
             self.item = item
             self.original_x = item.x
             self.original_y = item.y
-            self.original_scene = item.scene
+            self.original_space = item.space
             self.offset_x = item.x - grab_x
             self.offset_y = item.y - grab_y
+            self.seq_item = None
+            self.placeholder = PlaceholderItem(item)
 
         def can_set_space_item(self, space, x, y):
             return True
 
         def set_space_item(self, space, x, y):
-            self.item.update(x=x + self.offset_x, y=y + self.offset_y)
+            print 'clip.set_space_item'
+            if self.seq_item and self.seq_item.sequence:
+                del self.seq_item.sequence[self.seq_item.index]
+                self.seq_item = None
 
-        def can_set_sequence_item(self, sequence, x):
+            if not self.item.space:
+                self.placeholder.space[self.placeholder.index] = self.item
+
+            self.item.update(x=x + self.offset_x, y=y + self.offset_y, in_motion=True)
+            return True
+
+        def can_set_sequence_item(self, sequence, x, operation):
+            return self.set_sequence_item(sequence, x, operation, do_it=False)
+
+        def set_sequence_item(self, sequence, x, operation, do_it=True):
+            if operation == 'add':
+                return self._set_sequence_add(sequence, x, do_it=do_it)
+
             return False
 
-        def set_sequence_item(self, sequence, x):
-            pass
+        def _set_sequence_add(self, sequence, x, do_it=True):
+            # For the first pass at this, we'll just do inserting in place
+            # Later we can come back for overwriting or proper insertion
+
+            # Simpler first: remove the item from the sequence before putting it back
+            # TODO: See if we can just move it
+            if self.seq_item and self.seq_item.sequence:
+                del self.seq_item.sequence[self.seq_item.index]
+                self.seq_item = None
+
+            prev_item, current_item, next_item = None, None, sequence[0]
+            start_x = x + self.offset_x
+            end_x = x + self.offset_x + self.item.length
+
+            while next_item and next_item.x + next_item.length >= start_x:
+                prev_item = current_item
+                current_item = next_item
+                next_item = sequence[current_item.index + 1] if current_item.index + 1 < len(sequence) else None
+
+                if start_x > current_item.x:
+                    continue
+
+                # Don't let it end before this item
+                if end_x < current_item.x:
+                    return False
+
+                # If we run over the end of the current one...
+                if end_x > (current_item.x + current_item.length):
+                    if start_x == current_item.x:
+                        # This one belongs at the next position
+                        continue
+                    else:
+                        # It dominates this one, can't do it
+                        return False
+
+                # If we already have a transition here, nothing will fit
+                if current_item.transition_length:
+                    return False
+
+                # If there's a next transition (or even just a cut), don't run over it
+                next_trans_start_x = (current_item.x + current_item.length - next_item.transition_length) if next_item else None
+
+                if next_trans_start_x and end_x > next_trans_start_x:
+                    return False
+
+                if do_it:
+                    self.seq_item = SequenceItem(source=self.item.source,
+                        length=self.item.length,
+                        offset=self.item.offset,
+                        transition_length=current_item.x - start_x if prev_item else 0)
+
+                    print self.seq_item
+
+                    sequence.insert(current_item.index, self.seq_item)
+                    current_item.update(transition_length=end_x - current_item.x)
+
+                    if not prev_item:
+                        # Move the sequence to account for the new item
+                        self.sequence.update(x=self.sequence.x + (self.item.length - current_item.transition_length))
+
+                    if item.space:
+                        self.item.space[self.item.index] = self.placeholder
+
+                return True
+
+            return False
 
         def reset(self):
-            self.item.update(x=self.original_x, y=self.original_y)
+            self.set_space_item(None, self.original_x - self.offset_x, self.original_y - self.offset_y)
+            self.item.update(in_motion=False)
+
+        def finish(self):
+            self.item.update(in_motion=False)
+            return True
 
     class SequenceItemGroupManipulator(object):
         '''Manipulates a set of adjacent sequence items.'''
@@ -706,6 +829,9 @@ class ItemManipulator(object):
         def reset(self):
             pass
 
+        def finish(self):
+            pass
+
     class SequenceManipulator(object):
         '''Manipulates an entire existing sequence.'''
         def __init__(self, item, grab_x, grab_y):
@@ -721,6 +847,7 @@ class ItemManipulator(object):
 
         def set_space_item(self, space, x, y):
             self.item.update(x=x + self.offset_x, y=y + self.offset_y)
+            return True
 
         def can_set_sequence_item(self, sequence, x):
             return False
@@ -731,6 +858,9 @@ class ItemManipulator(object):
         def reset(self):
             self.item.update(x=self.original_x, y=self.original_y)
 
+        def finish(self):
+            pass
+
     def __init__(self, items, grab_x, grab_y):
         self.items = items
         self.manips = []
@@ -738,15 +868,18 @@ class ItemManipulator(object):
 
         for item in items:
             if isinstance(item, Clip):
-                self.manips.append(ClipManipulator(item, grab_x, grab_y))
+                self.manips.append(self.ClipManipulator(item, grab_x, grab_y))
             elif isinstance(item, Sequence):
-                self.manips.append(SequenceManipulator(item, grab_x))
+                self.manips.append(self.SequenceManipulator(item, grab_x))
             elif isinstance(item, SequenceItem):
                 seq_items.append(item)
 
         # Sort and combine the sequence items
         for itemlist in itertools.groupby(sorted(seq_items, cmp=lambda a, b: cmp(a.sequence, b.sequence) or cmp(a.index, b.index)), key=lambda a: a.sequence):
-            self.manips.append(SequenceItemGroupManipulator(itemlist, grab_x, grab_y)
+            self.manips.append(self.SequenceItemGroupManipulator(itemlist, grab_x, grab_y))
+
+    def can_set_space_item(self, space, x, y):
+        return all(manip.can_set_space_item(space, x, y) for manip in self.manips)
 
     def set_space_item(self, space, x, y):
         if all(manip.set_space_item(space, x, y) for manip in self.manips):
@@ -755,8 +888,11 @@ class ItemManipulator(object):
         self.reset()
         return False
 
-    def set_sequence_item(self, sequence, x):
-        if all(manip.set_sequence_item(sequence, x) for manip in self.manips):
+    def can_set_sequence_item(self, sequence, x, operation):
+        return all(manip.can_set_sequence_item(sequence, x, operation) for manip in self.manips)
+
+    def set_sequence_item(self, sequence, x, operation):
+        if all(manip.set_sequence_item(sequence, x, operation) for manip in self.manips):
             return True
 
         self.reset()
@@ -765,5 +901,12 @@ class ItemManipulator(object):
     def reset(self):
         for manip in self.manips:
             manip.reset()
+
+    def finish(self):
+        if all(manip.finish() for manip in self.manips):
+            return True
+
+        self.reset()
+        return False
 
 
