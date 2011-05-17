@@ -247,3 +247,75 @@ class test_SequenceVideoManager(unittest.TestCase):
 
         self.check1(manager)
 
+    def check2(self, source):
+        # Five frames of red, crossfade to green, then immediately crossfade to blue
+        colors = [getcolor(source, i) for i in range(0, 25)]
+
+        # Red from one
+        for i in range(0, 5):
+            msg = 'Wrong color in frame ' + str(i)
+            self.assertAlmostEqual(float(i + 1), colors[i].r, 6, msg)
+            self.assertAlmostEqual(0.0, colors[i].g, 6, msg)
+            self.assertAlmostEqual(0.0, colors[i].b, 6, msg)
+            self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
+
+        # Fade to green
+        for i in range(5, 10):
+            msg = 'Wrong color in frame ' + str(i)
+            self.assertAlmostEqual(float(i + 1) * (1.0 - float(i - 5) / 5.0), colors[i].r, 6, msg)
+            self.assertAlmostEqual(float(i - 5 + 1) * float(i - 5) / 5.0, colors[i].g, 6, msg)
+            self.assertAlmostEqual(0.0, colors[i].b, 6, msg)
+            self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
+
+        # Fade to blue
+        for i in range(10, 15):
+            msg = 'Wrong color in frame ' + str(i)
+            self.assertAlmostEqual(0.0, colors[i].r, 6, msg)
+            self.assertAlmostEqual(float(i - 5 + 1) * (1.0 - float(i - 10) / 5.0), colors[i].g, 6, msg)
+            self.assertAlmostEqual(float(i - 10 + 1) * float(i - 10) / 5.0, colors[i].b, 6, msg)
+            self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
+
+        # Blue from 15
+        for i in range(15, 20):
+            msg = 'Wrong color in frame ' + str(i)
+            self.assertAlmostEqual(0.0, colors[i].r, 6, msg)
+            self.assertAlmostEqual(0.0, colors[i].g, 6, msg)
+            self.assertAlmostEqual(float(i - 10 + 1), colors[i].b, 6, msg)
+            self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
+
+        for i in range(20, 25):
+            msg = 'Frame {0} should be empty ({1} instead)'.format(i, colors[i])
+            self.assertEqual(None, colors[i], msg)
+
+    def test_2_start(self):
+        '''Start in the correct position'''
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=5),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
+
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        self.check2(manager)
+
+    def test_2_add_transitions(self):
+        '''Add both transitions'''
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10)])
+
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        sequence[1].update(transition_length=5)
+        sequence[2].update(transition_length=5)
+        self.check2(manager)
+
+    def test_2_add_green(self):
+        '''Add green'''
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=5)])
+
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        sequence.insert(1, model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=5))
+        self.check2(manager)
+

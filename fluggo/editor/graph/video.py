@@ -174,6 +174,13 @@ class SequenceVideoManager(sources.VideoSource):
         self._handle_item_updated(item, offset=item.offset, source=item.source,
             length=item.length, transition_length=item.transition_length)
 
+        # We don't have the source for the next clip, so grab it
+        watcher = self.watchers[item.index]
+        next_watcher = item.index + 1 < len(self.watchers) and self.watchers[item.index + 1]
+
+        if next_watcher:
+            watcher.source_b.set_source(next_watcher.source_a.source())
+
     def _handle_items_removed(self, start, stop):
         # Get enough info to send an update
         start_frame = self.watchers[start].seq_item.x
