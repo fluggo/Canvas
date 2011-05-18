@@ -107,7 +107,7 @@ class SpaceVideoManager(sources.VideoSource):
 
         if isinstance(item, model.Sequence):
             source = SequenceVideoManager(item, self.source_list, self.format)
-        elif isinstance(item.source, model.StreamSourceRef):
+        elif hasattr(item, 'source') and isinstance(item.source, model.StreamSourceRef):
             source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
             offset = item.offset
 
