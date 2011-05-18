@@ -232,7 +232,7 @@ class _SequenceItemHandler(SceneItem):
         elif 'length' in kw:
             self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), self.y())
 
-        if 'length' in kw or 'height' in kw:
+        if 'length' in kw or 'height' in kw or 'index' in kw:
             self.setPos(float(self.item.x / self.owner.units_per_second), 0.0 if (self.item.index & 1 == 0) else self.owner.height - self.height)
             self.move_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
             self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.length / self.units_per_second, self.owner.item_display_height))
