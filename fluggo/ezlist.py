@@ -116,8 +116,8 @@ class EZList(collections.MutableSequence):
             i = 0
 
             for j in range(start, stop, step):
-                if i < len(clips):
-                    self._replace_range(j, j + 1, [clips[i]])
+                if i < len(items):
+                    self._replace_range(j, j + 1, [items[i]])
                 else:
                     self._replace_range(j, j + 1, [])
 
