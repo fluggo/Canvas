@@ -342,10 +342,19 @@ class VideoSequence(ClipItem):
             item.added_to_scene()
 
     def _handle_item_added(self, item):
-        pass
+        seq_item = _SequenceItemHandler(item, self)
+        self.seq_items.insert(item.index, seq_item)
+
+        seq_item.setParentItem(self)
+        seq_item.setVisible(self.item.expanded)
+        seq_item.setZValue(LEVEL_ITEMS)
 
     def _handle_items_removed(self, start, stop):
-        pass
+        print 'start, stop = {0}, {1}'.format(start, stop)
+        for a in self.seq_items[start:stop]:
+            self.scene().removeItem(a)
+
+        del self.seq_items[start:stop]
 
     def _handle_item_updated(self, item, **kw):
         self.seq_items[item.index].item_updated(**kw)
