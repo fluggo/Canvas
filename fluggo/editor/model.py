@@ -708,6 +708,7 @@ class ItemManipulator(object):
             self.offset_x = item.x - grab_x
             self.offset_y = item.y - grab_y
             self.seq_item = None
+            self.seq_item_op = None
             self.placeholder = PlaceholderItem(item)
 
         def can_set_space_item(self, space, x, y):
@@ -715,12 +716,12 @@ class ItemManipulator(object):
 
         def set_space_item(self, space, x, y):
             print 'clip.set_space_item'
-            if self.seq_item and self.seq_item.sequence:
-                del self.seq_item.sequence[self.seq_item.index]
-                self.seq_item = None
+            self._undo_sequence()
 
             if not self.item.space:
-                self.placeholder.space[self.placeholder.index] = self.item
+                print 'restoring item'
+                self.placeholder.space[self.placeholder.z] = self.item
+                print 'item restored at ' + str(self.item.z)
 
             self.item.update(x=x + self.offset_x, y=y + self.offset_y, in_motion=True)
             return True
@@ -740,9 +741,7 @@ class ItemManipulator(object):
 
             # Simpler first: remove the item from the sequence before putting it back
             # TODO: See if we can just move it
-            if self.seq_item and self.seq_item.sequence:
-                del self.seq_item.sequence[self.seq_item.index]
-                self.seq_item = None
+            self._undo_sequence()
 
             prev_item, current_item, next_item = None, None, sequence[0]
             start_x = x + self.offset_x
@@ -785,21 +784,49 @@ class ItemManipulator(object):
                         offset=self.item.offset,
                         transition_length=current_item.x - start_x if prev_item else 0)
 
-                    print self.seq_item
+                    new_trans_length = end_x - current_item.x
+                    current_item.update(transition_length=0)
 
                     sequence.insert(current_item.index, self.seq_item)
-                    current_item.update(transition_length=end_x - current_item.x)
+                    current_item.update(transition_length=new_trans_length)
 
                     if not prev_item:
                         # Move the sequence to account for the new item
-                        self.sequence.update(x=self.sequence.x + (self.item.length - current_item.transition_length))
+                        sequence.update(x=self.sequence.x - (self.item.length - current_item.transition_length))
 
-                    if item.space:
-                        self.item.space[self.item.index] = self.placeholder
+                    if self.item.space:
+                        self.item.space[self.item.z] = self.placeholder
+
+                    self.seq_item_op = 'add'
 
                 return True
 
             return False
+
+        def _undo_sequence(self):
+            if not self.seq_item or not self.seq_item.sequence:
+                return
+
+            if self.seq_item_op == 'add':
+                self._undo_sequence_add()
+
+        def _undo_sequence_add(self):
+            index = self.seq_item.index
+            sequence = self.seq_item.sequence
+
+            next_item = sequence[index + 1] if len(sequence) > index + 1 else None
+
+            del sequence[index]
+
+            if index == 0 and next_item:
+                # Really, for index == 0, there will always be a next_item,
+                # but this makes it clearer
+                # Move the sequence back where it was
+                sequence[0].update(x=sequence.x + (self.seq_item.length - next_item.transition_length))
+
+            next_item.update(transition_length=0)
+
+            self.seq_item = None
 
         def reset(self):
             self.set_space_item(None, self.original_x - self.offset_x, self.original_y - self.offset_y)
@@ -820,10 +847,10 @@ class ItemManipulator(object):
         def set_space_item(self, space, x, y):
             return False
 
-        def can_set_sequence_item(self, sequence, x):
+        def can_set_sequence_item(self, sequence, x, operation):
             return False
 
-        def set_sequence_item(self, sequence, x):
+        def set_sequence_item(self, sequence, x, operation):
             return False
 
         def reset(self):
