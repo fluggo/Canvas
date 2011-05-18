@@ -209,6 +209,12 @@ class _SequenceItemHandler(SceneItem):
         self.move_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
         self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.length / self.units_per_second, self.owner.item_display_height))
 
+    def removed_from_scene(self):
+        SceneItem.removed_from_scene(self)
+
+        for a in (self.left_handle, self.right_handle, self.move_handle):
+            a.scene().removeItem(a)
+
     def update_view_decorations(self, view):
         hx = view.handle_width / float(view.scale_x)
 

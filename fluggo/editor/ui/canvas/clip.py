@@ -186,7 +186,10 @@ class SceneItem(QtGui.QGraphicsItem):
 
     def itemChange(self, change, value):
         if change == QtGui.QGraphicsItem.ItemSceneHasChanged:
-            self.added_to_scene()
+            if self.scene():
+                self.added_to_scene()
+            else:
+                self.removed_from_scene()
 
         return value
 
@@ -201,6 +204,9 @@ class SceneItem(QtGui.QGraphicsItem):
         if self.painter:
             self.painter.set_stream(self.stream)
             self.painter.set_length(self.length)
+
+    def removed_from_scene(self):
+        pass
 
     @property
     def units_per_second(self):
@@ -404,6 +410,9 @@ class ClipItem(SceneItem):
         '''
         Called by the item model to update our appearance.
         '''
+        if not self.scene():
+            return
+
         # Alter the apparent Z-order of the item
         if 'z' in kw:
             self.scene().resort_item(self)
