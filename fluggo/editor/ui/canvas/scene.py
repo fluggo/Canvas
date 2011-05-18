@@ -126,9 +126,6 @@ class Scene(QtGui.QGraphicsScene):
         return [item.item for item in self.selectedItems() if isinstance(item, ClipItem)]
 
     def handle_item_removed(self, item):
-        if item.type() != 'video':
-            return
-
         for ui_item in self.sort_list:
             if ui_item.item is not item:
                 continue
