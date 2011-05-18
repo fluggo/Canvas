@@ -182,7 +182,7 @@ class View(QtGui.QGraphicsView):
     def scrollContentsBy(self, dx, dy):
         QtGui.QGraphicsView.scrollContentsBy(self, dx, dy)
 
-        if dx:
+        if dx and self.scene():
             self._reset_ruler_scroll()
 
     def _reset_ruler_scroll(self):
