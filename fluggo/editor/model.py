@@ -838,7 +838,7 @@ class ItemManipulator(object):
             self.seq = item
             self.original_x = item.x
             self.original_y = item.y
-            self.original_scene = item.scene
+            self.original_space = item.space
             self.offset_x = item.x - grab_x
             self.offset_y = item.y - grab_y
 
@@ -846,20 +846,20 @@ class ItemManipulator(object):
             return True
 
         def set_space_item(self, space, x, y):
-            self.item.update(x=x + self.offset_x, y=y + self.offset_y)
+            self.seq.update(x=x + self.offset_x, y=y + self.offset_y)
             return True
 
-        def can_set_sequence_item(self, sequence, x):
+        def can_set_sequence_item(self, sequence, x, operation):
             return False
 
-        def set_sequence_item(self, sequence, x):
+        def set_sequence_item(self, sequence, x, operation):
             pass
 
         def reset(self):
-            self.item.update(x=self.original_x, y=self.original_y)
+            self.seq.update(x=self.original_x, y=self.original_y)
 
         def finish(self):
-            pass
+            return True
 
     def __init__(self, items, grab_x, grab_y):
         self.items = items
@@ -870,7 +870,7 @@ class ItemManipulator(object):
             if isinstance(item, Clip):
                 self.manips.append(self.ClipManipulator(item, grab_x, grab_y))
             elif isinstance(item, Sequence):
-                self.manips.append(self.SequenceManipulator(item, grab_x))
+                self.manips.append(self.SequenceManipulator(item, grab_x, grab_y))
             elif isinstance(item, SequenceItem):
                 seq_items.append(item)
 
