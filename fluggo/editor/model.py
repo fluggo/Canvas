@@ -23,6 +23,7 @@ class Space(ezlist.EZList):
     yaml_tag = u'!CanvasSpace'
 
     def __init__(self, video_format, audio_format):
+        ezlist.EZList.__init__(self)
         self.item_added = signal.Signal()
         self.item_removed = signal.Signal()
         self._items = []
@@ -52,6 +53,7 @@ class Space(ezlist.EZList):
             item.kill()
 
         self._items[start:stop] = items
+        self._update_marks(start, stop, len(items))
 
         for i, item in enumerate(self._items[start:], start):
             item._space = self
@@ -440,6 +442,7 @@ class Sequence(Item, ezlist.EZList):
 
     def __init__(self, type=None, items=None, expanded=False, **kw):
         Item.__init__(self, **kw)
+        ezlist.EZList.__init__(self)
         self._type = type
         self._items = items if items is not None else []
         self._expanded = expanded
@@ -495,6 +498,7 @@ class Sequence(Item, ezlist.EZList):
 
         if stop > start:
             self._items[start:stop] = []
+            self._update_marks(start, stop, 0)
 
             # Reset the x values once
             x = 0
@@ -511,6 +515,7 @@ class Sequence(Item, ezlist.EZList):
             self.items_removed(start, stop)
 
         self._items[start:start] = items
+        self._update_marks(start, start, len(items))
 
         # Reset the x values again
         x = 0

@@ -16,9 +16,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import collections
+import collections, weakref
 
 class EZList(collections.MutableSequence):
+    def __init__(self):
+        self._marks = []
+
+    class Mark(object):
+        __slots__ = ('index', 'left_gravity')
+
+        def __init__(self, index, left_gravity):
+            self.index = index
+            self.left_gravity = left_gravity
+
+        def __index__(self):
+            return self.index
+
     '''
     Allows implementing __setitem__ and __delitem__ on a list as
     replace operations. Implement _replace_range in your code.
@@ -34,13 +47,52 @@ class EZList(collections.MutableSequence):
         items - List of items to put in place. This list is not at
             all guaranteed to match the number of items being replaced.
 
-        This is an abstract method. Implement it in your own class.
+        Call _update_marks immediately after updating your internal list.
         A minimal implementation might be:
 
         def _replace_range(self, start, stop, items):
             self._internal_list[start:stop] = items
+            self._update_marks(start, stop, len(items))
         '''
         raise NotImplementedError
+
+    def _iter_marks(self):
+        i = 0
+
+        while i < len(self._marks):
+            strong_ref = self._marks[i]()
+
+            if not strong_ref or not strong_ref.index:
+                del self._marks[i]
+            else:
+                i += 1
+                yield strong_ref
+
+    def create_mark(self, index, left_gravity):
+        if index < 0 or index >= len(self):
+            raise IndexError
+
+        for mark in self._iter_marks():
+            if mark.index == index:
+                return mark
+
+        mark = Mark(index)
+        self._marks.append(weakref.ref(mark))
+
+        return mark
+
+    def _update_marks(self, start, stop, new_length):
+        for mark in self._iter_marks():
+            if mark.index < start:
+                continue
+            elif mark.index < stop:
+                # It's in the middle; where it ends up depends on its gravity
+                if mark.left_gravity:
+                    mark.index = start
+                else:
+                    mark.index = start + new_length
+            else:
+                mark.index += new_length - (stop - start)
 
     def insert(self, index, value):
         self[index:index] = [value]
