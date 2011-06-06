@@ -573,9 +573,6 @@ class SequenceItem(object):
         if length < 1:
             raise ValueError('length cannot be less than 1 ({0} was given)'.format(length))
 
-        if transition_length < 0:
-            raise ValueError('transition_length cannot be less than 0 ({0} was given)'.format(length))
-
         self._source = source
         self._offset = offset
         self._length = length
@@ -617,9 +614,6 @@ class SequenceItem(object):
         if 'transition_length' in kw:
             new_length = int(kw['transition_length'])
 
-            if new_length < 0:
-                raise ValueError('transition_length cannot be less than zero ({0} was given)'.format(new_length))
-
             xdiff -= new_length - self._transition_length
             self._transition_length = new_length
 
@@ -646,6 +640,10 @@ class SequenceItem(object):
 
     @property
     def transition_length(self):
+        '''The length of the transition preceding this clip, if any. Zero means a cut, and a
+        positive number gives the length of the transition. A negative number indicates a gap
+        between the previous clip and this one. The first clip in a sequence should have a
+        transition_length of zero.'''
         return self._transition_length
 
     @property

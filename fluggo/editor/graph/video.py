@@ -128,19 +128,30 @@ class SpaceVideoManager(sources.VideoSource):
 
 class SequenceVideoManager(sources.VideoSource):
     class ItemWatcher(process.VideoPassThroughFilter):
+        '''An ItemWatcher constructs the video for one clip in a sequence. It includes
+        the "out" transition but not the "in" transition. If there is a gap before the
+        clip (transition_length < 0), that's included, too.'''
+
         def __init__(self, owner, seq, seq_item):
             self.owner = owner
             self.seq = seq
             self.seq_item = seq_item
-            self.source_a = process.VideoPassThroughFilter(None)
+
+            # Source A is the current clip, B is the next one (unless there's a gap, next_item.transition_length < 0)
+            self.source_a = process.VideoPassThroughFilter(None, start_frame=0)
+            self.gap_proxy = process.VideoPassThroughFilter(self.source_a)
             self.source_b = process.VideoPassThroughFilter(None)
 
+            # Define a curve representing the transition (a linear one)
+            # The first point stays at zero and holds source_a
+            # The second point (fade_point) begins the transition to source_b (at length - next_item.transition_length)
+            # The third point completes the transition and should be placed at the length of the clip
             self.mix_b = process.AnimationFunc()
             self.mix_b.add(process.POINT_HOLD, 0.0, 0.0)
             self.fade_point = self.mix_b.add(process.POINT_LINEAR, 0.0, 0.0)
             self.out_point = self.mix_b.add(process.POINT_HOLD, 0.0, 1.0)
 
-            self.mix_filter = process.VideoMixFilter(self.source_a, self.source_b, self.mix_b)
+            self.mix_filter = process.VideoMixFilter(self.gap_proxy, self.source_b, self.mix_b)
             process.VideoPassThroughFilter.__init__(self, self.mix_filter)
 
     def __init__(self, sequence, source_list, format):
@@ -231,7 +242,10 @@ class SequenceVideoManager(sources.VideoSource):
             prev_length = prev_item.length - prev_item.transition_length
             prev_watcher.source_b.offset = item.offset - (prev_length - item.transition_length)
 
-        watcher.source_a.offset = item.offset + item.transition_length
+        watcher.source_a.offset = item.offset + max(0, item.transition_length)
+
+        # If there's a gap before, use the gap proxy to produce it
+        watcher.gap_proxy.offset = min(0, item.transition_length)
 
         if 'offset' in kw:
             self.frames_updated(start_frame - item.transition_length, start_frame + length - 1)
@@ -263,7 +277,7 @@ class SequenceVideoManager(sources.VideoSource):
                 old_trans_length = int(round(prev_watcher.out_point.frame - prev_watcher.fade_point.frame))
 
                 prev_watcher.out_point.frame = prev_length
-                prev_watcher.fade_point.frame = prev_length - item.transition_length
+                prev_watcher.fade_point.frame = prev_length - max(item.transition_length, 0)
                 self.frames_updated(start_frame - item.transition_length - max(old_trans_length - item.transition_length, 0),
                     self.sequence.length + max(0, old_length - length) - 1)
             else:

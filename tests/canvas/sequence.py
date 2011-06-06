@@ -319,3 +319,64 @@ class test_SequenceVideoManager(unittest.TestCase):
         sequence.insert(1, model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=5))
         self.check2(manager)
 
+    def check3(self, source):
+        # Ten frames red, five blank, five green, crossfade blue
+        colors = [getcolor(source, i) for i in range(0, 35)]
+
+        red_start, red_offset = 0, 1
+        green_start, green_offset = 15, 1
+        blue_start, blue_offset = 20, 1
+
+        # Red from one
+        for i in range(0, 10):
+            msg = 'Wrong color in frame ' + str(i)
+            print i
+            self.assertAlmostEqual(float(i - red_start + red_offset), colors[i].r, 6, msg)
+            self.assertAlmostEqual(0.0, colors[i].g, 6, msg)
+            self.assertAlmostEqual(0.0, colors[i].b, 6, msg)
+            self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
+
+        for i in range(10, 15):
+            msg = 'Frame {0} should be empty ({1} instead)'.format(i, colors[i])
+            self.assertEqual(None, colors[i], msg)
+
+        # Green
+        for i in range(15, 20):
+            msg = 'Wrong color in frame ' + str(i)
+            self.assertAlmostEqual(0.0, colors[i].r, 6, msg)
+            self.assertAlmostEqual(float(i - green_start + green_offset), colors[i].g, 6, msg)
+            self.assertAlmostEqual(0.0, colors[i].b, 6, msg)
+            self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
+
+        # Fade to blue
+        for i in range(20, 25):
+            msg = 'Wrong color in frame ' + str(i)
+            self.assertAlmostEqual(0.0, colors[i].r, 6, msg)
+            self.assertAlmostEqual(float(i - green_start + green_offset) * (1.0 - float(i - 20) / 5.0), colors[i].g, 6, msg)
+            self.assertAlmostEqual(float(i - blue_start + blue_offset) * float(i - 20) / 5.0, colors[i].b, 6, msg)
+            self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
+
+        # Blue from 25
+        for i in range(25, 30):
+            msg = 'Wrong color in frame ' + str(i)
+            self.assertAlmostEqual(0.0, colors[i].r, 6, msg)
+            self.assertAlmostEqual(0.0, colors[i].g, 6, msg)
+            self.assertAlmostEqual(float(i - blue_start + blue_offset), colors[i].b, 6, msg)
+            self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
+
+        for i in range(30, 35):
+            msg = 'Frame {0} should be empty ({1} instead)'.format(i, colors[i])
+            self.assertEqual(None, colors[i], msg)
+
+    def test_3_add_transitions(self):
+        '''Add both transitions'''
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10)])
+
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        sequence[1].update(transition_length=-5)
+        sequence[2].update(transition_length=5)
+        self.check3(manager)
+
