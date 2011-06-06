@@ -144,6 +144,18 @@ gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProg
 
 EXPORT void video_get_frame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame ) {
     if( !source || !source->funcs ) {
+        // Even empty video sources need to produce a texture
+        v2i frameSize;
+        box2i_get_size( &targetFrame->full_window, &frameSize );
+
+        glGenTextures( 1, &targetFrame->texture );
+        glBindTexture( GL_TEXTURE_RECTANGLE_ARB, targetFrame->texture );
+        glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
+            GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+
+        glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
+        glClear( GL_COLOR_BUFFER_BIT );
+
         box2i_set_empty( &targetFrame->current_window );
         return;
     }
