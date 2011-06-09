@@ -170,9 +170,9 @@ class Scene(QtGui.QGraphicsScene):
         x = int(round(event.scenePos().x() * float(rate)))
         y = event.scenePos().y()
 
-        if top_item and isinstance(top_item, VideoSequence) and main_item.type() == 'video' and self.drag_op.can_set_sequence_item(top_item.item, x - top_item.item.x, 'add'):
+        if top_item and isinstance(top_item, VideoSequence) and main_item.type() == 'video' and self.drag_op.can_set_sequence_item(top_item.item, x, 'add'):
             print 'attempt sequence'
-            if self.drag_op.set_sequence_item(top_item.item, x - top_item.item.x, 'add'):
+            if self.drag_op.set_sequence_item(top_item.item, x, 'add'):
                 event.accept()
                 return
         else:
