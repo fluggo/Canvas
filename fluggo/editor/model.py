@@ -889,96 +889,10 @@ class ItemManipulator(object):
 
             return False
 
-        def _set_sequence_add(self, sequence, x, do_it=True):
-            # For the first pass at this, we'll just do inserting in place
-            # Later we can come back for overwriting or proper insertion
-
-            # Simpler first: remove the item from the sequence before putting it back
-            # TODO: See if we can just move it
-            self._undo_sequence()
-
-            prev_item, current_item, next_item = None, None, sequence[0]
-            start_x = x + self.offset_x
-            end_x = x + self.offset_x + self.item.length
-
-            while next_item and next_item.x + next_item.length >= start_x:
-                prev_item = current_item
-                current_item = next_item
-                next_item = sequence[current_item.index + 1] if current_item.index + 1 < len(sequence) else None
-
-                if start_x > current_item.x:
-                    continue
-
-                # Don't let it end before this item
-                if end_x < current_item.x:
-                    return False
-
-                # If we run over the end of the current one...
-                if end_x > (current_item.x + current_item.length):
-                    if start_x == current_item.x:
-                        # This one belongs at the next position
-                        continue
-                    else:
-                        # It dominates this one, can't do it
-                        return False
-
-                # If we already have a transition here, nothing will fit
-                if current_item.transition_length:
-                    return False
-
-                # If there's a next transition (or even just a cut), don't run over it
-                next_trans_start_x = (current_item.x + current_item.length - next_item.transition_length) if next_item else None
-
-                if next_trans_start_x and end_x > next_trans_start_x:
-                    return False
-
-                if do_it:
-                    self.seq_item = SequenceItem(source=self.item.source,
-                        length=self.item.length,
-                        offset=self.item.offset,
-                        transition_length=current_item.x - start_x if prev_item else 0)
-
-                    new_trans_length = end_x - current_item.x
-                    current_item.update(transition_length=0)
-
-                    sequence.insert(current_item.index, self.seq_item)
-                    current_item.update(transition_length=new_trans_length)
-
-                    if not prev_item:
-                        # Move the sequence to account for the new item
-                        sequence.update(x=self.sequence.x - (self.item.length - current_item.transition_length))
-
-                    if self.item.space:
-                        self.item.space[self.item.z] = self.placeholder
-
-                    self.seq_item_op = 'add'
-
-                return True
-
-            return False
-
         def _undo_sequence(self):
             if self.seq_item_op:
                 self.seq_item_op.reset()
                 self.seq_item_op = None
-
-        def _undo_sequence_add(self):
-            index = self.seq_item.index
-            sequence = self.seq_item.sequence
-
-            next_item = sequence[index + 1] if len(sequence) > index + 1 else None
-
-            del sequence[index]
-
-            if index == 0 and next_item:
-                # Really, for index == 0, there will always be a next_item,
-                # but this makes it clearer
-                # Move the sequence back where it was
-                sequence[0].update(x=sequence.x + (self.seq_item.length - next_item.transition_length))
-
-            next_item.update(transition_length=0)
-
-            self.seq_item = None
 
         def reset(self):
             self.set_space_item(None, self.original_x - self.offset_x, self.original_y - self.offset_y)
