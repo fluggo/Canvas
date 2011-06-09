@@ -354,7 +354,6 @@ class test_SequenceVideoManager(unittest.TestCase):
         # Red from one
         for i in range(0, 10):
             msg = 'Wrong color in frame ' + str(i)
-            print i
             self.assertAlmostEqual(float(i - red_start + red_offset), colors[i].r, 6, msg)
             self.assertAlmostEqual(0.0, colors[i].g, 6, msg)
             self.assertAlmostEqual(0.0, colors[i].b, 6, msg)
