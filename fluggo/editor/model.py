@@ -529,6 +529,7 @@ class Sequence(Item, ezlist.EZList):
             item._x = x - item.transition_length
             x += item.length - item.transition_length
 
+        # Send item_added notifications
         for item in (new_item_set - old_item_set):
             self._length += item.length - item.transition_length
 
@@ -536,6 +537,10 @@ class Sequence(Item, ezlist.EZList):
                 self._length += item.transition_length
 
             self.item_added(item)
+
+        # Send x updates
+        for item in self._items[start:]:
+            self.item_updated(item, x=item._x)
 
         Item.update(self, length=self._length)
 
