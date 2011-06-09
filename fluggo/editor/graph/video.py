@@ -143,11 +143,11 @@ class SequenceVideoManager(sources.VideoSource):
             self.source_b = process.VideoPassThroughFilter(None)
 
             # Define a curve representing the transition (a linear one)
-            # The first point stays at zero and holds source_a
+            # The first point stays at -1 and holds source_a (-1 because fade_point can go to zero)
             # The second point (fade_point) begins the transition to source_b (at length - next_item.transition_length)
             # The third point completes the transition and should be placed at the length of the clip
             self.mix_b = process.AnimationFunc()
-            self.mix_b.add(process.POINT_HOLD, 0.0, 0.0)
+            self.mix_b.add(process.POINT_HOLD, -1.0, 0.0)
             self.fade_point = self.mix_b.add(process.POINT_LINEAR, 0.0, 0.0)
             self.out_point = self.mix_b.add(process.POINT_HOLD, 0.0, 1.0)
 

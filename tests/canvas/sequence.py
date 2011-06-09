@@ -319,6 +319,30 @@ class test_SequenceVideoManager(unittest.TestCase):
         sequence.insert(1, model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=5))
         self.check2(manager)
 
+    def test_2_adjust_transitions_1(self):
+        '''Add both transitions'''
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=7),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=3)])
+
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        sequence[1].update(transition_length=5)
+        sequence[2].update(transition_length=5)
+        self.check2(manager)
+
+    def test_2_adjust_transitions_2(self):
+        '''Add both transitions'''
+        sequence = model.Sequence(type='video', items=[
+            model.SequenceItem(source=model.StreamSourceRef('red', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 0), offset=1, length=10, transition_length=3),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 0), offset=1, length=10, transition_length=7)])
+
+        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        sequence[1].update(transition_length=5)
+        sequence[2].update(transition_length=5)
+        self.check2(manager)
+
     def check3(self, source):
         # Ten frames red, five blank, five green, crossfade blue
         colors = [getcolor(source, i) for i in range(0, 35)]
