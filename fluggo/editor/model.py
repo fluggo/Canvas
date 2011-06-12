@@ -698,6 +698,25 @@ _yamlreg(StreamSourceRef)
 _yamlreg(Sequence)
 _yamlreg(SequenceItem)
 
+class Sequenceable(object):
+    def __init__(self, length):
+        self.length = length
+        self.min_fadeout_point = 0
+        self.max_fadein_point = length
+
+    def sequence_insert(self, seq, index, transition_length):
+        raise NotImplementedError
+
+    def sequence_reset(self):
+        raise NotImplementedError
+
+    @property
+    def transition_length(self):
+        pass
+
+    def set_transition_length(self, length):
+        raise NotImplementedError
+
 class ItemManipulator(object):
     # TODO
     # Identify adjacent items in a sequence and manipulate them as a unit
@@ -706,151 +725,184 @@ class ItemManipulator(object):
     #  ^    Scratch: Only the item/sequence directly grabbed (listed first in self.items)
     #       is placed in a sequence, and the rest arranged around it accordingly
 
+    class SequenceAddMap(object):
+        def __init__(self, sequence, item):
+            '''Creates an instance of SequenceAddMap.
+
+            sequence - The sequence to add to.
+            item - The item (of type Sequenceable) to place.'''
+            self.sequence = sequence
+            self.item = item
+
+            self.ranges = [self.determine_range(i) for i in range(len(sequence) + 1)]
+            print self.ranges
+            self.seq_index = None
+            self.original_x = sequence.x
+            self.orig_next_item_trans_length = None
+            self.orig_next_item = None
+
+        def determine_range(self, index):
+            '''Determine the range where a clip will fit. These are tuples of (min, max) which are
+            frame offsets from the beginning of the sequence to the beginning of the item. If the
+            item can't fit at all at an index, None might be returned.'''
+
+            if index < len(self.sequence):
+                seq_item = self.sequence[index]
+                prev_item = self.sequence[index - 1] if index > 0 else None
+                next_item = self.sequence[index + 1] if index + 1 < len(self.sequence) else None
+
+                _min = max(prev_item.x + prev_item.transition_length if prev_item else -self.item.length,
+                    seq_item.x - (self.item.max_fadein_point if prev_item else self.item.length))
+
+                # -min_fadeout_point is the length of the placed sequence up to the last transition, so
+                # that's how far back we have to push something
+                # BUT if length is longer than our first clip (less transition), we have to go back farther
+                _max = seq_item.x + min(-self.item.min_fadeout_point,
+                    seq_item.length - self.item.length - (next_item.transition_length if next_item else 0))
+
+                if _max < _min:
+                    return None
+
+                return (_min, _max)
+            else:
+                # Final index
+                prev_item = self.sequence[-1]
+
+                _min = max(prev_item.x + prev_item.transition_length, prev_item.x + prev_item.length - self.item.length)
+                _max = prev_item.x + prev_item.length
+
+                return (_min, _max)
+
+        def where_can_fit(self, x):
+            '''Returns index where the item would be inserted if it can fit, None if it won't.
+            "x" is space-relative.'''
+            if self.seq_index == 0:
+                x -= self.item.length - self.orig_next_item.transition_length
+
+            x -= self.sequence.x
+
+            for i, _range in enumerate(self.ranges):
+                if not _range:
+                    continue
+
+                if x >= _range[0] and x <= _range[1]:
+                    return i
+
+            return None
+
+        def can_set(self, x):
+            '''Checks if the clip can be placed at x, which is space-relative.'''
+            return self.where_can_fit(x) is not None
+
+        def set(self, x):
+            index = self.where_can_fit(x)
+
+            if index is None:
+                return False
+
+            x -= self.sequence.x
+
+            if self.seq_index is not None:
+                if self.seq_index == index:
+                    current_x = self.sequence[index].x
+
+                    # It's already in place, just adjust the transition_lengths
+                    if self.orig_next_item:
+                        self.orig_next_item.update(transition_length=self.orig_next_item.transition_length + (x - current_x))
+
+                    if index == 0:
+                        self.sequence.update(x=self.sequence.x + x - current_x)
+                    else:
+                        prev_item = self.sequence[index - 1]
+                        self.item.set_transition_length(self.item.transition_length - (x - current_x))
+
+                    return True
+
+                if self.seq_index == 0:
+                    # Adjust x to account for resetting the sequence's position
+                    x -= self.item.length - self.orig_next_item.transition_length
+
+                self.reset()
+
+            # The item isn't in the sequence at all, so add it
+            old_x = self.sequence[index].x if (index < len(self.sequence)) else self.sequence[index - 1].x + self.sequence[index - 1].length
+            self.seq_index = index
+            self.orig_next_item = index < len(self.sequence) and self.sequence[index]
+            self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
+
+            self.item.sequence_insert(self.sequence, index, old_x - x if index > 0 else 0)
+
+            if self.orig_next_item:
+                self.orig_next_item.update(transition_length=self.item.length - (old_x - x))
+
+            if index == 0:
+                # Move the sequence to compensate
+                self.sequence.update(x=self.sequence.x - (old_x - x))
+
+            return True
+
+        def reset(self):
+            if self.seq_index is None:
+                return
+
+            self.sequence.update(x=self.original_x)
+            self.item.sequence_reset()
+
+            if self.orig_next_item:
+                self.orig_next_item.update(transition_length=self.orig_next_item_trans_length)
+                self.orig_next_item = None
+                self.orig_next_item_trans_length = None
+
+            self.seq_item = None
+
     class ClipManipulator(object):
         '''Manipulates a lone clip.'''
 
-        class SequenceAddMap(object):
-            def __init__(self, sequence, item):
-                self.sequence = sequence
-                self.item = item
-
-                self.ranges = [self.determine_range(i) for i in range(len(sequence) + 1)]
-                print self.ranges
+        class ClipSequenceable(Sequenceable):
+            def __init__(self, manip):
+                self.item = manip.item
+                self.length = manip.item.length
+                self.min_fadeout_point = 0
+                self.max_fadein_point = self.length
+                self.placeholder = PlaceholderItem(manip.item)
                 self.seq_item = None
 
-            def determine_range(self, index):
-                '''Determine the range where a clip will fit. These are tuples of (min, max) which are
-                frame offsets from the beginning of the sequence to the beginning of the item. If the
-                item can't fit at all at an index, None might be returned.'''
-
-                if index == 0:
-                    seq_item = self.sequence[index]
-                    next_item = self.sequence[index + 1] if index + 1 < len(self.sequence) else None
-
-                    min_x = -self.item.length
-                    max_x = seq_item.x + min(0, seq_item.length - self.item.length - next_item.transition_length if next_item else 0)
-
-                    return (min_x, max_x)
-                elif index < len(self.sequence):
-                    seq_item = self.sequence[index]
-
-                    if seq_item.transition_length:
-                        return None
-
-                    prev_item = self.sequence[index - 1]
-                    next_item = self.sequence[index + 1] if index + 1 < len(self.sequence) else None
-
-                    _min = max(prev_item.x + prev_item.transition_length, seq_item.x - self.item.length)
-                    _max = seq_item.x + min(0, seq_item.length - self.item.length)
-
-                    if next_item:
-                        _max = min(_max, next_item.x)
-
-                    if _max < _min:
-                        return None
-
-                    return (_min, _max)
-                else:
-                    # Final index
-                    prev_item = self.sequence[-1]
-
-                    _min = max(prev_item.x + prev_item.transition_length, prev_item.x + prev_item.length - self.item.length)
-                    _max = prev_item.x + prev_item.length
-
-                    return (_min, _max)
-
-            def where_can_fit(self, x):
-                '''Returns index where the item would be inserted if it can fit, None if it won't.
-                "x" is space-relative.'''
-                if self.seq_item and self.seq_item.index == 0:
-                    x -= self.seq_item.length - self.sequence[1].transition_length
-
-                x -= self.sequence.x
-
-                for i, _range in enumerate(self.ranges):
-                    if not _range:
-                        continue
-
-                    if x >= _range[0] and x <= _range[1]:
-                        return i
-
-                return None
-
-            def can_set(self, x):
-                '''Checks if the clip can be placed at x, which is space-relative.'''
-                return self.where_can_fit(x) is not None
-
-            def set(self, x):
-                index = self.where_can_fit(x)
-
-                if index is None:
-                    return False
-
-                x -= self.sequence.x
-
-                if self.seq_item:
-                    if self.seq_item.index == index:
-                        current_x = self.seq_item.x
-
-                        # It's already in place, just adjust the transition_lengths
-                        if index < len(self.sequence) - 1:
-                            next_item = self.sequence[index + 1]
-                            next_item.update(transition_length=next_item.transition_length + (x - current_x))
-
-                        if index == 0:
-                            self.sequence.update(x=self.sequence.x + x - current_x)
-                        else:
-                            prev_item = self.sequence[index - 1]
-                            self.seq_item.update(transition_length=self.seq_item.transition_length - (x - current_x))
-
-                        return True
-
-                    if self.seq_item.index == 0:
-                        # Adjust x to account for resetting the sequence's position
-                        x -= self.seq_item.length - self.sequence[1].transition_length
-
-                    self.reset()
-
-                old_x = self.sequence[index].x if (index < len(self.sequence)) else self.sequence[index - 1].x + self.sequence[index - 1].length
-
+            def sequence_insert(self, seq, index, transition_length):
                 self.seq_item = SequenceItem(source=self.item.source,
                     length=self.item.length,
                     offset=self.item.offset,
-                    transition_length=old_x - x if index > 0 else 0)
+                    transition_length=transition_length)
 
-                self.sequence.insert(index, self.seq_item)
+                seq.insert(index, self.seq_item)
 
-                if self.seq_item.index < len(self.sequence) - 1:
-                    self.sequence[self.seq_item.index + 1].update(transition_length=self.item.length - (old_x - x))
+                if self.item.space:
+                    self.item.space[self.item.z] = self.placeholder
 
-                if index == 0:
-                    # Move the sequence to compensate
-                    self.sequence.update(x=self.sequence.x - (old_x - x))
+            def sequence_reset(self):
+                if self.seq_item:
+                    del self.seq_item.sequence[self.seq_item.index]
 
-                return True
+                if not self.item.space:
+                    print 'restoring item'
+                    self.placeholder.space[self.placeholder.z] = self.item
+                    print 'item restored at ' + str(self.item.z)
 
-            def reset(self):
-                if not self.seq_item:
-                    return
+            @property
+            def transition_length(self):
+                return self.seq_item.transition_length
 
-                if self.seq_item.index == 0:
-                    self.sequence.update(x=self.sequence.x + self.sequence[1].x)
-
-                if self.seq_item.index < len(self.sequence) - 1:
-                    self.sequence[self.seq_item.index + 1].update(transition_length=0)
-
-                del self.sequence[self.seq_item.index]
-                self.seq_item = None
+            def set_transition_length(self, length):
+                self.seq_item.update(transition_length=length)
 
         def __init__(self, item, grab_x, grab_y):
             self.item = item
+
             self.original_x = item.x
             self.original_y = item.y
             self.original_space = item.space
             self.offset_x = item.x - grab_x
             self.offset_y = item.y - grab_y
             self.seq_item_op = None
-            self.placeholder = PlaceholderItem(item)
 
         def can_set_space_item(self, space, x, y):
             return True
@@ -858,11 +910,6 @@ class ItemManipulator(object):
         def set_space_item(self, space, x, y):
             print 'clip.set_space_item'
             self._undo_sequence()
-
-            if not self.item.space:
-                print 'restoring item'
-                self.placeholder.space[self.placeholder.z] = self.item
-                print 'item restored at ' + str(self.item.z)
 
             self.item.update(x=x + self.offset_x, y=y + self.offset_y, in_motion=True)
             return True
@@ -872,18 +919,14 @@ class ItemManipulator(object):
 
         def set_sequence_item(self, sequence, x, operation, do_it=True):
             if operation == 'add':
-                if not self.seq_item_op or not isinstance(self.seq_item_op, self.SequenceAddMap) or self.seq_item_op.sequence != sequence:
+                if not self.seq_item_op or not isinstance(self.seq_item_op, ItemManipulator.SequenceAddMap) or self.seq_item_op.sequence != sequence:
                     if self.seq_item_op:
                         self.seq_item_op.reset()
 
-                    self.seq_item_op = self.SequenceAddMap(sequence, self.item)
+                    self.seq_item_op = ItemManipulator.SequenceAddMap(sequence, self.ClipSequenceable(self))
 
                 if do_it:
-                    if self.seq_item_op.set(x + self.offset_x):
-                        if self.item.space:
-                            self.item.space[self.item.z] = self.placeholder
-
-                        return True
+                    return self.seq_item_op.set(x + self.offset_x)
                 else:
                     return self.seq_item_op.can_set(x + self.offset_x)
 
