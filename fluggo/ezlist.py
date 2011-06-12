@@ -23,7 +23,7 @@ class EZList(collections.MutableSequence):
         self._marks = []
 
     class Mark(object):
-        __slots__ = ('index', 'left_gravity')
+        __slots__ = ('__weakref__', 'index', 'left_gravity')
 
         def __init__(self, index, left_gravity):
             self.index = index
@@ -31,6 +31,18 @@ class EZList(collections.MutableSequence):
 
         def __index__(self):
             return self.index
+
+        def __add__(self, other):
+            return self.index + other.__index__()
+
+        def __sub__(self, other):
+            return self.index - other.__index__()
+
+        def __cmp__(self, other):
+            return self.index.__cmp__(other.__index__())
+
+        def __repr__(self):
+            return 'Mark({0.index}, left_gravity={0.left_gravity})'.format(self)
 
     '''
     Allows implementing __setitem__ and __delitem__ on a list as
@@ -69,14 +81,14 @@ class EZList(collections.MutableSequence):
                 yield strong_ref
 
     def create_mark(self, index, left_gravity):
-        if index < 0 or index >= len(self):
+        if index < 0 or index > len(self):
             raise IndexError
 
         for mark in self._iter_marks():
             if mark.index == index:
                 return mark
 
-        mark = Mark(index)
+        mark = self.Mark(index, left_gravity)
         self._marks.append(weakref.ref(mark))
 
         return mark
@@ -127,4 +139,7 @@ class EZList(collections.MutableSequence):
             self[key] = []
         else:
             self[key:key + 1] = []
+
+
+
 
