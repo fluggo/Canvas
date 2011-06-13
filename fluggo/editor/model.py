@@ -574,7 +574,7 @@ class Sequence(Item, ezlist.EZList):
 class SequenceItem(object):
     yaml_tag = u'!CanvasSequenceItem'
 
-    def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0):
+    def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0, in_motion=False):
         if length < 1:
             raise ValueError('length cannot be less than 1 ({0} was given)'.format(length))
 
@@ -586,7 +586,7 @@ class SequenceItem(object):
         self._sequence = None
         self._index = None
         self._x = 0
-        self.in_motion = False
+        self.in_motion = in_motion
 
     def update(self, **kw):
         '''
