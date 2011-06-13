@@ -249,6 +249,112 @@ class test_ItemManipulator(unittest.TestCase):
 
         self.assertEquals(manip.finish(), True)
 
+    def test_one_item_add_seq_backwards(self):
+        '''Like test_one_item_add_seq, but in reverse order'''
+        space = model.Space(vidformat, audformat)
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
+
+        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        item = space[0]
+        seq = space[2]
+
+        self.assertEquals(len(seq), 2)
+        self.assertNotEquals(item.space, None)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 31, 'add'), False, 'After sequence')
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 30, 'add'), True, 'End, no overlap')
+        self.assertEquals(manip.set_sequence_item(seq, 30, 'add'), True, 'End, no overlap')
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].source.source_name, 'seq2')
+        self.assertEquals(seq[2].source.source_name, 'red')
+        self.assertEquals(seq[0].transition_length, 0)
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[2].transition_length, 0)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 20, 'add'), True, 'End, one frame overlap')
+        self.assertEquals(manip.set_sequence_item(seq, 20, 'add'), True, 'End, one frame overlap')
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].source.source_name, 'seq2')
+        self.assertEquals(seq[2].source.source_name, 'red')
+        self.assertEquals(seq[0].transition_length, 0)
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[2].transition_length, 10)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 29, 'add'), True, 'End, one frame overlap')
+        self.assertEquals(manip.set_sequence_item(seq, 29, 'add'), True, 'End, one frame overlap')
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].source.source_name, 'seq2')
+        self.assertEquals(seq[2].source.source_name, 'red')
+        self.assertEquals(seq[0].transition_length, 0)
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[2].transition_length, 1)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 20, 'add'), True, 'End, full overlap')
+        self.assertEquals(manip.set_sequence_item(seq, 20, 'add'), True, 'End, full overlap')
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].source.source_name, 'seq2')
+        self.assertEquals(seq[2].source.source_name, 'red')
+        self.assertEquals(seq[0].transition_length, 0)
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[2].transition_length, 10)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 15, 'add'), True, 'Cross transition')
+        self.assertEquals(manip.set_sequence_item(seq, 15, 'add'), True, 'Cross transition')
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(item.space, None)
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].source.source_name, 'red')
+        self.assertEquals(seq[2].source.source_name, 'seq2')
+        self.assertEquals(seq[1].transition_length, 5)
+        self.assertEquals(seq[2].transition_length, 10)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 10, 'add'), True, 'Cross transition')
+        self.assertEquals(manip.set_sequence_item(seq, 10, 'add'), True, 'Cross transition')
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(item.space, None)
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].source.source_name, 'red')
+        self.assertEquals(seq[2].source.source_name, 'seq2')
+        self.assertEquals(seq[1].transition_length, 10)
+        self.assertEquals(seq[2].transition_length, 5)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 9, 'add'), False, 'Cross two transitions')
+        self.assertEquals(manip.can_set_sequence_item(seq, 6, 'add'), False, 'Cross two transitions')
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, full overlap')
+        self.assertEquals(manip.set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, full overlap')
+        self.assertEquals(seq.x, 5)
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(item.space, None)
+        self.assertEquals(seq[0].source.source_name, 'red')
+        self.assertEquals(seq[1].transition_length, 10)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, -4, 'add'), True, 'Beginning of sequence, one frame overlap')
+        self.assertEquals(manip.set_sequence_item(seq, -4, 'add'), True, 'Beginning of sequence, one frame overlap')
+        self.assertEquals(seq.x, -4)
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(item.space, None)
+        self.assertEquals(seq[0].source.source_name, 'red')
+        self.assertEquals(seq[1].transition_length, 1)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, -5, 'add'), True, 'Beginning of sequence, no overlap')
+        self.assertEquals(manip.set_sequence_item(seq, -5, 'add'), True, 'Beginning of sequence, no overlap')
+        self.assertEquals(seq.x, -5)
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(item.space, None)
+        self.assertEquals(seq[0].source.source_name, 'red')
+        self.assertEquals(seq[1].transition_length, 0)
+
+        self.assertEquals(manip.can_set_sequence_item(seq, -6, 'add'), False, 'Before sequence')
+        self.assertEquals(manip.set_sequence_item(seq, -6, 'add'), False, 'Before sequence')
+
+        self.assertEquals(manip.finish(), True)
+
     def test_one_item_add_seq_overlap(self):
         '''Drag one item into a sequence'''
         space = model.Space(vidformat, audformat)

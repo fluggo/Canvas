@@ -765,8 +765,6 @@ class ItemManipulator(object):
             self.sequence = sequence
             self.item = item
 
-            self.ranges = [self.determine_range(i) for i in range(len(sequence) + 1)]
-            print self.ranges
             self.seq_index = None
             self.original_x = sequence.x
             self.orig_next_item_trans_length = None
@@ -778,46 +776,71 @@ class ItemManipulator(object):
             item can't fit at all at an index, None might be returned.'''
 
             if index < len(self.sequence):
-                seq_item = self.sequence[index]
-                prev_item = self.sequence[index - 1] if index > 0 else None
-                next_item = self.sequence[index + 1] if index + 1 < len(self.sequence) else None
+                if self.sequence[index].in_motion:
+                    return None
 
-                _min = max(prev_item.x + prev_item.transition_length if prev_item else -self.item.length,
+                seq_item = self.sequence[index]
+
+                # Find next_item so we can get its transition_length (which we ignore if the next item is in_motion)
+                next_item = seq_item.next_item()
+
+                # Find the previous original item
+                prev_item = seq_item.previous_item(skip_in_motion=True)
+
+                # If the item before that is in motion, we have to ignore prev_item's
+                # transition_length (which would otherwise be zero or less)
+                prev_prev_item = prev_item and prev_item.previous_item()
+
+                _min = max(
+                    (prev_item.x +
+                        (prev_item.transition_length if prev_prev_item and not prev_prev_item.in_motion else 0))
+                        if prev_item else -self.item.length,
                     seq_item.x - (self.item.max_fadein_point if prev_item else self.item.length))
 
                 # -min_fadeout_point is the length of the placed sequence up to the last transition, so
                 # that's how far back we have to push something
                 # BUT if length is longer than our first clip (less transition), we have to go back farther
                 _max = seq_item.x + min(-self.item.min_fadeout_point,
-                    seq_item.length - self.item.length - (next_item.transition_length if next_item else 0))
+                    seq_item.length - self.item.length - (next_item.transition_length if next_item and not next_item.in_motion else 0))
+
+                _min += self.sequence.x
+                _max += self.sequence.x
 
                 if _max < _min:
                     return None
 
-                return (_min, _max)
+                return (_min, _max, self.sequence.create_mark(index, True))
             else:
                 # Final index
                 prev_item = self.sequence[-1]
 
-                _min = max(prev_item.x + prev_item.transition_length, prev_item.x + prev_item.length - self.item.length)
+                # Find the latest previous original item
+                if prev_item.in_motion:
+                    prev_item = prev_item.previous_item(skip_in_motion=True)
+
+                # If the item before that is in motion, we have to ignore prev_item's
+                # transition_length (which would otherwise be zero or less)
+                prev_prev_item = prev_item and prev_item.previous_item()
+
+                _min = max(prev_item.x +
+                        (prev_item.transition_length if prev_prev_item and not prev_prev_item.in_motion else 0),
+                    prev_item.x + prev_item.length - self.item.length)
                 _max = prev_item.x + prev_item.length
 
-                return (_min, _max)
+                _min += self.sequence.x
+                _max += self.sequence.x
+
+                return (_min, _max, self.sequence.create_mark(index, True))
 
         def where_can_fit(self, x):
             '''Returns index where the item would be inserted if it can fit, None if it won't.
             "x" is space-relative.'''
-            if self.seq_index == 0:
-                x -= self.item.length - self.orig_next_item.transition_length
-
-            x -= self.sequence.x
-
-            for i, _range in enumerate(self.ranges):
+            for _range in (self.determine_range(i) for i in range(len(self.sequence) + 1)):
                 if not _range:
                     continue
 
                 if x >= _range[0] and x <= _range[1]:
-                    return i
+                    return _range[2]
 
             return None
 
@@ -834,17 +857,21 @@ class ItemManipulator(object):
             x -= self.sequence.x
 
             if self.seq_index is not None:
-                if self.seq_index == index:
-                    current_x = self.sequence[index].x
+                # Adjust index to what it would be if the placed items weren't there
+                if index > self.seq_index:
+                    index -= (self.orig_next_item.index if self.orig_next_item else len(self.sequence)) - self.seq_index
 
+                if self.seq_index == index:
                     # It's already in place, just adjust the transition_lengths
+                    current_x = self.sequence[self.seq_index].x
+
                     if self.orig_next_item:
                         self.orig_next_item.update(transition_length=self.orig_next_item.transition_length + (x - current_x))
 
                     if index == 0:
                         self.sequence.update(x=self.sequence.x + x - current_x)
                     else:
-                        prev_item = self.sequence[index - 1]
+                        prev_item = self.sequence[self.seq_index - 1]
                         self.item.set_transition_length(self.item.transition_length - (x - current_x))
 
                     return True
@@ -858,7 +885,7 @@ class ItemManipulator(object):
             # The item isn't in the sequence at all, so add it
             old_x = self.sequence[index].x if (index < len(self.sequence)) else self.sequence[index - 1].x + self.sequence[index - 1].length
             self.seq_index = index
-            self.orig_next_item = index < len(self.sequence) and self.sequence[index]
+            self.orig_next_item = index < len(self.sequence) and self.sequence[index] or None
             self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
 
             self.item.insert(self.sequence, index, old_x - x if index > 0 else 0)
