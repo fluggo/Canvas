@@ -732,10 +732,10 @@ class Sequenceable(object):
         self.min_fadeout_point = 0
         self.max_fadein_point = length
 
-    def sequence_insert(self, seq, index, transition_length):
+    def insert(self, seq, index, transition_length):
         raise NotImplementedError
 
-    def sequence_reset(self):
+    def reset(self):
         raise NotImplementedError
 
     @property
@@ -858,7 +858,7 @@ class ItemManipulator(object):
             self.orig_next_item = index < len(self.sequence) and self.sequence[index]
             self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
 
-            self.item.sequence_insert(self.sequence, index, old_x - x if index > 0 else 0)
+            self.item.insert(self.sequence, index, old_x - x if index > 0 else 0)
 
             if self.orig_next_item:
                 self.orig_next_item.update(transition_length=self.item.length - (old_x - x))
@@ -874,7 +874,7 @@ class ItemManipulator(object):
                 return
 
             self.sequence.update(x=self.original_x)
-            self.item.sequence_reset()
+            self.item.reset()
 
             if self.orig_next_item:
                 self.orig_next_item.update(transition_length=self.orig_next_item_trans_length)
@@ -895,7 +895,7 @@ class ItemManipulator(object):
                 self.placeholder = PlaceholderItem(manip.item)
                 self.seq_item = None
 
-            def sequence_insert(self, seq, index, transition_length):
+            def insert(self, seq, index, transition_length):
                 self.seq_item = SequenceItem(source=self.item.source,
                     length=self.item.length,
                     offset=self.item.offset,
@@ -906,7 +906,7 @@ class ItemManipulator(object):
                 if self.item.space:
                     self.item.space[self.item.z] = self.placeholder
 
-            def sequence_reset(self):
+            def reset(self):
                 if self.seq_item:
                     del self.seq_item.sequence[self.seq_item.index]
 
