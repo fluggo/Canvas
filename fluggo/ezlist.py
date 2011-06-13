@@ -35,8 +35,14 @@ class EZList(collections.MutableSequence):
         def __add__(self, other):
             return self.index + other.__index__()
 
+        def __radd__(self, other):
+            return other.__index__() + self.index
+
         def __sub__(self, other):
             return self.index - other.__index__()
+
+        def __rsub__(self, other):
+            return other.__index__() - self.index
 
         def __cmp__(self, other):
             return self.index.__cmp__(other.__index__())
@@ -97,7 +103,7 @@ class EZList(collections.MutableSequence):
         for mark in self._iter_marks():
             if mark.index < start:
                 continue
-            elif mark.index < stop:
+            elif mark.index <= stop:
                 # It's in the middle; where it ends up depends on its gravity
                 if mark.left_gravity:
                     mark.index = start
