@@ -738,6 +738,9 @@ class Sequenceable(object):
     def reset(self):
         raise NotImplementedError
 
+    def finish(self):
+        raise NotImplementedError
+
     @property
     def transition_length(self):
         pass
@@ -883,6 +886,9 @@ class ItemManipulator(object):
 
             self.seq_item = None
 
+        def finish(self):
+            self.item.finish()
+
     class ClipManipulator(object):
         '''Manipulates a lone clip.'''
 
@@ -899,7 +905,8 @@ class ItemManipulator(object):
                 self.seq_item = SequenceItem(source=self.item.source,
                     length=self.item.length,
                     offset=self.item.offset,
-                    transition_length=transition_length)
+                    transition_length=transition_length,
+                    in_motion=True)
 
                 seq.insert(index, self.seq_item)
 
@@ -914,6 +921,10 @@ class ItemManipulator(object):
                     print 'restoring item'
                     self.placeholder.space[self.placeholder.z] = self.item
                     print 'item restored at ' + str(self.item.z)
+
+            def finish(self):
+                if self.seq_item:
+                    self.seq_item.update(in_motion=False)
 
             @property
             def transition_length(self):
@@ -970,6 +981,10 @@ class ItemManipulator(object):
             self.item.update(in_motion=False)
 
         def finish(self):
+            if self.seq_item_op:
+                self.seq_item_op.finish()
+                self.seq_item_op = None
+
             self.item.update(in_motion=False)
             return True
 
