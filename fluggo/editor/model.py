@@ -663,6 +663,34 @@ class SequenceItem(object):
     def x(self):
         return self._x
 
+    def previous_item(self, skip_in_motion=False):
+        '''Gets the previous item, or None if there isn't one.
+
+        If skip_in_motion is True, skips over in_motion items.'''
+        item = self
+
+        while item.index > 0:
+            item = item.sequence[item.index - 1]
+
+            if skip_in_motion and item.in_motion:
+                continue
+
+            return item
+
+    def next_item(self, skip_in_motion=False):
+        '''Gets the next item, or None if there isn't one.
+
+        If skip_in_motion is True, skips over in_motion items.'''
+        item = self
+
+        while item.index < len(item.sequence) - 1:
+            item = item.sequence[item.index + 1]
+
+            if skip_in_motion and item.in_motion:
+                continue
+
+            return item
+
     @classmethod
     def to_yaml(cls, dumper, data):
         mapping = {'source': data._source,
