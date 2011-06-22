@@ -1016,9 +1016,45 @@ class ItemManipulator(object):
             return True
 
     class SequenceItemGroupManipulator(object):
+        class SequenceItemGroupSequenceable(Sequenceable):
+            def __init__(self, manip):
+                self.items = manip.items
+                self.length = manip.items[-1].x + manip.items[-1].length - manip.items[0].x
+                self.min_fadeout_point = manip.items[-1].x + min(0, manip.items[-1].transition_length) - manip.items[0].x
+
+                next_item = manip.items[1] if len(manip.items) > 1 else None
+                self.max_fadein_point = next_item.x if next_item else self.length
+
+            def insert(self, seq, index, transition_length):
+                # TODO: Delete from original sequence
+                seq[index:index] = self.items
+
+            def reset(self):
+                if self.seq_item:
+                    del self.seq_item.sequence[self.seq_item.index]
+
+                if not self.item.space:
+                    print 'restoring item'
+                    self.placeholder.space[self.placeholder.z] = self.item
+                    print 'item restored at ' + str(self.item.z)
+
+            def finish(self):
+                pass
+
+            @property
+            def transition_length(self):
+                return self.seq_item.transition_length
+
+            def set_transition_length(self, length):
+                self.seq_item.update(transition_length=length)
+
         '''Manipulates a set of adjacent sequence items.'''
         def __init__(self, items, grab_x, grab_y):
             self.items = items
+            self.original_sequence = items[0].sequence
+            self.original_x = items[0].x + self.original_sequence.x
+            self.offset_x = self.original_x - grab_x
+            self.seq_item_op = None
 
         def can_set_space_item(self, space, x, y):
             return False
@@ -1027,16 +1063,43 @@ class ItemManipulator(object):
             return False
 
         def can_set_sequence_item(self, sequence, x, operation):
+            return self.set_sequence_item(sequence, x, operation, do_it=False)
+
+        def set_sequence_item(self, sequence, x, operation, do_it=True):
+            if not self.items[0].in_motion:
+                for item in items:
+                    item.update(in_motion=True)
+
+            if operation == 'add':
+                if not self.seq_item_op or not isinstance(self.seq_item_op, ItemManipulator.SequenceAddMap) or self.seq_item_op.sequence != sequence:
+                    if self.seq_item_op:
+                        self.seq_item_op.reset()
+
+                    self.seq_item_op = ItemManipulator.SequenceAddMap(sequence, self.SequenceItemGroupSequenceable(self))
+
+                if do_it:
+                    return self.seq_item_op.set(x + self.offset_x)
+                else:
+                    return self.seq_item_op.can_set(x + self.offset_x)
+
             return False
 
-        def set_sequence_item(self, sequence, x, operation):
-            return False
+        def _undo_sequence(self):
+            if self.seq_item_op:
+                self.seq_item_op.reset()
+                self.seq_item_op = None
 
         def reset(self):
-            pass
+            self.set_sequence_item(self.original_sequence, self.original_x, 'add')
+
+            for item in items:
+                item.update(in_motion=False)
 
         def finish(self):
-            pass
+            for item in items:
+                item.update(in_motion=False)
+
+            return True
 
     class SequenceManipulator(object):
         '''Manipulates an entire existing sequence.'''
