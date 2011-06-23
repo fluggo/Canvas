@@ -595,7 +595,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEquals(seq[1].source.source_name, 'seq2')
         self.assertNotEquals(item.space, None)
 
-    def _test_seq_item_simple_move(self):
+    def test_seq_item_simple_move(self):
         '''Test moving a single sequence item around within the same sequence'''
         space = model.Space(vidformat, audformat)
         space[:] = [
@@ -616,7 +616,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEquals(seq[1].transition_length, 0)
         self.assertEquals(seq[1].source.source_name, 'seq2')
 
-        self.assertEquals(manip.can_set_sequence_item(seq, 0, 'add'), True) # Leaving it where it is should work
+        self.assertEquals(manip.can_set_sequence_item(seq, 10, 'add'), True) # Leaving it where it is should work
         self.assertEquals(len(seq), 2)
         self.assertEquals(seq.x, 10)
         self.assertEquals(seq[0].x, 0)
@@ -625,7 +625,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEquals(seq[1].x, 10)
         self.assertEquals(seq[1].transition_length, 0)
         self.assertEquals(seq[1].source.source_name, 'seq2')
-        self.assertEquals(manip.set_sequence_item(seq, 0, 'add'), True) # Leaving it where it is should work
+        self.assertEquals(manip.set_sequence_item(seq, 10, 'add'), True) # Leaving it where it is should work
         self.assertEquals(len(seq), 2)
         self.assertEquals(seq.x, 10)
         self.assertEquals(seq[0].x, 0)

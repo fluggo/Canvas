@@ -1029,33 +1029,59 @@ class ItemManipulator(object):
             def __init__(self, manip):
                 self.items = manip.items
                 self.length = manip.items[-1].x + manip.items[-1].length - manip.items[0].x
+                self.original_sequence = self.items[0].sequence
+                self.original_sequence_index = self.items[0].index
+                self.original_next = self.items[-1].next_item()
+                self.orig_trans_length = self.items[0].transition_length
+                self.home = True
+
                 self.min_fadeout_point = manip.items[-1].x + min(0, manip.items[-1].transition_length) - manip.items[0].x
 
                 next_item = manip.items[1] if len(manip.items) > 1 else None
                 self.max_fadein_point = next_item.x if next_item else self.length
 
+                print 'min_fadeout = {0}, max_fadein = {1}, length = {2}'.format(self.min_fadeout_point, self.max_fadein_point, self.length)
+
             def insert(self, seq, index, transition_length):
-                # TODO: Delete from original sequence
+                if self.home:
+                    del self.original_sequence[self.original_sequence_index:self.original_sequence_index + len(self.items)]
+
+                    if self.original_sequence_index == 0:
+                        self.original_sequence.update(x=self.original_sequence.x + self.length)
+
+                    if self.original_next:
+                        self.original_next.update(transition_length=self.original_next.transition_length - self.length)
+
+                    self.home = False
+
+                self.items[0].update(transition_length=transition_length)
                 seq[index:index] = self.items
 
             def reset(self):
-                if self.seq_item:
-                    del self.seq_item.sequence[self.seq_item.index]
+                if self.items[0].sequence:
+                    del self.items[0].sequence[self.items[0].index:self.items[0].index + len(self.items)]
 
-                if not self.item.space:
-                    print 'restoring item'
-                    self.placeholder.space[self.placeholder.z] = self.item
-                    print 'item restored at ' + str(self.item.z)
+                if not home:
+                    self.original_sequence[self.original_sequence_index:self.original_sequence_index] = self.items
+                    self.items[0].update(transition_length=self.orig_trans_length)
+
+                    if self.original_sequence_index == 0:
+                        self.original_sequence.update(x=self.original_sequence.x - self.length)
+
+                    if self.original_next:
+                        self.original_next.update(transition_length=self.original_next.transition_length + self.length)
+
+                    self.home = True
 
             def finish(self):
                 pass
 
             @property
             def transition_length(self):
-                return self.seq_item.transition_length
+                return self.items[0].transition_length
 
             def set_transition_length(self, length):
-                self.seq_item.update(transition_length=length)
+                self.items[0].update(transition_length=length)
 
         '''Manipulates a set of adjacent sequence items.'''
         def __init__(self, items, grab_x, grab_y):
@@ -1076,7 +1102,7 @@ class ItemManipulator(object):
 
         def set_sequence_item(self, sequence, x, operation, do_it=True):
             if not self.items[0].in_motion:
-                for item in items:
+                for item in self.items:
                     item.update(in_motion=True)
 
             if operation == 'add':
@@ -1101,11 +1127,11 @@ class ItemManipulator(object):
         def reset(self):
             self.set_sequence_item(self.original_sequence, self.original_x, 'add')
 
-            for item in items:
+            for item in self.items:
                 item.update(in_motion=False)
 
         def finish(self):
-            for item in items:
+            for item in self.items:
                 item.update(in_motion=False)
 
             return True
@@ -1153,8 +1179,8 @@ class ItemManipulator(object):
                 seq_items.append(item)
 
         # Sort and combine the sequence items
-        for itemlist in itertools.groupby(sorted(seq_items, cmp=lambda a, b: cmp(a.sequence, b.sequence) or cmp(a.index, b.index)), key=lambda a: a.sequence):
-            self.manips.append(self.SequenceItemGroupManipulator(itemlist, grab_x, grab_y))
+        for seq, itemlist in itertools.groupby(sorted(seq_items, cmp=lambda a, b: cmp(a.sequence, b.sequence) or cmp(a.index, b.index)), key=lambda a: a.sequence):
+            self.manips.append(self.SequenceItemGroupManipulator(list(itemlist), grab_x, grab_y))
 
     def can_set_space_item(self, space, x, y):
         return all(manip.can_set_space_item(space, x, y) for manip in self.manips)
