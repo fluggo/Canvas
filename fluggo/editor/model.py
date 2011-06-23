@@ -622,10 +622,11 @@ class SequenceItem(object):
             xdiff -= new_length - self._transition_length
             self._transition_length = new_length
 
-        if xdiff or lendiff:
-            self._sequence._move_items(self._index, xdiff, lendiff)
+        if self._sequence:
+            if xdiff or lendiff:
+                self._sequence._move_items(self._index, xdiff, lendiff)
 
-        self._sequence.item_updated(self, **kw)
+            self._sequence.item_updated(self, **kw)
 
     @property
     def source(self):
