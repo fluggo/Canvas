@@ -884,17 +884,25 @@ class ItemManipulator(object):
                 self.reset()
 
             # The item isn't in the sequence at all, so add it
+
+            # Check to see if we'll end up at the beginning of the sequence (index at end==no)
+            # The check is necessary if the item we're moving is already sitting at the beginning
+            # of the sequence; if it is, the mark in the index variable is going to move
+            # to zero and prevent us from knowing if we need to adjust the sequence position--
+            # you see how ridiculous this gets?
+            at_start = (index < len(self.sequence)) and (not self.sequence[index].previous_item(skip_in_motion=True))
+
             old_x = self.sequence[index].x if (index < len(self.sequence)) else self.sequence[index - 1].x + self.sequence[index - 1].length
             self.seq_index = index
             self.orig_next_item = index < len(self.sequence) and self.sequence[index] or None
             self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
 
-            self.item.insert(self.sequence, index, old_x - x if index > 0 else 0)
+            self.item.insert(self.sequence, index, 0 if at_start else old_x - x)
 
             if self.orig_next_item:
                 self.orig_next_item.update(transition_length=self.item.length - (old_x - x))
 
-            if index == 0:
+            if at_start:
                 # Move the sequence to compensate
                 self.sequence.update(x=self.sequence.x - (old_x - x))
 
