@@ -807,7 +807,9 @@ class ItemManipulator(object):
                 _min += self.sequence.x
                 _max += self.sequence.x
 
-                if _max < _min:
+                if not prev_item:
+                    _min = None
+                elif _max < _min:
                     return None
 
                 return (_min, _max, self.sequence.create_mark(index, True))
@@ -826,12 +828,10 @@ class ItemManipulator(object):
                 _min = max(prev_item.x +
                         (prev_item.transition_length if prev_prev_item and not prev_prev_item.in_motion else 0),
                     prev_item.x + prev_item.length - self.item.length)
-                _max = prev_item.x + prev_item.length
 
                 _min += self.sequence.x
-                _max += self.sequence.x
 
-                return (_min, _max, self.sequence.create_mark(index, True))
+                return (_min, None, self.sequence.create_mark(index, True))
 
         def where_can_fit(self, x):
             '''Returns index where the item would be inserted if it can fit, None if it won't.
@@ -840,7 +840,7 @@ class ItemManipulator(object):
                 if not _range:
                     continue
 
-                if x >= _range[0] and x <= _range[1]:
+                if (_range[0] is None or x >= _range[0]) and (_range[1] is None or x <= _range[1]):
                     return _range[2]
 
             return None
