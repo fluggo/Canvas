@@ -5,6 +5,7 @@ import os.path
 import unittest
 
 path = sys.argv[1]
+names = sys.argv[2:]
 
 sys.path.insert(0, os.path.dirname(path))
 
@@ -14,7 +15,12 @@ if __name__ == '__main__':
     print('Running tests from {0}...'.format(path[:-3]), end='')
     sys.stdout.flush()
 
-    suite = unittest.defaultTestLoader.loadTestsFromModule(testmodule)
+    suite = None
+
+    if names:
+        suite = unittest.defaultTestLoader.loadTestsFromNames(names, testmodule)
+    else:
+        suite = unittest.defaultTestLoader.loadTestsFromModule(testmodule)
 
     result = unittest.TestResult()
     suite.run(result)
