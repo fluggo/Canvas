@@ -855,8 +855,6 @@ class ItemManipulator(object):
             if index is None:
                 return False
 
-            x -= self.sequence.x
-
             if self.seq_index is not None:
                 # Adjust index to what it would be if the placed items weren't there
                 if index > self.seq_index:
@@ -864,6 +862,7 @@ class ItemManipulator(object):
 
                 if self.seq_index == index:
                     # It's already in place, just adjust the transition_lengths
+                    x -= self.sequence.x
                     current_x = self.sequence[self.seq_index].x
 
                     if self.orig_next_item:
@@ -877,13 +876,11 @@ class ItemManipulator(object):
 
                     return True
 
-                if self.seq_index == 0:
-                    # Adjust x to account for resetting the sequence's position
-                    x -= self.item.length - self.orig_next_item.transition_length
-
                 self.reset()
+                index = self.where_can_fit(x)
 
             # The item isn't in the sequence at all, so add it
+            x -= self.sequence.x
 
             # Check to see if we'll end up at the beginning of the sequence (index at end==no)
             # The check is necessary if the item we're moving is already sitting at the beginning
@@ -912,8 +909,8 @@ class ItemManipulator(object):
             if self.seq_index is None:
                 return
 
-            self.sequence.update(x=self.original_x)
             self.item.reset()
+            self.sequence.update(x=self.original_x)
 
             if self.orig_next_item:
                 self.orig_next_item.update(transition_length=self.orig_next_item_trans_length)
@@ -1032,6 +1029,7 @@ class ItemManipulator(object):
                 self.original_sequence = self.items[0].sequence
                 self.original_sequence_index = self.items[0].index
                 self.original_next = self.items[-1].next_item()
+                self.original_next_trans_length = self.original_next.transition_length
                 self.orig_trans_length = self.items[0].transition_length
                 self.home = True
 
@@ -1050,7 +1048,7 @@ class ItemManipulator(object):
                         self.original_sequence.update(x=self.original_sequence.x + self.length)
 
                     if self.original_next:
-                        self.original_next.update(transition_length=self.original_next.transition_length - self.length)
+                        self.original_next.update(transition_length=max(0, self.original_next.transition_length - self.length))
 
                     self.home = False
 
@@ -1061,7 +1059,7 @@ class ItemManipulator(object):
                 if self.items[0].sequence:
                     del self.items[0].sequence[self.items[0].index:self.items[0].index + len(self.items)]
 
-                if not home:
+                if not self.home:
                     self.original_sequence[self.original_sequence_index:self.original_sequence_index] = self.items
                     self.items[0].update(transition_length=self.orig_trans_length)
 
@@ -1069,7 +1067,7 @@ class ItemManipulator(object):
                         self.original_sequence.update(x=self.original_sequence.x - self.length)
 
                     if self.original_next:
-                        self.original_next.update(transition_length=self.original_next.transition_length + self.length)
+                        self.original_next.update(transition_length=self.original_next_trans_length)
 
                     self.home = True
 
