@@ -986,6 +986,9 @@ class ItemManipulator(object):
                 if self.seq_item:
                     self.seq_item.update(in_motion=False)
 
+                if self.placeholder.space:
+                    self.placeholder.space.remove(self.placeholder)
+
             @property
             def transition_length(self):
                 return self.seq_item.transition_length
