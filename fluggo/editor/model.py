@@ -882,14 +882,37 @@ class ItemManipulator(object):
             # The item isn't in the sequence at all, so add it
             x -= self.sequence.x
 
-            # Check to see if we'll end up at the beginning of the sequence (index at end==no)
-            # The check is necessary if the item we're moving is already sitting at the beginning
-            # of the sequence; if it is, the mark in the index variable is going to move
-            # to zero and prevent us from knowing if we need to adjust the sequence position--
-            # you see how ridiculous this gets?
-            at_start = (index < len(self.sequence)) and (not self.sequence[index].previous_item(skip_in_motion=True))
+            # We have to determine how to move certain things to make this work,
+            # namely the sequence, the next item's transition_length, and our new
+            # item's transition length. The goal is to maintain these items'
+            # current positions relative to the *space*, and with the understanding
+            # that the items in the sequence marked in_motion aren't going to be
+            # there. (If that last assumption turns out not to be true, I don't
+            # know what to do exactly, except maybe kindly ask self.item if certain
+            # of those in_motion items belong to it.)
 
-            old_x = self.sequence[index].x if (index < len(self.sequence)) else self.sequence[index - 1].x + self.sequence[index - 1].length
+            # at_index - Item at the insertion index
+            at_index = self.sequence[index] if index < len(self.sequence) else None
+            at_start = at_index and not at_index.previous_item(skip_in_motion=True)
+            prev_item = at_index.previous_item() if at_index else self.sequence[-1]
+            removed_x = 0
+
+            if prev_item and prev_item.in_motion:
+                # Because the previous item is in motion, we need to consider its beginning our beginning
+                # We move at_index back to the first in_motion item and keep track
+                # of the length, because we expect that length will be removed
+                # during self.item.insert
+                prev_item = prev_item.previous_item(skip_in_motion=True)
+                existing_x = at_index.x if at_index else self.sequence.length
+
+                if prev_item:
+                    at_index = prev_item.next_item()
+                else:
+                    at_index = self.sequence[0]
+
+                removed_x = existing_x - at_index.x
+
+            old_x = at_index.x if at_index else self.sequence.length
             self.seq_index = index
             self.orig_next_item = index < len(self.sequence) and self.sequence[index] or None
             self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
@@ -897,11 +920,11 @@ class ItemManipulator(object):
             self.item.insert(self.sequence, index, 0 if at_start else old_x - x)
 
             if self.orig_next_item:
-                self.orig_next_item.update(transition_length=self.item.length - (old_x - x))
+                self.orig_next_item.update(transition_length=self.item.length - (old_x - x) - removed_x)
 
             if at_start:
                 # Move the sequence to compensate
-                self.sequence.update(x=self.sequence.x - (old_x - x))
+                self.sequence.update(x=self.sequence.x - (old_x - x) - removed_x)
 
             return True
 
@@ -1029,7 +1052,7 @@ class ItemManipulator(object):
                 self.original_sequence = self.items[0].sequence
                 self.original_sequence_index = self.items[0].index
                 self.original_next = self.items[-1].next_item()
-                self.original_next_trans_length = self.original_next.transition_length
+                self.original_next_trans_length = self.original_next and self.original_next.transition_length
                 self.orig_trans_length = self.items[0].transition_length
                 self.home = True
 
