@@ -1047,14 +1047,9 @@ class ItemManipulator(object):
     class SequenceItemGroupManipulator(object):
         class SequenceItemGroupSequenceable(Sequenceable):
             def __init__(self, manip):
+                self.manip = manip
                 self.items = manip.items
-                self.length = manip.items[-1].x + manip.items[-1].length - manip.items[0].x
-                self.original_sequence = self.items[0].sequence
-                self.original_sequence_index = self.items[0].index
-                self.original_next = self.items[-1].next_item()
-                self.original_next_trans_length = self.original_next and self.original_next.transition_length
-                self.orig_trans_length = self.items[0].transition_length
-                self.home = True
+                self.length = manip.length
 
                 self.min_fadeout_point = manip.items[-1].x + min(0, manip.items[-1].transition_length) - manip.items[0].x
 
@@ -1064,16 +1059,7 @@ class ItemManipulator(object):
                 print 'min_fadeout = {0}, max_fadein = {1}, length = {2}'.format(self.min_fadeout_point, self.max_fadein_point, self.length)
 
             def insert(self, seq, index, transition_length):
-                if self.home:
-                    del self.original_sequence[self.original_sequence_index:self.original_sequence_index + len(self.items)]
-
-                    if self.original_sequence_index == 0:
-                        self.original_sequence.update(x=self.original_sequence.x + self.length)
-
-                    if self.original_next:
-                        self.original_next.update(transition_length=max(0, self.original_next.transition_length - self.length))
-
-                    self.home = False
+                self.manip._remove_from_home()
 
                 self.items[0].update(transition_length=transition_length)
                 seq[index:index] = self.items
@@ -1082,17 +1068,7 @@ class ItemManipulator(object):
                 if self.items[0].sequence:
                     del self.items[0].sequence[self.items[0].index:self.items[0].index + len(self.items)]
 
-                if not self.home:
-                    self.original_sequence[self.original_sequence_index:self.original_sequence_index] = self.items
-                    self.items[0].update(transition_length=self.orig_trans_length)
-
-                    if self.original_sequence_index == 0:
-                        self.original_sequence.update(x=self.original_sequence.x - self.length)
-
-                    if self.original_next:
-                        self.original_next.update(transition_length=self.original_next_trans_length)
-
-                    self.home = True
+                self.manip._send_home()
 
             def finish(self):
                 pass
@@ -1111,6 +1087,43 @@ class ItemManipulator(object):
             self.original_x = items[0].x + self.original_sequence.x
             self.offset_x = self.original_x - grab_x
             self.seq_item_op = None
+
+            self.length = items[-1].x + items[-1].length - items[0].x
+            self.original_sequence = items[0].sequence
+            self.original_sequence_index = items[0].index
+            self.original_next = items[-1].next_item()
+            self.original_next_trans_length = self.original_next and self.original_next.transition_length
+            self.orig_trans_length = items[0].transition_length
+            self.home = True
+
+        def _remove_from_home(self):
+            if not self.home:
+                return
+
+            del self.original_sequence[self.original_sequence_index:self.original_sequence_index + len(self.items)]
+
+            if self.original_sequence_index == 0:
+                self.original_sequence.update(x=self.original_sequence.x + self.length)
+
+            if self.original_next:
+                self.original_next.update(transition_length=max(0, self.original_next.transition_length - self.length))
+
+            self.home = False
+
+        def _send_home(self):
+            if self.home:
+                return
+
+            self.original_sequence[self.original_sequence_index:self.original_sequence_index] = self.items
+            self.items[0].update(transition_length=self.orig_trans_length)
+
+            if self.original_sequence_index == 0:
+                self.original_sequence.update(x=self.original_sequence.x - self.length)
+
+            if self.original_next:
+                self.original_next.update(transition_length=self.original_next_trans_length)
+
+            self.home = True
 
         def can_set_space_item(self, space, x, y):
             return False
