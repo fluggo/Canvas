@@ -1088,7 +1088,9 @@ class ItemManipulator(object):
             self.original_sequence = items[0].sequence
             self.original_x = items[0].x + self.original_sequence.x
             self.offset_x = self.original_x - grab_x
+            self.offset_y = self.original_sequence.y - grab_y
             self.seq_item_op = None
+            self.space_item = None
 
             self.length = items[-1].x + items[-1].length - items[0].x
             self.original_sequence = items[0].sequence
@@ -1105,7 +1107,8 @@ class ItemManipulator(object):
             del self.original_sequence[self.original_sequence_index:self.original_sequence_index + len(self.items)]
 
             if self.original_sequence_index == 0:
-                self.original_sequence.update(x=self.original_sequence.x + self.length)
+                self.original_sequence.update(x=self.original_sequence.x + self.length
+                    - self.original_next.transition_length if self.original_next else 0)
 
             if self.original_next:
                 self.original_next.update(transition_length=max(0, self.original_next.transition_length - self.length))
@@ -1120,7 +1123,7 @@ class ItemManipulator(object):
             self.items[0].update(transition_length=self.orig_trans_length)
 
             if self.original_sequence_index == 0:
-                self.original_sequence.update(x=self.original_sequence.x - self.length)
+                self.original_sequence.update(x=self.original_x)
 
             if self.original_next:
                 self.original_next.update(transition_length=self.original_next_trans_length)
@@ -1128,15 +1131,39 @@ class ItemManipulator(object):
             self.home = True
 
         def can_set_space_item(self, space, x, y):
-            return False
+            # It's always possible
+            return True
 
         def set_space_item(self, space, x, y):
-            return False
+            self._undo_sequence()
+            self._remove_from_home()
+
+            if self.space_item and self.space_item.space == space:
+                self.space_item.update(x=x + self.offset_x, y=y + self.offset_y)
+                return
+
+            self._undo_space()
+            self.items[0].update(transition_length=0)
+
+            if len(self.items) == 1:
+                # Manifest as clip
+                self.space_item = Clip(x=x + self.offset_x, y=y + self.offset_y,
+                    height=self.original_sequence.height, length=self.items[0].length,
+                    source=self.items[0].source, in_motion=True)
+            else:
+                # Manifest as new sequence
+                self.space_item = Sequence(x=x + self.offset_x, y=y + self.offset_y,
+                    height=self.original_sequence.height, items=self.items)
+
+            space.insert(0, self.space_item)
+            return True
 
         def can_set_sequence_item(self, sequence, x, operation):
             return self.set_sequence_item(sequence, x, operation, do_it=False)
 
         def set_sequence_item(self, sequence, x, operation, do_it=True):
+            self._undo_space()
+
             if not self.items[0].in_motion:
                 for item in self.items:
                     item.update(in_motion=True)
@@ -1161,7 +1188,12 @@ class ItemManipulator(object):
                 self.seq_item_op.reset()
                 self.seq_item_op = None
 
+        def _undo_space(self):
+            if self.space_item:
+                self.space_item.space.remove(self.space_item)
+
         def reset(self):
+            self._undo_space()
             self._undo_sequence()
             self._send_home()
 
@@ -1171,6 +1203,9 @@ class ItemManipulator(object):
         def finish(self):
             for item in self.items:
                 item.update(in_motion=False)
+
+            if self.space_item:
+                self.space_item.update(in_motion=False)
 
             return True
 
