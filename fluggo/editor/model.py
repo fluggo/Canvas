@@ -189,7 +189,7 @@ class Item(object):
 
     def __init__(self, x=0, y=0.0, length=1, height=1.0, type=None, anchor=None,
             anchor_target_offset=None, anchor_source_offset=None, anchor_visible=False, tags=None,
-            ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None):
+            ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None, in_motion=False):
         self._space = None
         self._x = x
         self._y = y
@@ -207,7 +207,7 @@ class Item(object):
         self._anchor_source_offset = anchor_source_offset
         self._anchor_visible = anchor_visible
         self._tags = set(tags) if tags else set()
-        self.in_motion = False
+        self.in_motion = in_motion
 
     def _create_repr_dict(self):
         result = {
