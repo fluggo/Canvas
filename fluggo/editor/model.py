@@ -924,6 +924,7 @@ class ItemManipulator(object):
 
             if at_start:
                 # Move the sequence to compensate
+                self.original_x = self.sequence.x
                 self.sequence.update(x=self.sequence.x - (old_x - x) - removed_x)
 
             return True
@@ -1047,7 +1048,6 @@ class ItemManipulator(object):
     class SequenceItemGroupManipulator(object):
         class SequenceItemGroupSequenceable(Sequenceable):
             def __init__(self, manip):
-                self.manip = manip
                 self.items = manip.items
                 self.length = manip.length
 
@@ -1059,16 +1059,12 @@ class ItemManipulator(object):
                 print 'min_fadeout = {0}, max_fadein = {1}, length = {2}'.format(self.min_fadeout_point, self.max_fadein_point, self.length)
 
             def insert(self, seq, index, transition_length):
-                self.manip._remove_from_home()
-
                 self.items[0].update(transition_length=transition_length)
                 seq[index:index] = self.items
 
             def reset(self):
                 if self.items[0].sequence:
                     del self.items[0].sequence[self.items[0].index:self.items[0].index + len(self.items)]
-
-                self.manip._send_home()
 
             def finish(self):
                 pass
@@ -1147,6 +1143,7 @@ class ItemManipulator(object):
                     self.seq_item_op = ItemManipulator.SequenceAddMap(sequence, self.SequenceItemGroupSequenceable(self))
 
                 if do_it:
+                    self._remove_from_home()
                     return self.seq_item_op.set(x + self.offset_x)
                 else:
                     return self.seq_item_op.can_set(x + self.offset_x)
@@ -1159,7 +1156,8 @@ class ItemManipulator(object):
                 self.seq_item_op = None
 
         def reset(self):
-            self.set_sequence_item(self.original_sequence, self.original_x, 'add')
+            self._undo_sequence()
+            self._send_home()
 
             for item in self.items:
                 item.update(in_motion=False)
