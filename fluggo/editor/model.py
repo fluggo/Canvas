@@ -44,6 +44,9 @@ class Space(ezlist.EZList):
     def audio_format(self):
         return self._audio_format
 
+    def index(self, item):
+        return item._z
+
     def _replace_range(self, start, stop, items):
         old_item_set = frozenset(self._items[start:stop])
         new_item_set = frozenset(items)
