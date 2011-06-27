@@ -336,7 +336,7 @@ class MainWindow(QMainWindow):
         self.transport_rewind_action.setChecked(True)
 
     def canvas_bring_forward(self):
-        for item in self.view.selected_items():
+        for item in self.view.selected_model_items():
             key = item.z
             overlaps = item.overlap_items()
             above_items = [x.z for x in overlaps if x.z < key]
@@ -355,7 +355,7 @@ class MainWindow(QMainWindow):
             self.space[z1:z2 + 1] = temp_items
 
     def canvas_send_backward(self):
-        for item in self.view.selected_items():
+        for item in self.view.selected_model_items():
             key = item.z
             overlaps = item.overlap_items()
             below_items = [x.z for x in overlaps if x.z > key]

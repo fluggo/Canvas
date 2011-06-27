@@ -107,8 +107,8 @@ class View(QtGui.QGraphicsView):
 
         self._update_clock_frame(time)
 
-    def selected_items(self):
-        return self.scene().selected_items()
+    def selected_model_items(self):
+        return self.scene().selected_model_items()
 
     def scale(self, sx, sy):
         self.scale_x = fractions.Fraction(sx)

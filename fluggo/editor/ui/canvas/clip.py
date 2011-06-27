@@ -162,9 +162,10 @@ class ItemPositionController(Controller2D):
 class SceneItem(QtGui.QGraphicsItem):
     drop_opaque = True
 
-    def __init__(self, painter, name):
+    def __init__(self, model_item, painter, name):
         QtGui.QGraphicsItem.__init__(self)
 
+        self.model_item = model_item
         self.name = name
         self.painter = painter
 
@@ -298,17 +299,7 @@ class SceneItem(QtGui.QGraphicsItem):
         if event.buttons() & Qt.LeftButton != Qt.LeftButton:
             return
 
-        print 'clip start drag'
-        drag = QtGui.QDrag(event.widget())
-        data = QtCore.QMimeData()
-        data.obj = DragDropSelection(self.scene().space, self.scene().selected_items(), event.scenePos())
-        drag.setMimeData(data)
-
-        pixmap = QtGui.QPixmap(1, 1)
-        pixmap.fill(QtGui.QColor(Qt.transparent))
-        drag.setPixmap(pixmap)
-
-        drop_action = drag.exec_(Qt.CopyAction | Qt.MoveAction)
+        self.scene().do_drag(event)
 
 class ClipItem(SceneItem):
     class LeftController(Controller1D):
@@ -372,7 +363,7 @@ class ClipItem(SceneItem):
         if item.type() == 'video':
             painter = ThumbnailPainter()
 
-        SceneItem.__init__(self, painter, name)
+        SceneItem.__init__(self, item, painter, name)
 
         self.item = item
         self.item.updated.connect(self._update)

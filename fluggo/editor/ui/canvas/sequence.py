@@ -111,62 +111,11 @@ class _ItemRightController(Controller1D):
         if self.next_item:
             self.next_item.update(transition_length=self.original_trans_length + delta)
 
-class _ItemMoveController(Controller2D):
-    def __init__(self, handler, view):
-        self.item = handler.item
-        self.sequence = self.item.sequence
-        self.prev_item = self.sequence[self.item.index - 1] if self.item.index > 0 else None
-        self.next_item = self.sequence[self.item.index + 1] if self.item.index < len(self.sequence) - 1 else None
-        self.next_next_item = self.sequence[self.item.index + 2] if self.item.index < len(self.sequence) - 2 else None
-
-        if self.prev_item is None and self.next_item is None:
-            # Pin it, though this either may not happen or we'll want to change it
-            self.min_delta = 0
-            self.max_delta = 0
-        else:
-            min_points = []
-            max_points = []
-
-            if self.next_item:
-                # Pull back the current transition_length
-                min_points.append(-self.next_item.transition_length)
-
-                # Push forward the gap between transitions in next_item
-                max_points.append(self.next_item.length - self.next_item.transition_length -
-                    (self.next_next_item.transition_length if self.next_next_item else 0))
-
-            if self.prev_item:
-                # Pull back the gap between transitions in prev_item
-                min_points.append(-(self.prev_item.length - self.prev_item.transition_length - self.item.transition_length))
-
-                # Push forward the current transition_length
-                max_points.append(self.item.transition_length)
-
-            self.min_delta = max(min_points)
-            self.max_delta = min(max_points)
-
-        self.original_seq_x = self.sequence.x
-        self.original_transition_length = self.item.transition_length
-        self.original_next_transition_length = self.next_item.transition_length if self.next_item else None
-
-    def move(self, delta, delta_y):
-        delta = max(self.min_delta, min(self.max_delta, delta))
-
-        if self.prev_item:
-            # Adjust the transition_length
-            self.item.update(transition_length=self.original_transition_length - delta)
-        else:
-            # Move the sequence
-            self.item.sequence.update(x=self.original_seq_x + delta)
-
-        if self.next_item:
-            self.next_item.update(transition_length=self.original_next_transition_length + delta)
-
 class _SequenceItemHandler(SceneItem):
     drop_opaque = False
 
     def __init__(self, item, owner):
-        SceneItem.__init__(self, ThumbnailPainter(), None)
+        SceneItem.__init__(self, item, ThumbnailPainter(), None)
 
         self.owner = owner
         self.item = item
@@ -177,8 +126,6 @@ class _SequenceItemHandler(SceneItem):
         self.left_handle.setZValue(LEVEL_TIME_HANDLES)
         self.right_handle = HorizontalHandle(owner, _ItemRightController, self)
         self.right_handle.setZValue(LEVEL_TIME_HANDLES)
-        self.move_handle = Handle(owner, _ItemMoveController, self)
-        self.move_handle.setZValue(LEVEL_MOVE_HANDLES)
 
     @property
     def length(self):
@@ -206,13 +153,11 @@ class _SequenceItemHandler(SceneItem):
         self.setPos(float(self.item.x / self.owner.units_per_second), 0.0 if (self.item.index & 1 == 0) else self.owner.height - self.height)
         self.left_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
         self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), self.y())
-        self.move_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
-        self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.length / self.units_per_second, self.owner.item_display_height))
 
     def removed_from_scene(self):
         SceneItem.removed_from_scene(self)
 
-        for a in (self.left_handle, self.right_handle, self.move_handle):
+        for a in (self.left_handle, self.right_handle):
             a.scene().removeItem(a)
 
     def update_view_decorations(self, view):
@@ -226,7 +171,6 @@ class _SequenceItemHandler(SceneItem):
 
     def item_updated(self, **kw):
         if 'x' in kw:
-            self.move_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
             self.left_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
             self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), self.y())
         elif 'length' in kw:
@@ -234,8 +178,6 @@ class _SequenceItemHandler(SceneItem):
 
         if 'length' in kw or 'height' in kw or 'index' in kw:
             self.setPos(float(self.item.x / self.owner.units_per_second), 0.0 if (self.item.index & 1 == 0) else self.owner.height - self.height)
-            self.move_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
-            self.move_handle.setRect(QtCore.QRectF(0.0, 0.0, self.length / self.units_per_second, self.owner.item_display_height))
             self.left_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
             self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), self.y())
 

@@ -122,8 +122,9 @@ class Scene(QtGui.QGraphicsScene):
         self.addItem(ui_item)
         self.sort_list.add(ui_item)
 
-    def selected_items(self):
-        return [item.item for item in self.selectedItems() if isinstance(item, ClipItem)]
+    def selected_model_items(self):
+        '''Model items that are selected.'''
+        return [item.model_item for item in self.selectedItems() if hasattr(item, 'model_item') and item.model_item is not None]
 
     def handle_item_removed(self, item):
         for ui_item in self.sort_list:
@@ -143,6 +144,18 @@ class Scene(QtGui.QGraphicsScene):
     def remove_marker(self, marker):
         self.markers.remove(marker)
         self.marker_removed(marker)
+
+    def do_drag(self, event):
+        drag = QtGui.QDrag(event.widget())
+        data = QtCore.QMimeData()
+        data.obj = DragDropSelection(self.space, self.selected_model_items(), event.scenePos())
+        drag.setMimeData(data)
+
+        pixmap = QtGui.QPixmap(1, 1)
+        pixmap.fill(QtGui.QColor(Qt.transparent))
+        drag.setPixmap(pixmap)
+
+        drop_action = drag.exec_(Qt.CopyAction | Qt.MoveAction)
 
     def dragMoveEvent(self, event):
         QtGui.QGraphicsScene.dragMoveEvent(self, event)
@@ -171,12 +184,10 @@ class Scene(QtGui.QGraphicsScene):
         y = event.scenePos().y()
 
         if top_item and isinstance(top_item, VideoSequence) and main_item.type() == 'video' and self.drag_op.can_set_sequence_item(top_item.item, x, 'add'):
-            print 'attempt sequence'
             if self.drag_op.set_sequence_item(top_item.item, x, 'add'):
                 event.accept()
                 return
         else:
-            print 'attempt space item'
             if self.drag_op.set_space_item(self.space, x, y):
                 event.accept()
                 return
