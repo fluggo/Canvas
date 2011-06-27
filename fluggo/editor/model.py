@@ -569,6 +569,7 @@ class Sequence(Item, ezlist.EZList):
 
         for item in self._items:
             item._sequence = self
+            item._type = self._type
             item._x = total_length - item.transition_length
             total_length += item.length - item.transition_length
 
@@ -577,7 +578,7 @@ class Sequence(Item, ezlist.EZList):
 class SequenceItem(object):
     yaml_tag = u'!CanvasSequenceItem'
 
-    def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0, in_motion=False):
+    def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0, type=None, in_motion=False):
         if length < 1:
             raise ValueError('length cannot be less than 1 ({0} was given)'.format(length))
 
@@ -588,6 +589,7 @@ class SequenceItem(object):
         self._transition_length = transition_length
         self._sequence = None
         self._index = None
+        self._type = type
         self._x = 0
         self.in_motion = in_motion
 
@@ -666,6 +668,9 @@ class SequenceItem(object):
     @property
     def x(self):
         return self._x
+
+    def type(self):
+        return self._type
 
     def previous_item(self, skip_in_motion=False):
         '''Gets the previous item, or None if there isn't one.
