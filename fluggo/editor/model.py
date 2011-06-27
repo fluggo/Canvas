@@ -971,6 +971,7 @@ class ItemManipulator(object):
                     length=self.item.length,
                     offset=self.item.offset,
                     transition_length=transition_length,
+                    type=self.item.type(),
                     in_motion=True)
 
                 seq.insert(index, self.seq_item)
@@ -1116,7 +1117,7 @@ class ItemManipulator(object):
                     - self.original_next.transition_length if self.original_next else 0)
 
             if self.original_next:
-                self.original_next.update(transition_length=max(0, self.original_next.transition_length - self.length))
+                self.original_next.update(transition_length=0 if self.original_sequence_index == 0 else (self.original_next_trans_length - self.length))
 
             self.home = False
 
@@ -1154,11 +1155,13 @@ class ItemManipulator(object):
                 # Manifest as clip
                 self.space_item = Clip(x=x + self.offset_x, y=y + self.offset_y,
                     height=self.original_sequence.height, length=self.items[0].length,
-                    source=self.items[0].source, in_motion=True)
+                    source=self.items[0].source, type=self.items[0].type(),
+                    offset=self.items[0].offset, in_motion=True)
             else:
                 # Manifest as new sequence
                 self.space_item = Sequence(x=x + self.offset_x, y=y + self.offset_y,
-                    height=self.original_sequence.height, items=self.items)
+                    height=self.original_sequence.height, items=self.items,
+                    type=self.items[0].type())
 
             space.insert(0, self.space_item)
             return True
@@ -1196,6 +1199,7 @@ class ItemManipulator(object):
         def _undo_space(self):
             if self.space_item:
                 self.space_item.space.remove(self.space_item)
+                self.space_item = None
 
         def reset(self):
             self._undo_space()

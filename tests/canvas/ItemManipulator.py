@@ -437,7 +437,7 @@ class test_ItemManipulator(unittest.TestCase):
     def test_one_item_add_seq_short(self):
         '''Drag one item into a sequence, but the item is short'''
         space = model.Space(vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.StreamSourceRef('red', 0)),
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=15, source=model.StreamSourceRef('red', 0), type='noon'),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
@@ -455,6 +455,8 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEquals(item.space, None)
         self.assertEquals(seq[0].source.source_name, 'red')
         self.assertEquals(seq[1].transition_length, -1)
+        self.assertEquals(seq[0].offset, 15)
+        self.assertEquals(seq[0].type(), 'noon')
 
         self.assertEquals(manip.can_set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, no overlap')
         self.assertEquals(seq.x, 4)
@@ -897,8 +899,8 @@ class test_ItemManipulator(unittest.TestCase):
         '''Move a single sequence item into a space, where it should manifest as a clip'''
         space = model.Space(vidformat, audformat)
 
-        seq = model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=4)], height=3.0)
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[0]
 
         manip = model.ItemManipulator([item], 10, 10.0)
@@ -935,6 +937,8 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEquals(space[0].length, 10)
         self.assertEquals(space[0].height, 3.0)
         self.assertEquals(space[0].source.source_name, 'seq1')
+        self.assertEquals(space[0].type(), 'video')
+        self.assertEquals(space[0].offset, 12)
 
         manip.reset()
         self.assertEquals(len(seq), 2)
@@ -950,12 +954,12 @@ class test_ItemManipulator(unittest.TestCase):
         manip.finish()
 
     def test_seq_item_multiple_move_space(self):
-        '''Move a single sequence item into a space, where it should manifest as a clip'''
+        '''Move a multiple sequences item into a space, where they should manifest as a sequence'''
         space = model.Space(vidformat, audformat)
 
-        seq = model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=4)], height=3.0)
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=6, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=13, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
 
         manip = model.ItemManipulator(seq[0:2], 10, 10.0)
 
@@ -996,10 +1000,86 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEquals(space[0].x, 4)
         self.assertEquals(space[0].y, 19.0)
         self.assertEquals(space[0].height, 3.0)
+        self.assertEquals(space[0].type(), 'video')
         self.assertEquals(space[0][0].x, 0)
         self.assertEquals(space[0][0].source.source_name, 'seq1')
+        self.assertEquals(space[0][0].type(), 'video')
+        self.assertEquals(space[0][0].offset, 6)
         self.assertEquals(space[0][1].x, 10)
         self.assertEquals(space[0][1].source.source_name, 'seq1.5')
+        self.assertEquals(space[0][1].type(), 'video')
+        self.assertEquals(space[0][1].offset, 13)
+
+        manip.reset()
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(len(space), 0)
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(seq[0].x, 0)
+        self.assertEquals(seq[0].transition_length, 0)
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].x, 10)
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[1].source.source_name, 'seq1.5')
+        self.assertEquals(seq[2].x, 16)
+        self.assertEquals(seq[2].transition_length, 4)
+        self.assertEquals(seq[2].source.source_name, 'seq2')
+
+        manip.finish()
+
+    def test_seq_item_single_move_space_from_middle(self):
+        '''Move a single sequence item from the middle of a sequence into a space, where it should manifest as a clip and leave a gap behind'''
+        space = model.Space(vidformat, audformat)
+
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=18, length=10, transition_length=0),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
+        item = seq[1]
+
+        manip = model.ItemManipulator([item], 20, 10.0)
+
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(len(space), 0)
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(seq[0].x, 0)
+        self.assertEquals(seq[0].transition_length, 0)
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].x, 10)
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[1].source.source_name, 'seq1.5')
+        self.assertEquals(seq[2].x, 16)
+        self.assertEquals(seq[2].transition_length, 4)
+        self.assertEquals(seq[2].source.source_name, 'seq2')
+
+        self.assertEquals(manip.can_set_space_item(space, 4, 19.0), True)
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(len(space), 0)
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(seq[0].x, 0)
+        self.assertEquals(seq[0].transition_length, 0)
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].x, 10)
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[1].source.source_name, 'seq1.5')
+        self.assertEquals(seq[2].x, 16)
+        self.assertEquals(seq[2].transition_length, 4)
+        self.assertEquals(seq[2].source.source_name, 'seq2')
+        self.assertEquals(manip.set_space_item(space, 4, 19.0), True)
+        self.assertEquals(len(seq), 2)
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(seq[0].x, 0)
+        self.assertEquals(seq[0].transition_length, 0)
+        self.assertEquals(seq[0].source.source_name, 'seq1')
+        self.assertEquals(seq[1].x, 16)
+        self.assertEquals(seq[1].transition_length, -6)
+        self.assertEquals(seq[1].source.source_name, 'seq2')
+        self.assertEquals(len(space), 1)
+        self.assertEquals(space[0].x, 4)
+        self.assertEquals(space[0].y, 19.0)
+        self.assertEquals(space[0].length, 10)
+        self.assertEquals(space[0].height, 3.0)
+        self.assertEquals(space[0].source.source_name, 'seq1.5')
+        self.assertEquals(space[0].type(), 'video')
+        self.assertEquals(space[0].offset, 18)
 
         manip.reset()
         self.assertEquals(len(seq), 3)
