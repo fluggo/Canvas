@@ -804,7 +804,7 @@ class ItemManipulator(object):
                     (prev_item.x +
                         (prev_item.transition_length if prev_prev_item and not prev_prev_item.in_motion else 0))
                         if prev_item else -self.item.length,
-                    seq_item.x - (self.item.max_fadein_point if prev_item else self.item.length))
+                    seq_item.x + min(0, seq_item.transition_length) - (self.item.max_fadein_point if prev_item else self.item.length))
 
                 # -min_fadeout_point is the length of the placed sequence up to the last transition, so
                 # that's how far back we have to push something
@@ -925,13 +925,15 @@ class ItemManipulator(object):
             self.orig_next_item = index < len(self.sequence) and self.sequence[index] or None
             self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
 
-            self.item.insert(self.sequence, index, 0 if at_start else old_x - x)
+            # Hit the mark "x"
+            self.item.insert(self.sequence, index, 0 if at_start else old_x - x + (at_index.transition_length if at_index else 0))
 
             if self.orig_next_item:
+                # Retain this item's position in spite of any removals/insertions in self.item.insert
                 self.orig_next_item.update(transition_length=self.item.length - (old_x - x) - removed_x)
 
             if at_start:
-                # Move the sequence to compensate
+                # Move the sequence to compensate for insertions at the beginning
                 self.original_x = self.sequence.x
                 self.sequence.update(x=self.sequence.x - (old_x - x) - removed_x)
 
@@ -1146,7 +1148,7 @@ class ItemManipulator(object):
 
             if self.space_item and self.space_item.space == space:
                 self.space_item.update(x=x + self.offset_x, y=y + self.offset_y)
-                return
+                return True
 
             self._undo_space()
             self.items[0].update(transition_length=0)

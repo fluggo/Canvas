@@ -263,6 +263,64 @@ class test_ItemManipulator(unittest.TestCase):
 
         self.assertEquals(manip.finish(), True)
 
+    def test_one_item_add_seq_gap(self):
+        '''Drag one item into a sequence in the middle of a gap'''
+        space = model.Space(vidformat, audformat)
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
+
+        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        item = space[0]
+        seq = space[2]
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 20, 'add'), True)
+        self.assertEquals(len(seq), 2)
+        self.assertNotEquals(item.space, None)
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(manip.set_sequence_item(seq, 20, 'add'), True)
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(item.space, None)
+        self.assertEquals(seq[1].source.source_name, 'red')
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[1].x, 10)
+        self.assertEquals(seq[2].source.source_name, 'seq2')
+        self.assertEquals(seq[2].transition_length, 9)
+        self.assertEquals(seq[2].x, 16)
+
+        self.assertEquals(manip.finish(), True)
+
+    def test_one_item_add_seq_gap_short(self):
+        '''Drag one short item into a sequence at the beginning of a gap'''
+        space = model.Space(vidformat, audformat)
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.StreamSourceRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
+
+        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        item = space[0]
+        seq = space[2]
+
+        self.assertEquals(manip.can_set_sequence_item(seq, 20, 'add'), True)
+        self.assertEquals(len(seq), 2)
+        self.assertNotEquals(item.space, None)
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(manip.set_sequence_item(seq, 20, 'add'), True)
+        self.assertEquals(seq.x, 10)
+        self.assertEquals(len(seq), 3)
+        self.assertEquals(item.space, None)
+        self.assertEquals(seq[1].source.source_name, 'red')
+        self.assertEquals(seq[1].transition_length, 0)
+        self.assertEquals(seq[1].x, 10)
+        self.assertEquals(seq[2].source.source_name, 'seq2')
+        self.assertEquals(seq[2].transition_length, -3)
+        self.assertEquals(seq[2].x, 16)
+
+        self.assertEquals(manip.finish(), True)
+
     def test_one_item_add_seq_backwards(self):
         '''Like test_one_item_add_seq, but in reverse order'''
         space = model.Space(vidformat, audformat)
