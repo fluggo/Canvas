@@ -321,6 +321,24 @@ class test_ItemManipulator(unittest.TestCase):
 
         self.assertEquals(manip.finish(), True)
 
+    def test_one_item_add_seq_cross_transition(self):
+        '''Drag one short item into a sequence where it should fail to insert across a transition'''
+        space = model.Space(vidformat, audformat)
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.StreamSourceRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=5)])]
+
+        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        item = space[0]
+        seq = space[2]
+
+        # Can't set from 11 (just after clip #1 starts) to 22 (three frames before clip #2 ends)
+        for x in range(11, 22):
+            self.assertEquals(manip.can_set_sequence_item(seq, x, 'add'), False, 'Test failed for x = {0}'.format(x))
+
+        self.assertEquals(manip.finish(), True)
+
     def test_one_item_add_seq_backwards(self):
         '''Like test_one_item_add_seq, but in reverse order'''
         space = model.Space(vidformat, audformat)

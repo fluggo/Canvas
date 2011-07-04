@@ -61,20 +61,26 @@ class _SequenceAddMap(object):
         item can't fit at all at an index, None might be returned.'''
 
         if index < len(self.sequence):
-            if self.sequence[index].in_motion:
-                return None
-
             seq_item = self.sequence[index]
 
-            # Find next_item so we can get its transition_length (which we ignore if the next item is in_motion)
-            next_item = seq_item.next_item()
+            # In motion: it'll be gone, consider a different index instead
+            # Has a transition: Can't fit here regardless
+            if seq_item.in_motion:
+                return None
 
             # Find the previous original item
             prev_item = seq_item.previous_item(skip_in_motion=True)
 
+            if seq_item.transition_length > 0 and prev_item and prev_item.index == seq_item.index - 1:
+                # Previous item is locked in a transition with us and is here to stay
+                return None
+
             # If the item before that is in motion, we have to ignore prev_item's
             # transition_length (which would otherwise be zero or less)
             prev_prev_item = prev_item and prev_item.previous_item()
+
+            # Find next_item so we can get its transition_length (which we ignore if the next item is in_motion)
+            next_item = seq_item.next_item()
 
             _min = max(
                 (prev_item.x +
