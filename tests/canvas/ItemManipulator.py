@@ -843,6 +843,41 @@ class test_ItemManipulator(unittest.TestCase):
 
         manip.finish()
 
+    def test_seq_item_simple_move_middle(self):
+        '''Test moving a single sequence item starting in the middle'''
+        space = model.Space(vidformat, audformat)
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.StreamSourceRef('red', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=3, length=10, transition_length=3)])]
+
+        seq = space[1]
+        item = space[0]
+
+        # Weird case I found where moving an item in the middle caused an existing gap to increase
+        manip = model.ItemManipulator([item], 0, 0.0)
+        self.assertEquals(manip.set_sequence_item(seq, 35, 'add'), True)
+        manip.finish()
+
+        manip = model.ItemManipulator([seq[1]], 17, 0.0)
+
+        self.assertEquals(seq[1].x, 7)
+        self.assertEquals(seq[1].transition_length, 3)
+        self.assertEquals(seq[2].x, 25)
+        self.assertEquals(seq[2].transition_length, -8)
+        self.assertEquals(manip.set_space_item(space, 0, 0.0), True)
+        self.assertEquals(seq[1].x, 25)
+        self.assertEquals(manip.set_sequence_item(seq, 17, 'add'), True)
+        self.assertEquals(seq[1].x, 7)
+        self.assertEquals(seq[1].transition_length, 3)
+        self.assertEquals(seq[2].x, 25)
+        self.assertEquals(seq[2].transition_length, -8)
+        self.assertEquals(manip.set_space_item(space, 0, 0.0), True)
+        self.assertEquals(manip.set_sequence_item(seq, 18, 'add'), True)
+        self.assertEquals(seq[1].x, 8)
+        self.assertEquals(seq[1].transition_length, 2)
+        self.assertEquals(seq[2].x, 25)
+        self.assertEquals(seq[2].transition_length, -7)
+
     def test_seq_item_simple_move_backwards(self):
         '''Test moving a single sequence item around within the same sequence'''
         space = model.Space(vidformat, audformat)

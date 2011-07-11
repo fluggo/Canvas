@@ -412,7 +412,7 @@ class _SequenceItemGroupManipulator(object):
                 - self.original_next.transition_length if self.original_next else 0)
 
         if self.original_next:
-            self.original_next.update(transition_length=0 if self.original_sequence_index == 0 else (self.original_next_trans_length - self.length))
+            self.original_next.update(transition_length=0 if self.original_sequence_index == 0 else (self.original_next_trans_length - self.length + self.orig_trans_length))
 
         self.home = False
 
