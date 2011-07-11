@@ -18,6 +18,9 @@
 
 import collections, itertools
 from .items import *
+from fluggo import logging
+
+logger = logging.getLogger(__name__)
 
 class _Sequenceable(object):
     def __init__(self, length):
@@ -97,7 +100,6 @@ class _SequenceAddMap(object):
             _min += self.sequence.x
             _max += self.sequence.x
 
-            #print '{2}=({0}, {1})'.format(_min, _max, index)
             if not prev_item:
                 _min = None
             elif _max < _min:
@@ -131,7 +133,6 @@ class _SequenceAddMap(object):
             if not _range:
                 continue
 
-            print _range
             if (_range[0] is None or x >= _range[0]) and (_range[1] is None or x <= _range[1]):
                 return _range[2]
 
@@ -142,7 +143,6 @@ class _SequenceAddMap(object):
         return self.where_can_fit(x) is not None
 
     def set(self, x):
-        print x
         index = self.where_can_fit(x)
 
         if index is None:
@@ -153,13 +153,10 @@ class _SequenceAddMap(object):
             if index > self.seq_index:
                 index -= (self.orig_next_item.index if self.orig_next_item else len(self.sequence)) - self.seq_index
 
-            print index
             if self.seq_index == index:
                 # It's already in place, just adjust the transition_lengths
-                print x
                 x -= self.sequence.x
                 current_x = self.sequence[self.seq_index].x
-                print self.sequence.x, x, current_x
 
                 if self.orig_next_item:
                     self.orig_next_item.update(transition_length=self.orig_next_item.transition_length + (x - current_x))
@@ -207,25 +204,25 @@ class _SequenceAddMap(object):
                 at_index = self.sequence[0]
 
             removed_x = existing_x - at_index.x
-            print 'moved back to {0}, removed is {1}'.format(at_index.x, removed_x)
+            logger.debug('moved back to {0}, removed is {1}', at_index.x, removed_x)
 
         old_x = at_index.x if at_index else self.sequence.length
         self.seq_index = index
         self.orig_next_item = index < len(self.sequence) and self.sequence[index] or None
         self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
-        print index, x, old_x
+        logger.debug('placing at {0}, x is {1}, old_x is {2}', index, x, old_x)
 
         # Hit the mark "x"
         self.item.insert(self.sequence, index, 0 if at_start else old_x - x + (at_index.transition_length if at_index else 0))
 
         if self.orig_next_item:
-            print 'next trans len {0} - ({1} - {2}) == {3}'.format(self.item.length, old_x, x, self.item.length - (old_x - x))
+            logger.debug('next trans len {0} - ({1} - {2}) == {3}', self.item.length, old_x, x, self.item.length - (old_x - x))
             # Retain this item's position in spite of any removals/insertions in self.item.insert
             self.orig_next_item.update(transition_length=self.item.length - (old_x - x) - removed_x)
 
         if at_start:
             # Move the sequence to compensate for insertions at the beginning
-            print 'moving to {0} - ({1} - {2}) == {3}'.format(self.sequence.x, old_x, x, self.sequence.x - (old_x - x))
+            logger.debug('moving to {0} - ({1} - {2}) == {3}', self.sequence.x, old_x, x, self.sequence.x - (old_x - x))
             self.original_x = self.sequence.x
             self.sequence.update(x=self.sequence.x - (old_x - x) - removed_x)
 
@@ -278,9 +275,9 @@ class _ClipManipulator(object):
                 del self.seq_item.sequence[self.seq_item.index]
 
             if not self.item.space:
-                print 'restoring item'
+                logger.debug('restoring item')
                 self.placeholder.space[self.placeholder.z] = self.item
-                print 'item restored at ' + str(self.item.z)
+                logger.debug('item restored at {0}', self.item.z)
 
         def finish(self):
             if self.seq_item:
@@ -310,7 +307,6 @@ class _ClipManipulator(object):
         return True
 
     def set_space_item(self, space, x, y):
-        print 'clip.set_space_item'
         self._undo_sequence()
 
         self.item.update(x=x + self.offset_x, y=y + self.offset_y, in_motion=True)
@@ -362,11 +358,9 @@ class _SequenceItemGroupManipulator(object):
             next_item = manip.items[1] if len(manip.items) > 1 else None
             self.max_fadein_point = next_item.x if next_item else self.length
 
-            print 'min_fadeout = {0}, max_fadein = {1}, length = {2}'.format(self.min_fadeout_point, self.max_fadein_point, self.length)
-
         def insert(self, seq, index, transition_length):
             self.items[0].update(transition_length=transition_length)
-            print 'about to insert at {0}'.format(index)
+            logger.debug('about to insert at {0}', index)
             seq[index:index] = self.items
 
         def reset(self):
