@@ -1,16 +1,17 @@
+import logging
+logging.basicConfig()
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
 from fluggo import signal, sortlist
-from fluggo.media import process, timecode, qt, formats, sources, alsa
+from fluggo.media import process, timecode, qt, formats, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
 from fluggo.editor import ui, model, graph
 import fluggo.editor
 
 from fluggo.media.muxers.ffmpeg import FFMuxPlugin
-
 
 class SourceSearchModel(QAbstractTableModel):
     def __init__(self, source_list):
@@ -94,6 +95,11 @@ class SourceSearchWidget(QDockWidget):
 
         self.setWidget(widget)
 
+    def set_source_list(self, source_list):
+        self.source_list = source_list
+        self.model = SourceSearchModel(source_list)
+        self.view.setModel(self.model)
+
 muxers = (FFMuxPlugin,)
 
 class MainWindow(QMainWindow):
@@ -101,34 +107,17 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setMinimumHeight(600)
 
-        self.source_list = sources.SourceList(muxers)
+        self.source_list = model.SourceList(muxers)
 
-        # Only one space for now, we'll do multiple later
-        vidformat = formats.StreamFormat('video')
-        vidformat.override[formats.VideoAttribute.SAMPLE_ASPECT_RATIO] = fractions.Fraction(40, 33)
-        vidformat.override[formats.VideoAttribute.FRAME_RATE] = fractions.Fraction(24000, 1001)
-        vidformat.override[formats.VideoAttribute.MAX_DATA_WINDOW] = box2i((0, -1), (719, 478))
-        audformat = formats.StreamFormat('audio')
-        audformat.override[formats.AudioAttribute.SAMPLE_RATE] = 48000
-        audformat.override[formats.AudioAttribute.CHANNELS] = ['FL', 'FR']
-
-        self.space = model.Space(vidformat, audformat)
-        #self.space.append(clip)
-
-        self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
-        self.audio_player = alsa.AlsaPlayer(48000, 2, self.audio_graph_manager)
-
-        self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list, vidformat)
-        self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
+        self.audio_player = alsa.AlsaPlayer(48000, 2, None)
 
         # Set up canvas
         #self.clock = process.SystemPresentationClock()
         self.clock = self.audio_player
-        self.frame_rate = fractions.Fraction(24000, 1001)
 
         # Workaround for Qt bug (see RulerView)
-        #self.view = ui.canvas.View(self.clock, self.space, self.source_list)
-        self.view = ui.canvas.RulerView(self.clock, self.space, self.source_list)
+        #self.view = ui.canvas.View(self.clock)
+        self.view = ui.canvas.RulerView(self.clock)
 
         #self.view.setViewport(QGLWidget())
         self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
@@ -139,12 +128,7 @@ class MainWindow(QMainWindow):
         self.video_dock.setWidget(self.video_widget)
 
         self.video_widget.setRenderingIntent(1.5)
-        self.video_widget.setDisplayWindow(self.space.video_format.max_data_window)
-        self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
         self.video_widget.setPresentationClock(self.clock)
-        self.video_widget.setVideoSource(self.video_graph_manager)
-
-        self.clock.seek(0)
 
         self.addDockWidget(Qt.BottomDockWidgetArea, self.video_dock)
 
@@ -178,8 +162,48 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(center_widget)
 
+        # Set up the defaults
+        # Only one space for now, we'll do multiple later
+        vidformat = formats.StreamFormat('video')
+        vidformat.override[formats.VideoProperty.SAMPLE_ASPECT_RATIO] = fractions.Fraction(40, 33)
+        vidformat.override[formats.VideoProperty.FRAME_RATE] = fractions.Fraction(24000, 1001)
+        vidformat.override[formats.VideoProperty.MAX_DATA_WINDOW] = box2i((0, -1), (719, 478))
+        audformat = formats.StreamFormat('audio')
+        audformat.override[formats.AudioProperty.SAMPLE_RATE] = 48000
+        audformat.override[formats.AudioProperty.CHANNELS] = ['FL', 'FR']
+
+        self.space = model.Space(vidformat, audformat)
+        self.setup_space()
+
         # FOR TESTING
         self.open_file('test_timeline.yaml')
+
+    def setup_source_list(self):
+        self.space = None
+        self.setup_space()
+
+        self.search_dock.set_source_list(self.source_list)
+
+    def setup_space(self):
+        '''Set up the work environment for the new value of self.space.'''
+        if not self.space:
+            self.audio_player.set_audio_source(None)
+            self.video_widget.setVideoSource(None)
+            self.view.set_space(None, self.source_list)
+            return
+
+        self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
+        self.audio_player.set_audio_source(self.audio_graph_manager)
+
+        self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list, self.space.video_format)
+        self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
+        self.video_widget.setDisplayWindow(self.space.video_format.max_data_window)
+        self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
+        self.video_widget.setVideoSource(self.video_graph_manager)
+
+        self.view.set_space(self.space, self.source_list)
+
+        self.clock.seek(0)
 
     def create_actions(self):
         self.open_space_action = QAction('&Open...', self,
@@ -232,6 +256,9 @@ class MainWindow(QMainWindow):
         self.view_menu.addAction(self.view_video_preview)
 
     def handle_update_frames(self, min_frame, max_frame):
+        if not self.space:
+            return
+
         # If the current frame was in this set, re-seek to it
         speed = self.clock.get_speed()
 
@@ -239,13 +266,10 @@ class MainWindow(QMainWindow):
             return
 
         time = self.clock.get_presentation_time()
-        frame = process.get_time_frame(self.frame_rate, time)
+        frame = process.get_time_frame(self.space.video_format.frame_rate, time)
 
-        # FIXME: There's a race condition here where we might request
-        # a repaint multiple times, but get one of the states in the middle,
-        # not the final state
         if frame >= min_frame and frame <= max_frame:
-            self.clock.seek(process.get_frame_time(self.frame_rate, int(frame)))
+            self.clock.seek(process.get_frame_time(self.space.video_format.frame_rate, int(frame)))
 
     def open_space(self):
         path = QFileDialog.getOpenFileName(self, "Open File", filter='YAML Files (*.yaml)')
@@ -260,23 +284,26 @@ class MainWindow(QMainWindow):
             self.save_file(path)
 
     def open_file(self, path):
-        sources, space = None, None
+        project = None
 
         with open(path) as stream:
-            (sources, space) = yaml.load_all(stream)
+            project = yaml.load(stream)
+            project.fixup(muxers)
 
-        self.space[:] = []
+        self.source_list = project.sources
+        self.setup_source_list()
 
-        self.source_list.clear()
-        self.source_list.update(sources)
+        self.space = self.source_list['test']
+        self.setup_space()
 
-        space.fixup()
+    def add_source_file(self, path):
+        try:
+            container = FFMuxPlugin.detect_container(path)
+            filename = os.path.split(path)[1]
 
-        # TODO: Replace the whole space here; this requires
-        # swapping it out for the view and workspace managers also
-        self.space[:] = space[:]
-        self.video_widget.setDisplayWindow(self.space.video_format.max_data_window)
-        self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
+            self.source_list[filename] = container
+        except:
+            QMessageBox.warning(self, 'Canvas', str(sys.exc_info()[0]))
 
     def save_file(self, path):
         with open(path, 'w') as stream:

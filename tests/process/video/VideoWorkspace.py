@@ -1,5 +1,5 @@
 import unittest, random
-from fluggo.media import process, sources
+from fluggo.media import process
 from fluggo.media.basetypes import *
 
 red = process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100))

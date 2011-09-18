@@ -30,21 +30,16 @@ class _DeferredFormat(object):
         self.kw = kw
 
     def __str__(self):
-        return self.format.format(*args, **kw)
+        return self.format.format(*self.args, **self.kw)
 
 _baseLog = getLoggerClass()
 
 class _logger(_baseLog):
-    def log(self, lvl, msg, *args, **kwargs):
-        subkw = {}
+    def warning(self, *args, **kw):
+        _baseLog.warning(self, *args, **kw)
 
-        if 'exc_info' in kwargs:
-            subkw['exc_info'] = kwargs['exc_info']
-
-        if 'extra' in kwargs:
-            subkw['extra'] = kwargs['extra']
-
-        _baseLog.log(self, lvl, DeferredFormat(msg, args, kwargs), **subkw)
+    def makeRecord(self, name, lvl, fn, lno, msg, args, exc_info, func=None, extra=None):
+        return _baseLog.makeRecord(self, name, lvl, fn, lno, _DeferredFormat(msg, *args, **(extra or {})), [], exc_info, func=func, extra=extra)
 
 setLoggerClass(_logger)
 

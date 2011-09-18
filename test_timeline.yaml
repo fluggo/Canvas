@@ -1,48 +1,53 @@
-79b: !MediaContainer
-  detected: {muxer: video/x-msvideo}
-  override: {}
-  path: /home/james/Videos/Okra - 79b,100.avi
-  streams:
-  - !StreamFormat
-    detected:
-      codec: video/DV
-      frame_rate: !rational [30000, 1001]
-      max_data_window: !box2i [!v2i '(0, -1)', !v2i '(719, 478)']
-      sample_aspect_ratio: !rational [40, 33]
-      stream_index: 0
-    length: 36368
-    override: {pulldown_phase: 0, pulldown_type: '2:3'}
-    type: video
-  - !StreamFormat
-    detected:
-      codec: audio/x-pcm
-      sample_rate: 48000
-      channels: [FL, FR]
-      stream_index: 1
-    length: 58246984
-    override: {}
-    type: audio
---- !CanvasSpace
-video_format: !StreamFormat
-  override:
-    frame_rate: !rational [24000, 1001]
-    max_data_window: !box2i [!v2i '(0, -1)', !v2i '(719, 478)']
-    sample_aspect_ratio: !rational [40, 33]
-audio_format: !StreamFormat
-  override:
-    sample_rate: 48000
-    channels: [FL, FR]
-items:
-- !CanvasClip {height: 40.0, offset: 1000, source: !StreamSourceRef {source_name: 79b, stream_index: 0},
-  type: video, length: 100, x: 60, y: 30.0}
-- !CanvasSequence
-  x: 0
-  y: 50.0
-  height: 70.0
-  type: video
-  expanded: true
-  items:
-  - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 0, length: 300}
-  - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 1050, length: 300,
-    transition_length: 48}
+!Project
+  sources:
+    79b: !FileSource
+      container: !ContainerFormat
+        detected: {format: avi, muxer: ffmpeg/avi}
+        override: {}
+        path: /home/james/Videos/Okra - 79b,100.avi
+        streams:
+        - !StreamFormat
+          detected:
+            format: dv
+            codec: ffmpeg/dv
+            frame_rate: !rational [30000, 1001]
+            max_data_window: !box2i [!v2i '(0, -1)', !v2i '(719, 478)']
+            sample_aspect_ratio: !rational [40, 33]
+            stream_index: 0
+          length: 36368
+          override: {pulldown_phase: 0, pulldown_type: '2:3'}
+          type: video
+        - !StreamFormat
+          detected:
+            format: ffmpeg/pcm_s16le
+            codec: ffmpeg/pcm_s16le
+            sample_rate: 48000
+            channels: [FL, FR]
+            stream_index: 1
+          length: 58246984
+          override: {}
+          type: audio
+    test: !CanvasSpace
+      video_format: !StreamFormat
+        override:
+          frame_rate: !rational [24000, 1001]
+          max_data_window: !box2i [!v2i '(0, -1)', !v2i '(719, 478)']
+          sample_aspect_ratio: !rational [40, 33]
+      audio_format: !StreamFormat
+        override:
+          sample_rate: 48000
+          channels: [FL, FR]
+      items:
+      - !CanvasClip {height: 40.0, offset: 1000, source: !StreamSourceRef {source_name: 79b, stream_index: 0},
+        type: video, length: 100, x: 60, y: 30.0}
+      - !CanvasSequence
+        x: 0
+        y: 50.0
+        height: 70.0
+        type: video
+        expanded: true
+        items:
+        - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 0, length: 300}
+        - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream_index: 0}, offset: 1050, length: 300,
+          transition_length: 48}
 

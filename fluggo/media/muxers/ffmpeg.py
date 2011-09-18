@@ -17,21 +17,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from fluggo.media import process, ffmpeg, sources
+from fluggo.media import process, ffmpeg
 from fluggo.media.formats import *
+from fluggo.editor import model
 
-_FF_MUXER_TO_STD = {
-    'avi': KnownMuxers.AVI,
-    'dv': KnownMuxers.DV,
+_CODEC_FORMAT_MAP = {}
+
+for (name, const) in ffmpeg.__dict__.iteritems():
+    if name.startswith('CONST_ID_'):
+        _CODEC_FORMAT_MAP[const] = name[9:]
+
+_FF_CONTAINER_FORMAT_TO_STD = {
+    'avi': KnownContainerFormat.AVI,
+    'dv': KnownContainerFormat.DV,
 }
 
-_FF_VIDEO_CODEC_TO_STD = {
-    'dvvideo': KnownVideoCodecs.DV,
+_FF_VIDEO_FORMAT_TO_STD = {
+    'dvvideo': KnownVideoFormat.DV,
 }
 
 class FFMuxPlugin(object):
-    supported_muxers = frozenset((KnownMuxers.AVI, KnownMuxers.DV, 'video/x-ffmpeg-avi', 'video/x-ffmpeg-dv'))
-
     @classmethod
     def handles_container(cls, container):
         return container.muxer in cls.supported_muxers
@@ -53,9 +58,9 @@ class FFMuxPlugin(object):
                 if stream.pulldown_type == '2:3':
                     source = process.Pulldown23RemovalFilter(source, stream.pulldown_phase)
 
-                return sources.VideoSource(source, stream)
+                return model.VideoStream(source, stream)
             elif stream.type == 'audio':
-                return sources.AudioSource(ffmpeg.FFAudioDecoder(demux, 'pcm_s16le', 2), stream)
+                return model.AudioStream(ffmpeg.FFAudioDecoder(demux, 'pcm_s16le', 2), stream)
 
             raise RuntimeError('Could not identify stream type.')
 
@@ -63,28 +68,31 @@ class FFMuxPlugin(object):
 
     @classmethod
     def detect_container(cls, path):
+        # Should return None or throw exception if unable to handle
         data = ffmpeg.FFContainer(path)
 
-        result = MediaContainer()
-        result.detected[ContainerAttribute.MUXER] = _FF_MUXER_TO_STD.get(data.format_name, 'video/x-ffmpeg-' + data.format_name)
+        result = ContainerFormat()
+        result.detected[ContainerProperty.FORMAT] = _FF_CONTAINER_FORMAT_TO_STD.get(data.format_name, 'ffmpeg/' + data.format_name)
+        result.detected[ContainerProperty.MUXER] = 'ffmpeg'
         result.path = path
 
-        for stream in data.streams:
+        for (i, stream) in enumerate(data.streams):
             stream_type = stream.type
             encoded = StreamFormat(stream_type)
-            encoded.detected[ContainerAttribute.STREAM_ID] = stream.id
+            encoded.detected[ContainerProperty.STREAM_ID] = stream.id
+            encoded.detected[ContainerProperty.STREAM_INDEX] = i
 
             if stream_type == 'video':
-                encoded.detected[VideoAttribute.FRAME_RATE] = stream.real_frame_rate
+                encoded.detected[VideoProperty.FRAME_RATE] = stream.real_frame_rate
 
                 if stream.sample_aspect_ratio:
-                    encoded.detected[VideoAttribute.SAMPLE_ASPECT_RATIO] = stream.sample_aspect_ratio
+                    encoded.detected[VideoProperty.SAMPLE_ASPECT_RATIO] = stream.sample_aspect_ratio
 
                 rect = box2i(0, -1 if stream.codec in ('dvvideo') else 0,
                     stream.frame_size[0] - 1, stream.frame_size[1] - (2 if stream.codec in ('dvvideo') else 1))
 
-                encoded.detected[VideoAttribute.MAX_DATA_WINDOW] = rect
-                encoded.detected[VideoAttribute.CODEC] = _FF_VIDEO_CODEC_TO_STD.get(stream.codec, 'video/x-ffmpeg-' + stream.codec)
+                encoded.detected[VideoProperty.MAX_DATA_WINDOW] = rect
+                encoded.detected[VideoProperty.CODEC] = _FF_VIDEO_FORMAT_TO_STD.get(_CODEC_FORMAT_MAP.get(stream.codec_id, stream.codec).lower(), 'ffmpeg/' + stream.codec)
 
                 encoded.length = stream.frame_count
 

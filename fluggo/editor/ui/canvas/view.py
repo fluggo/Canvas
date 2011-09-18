@@ -27,7 +27,7 @@ class RulerView(QtGui.QWidget):
     a bug in whatever version of Qt is running on Ubuntu 10.04. Qt ignores the
     viewport margins for determining where a drag operation has hit the scene;
     it works just fine for normal mouse ops.'''
-    def __init__(self, clock, space, source_list):
+    def __init__(self, clock):
         QtGui.QWidget.__init__(self)
         self.vbox = QtGui.QVBoxLayout(self)
         self.vbox.setStretch(1, 1)
@@ -37,7 +37,7 @@ class RulerView(QtGui.QWidget):
         self.vbox.setContentsMargins(width, 0, width, 0)
 
         self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
-        self.view = View(clock, space, source_list, ruler=self.ruler)
+        self.view = View(clock, ruler=self.ruler)
         self.view.setFrameShape(QtGui.QFrame.NoFrame)
 
         self.vbox.addWidget(self.ruler)
@@ -58,9 +58,8 @@ class View(QtGui.QGraphicsView):
     max_zoom_x = 100000.0
     min_zoom_x = 0.01
 
-    def __init__(self, clock, space, source_list, ruler=None):
+    def __init__(self, clock, ruler=None):
         QtGui.QGraphicsView.__init__(self)
-        self.setScene(Scene(space, source_list))
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.setViewportUpdateMode(self.FullViewportUpdate)
         self.setResizeAnchor(self.AnchorUnderMouse)
@@ -73,8 +72,6 @@ class View(QtGui.QGraphicsView):
             self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
             self.ruler.move(self.frameWidth(), self.frameWidth())
 
-        self._reset_ruler_scroll()
-
         # A warning: clock and clock_callback_handle will create a pointer cycle here,
         # which probably won't be freed unless the callback handle is explicitly
         # destroyed with self.clock_callback_handle.unregister() and self.clock = None
@@ -85,18 +82,9 @@ class View(QtGui.QGraphicsView):
 
         self.white = False
         self.frame = 0
-        self.set_current_frame(0)
         self.blink_timer = self.startTimer(1000)
 
-        self.scene().sceneRectChanged.connect(self.handle_scene_rect_changed)
-        self.scene().marker_added.connect(self._handle_marker_changed)
-        self.scene().marker_removed.connect(self._handle_marker_changed)
         self.ruler.current_frame_changed.connect(self.handle_ruler_current_frame_changed)
-
-        self.scale_x = fractions.Fraction(1)
-        self.scale_y = fractions.Fraction(1)
-
-        self.scale(4 * 24, 1)
 
     def _clock_changed(self, speed, time, data):
         if speed.numerator and self.playback_timer is None:
@@ -106,6 +94,22 @@ class View(QtGui.QGraphicsView):
             self.playback_timer = None
 
         self._update_clock_frame(time)
+
+    def set_space(self, space, source_list):
+        if not space:
+            self.setScene(None)
+            return
+
+        self.setScene(Scene(space, source_list))
+
+        self._reset_ruler_scroll()
+        self.set_current_frame(0)
+
+        self.scene().sceneRectChanged.connect(self.handle_scene_rect_changed)
+        self.scene().marker_added.connect(self._handle_marker_changed)
+        self.scene().marker_removed.connect(self._handle_marker_changed)
+
+        self.scale(4 * 24, 1)
 
     def selected_model_items(self):
         return self.scene().selected_model_items()

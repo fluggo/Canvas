@@ -25,32 +25,25 @@ PULLDOWN_NONE = 'None'
 PULLDOWN_23 = '2:3'
 PULLDOWN_2332 = '2:3:3:2'
 
-class ContainerAttribute:
-    # A string identifying the muxer used to mux/demux this stream.
-    # For decode:
-    #   In the "detected" dictionary, this should be a generic muxer type that
-    #   can be used to find one of a number of muxers that can decode the stream.
-    #   In the 'override' dictionary, if specified, this should be a specific muxer.
-    # For encode:
-    #   A specific muxer used to encode. The dictionary should contain any parameters
-    #   the user has set for the muxer, each beginning with "muxer:".
+class ContainerProperty:
+    FORMAT = 'format'
+    STREAM_ID = 'stream_id'
+    STREAM_INDEX = 'stream_index'
     MUXER = 'muxer'
 
-    STREAM_INDEX = 'stream_index'
+class KnownContainerFormat:
+    AVI = 'avi'
+    DV = 'dv'
 
-class KnownMuxers:
-    AVI = 'video/x-msvideo'
-    DV = 'video/DV'
+class KnownVideoFormat:
+    DV = 'dvvideo'
 
-class KnownVideoCodecs:
-    DV = 'video/DV'
-
-class AudioAttribute:
+class AudioProperty:
     SAMPLE_RATE = 'sample_rate'
     CHANNELS = 'channels'
     CODEC = 'codec'
 
-class VideoAttribute:
+class VideoProperty:
     # Video frame rate (Fraction)
     FRAME_RATE = 'frame_rate'
 
@@ -109,7 +102,7 @@ class KnownIlluminants:
     D50 = v2f(0.34567, 0.35850)
     D65 = v2f(0.31271, 0.32902)
 
-class StreamFormat(yaml.YAMLObject):
+class StreamFormat(object):
     '''
     Describes the format of a stream.
 
@@ -124,11 +117,11 @@ class StreamFormat(yaml.YAMLObject):
     '''
     yaml_tag = u'!StreamFormat'
 
-    def __init__(self, type_):
-        self.type = type_
-        self.detected = {}
-        self.override = {}
-        self.length = None
+    def __init__(self, type=None, detected=None, override=None, length=None):
+        self.type = type
+        self.detected = detected if detected is not None else {}
+        self.override = override if override is not None else {}
+        self.length = length
 
     def get(self, property, default=None):
         return self.override.get(property, self.detected.get(property, default))
@@ -145,41 +138,63 @@ class StreamFormat(yaml.YAMLObject):
 
     @property
     def index(self):
-        return self.get(ContainerAttribute.STREAM_INDEX)
+        return self.get(ContainerProperty.STREAM_INDEX)
 
     @property
     def pixel_aspect_ratio(self):
         return (
-            self.override.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or
-            self.detected.get(VideoAttribute.SAMPLE_ASPECT_RATIO) or fractions.Fraction(1, 1))
+            self.override.get(VideoProperty.SAMPLE_ASPECT_RATIO) or
+            self.detected.get(VideoProperty.SAMPLE_ASPECT_RATIO) or fractions.Fraction(1, 1))
 
     @property
     def pulldown_type(self):
         return (
-            self.override.get(VideoAttribute.PULLDOWN_TYPE) or
-            self.detected.get(VideoAttribute.PULLDOWN_TYPE) or '')
+            self.override.get(VideoProperty.PULLDOWN_TYPE) or
+            self.detected.get(VideoProperty.PULLDOWN_TYPE) or '')
 
     @property
     def pulldown_phase(self):
         return (
-            self.override.get(VideoAttribute.PULLDOWN_PHASE) or
-            self.detected.get(VideoAttribute.PULLDOWN_PHASE) or 0)
+            self.override.get(VideoProperty.PULLDOWN_PHASE) or
+            self.detected.get(VideoProperty.PULLDOWN_PHASE) or 0)
 
     @property
     def max_data_window(self):
         return (
-            self.override.get(VideoAttribute.MAX_DATA_WINDOW) or
-            self.detected.get(VideoAttribute.MAX_DATA_WINDOW))
+            self.override.get(VideoProperty.MAX_DATA_WINDOW) or
+            self.detected.get(VideoProperty.MAX_DATA_WINDOW))
 
     @property
     def thumbnail_box(self):
         return (
-            self.override.get(VideoAttribute.THUMBNAIL_WINDOW) or
-            self.override.get(VideoAttribute.MAX_DATA_WINDOW) or
-            self.detected.get(VideoAttribute.THUMBNAIL_WINDOW) or
-            self.detected.get(VideoAttribute.MAX_DATA_WINDOW))
+            self.override.get(VideoProperty.THUMBNAIL_WINDOW) or
+            self.override.get(VideoProperty.MAX_DATA_WINDOW) or
+            self.detected.get(VideoProperty.THUMBNAIL_WINDOW) or
+            self.detected.get(VideoProperty.MAX_DATA_WINDOW))
 
-class MediaContainer(yaml.YAMLObject):
+    @property
+    def frame_rate(self):
+        return self.get(VideoProperty.FRAME_RATE, None)
+
+    @property
+    def sample_rate(self):
+        return self.get(AudioProperty.SAMPLE_RATE, None)
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        result = {'type': data.type}
+
+        for name in ['detected', 'override', 'length']:
+            if getattr(self, name):
+                result[name] = getattr(self, name)
+
+        return dumper.represent_mapping(cls.yaml_tag, result)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return cls(**loader.construct_mapping(node))
+
+class ContainerFormat(yaml.YAMLObject):
     '''
     Describes the properties of a container.
 
@@ -189,7 +204,7 @@ class MediaContainer(yaml.YAMLObject):
     detected - Detected attributes of the container.
     override - Overridden attributes of the container.
     '''
-    yaml_tag = u'!MediaContainer'
+    yaml_tag = u'!ContainerFormat'
 
     def __init__(self):
         self.path = None
@@ -202,7 +217,11 @@ class MediaContainer(yaml.YAMLObject):
 
     @property
     def muxer(self):
-        return self.get(ContainerAttribute.MUXER)
+        return self.get(ContainerProperty.MUXER)
+
+    @property
+    def format(self):
+        return self.get(ContainerProperty.FORMAT)
 
 _channel_assignment_guesses = {
     # Mono
@@ -224,4 +243,11 @@ def _guess_channel_assignment(channels):
         return channel_assignment_guesses[channels]
 
     return ['S' for x in xrange(channels)]
+
+def _yamlreg(cls):
+    yaml.add_representer(cls, cls.to_yaml)
+    yaml.add_constructor(cls.yaml_tag, cls.from_yaml)
+
+_yamlreg(StreamFormat)
+
 

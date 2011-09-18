@@ -19,7 +19,7 @@
 from ..canvas import *
 from .markers import *
 from fluggo.editor import model, graph
-from fluggo.media import sources, process
+from fluggo.media import process
 from fluggo.media.basetypes import *
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
@@ -201,7 +201,7 @@ class _SequenceItemHandler(SceneItem):
             source_ref = self.source_ref
 
             if self.type == 'video':
-                self._stream = sources.VideoSource(self.scene().source_list.get_stream(source_ref.source_name, source_ref.stream_index))
+                self._stream = self.scene().source_list[source_ref.source_name].get_stream(source_ref.stream_index)
                 self._stream.offset = self.item.offset
 
         return self._stream
@@ -209,7 +209,7 @@ class _SequenceItemHandler(SceneItem):
     @property
     def format(self):
         if not self._format:
-            self._format = self.owner.scene().source_list[self.item.source.source_name].streams[self.item.source.stream_index]
+            self._format = self.stream.format
 
         return self._format
 
@@ -292,7 +292,6 @@ class VideoSequence(ClipItem):
         seq_item.setZValue(LEVEL_ITEMS)
 
     def _handle_items_removed(self, start, stop):
-        print 'start, stop = {0}, {1}'.format(start, stop)
         for a in self.seq_items[start:stop]:
             self.scene().removeItem(a)
 

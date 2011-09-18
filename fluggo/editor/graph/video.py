@@ -27,9 +27,9 @@
 
 from fluggo import sortlist, signal
 from fluggo.editor import model
-from fluggo.media import process, sources
+from fluggo.media import process
 
-class SpaceVideoManager(sources.VideoSource):
+class SpaceVideoManager(model.VideoStream):
     class ItemWatcher(object):
         def __init__(self, owner, canvas_item, workspace_item):
             self.owner = owner
@@ -81,13 +81,12 @@ class SpaceVideoManager(sources.VideoSource):
 
     def __init__(self, canvas_space, source_list, format):
         self.workspace = process.VideoWorkspace()
-        sources.VideoSource.__init__(self, self.workspace, format)
+        model.VideoStream.__init__(self, self.workspace, format)
 
         self.canvas_space = canvas_space
         self.canvas_space.item_added.connect(self.handle_item_added)
         self.canvas_space.item_removed.connect(self.handle_item_removed)
         self.source_list = source_list
-        self.frames_updated = signal.Signal()
         self.watchers = {}
         self.watchers_sorted = sortlist.SortedList(keyfunc=lambda a: a.canvas_item.z_sort_key(), index_attr='z_order')
 
@@ -108,7 +107,7 @@ class SpaceVideoManager(sources.VideoSource):
         if isinstance(item, model.Sequence):
             source = SequenceVideoManager(item, self.source_list, self.format)
         elif hasattr(item, 'source') and isinstance(item.source, model.StreamSourceRef):
-            source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
+            source = self.source_list[item.source.source_name].get_stream(item.source.stream_index)
             offset = item.offset
 
         workspace_item = self.workspace.add(x=item.x, length=item.length, z=item.z, offset=offset, source=source)
@@ -126,7 +125,7 @@ class SpaceVideoManager(sources.VideoSource):
         self.watchers_sorted.remove(watcher)
         self.workspace.remove(watcher.workspace_item)
 
-class SequenceVideoManager(sources.VideoSource):
+class SequenceVideoManager(model.VideoStream):
     class ItemWatcher(process.VideoPassThroughFilter):
         '''An ItemWatcher constructs the video for one clip in a sequence. It includes
         the "out" transition but not the "in" transition. If there is a gap before the
@@ -156,7 +155,7 @@ class SequenceVideoManager(sources.VideoSource):
 
     def __init__(self, sequence, source_list, format):
         self.seqfilter = process.VideoSequence()
-        sources.VideoSource.__init__(self, self.seqfilter, format)
+        model.VideoStream.__init__(self, self.seqfilter, format)
 
         self.sequence = sequence
         self.source_list = source_list
@@ -254,7 +253,7 @@ class SequenceVideoManager(sources.VideoSource):
             source = None
 
             if isinstance(item.source, model.StreamSourceRef):
-                source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
+                source = self.source_list[item.source.source_name].get_stream(item.source.stream_index)
 
             watcher.source_a.set_source(source)
 

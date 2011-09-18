@@ -19,7 +19,6 @@
 from ..canvas import *
 from .markers import *
 from fluggo.editor import model
-from fluggo.media import sources
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from .thumbnails import ThumbnailPainter
@@ -225,7 +224,7 @@ class SceneItem(QtGui.QGraphicsItem):
     def format(self):
         if not self._format and self.source_ref:
             source_ref = self.source_ref
-            self._format = self.scene().source_list[source_ref.source_name].streams[source_ref.stream_index]
+            self._format = self.stream.format
 
         return self._format
 
@@ -235,7 +234,7 @@ class SceneItem(QtGui.QGraphicsItem):
             source_ref = self.source_ref
 
             if self.type == 'video':
-                self._stream = sources.VideoSource(self.scene().source_list.get_stream(source_ref.source_name, source_ref.stream_index))
+                self._stream = self.scene().source_list[source_ref.source_name].get_stream(source_ref.stream_index)
                 self._stream.offset = self.item.offset
 
         return self._stream

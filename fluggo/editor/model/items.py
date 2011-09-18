@@ -293,35 +293,6 @@ class PlaceholderItem(Item):
     def _create_repr_dict(self):
         raise NotImplementedError
 
-class StreamSourceRef(object):
-    '''
-    References a stream from a video or audio file.
-    '''
-    yaml_tag = u'!StreamSourceRef'
-
-    def __init__(self, source_name=None, stream_index=None, **kw):
-        self._source_name = source_name
-        self._stream_index = stream_index
-
-    @property
-    def source_name(self):
-        return self._source_name
-
-    @property
-    def stream_index(self):
-        return self._stream_index
-
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        result = {'source_name': data._source_name,
-            'stream_index': data._stream_index}
-
-        return dumper.represent_mapping(cls.yaml_tag, result)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        return cls(**loader.construct_mapping(node))
-
 class Sequence(Item, ezlist.EZList):
     yaml_tag = u'!CanvasSequence'
 
@@ -613,7 +584,6 @@ def _yamlreg(cls):
 
 _yamlreg(Item)
 _yamlreg(Clip)
-_yamlreg(StreamSourceRef)
 _yamlreg(Sequence)
 _yamlreg(SequenceItem)
 

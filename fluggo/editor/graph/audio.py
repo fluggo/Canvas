@@ -79,7 +79,7 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
         source = None
 
         if isinstance(item.source, model.StreamSourceRef):
-            source = self.source_list.get_stream(item.source.source_name, item.source.stream_index)
+            source = self.source_list[item.source.source_name].get_stream(item.source.stream_index)
 
         workspace_item = self.workspace.add(x=item.x, length=item.length, offset=item.offset, source=source)
 

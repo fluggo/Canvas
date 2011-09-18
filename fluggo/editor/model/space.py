@@ -18,10 +18,9 @@
 
 import yaml, collections, itertools
 from fluggo import ezlist, sortlist, signal
+from fluggo.editor.model import sources
 
-class Space(ezlist.EZList):
-    yaml_tag = u'!CanvasSpace'
-
+class Space(sources.Source, ezlist.EZList):
     def __init__(self, video_format, audio_format):
         ezlist.EZList.__init__(self)
         self.item_added = signal.Signal()

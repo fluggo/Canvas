@@ -1,5 +1,5 @@
 import unittest
-from fluggo.media import process, sources, formats
+from fluggo.media import process, formats
 from fluggo.media.basetypes import *
 from fluggo.editor.graph.video import SequenceVideoManager
 from fluggo.editor import model
@@ -13,10 +13,10 @@ class DeadMuxer(object):
     def get_stream(cls, container, stream_index):
         return container
 
-slist = sources.SourceList([DeadMuxer])
-slist['red'] = process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100))
-slist['green'] = process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 100, 0, 1), 100))
-slist['blue'] = process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 0, 100, 1), 100))
+slist = model.SourceList([DeadMuxer])
+slist['red'] = model.RuntimeSource([model.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100)))])
+slist['green'] = model.RuntimeSource([model.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 100, 0, 1), 100)))])
+slist['blue'] = model.RuntimeSource([model.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 0, 100, 1), 100)))])
 
 def getcolor(source, frame):
     return source.get_frame_f32(frame, box2i(0, 0, 0, 0)).pixel(0, 0)
