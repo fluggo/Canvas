@@ -55,11 +55,6 @@ class _ItemLeftController(Controller1D):
                 delta = self.original_length - self.next_item.transition_length
 
         if self.prev_item:
-            # transition_length < 0: Separate into two sequences
-            # Above is TODO, here I just prevent it from dropping below 0
-            if self.original_trans_length < delta:
-                delta = self.original_trans_length
-
             # transition_length > prev_item.length - prev_item.transition_length: Don't overrun previous item
             if self.original_trans_length - delta > self.prev_item.length - self.prev_item.transition_length:
                 delta = self.original_trans_length - (self.prev_item.length - self.prev_item.transition_length)
@@ -98,11 +93,6 @@ class _ItemRightController(Controller1D):
             delta = self.item.transition_length - self.original_length
 
         if self.next_item:
-            # Don't let the next transition_length fall below zero
-            # TODO: Let the sequence split if this happens
-            if self.original_trans_length + delta < 0:
-                delta = -self.original_trans_length
-
             if self.original_trans_length + delta > self.next_item.length:
                 delta = self.next_item.length - self.original_trans_length
 
