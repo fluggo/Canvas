@@ -46,7 +46,7 @@ typedef struct {
     snd_pcm_hw_params_t *hwParams;
     bool time_change;
 
-    GStaticRWLock callback_lock;
+    GStaticRWLock callback_lock, frame_read_rwlock;
     callback_info *callbacks;
 } py_obj_AlsaPlayer;
 
@@ -109,7 +109,9 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
         g_mutex_unlock( self->mutex );
 
+        g_static_rw_lock_reader_lock( &self->frame_read_rwlock );
         self->audioSource.source.funcs->getFrame( self->audioSource.source.obj, &frame );
+        g_static_rw_lock_reader_unlock( &self->frame_read_rwlock );
 
         // Zero out anything that wasn't provided
         if( frame.current_min_sample > frame.current_max_sample ) {
@@ -356,6 +358,7 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
 
     self->callbacks = NULL;
     g_static_rw_lock_init( &self->callback_lock );
+    g_static_rw_lock_init( &self->frame_read_rwlock );
 
     return 0;
 }
@@ -423,6 +426,7 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
     }
 
     g_static_rw_lock_free( &self->callback_lock );
+    g_static_rw_lock_free( &self->frame_read_rwlock );
 
     self->ob_type->tp_free( (PyObject*) self );
 }
@@ -513,6 +517,25 @@ AlsaPlayer_set( py_obj_AlsaPlayer *self, PyObject *args ) {
         return NULL;
 
     _set( self, time, &rate );
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+AlsaPlayer_set_audio_source( py_obj_AlsaPlayer *self, PyObject *args ) {
+    PyObject *frameSource = NULL;
+
+    if( !PyArg_ParseTuple( args, "O", &frameSource ) )
+        return NULL;
+
+    g_static_rw_lock_writer_lock( &self->frame_read_rwlock );
+
+    if( !py_audio_take_source( frameSource, &self->audioSource ) ) {
+        g_static_rw_lock_writer_unlock( &self->frame_read_rwlock );
+        return NULL;
+    }
+
+    g_static_rw_lock_writer_unlock( &self->frame_read_rwlock );
 
     Py_RETURN_NONE;
 }
@@ -626,6 +649,8 @@ static PyMethodDef AlsaPlayer_methods[] = {
         "Stops playing audio from the source." },
     { "set_config", (PyCFunction) AlsaPlayer_setConfig, METH_VARARGS | METH_KEYWORDS,
         "rate, channels = setConfig([rate = 48000, channels = 2]): Sets the configuration for this device." },
+    { "set_audio_source", (PyCFunction) AlsaPlayer_set_audio_source, METH_VARARGS,
+        "Sets the audio source." },
     { NULL }
 };
 
