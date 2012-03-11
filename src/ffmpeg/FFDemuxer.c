@@ -21,6 +21,20 @@
 #include "pyframework.h"
 #include <libavformat/avformat.h>
 
+// Support old FFmpeg
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
+#define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
+#define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO
+#define AVMEDIA_TYPE_DATA       CODEC_TYPE_DATA
+#define AVMEDIA_TYPE_SUBTITLE   CODEC_TYPE_SUBTITLE
+#define AVMEDIA_TYPE_ATTACHMENT CODEC_TYPE_ATTACHMENT
+#define AVMEDIA_TYPE_NB         CODEC_TYPE_NB
+#endif
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 30, 0)
+#define AV_PKT_FLAG_KEY         PKT_FLAG_KEY
+#endif
+
 typedef struct {
     PyObject_HEAD
 
@@ -53,7 +67,11 @@ FFDemuxer_init( py_obj_FFDemuxer *self, PyObject *args, PyObject *kw ) {
 
     av_register_all();
 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 2, 0)
     if( (error = av_open_input_file( &self->context, filename, NULL, 0, NULL )) != 0 ) {
+#else
+    if( (error = avformat_open_input( &self->context, filename, NULL, NULL )) != 0 ) {
+#endif
         PyErr_Format( PyExc_Exception, "Could not open the file (%s).", g_strerror( -error ) );
         return -1;
     }
@@ -73,7 +91,7 @@ FFDemuxer_init( py_obj_FFDemuxer *self, PyObject *args, PyObject *kw ) {
     g_static_mutex_init( &self->mutex );
 
     // Calculate the frame (sample) duration
-    if( self->codecContext->codec_type == CODEC_TYPE_VIDEO ) {
+    if( self->codecContext->codec_type == AVMEDIA_TYPE_VIDEO ) {
         // This formula should be right for most cases, except, of course, when r_frame_rate is wrong
         AVRational *timeBase = &self->context->streams[self->stream]->time_base;
         AVRational *frameRate = &self->context->streams[self->stream]->r_frame_rate;
@@ -81,7 +99,7 @@ FFDemuxer_init( py_obj_FFDemuxer *self, PyObject *args, PyObject *kw ) {
         self->frame_duration.n = timeBase->den * frameRate->den;
         self->frame_duration.d = timeBase->num * frameRate->num;
     }
-    else if( self->codecContext->codec_type == CODEC_TYPE_AUDIO ) {
+    else if( self->codecContext->codec_type == AVMEDIA_TYPE_AUDIO ) {
         AVRational *timeBase = &self->context->streams[self->stream]->time_base;
         int sampleRate = self->codecContext->sample_rate;
 
@@ -180,7 +198,7 @@ FFDemuxer_get_next_packet( py_obj_FFDemuxer *self ) {
         packet->packet.pts = packet->packet.dts;
     }
 
-    packet->packet.keyframe = (packet->av_packet.flags & PKT_FLAG_KEY) ? true : false;
+    packet->packet.keyframe = (packet->av_packet.flags & AV_PKT_FLAG_KEY) ? true : false;
 
     // Convert timestamps from raw to frames/samples
     if( !self->raw_timestamps ) {

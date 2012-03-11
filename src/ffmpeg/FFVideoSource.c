@@ -21,6 +21,12 @@
 #include "pyframework.h"
 #include <libavformat/avformat.h>
 
+// Support old FFmpeg
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
+#define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
+#define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO
+#endif
+
 static GQuark q_recon411Shader;
 
 typedef struct {
@@ -59,7 +65,11 @@ FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds )
 
     av_register_all();
 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 2, 0)
     if( (error = av_open_input_file( &self->context, filename, NULL, 0, NULL )) != 0 ) {
+#else
+    if( (error = avformat_open_input( &self->context, filename, NULL, NULL )) != 0 ) {
+#endif
         PyErr_Format( PyExc_Exception, "Could not open the file (%s).", g_strerror( -error ) );
         return -1;
     }
@@ -70,7 +80,7 @@ FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds )
     }
 
     for( int i = 0; i < self->context->nb_streams; i++ ) {
-        if( self->context->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO ) {
+        if( self->context->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO ) {
             self->firstVideoStream = i;
             break;
         }
@@ -89,7 +99,11 @@ FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds )
         return -1;
     }
 
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(53, 6, 0)
     if( (error = avcodec_open( self->codecContext, self->codec )) < 0 ) {
+#else
+    if( (error = avcodec_open2( self->codecContext, self->codec, NULL )) < 0 ) {
+#endif
         PyErr_Format( PyExc_Exception, "Could not open a codec (%s).", g_strerror( -error ) );
         return -1;
     }

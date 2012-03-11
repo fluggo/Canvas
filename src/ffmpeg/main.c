@@ -212,7 +212,6 @@ initffmpeg() {
     PyModule_AddIntMacro( m, CODEC_ID_QDRAW );
     PyModule_AddIntMacro( m, CODEC_ID_VIXL );
     PyModule_AddIntMacro( m, CODEC_ID_QPEG );
-    PyModule_AddIntMacro( m, CODEC_ID_XVID );
     PyModule_AddIntMacro( m, CODEC_ID_PNG );
     PyModule_AddIntMacro( m, CODEC_ID_PPM );
     PyModule_AddIntMacro( m, CODEC_ID_PBM );

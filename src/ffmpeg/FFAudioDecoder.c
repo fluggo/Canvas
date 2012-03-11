@@ -64,7 +64,11 @@ FFAudioDecoder_init( py_obj_FFAudioDecoder *self, PyObject *args, PyObject *kw )
     avcodec_get_context_defaults( &self->context );
     self->context.channels = channels;
 
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(53, 6, 0)
     if( (error = avcodec_open( &self->context, codec )) != 0 ) {
+#else
+    if( (error = avcodec_open2( &self->context, codec, NULL )) != 0 ) {
+#endif
         PyErr_Format( PyExc_Exception, "Could not open the codec (%s).", g_strerror( -error ) );
         py_codec_packet_take_source( NULL, &self->source );
         return -1;

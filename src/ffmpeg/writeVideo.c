@@ -29,6 +29,28 @@
 // RGB -> YUV matrix
 // chromaticities
 
+// Support old FFmpeg
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
+#define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
+#define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO
+#endif
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 45, 0)
+#define av_guess_format guess_format
+#endif
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 30, 0)
+#define AV_PKT_FLAG_KEY         PKT_FLAG_KEY
+#endif
+
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 105, 0)
+#define avio_close  url_fclose
+#define avio_open   url_fopen
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 102, 0)
+#define AVIOContext ByteIOContext
+#endif
+#endif
+
 PyObject *
 py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     rational videoRate = { 30000, 1001 };
@@ -88,20 +110,16 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     }
 
     // Set up file
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 45, 0)
-    AVOutputFormat *format = guess_format( "dv", /*filename*/ NULL, NULL );        // Static ptr
-#else
     AVOutputFormat *format = av_guess_format( "dv", /*filename*/ NULL, NULL );        // Static ptr
-#endif
 
     if( format == NULL ) {
         PyErr_Format( PyExc_Exception, "Failed to find an output format matching %s.", filename );
         return NULL;
     }
 
-    ByteIOContext *stream;
+    AVIOContext *stream;
 
-    if( url_fopen( &stream, filename, URL_WRONLY ) < 0 ) {
+    if( avio_open( &stream, filename, URL_WRONLY ) < 0 ) {
         PyErr_SetString( PyExc_Exception, "Failed to open the file." );
         return NULL;
     }
@@ -111,11 +129,14 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     context->pb = stream;
     av_strlcpy( context->filename, filename, sizeof(context->filename) );
 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 2, 0)
+    // In 53 and later, this is done in avformat_write_header
     AVFormatParameters formatParams = { { 0 } };
     if( av_set_parameters( context, &formatParams ) < 0 ) {
         PyErr_SetString( PyExc_Exception, "Failed to set the format parameters." );
         return NULL;
     }
+#endif
 
     AVStream *video = NULL, *audio = NULL;
 
@@ -126,7 +147,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             return PyErr_NoMemory();
 
         // Be careful of the naming here: video->codec is the codec context
-        avcodec_get_context_defaults2( video->codec, CODEC_TYPE_VIDEO );
+        avcodec_get_context_defaults2( video->codec, AVMEDIA_TYPE_VIDEO );
 
         AVCodec *videoCodec = avcodec_find_encoder_by_name( "dvvideo" );
         video->codec->codec_id = videoCodec->id;
@@ -150,7 +171,11 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         video->codec->pix_fmt = PIX_FMT_YUV411P;
         video->sample_aspect_ratio = video->codec->sample_aspect_ratio;
 
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(53, 6, 0)
         avcodec_open( video->codec, videoCodec );
+#else
+        avcodec_open2( video->codec, videoCodec, NULL );
+#endif
     }
 
     if( audioSource.source.funcs ) {
@@ -159,7 +184,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         if( !audio )
             return PyErr_NoMemory();
 
-        avcodec_get_context_defaults2( audio->codec, CODEC_TYPE_AUDIO );
+        avcodec_get_context_defaults2( audio->codec, AVMEDIA_TYPE_AUDIO );
 
         AVCodec *audioCodec = avcodec_find_encoder( CODEC_ID_PCM_S16LE );
         audio->codec->codec_id = audioCodec->id;
@@ -181,7 +206,11 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             audio_language = NULL;
         }*/
 
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(53, 6, 0)
         avcodec_open( audio->codec, audioCodec );
+#else
+        avcodec_open2( audio->codec, audioCodec, NULL );
+#endif
     }
 
     /// context->preload = 0.5seconds (needed in some formats)
@@ -194,7 +223,11 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         NULL, NULL, NULL );
 
     // Write header
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 2, 0)
     if( av_write_header( context ) < 0 ) {
+#else
+    if( avformat_write_header( context, NULL ) < 0 ) {
+#endif
         PyErr_SetString( PyExc_Exception, "Failed to write the header." );
         return NULL;
     }
@@ -314,7 +347,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
                 }
 
                 if( video->codec->coded_frame->key_frame )
-                    packet.flags |= PKT_FLAG_KEY;
+                    packet.flags |= AV_PKT_FLAG_KEY;
 
                 if( av_interleaved_write_frame( context, &packet ) < 0 ) {
                     PyErr_SetString( PyExc_Exception, "Failed to write frame." );
@@ -380,7 +413,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
                 }
 
                 if( audio->codec->coded_frame->key_frame )
-                    packet.flags |= PKT_FLAG_KEY;
+                    packet.flags |= AV_PKT_FLAG_KEY;
 
                 if( av_interleaved_write_frame( context, &packet ) < 0 ) {
                     PyErr_SetString( PyExc_Exception, "Failed to write frame." );
@@ -423,7 +456,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
             }
 
             if( video->codec->coded_frame->key_frame )
-                packet.flags |= PKT_FLAG_KEY;
+                packet.flags |= AV_PKT_FLAG_KEY;
 
             if( av_interleaved_write_frame( context, &packet ) < 0 ) {
                 PyErr_SetString( PyExc_Exception, "Failed to write frame." );
@@ -436,7 +469,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     av_write_trailer( context );
 
     // Close file
-    url_fclose( stream );
+    avio_close( stream );
 
     g_free( bitBucket );
     py_video_take_source( NULL, &videoSource );

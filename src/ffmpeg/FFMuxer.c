@@ -22,6 +22,23 @@
 #include <libavformat/avformat.h>
 #include <libavutil/avstring.h>
 
+// Support old FFmpeg
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 105, 0)
+#define avio_close  url_fclose
+#define avio_open   url_fopen
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 102, 0)
+#define AVIOContext ByteIOContext
+#endif
+#endif
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 30, 0)
+#define AV_PKT_FLAG_KEY         PKT_FLAG_KEY
+#endif
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
+#define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
+#endif
+
 typedef struct __stream_t {
     AVStream *stream;
     CodecPacketSourceHolder source;
@@ -44,8 +61,6 @@ typedef struct {
 
 static int
 FFMuxer_init( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
-    int error;
-
     // Zero all pointers (so we know later what needs deleting)
     const char *format_name, *filename;
 
@@ -70,11 +85,16 @@ FFMuxer_init( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     self->context->oformat = self->format;
     av_strlcpy( self->context->filename, filename, sizeof(self->context->filename) );
 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 2, 0)
+    int error;
+
+    // In v53, this is done in avformat_write_header
     AVFormatParameters formatParams = { { 0 } };
     if( (error = av_set_parameters( self->context, &formatParams )) < 0 ) {
         PyErr_Format( PyExc_Exception, "Failed to set the format parameters (%s).", g_strerror( -error ) );
         return -1;
     }
+#endif
 
     return 0;
 }
@@ -166,7 +186,7 @@ FFMuxer_add_video_stream( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     // even if it's not the context we're encoding with, it needs to be set.
     // (Of course, if the format tries to read live encoding data out of the
     // context, we're screwed.)
-    stream->stream->codec->codec_type = CODEC_TYPE_VIDEO;
+    stream->stream->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     stream->stream->codec->codec_id = codec->id;
     stream->stream->codec->time_base = (AVRational) { .num = frame_rate.d, .den = frame_rate.n };
     stream->stream->codec->width = frame_size.x;
@@ -188,12 +208,12 @@ codec_getHeader( CodecPacketSourceHolder *holder, void *buffer ) {
 
 static PyObject *
 FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
-    ByteIOContext *stream;
+    AVIOContext *stream;
     int error;
 
     self->quit = false;
 
-    if( url_fopen( &stream, self->context->filename, URL_WRONLY ) < 0 ) {
+    if( avio_open( &stream, self->context->filename, URL_WRONLY ) < 0 ) {
         PyErr_SetString( PyExc_Exception, "Failed to open the file." );
         return NULL;
     }
@@ -225,7 +245,11 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     }
 
     // Write format header
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 2, 0)
     if( (error = av_write_header( self->context )) < 0 ) {
+#else
+    if( (error = avformat_write_header( self->context, NULL )) < 0 ) {
+#endif
         PyEval_RestoreThread( _save );
         PyErr_Format( PyExc_Exception, "Failed to write the header (%s).", g_strerror( -error ) );
         return NULL;
@@ -235,13 +259,13 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     for( ;; ) {
         if( self->quit ) {
             PyEval_RestoreThread( _save );
-            url_fclose( stream );
+            avio_close( stream );
             Py_RETURN_NONE;
         }
 
         if( PyErr_CheckSignals() ) {
             PyEval_RestoreThread( _save );
-            url_fclose( stream );
+            avio_close( stream );
             return NULL;
         }
 
@@ -270,12 +294,12 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
         packet.dts = next_stream->next_packet->dts;
 
         if( next_stream->next_packet->keyframe )
-            packet.flags |= PKT_FLAG_KEY;
+            packet.flags |= AV_PKT_FLAG_KEY;
 
         if( (error = av_interleaved_write_frame( self->context, &packet )) < 0 ) {
             PyEval_RestoreThread( _save );
             PyErr_Format( PyExc_Exception, "Failed to write frame (%s).", g_strerror( -error ) );
-            url_fclose( stream );
+            avio_close( stream );
             return NULL;
         }
 
@@ -293,12 +317,12 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
     if( (error = av_write_trailer( self->context )) < 0 ) {
         PyEval_RestoreThread( _save );
         PyErr_Format( PyExc_Exception, "Failed to write format trailer (%s).", g_strerror( -error ) );
-        url_fclose( stream );
+        avio_close( stream );
         return NULL;
     }
 
     // Close file
-    url_fclose( stream );
+    avio_close( stream );
 
     PyEval_RestoreThread( _save );
     Py_RETURN_NONE;

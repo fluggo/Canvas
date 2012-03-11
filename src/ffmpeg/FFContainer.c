@@ -21,6 +21,16 @@
 #include "pyframework.h"
 #include <libavformat/avformat.h>
 
+// Support old FFmpeg
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
+#define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
+#define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO
+#define AVMEDIA_TYPE_DATA       CODEC_TYPE_DATA
+#define AVMEDIA_TYPE_SUBTITLE   CODEC_TYPE_SUBTITLE
+#define AVMEDIA_TYPE_ATTACHMENT CODEC_TYPE_ATTACHMENT
+#define AVMEDIA_TYPE_NB         CODEC_TYPE_NB
+#endif
+
 typedef struct {
     PyObject_HEAD
 
@@ -74,7 +84,11 @@ FFContainer_init( py_obj_FFContainer *self, PyObject *args, PyObject *kwds ) {
 
     av_register_all();
 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 2, 0)
     if( (error = av_open_input_file( &self->format, filename, NULL, 0, NULL )) != 0 ) {
+#else
+    if( (error = avformat_open_input( &self->format, filename, NULL, NULL )) != 0 ) {
+#endif
         PyErr_Format( PyExc_Exception, "Could not open the file (%s).", g_strerror( -error ) );
         return -1;
     }
@@ -95,7 +109,7 @@ FFContainer_init( py_obj_FFContainer *self, PyObject *args, PyObject *kwds ) {
         PyList_SET_ITEM( self->streamList, i, (PyObject *) stream );
     }
 
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 45, 0)
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 45, 0)
     // Fetch the output format, too, for the MIME type
     self->out = guess_format( self->format->iformat->name, NULL, NULL );
 #else
@@ -199,7 +213,7 @@ FFStream_sampleAspectRatio( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *pixFmtLookup[PIX_FMT_NB];
-static PyObject *streamTypeLookup[CODEC_TYPE_NB];
+static PyObject *streamTypeLookup[AVMEDIA_TYPE_NB];
 
 static PyObject *
 FFStream_pixelFormat( py_obj_FFStream *self, void *closure ) {
@@ -220,7 +234,7 @@ FFStream_type( py_obj_FFStream *self, void *closure ) {
     if( self->stream->codec->codec_type < 0 )
         Py_RETURN_NONE;
 
-    if( self->stream->codec->codec_type < CODEC_TYPE_NB ) {
+    if( self->stream->codec->codec_type < AVMEDIA_TYPE_NB ) {
         PyObject *result = streamTypeLookup[self->stream->codec->codec_type];
         Py_INCREF( result );
         return result;
@@ -249,7 +263,7 @@ FFStream_bitRate( py_obj_FFStream *self, void *closure ) {
 
 static PyObject *
 FFStream_frameSize( py_obj_FFStream *self, void *closure ) {
-    if( self->stream->codec->codec_type == CODEC_TYPE_VIDEO )
+    if( self->stream->codec->codec_type == AVMEDIA_TYPE_VIDEO )
         return Py_BuildValue( "ii", self->stream->codec->width, self->stream->codec->height );
 
     Py_RETURN_NONE;
@@ -257,7 +271,7 @@ FFStream_frameSize( py_obj_FFStream *self, void *closure ) {
 
 static PyObject *
 FFStream_sampleRate( py_obj_FFStream *self, void *closure ) {
-    if( self->stream->codec->codec_type == CODEC_TYPE_AUDIO )
+    if( self->stream->codec->codec_type == AVMEDIA_TYPE_AUDIO )
         return PyInt_FromLong( self->stream->codec->sample_rate );
 
     Py_RETURN_NONE;
@@ -265,7 +279,7 @@ FFStream_sampleRate( py_obj_FFStream *self, void *closure ) {
 
 static PyObject *
 FFStream_channels( py_obj_FFStream *self, void *closure ) {
-    if( self->stream->codec->codec_type == CODEC_TYPE_AUDIO )
+    if( self->stream->codec->codec_type == AVMEDIA_TYPE_AUDIO )
         return PyInt_FromLong( self->stream->codec->channels );
 
     Py_RETURN_NONE;
@@ -423,11 +437,11 @@ void init_FFContainer( PyObject *module ) {
     MKCASE(YUV444PLE)
     MKCASE(YUV444PBE)*/
 
-    streamTypeLookup[CODEC_TYPE_VIDEO] = PyString_FromString( "video" );
-    streamTypeLookup[CODEC_TYPE_AUDIO] = PyString_FromString( "audio" );
-    streamTypeLookup[CODEC_TYPE_DATA] = PyString_FromString( "data" );
-    streamTypeLookup[CODEC_TYPE_SUBTITLE] = PyString_FromString( "subtitle" );
-    streamTypeLookup[CODEC_TYPE_ATTACHMENT] = PyString_FromString( "attachment" );
+    streamTypeLookup[AVMEDIA_TYPE_VIDEO] = PyString_FromString( "video" );
+    streamTypeLookup[AVMEDIA_TYPE_AUDIO] = PyString_FromString( "audio" );
+    streamTypeLookup[AVMEDIA_TYPE_DATA] = PyString_FromString( "data" );
+    streamTypeLookup[AVMEDIA_TYPE_SUBTITLE] = PyString_FromString( "subtitle" );
+    streamTypeLookup[AVMEDIA_TYPE_ATTACHMENT] = PyString_FromString( "attachment" );
 
     py_type_FFStream.tp_getset = FFStream_getsetters;
 
