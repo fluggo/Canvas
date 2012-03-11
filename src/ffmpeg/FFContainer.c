@@ -272,6 +272,11 @@ FFStream_channels( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
+FFStream_codec_id( py_obj_FFStream *self, void *closure ) {
+    return PyInt_FromLong( self->stream->codec->codec_id );
+}
+
+static PyObject *
 FFStream_codec( py_obj_FFStream *self, void *closure ) {
     if( self->stream->codec->codec_id == CODEC_ID_NONE )
         Py_RETURN_NONE;
@@ -329,6 +334,7 @@ static PyGetSetDef FFStream_getsetters[] = {
     { "sample_rate", (getter) FFStream_sampleRate, NULL, "The sample rate in the audio stream." },
     { "channels", (getter) FFStream_channels, NULL, "The number of channels in the audio stream." },
     { "codec", (getter) FFStream_codec, NULL, "The name of the FFmpeg codec that recognizes this stream." },
+    { "codec_id", (getter) FFStream_codec_id, NULL, "The ID of the codec." },
     { "encoding", (getter) FFStream_encoding, NULL, "If available, the name of the subformat of this stream." },
     { "frame_count", (getter) FFStream_frameCount, NULL, "If available, the number of frames in this stream." },
     { "start_time", (getter) FFStream_startTime, NULL, "If available, the presentation start time of this stream in timeBase units." },
