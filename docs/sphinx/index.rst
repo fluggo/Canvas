@@ -17,7 +17,9 @@ Contents:
     basetypes
     core
     process
-    canvas
+    media
+    editor/model
+    feature-proposal/canvas
 
 Indices and tables
 ==================

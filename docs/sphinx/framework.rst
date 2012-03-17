@@ -94,6 +94,77 @@ Lastly, :class:`~.AlsaPlayer` will happily play the sound at half speed (``playe
 double speed (``player.play(2)``), and backwards (``player.play(-1)``). The random-access
 nature of audio sources makes this possible.
 
+
+Video sources
+-------------
+
+Video sources produce floating-point images, one at a time, as video frames.
+
+Many other media libraries put a lot of emphasis on video formats, which are meant
+to describe the many ways of encoding video (such as frame size, frame rate,
+bit depth, color system, subsampling, transfer function, pulldown, interlacing).
+This can make working with filter chains difficult; when mixing two videos with
+different frame rates, what should be the result? And how much work will the
+filter writer have to do to accomodate the special cases?
+
+The Fluggo Media processing framework avoids most of the problem by *standardizing*
+some of these properties (such as bit depth) and *ignoring* others (such as frame
+rate) so that video sources and video frames carry the minimum information necessary
+to handle them. This also frees the framework and its filters from having to do
+much decision-making. A mix filter doesn't have to care if its input videos are
+two different frame rates, because it has no way of knowing that---it will mix
+them as if they are the same rate.
+
+Video sources generally assume:
+
+* RGBA data (or any other tristimulus system, such as XYZ)
+* Floating-point precision (minimum bit depth 16 bits, which gives roughly three
+  digits of precision past the decimal)
+* No subsampling
+* Linear transfer function
+* No interlacing, no pulldown (but see below for interlacing rules)
+* Fixed (but unspecified) frame rate
+
+Video data can deviate from these assumptions for filters that expect it. For example,
+the :class:`~.Pulldown23RemovalFilter` expects interlaced video, which has its own
+rules: 
+
+
+
+
+
+
+
+
+
+Here's a sample filter graph for playing synchronized video and audio:
+
+.. digraph:: foo2
+
+    rankdir="LR";
+    node [shape=box]; src1 [label="VideoSource A"]; src2 [label="AudioSource B"];
+    filter [label="Filter C (AudioSource)"];
+    widget1 [label="Qt VideoWidget"]; alsa [label="AlsaPlayer"];
+    { rank=sink; alsa; widget1; }
+    { rank=source; src1; src2; }
+
+    src1 -> widget1; src2->filter->alsa; alsa->widget1 [constraint=false, label="PresentationClock interface"];
+
+In this graph, we're using the :class:`fluggo.media.qt.VideoWidget` widget to display
+video and the :class:`fluggo.media.alsa.AlsaPlayer` class to play sound.
+:class:`~.VideoWidget` needs a video source, so we connect it to VideoSource A.
+:class:`~.AlsaPlayer` needs an audio source as well, and though we could have connected
+it directly to AudioSource B, we've decided to filter
+the audio a bit, so we've connected AudioSource B to Audio Filter C, and then Audio Filter C
+(which is itself an AudioSource) to the AlsaPlayer. Finally, to synchronize the video
+and sound, we provide the AlsaPlayer as the VideoWidget's PresentationClock.
+
+
+
+
+Types of Sources
+================
+
 Almost all of the work of the framework is done with sources, which are objects
 that can produce some kind of data on request, and usually at random.
 
@@ -101,7 +172,7 @@ There are six kinds of sources in the framework. These four are common:
 
 * **Video sources** produce single frames of video. Sources can read from a file
   (or multiple files), generate data, or modify the data of another video
-  source. Sources produce only 4:4:4 RGBA floating-point video.
+  source. Video sources produce only 4:4:4 RGBA floating-point video.
 
 * **Audio sources** produce audio frames, which are blocks of audio samples.
 
@@ -126,9 +197,6 @@ These two source types are only found when handling specific formats:
   709 matrix and transfer function. The source can be passed to a matching encoder,
   which will produce codec packets, or a matching reconstruction filter, which
   will produce ordinary video frames.
-
-Video
-=====
 
 Video sources
 -------------
