@@ -123,7 +123,7 @@ class Item(object):
                 result['ease_out_type'] = self._ease_out_type
 
         if self._tags:
-            result['tags'] = list(tags)
+            result['tags'] = list(self._tags)
 
         return result
 
