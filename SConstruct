@@ -14,11 +14,12 @@ debug = int(ARGUMENTS.get('debug', 0))
 assembly = int(ARGUMENTS.get('assembly', 0))
 profile = int(ARGUMENTS.get('profile', 0))
 release = int(ARGUMENTS.get('release', 0))
+mingw = int(ARGUMENTS.get('mingw', 0))
 
 check_env = Environment()
 tools = ['default']
 
-if check_env['PLATFORM'] == 'win32':
+if mingw or check_env['PLATFORM'] == 'win32':
     tools = ['mingw']
 
 env = Environment(CPPPATH=['include'],
@@ -27,7 +28,7 @@ env = Environment(CPPPATH=['include'],
 
 msys_root = None
 
-if env['PLATFORM'] == 'win32':
+if mingw or env['PLATFORM'] == 'win32':
     # Find the MSYS root
     msys_root = os.path.dirname(os.path.dirname(env.WhereIs('gcc')))
     env.Append(CPPPATH=[os.path.join(msys_root, 'include\\w32api')],
@@ -36,10 +37,6 @@ if env['PLATFORM'] == 'win32':
 else:
     env.Append(CCFLAGS=['-fvisibility=hidden'])
 
-# Check to see if we can use clang
-if WhereIs('clang'):
-    env['CC'] = 'clang'
-
 env.Append(CFLAGS=['-std=c99'])
 
 if debug:
@@ -47,23 +44,29 @@ if debug:
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
 elif release:
     # Release: No debug info + full optimizations + no asserts
-    env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
+    env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 elif profile:
     # Profile: Test mode + no asserts (test mode is probably just fine for profiling)
-    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
+    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 elif assembly:
     # Assembly: Produce assembler output
     env.Append(CCFLAGS = ['-S', '-O3', '-mtune=native', '-march=native', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 else:
     # Test mode is the default: Debug info + full optimizations
-    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DDEBUG'])
+    env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-math-errno', '-DDEBUG'])
+
+# Check to see if we can use clang
+if tools[0] != 'mingw' and WhereIs('clang'):
+    env['CC'] = 'clang'
+elif not (debug or assembly):
+    env.Append(CCFLAGS=['-fno-signed-zeros'])
 
 # Set up a basic Python environment
 python_env = env.Clone(SHLIBPREFIX='')
 python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()],
                   CCFLAGS=['-fno-strict-aliasing'])
 
-if env['PLATFORM'] == 'win32':
+if mingw or env['PLATFORM'] == 'win32':
     python_env['SHLIBSUFFIX'] = '.pyd'
     python_env.Append(LIBS=['python26'], LINKFLAGS=['-Wl,--enable-auto-import'])
 
