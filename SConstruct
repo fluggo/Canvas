@@ -210,7 +210,7 @@ except Exception as ex:
 testenv = env.Clone()
 if env['PLATFORM'] != 'win32':
     testenv.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
-testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=['GLEW', cprocess])
+testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=['GLEW', cprocess, 'm'])
 
 test_cprocess = testenv.Program('tests/cprocess_test', env.Glob('src/tests/*.c'))
 testenv.Alias('test', testenv.Command('test_dummy', 'tests/cprocess_test', '@tests/cprocess_test'))
