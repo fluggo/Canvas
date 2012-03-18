@@ -10,10 +10,10 @@ def locate(pattern, root=os.curdir):
         for filename in fnmatch.filter(files, pattern):
             yield os.path.join(path, filename)
 
-debug = ARGUMENTS.get('debug', 0)
-assembly = ARGUMENTS.get('assembly', 0)
-profile = ARGUMENTS.get('profile', 0)
-release = ARGUMENTS.get('release', 0)
+debug = int(ARGUMENTS.get('debug', 0))
+assembly = int(ARGUMENTS.get('assembly', 0))
+profile = int(ARGUMENTS.get('profile', 0))
+release = int(ARGUMENTS.get('release', 0))
 
 check_env = Environment()
 tools = ['default']
@@ -42,16 +42,16 @@ if WhereIs('clang'):
 
 env.Append(CFLAGS=['-std=c99'])
 
-if int(debug):
+if debug:
     # Debug: Debug info + no optimizations
     env.Append(CCFLAGS = ['-ggdb3', '-DMESA_DEBUG', '-DDEBUG'])
-elif int(release):
+elif release:
     # Release: No debug info + full optimizations + no asserts
     env.Append(CCFLAGS = ['-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
-elif int(profile):
+elif profile:
     # Profile: Test mode + no asserts (test mode is probably just fine for profiling)
     env.Append(CCFLAGS = ['-ggdb3', '-O3', '-mtune=native', '-march=native', '-fno-signed-zeros', '-fno-math-errno', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
-elif int(assembly):
+elif assembly:
     # Assembly: Produce assembler output
     env.Append(CCFLAGS = ['-S', '-O3', '-mtune=native', '-march=native', '-DNDEBUG', '-DG_DISABLE_ASSERT'])
 else:
