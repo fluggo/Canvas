@@ -94,11 +94,32 @@ class SourceSearchWidget(QDockWidget):
         layout.addWidget(self.view)
 
         self.setWidget(widget)
+        self.setAcceptDrops(True)
 
     def set_source_list(self, source_list):
         self.source_list = source_list
         self.model = SourceSearchModel(source_list)
         self.view.setModel(self.model)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            # TODO: In the background, verify that they are files,
+            # that we can open them, and that we can understand them
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        event.acceptProposedAction()
+
+        errors = []
+
+        for url in event.mimeData().urls():
+            if url.scheme() != 'file':
+                errors.append((url, 'Not a local file'))
+                continue
+
+            path = url.toLocalFile()
+
+
 
 muxers = (FFMuxPlugin,)
 
