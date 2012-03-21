@@ -4,12 +4,19 @@ logging.basicConfig()
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
+
+QCoreApplication.setOrganizationName('Fluggo Productions')
+QCoreApplication.setOrganizationDomain('fluggo.com')
+QCoreApplication.setApplicationName('Canvas')
+
 from fluggo import signal, sortlist
 from fluggo.media import process, timecode, qt, formats, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
-from fluggo.editor import ui, model, graph
+from fluggo.editor import ui, model, graph, plugins
 import fluggo.editor
+
+plugins.PluginManager.load_all()
 
 from fluggo.media.muxers.ffmpeg import FFMuxPlugin
 
@@ -237,6 +244,9 @@ class MainWindow(QMainWindow):
         self.render_dv_action = QAction('&Render DV...', self,
             statusTip='Render the entire canvas to a DV video', triggered=self.render_dv)
 
+        self.tools_edit_plugins = QAction('&Edit Plugins...', self,
+            statusTip='Enable, disable, or configure plugins', triggered=self.edit_plugins)
+
         self.view_video_preview = self.video_dock.toggleViewAction()
         self.view_video_preview.setText('Video &Preview')
         self.view_source_list = self.search_dock.toggleViewAction()
@@ -275,6 +285,9 @@ class MainWindow(QMainWindow):
         self.view_menu = self.menuBar().addMenu('&View')
         self.view_menu.addAction(self.view_source_list)
         self.view_menu.addAction(self.view_video_preview)
+
+        self.tools_menu = self.menuBar().addMenu('&Tools')
+        self.tools_menu.addAction(self.tools_edit_plugins)
 
     def handle_update_frames(self, min_frame, max_frame):
         if not self.space:
@@ -420,6 +433,13 @@ class MainWindow(QMainWindow):
             temp_items.append(temp_items.pop(0))
 
             self.space[z1:z2 + 1] = temp_items
+
+    def edit_plugins(self):
+        from fluggo.editor.ui.plugineditor import PluginEditorDialog
+
+        dialog = PluginEditorDialog()
+        dialog.exec_()
+
 
 app = QApplication(sys.argv)
 

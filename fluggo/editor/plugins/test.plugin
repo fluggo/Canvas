@@ -1,0 +1,4 @@
+[test]
+name=Test Plugin
+module=fluggo.editor.plugins.test
+
