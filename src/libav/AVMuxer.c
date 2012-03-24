@@ -22,7 +22,7 @@
 #include <libavformat/avformat.h>
 #include <libavutil/avstring.h>
 
-// Support old FFmpeg
+// Support old Libav
 #if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 105, 0)
 #define avio_close  url_fclose
 #define avio_open   url_fopen
@@ -57,10 +57,10 @@ typedef struct {
     AVFormatContext *context;
     stream_t *stream_list;
     volatile bool quit;
-} py_obj_FFMuxer;
+} py_obj_AVMuxer;
 
 static int
-FFMuxer_init( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
+AVMuxer_init( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     // Zero all pointers (so we know later what needs deleting)
     const char *format_name, *filename;
 
@@ -100,7 +100,7 @@ FFMuxer_init( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
 }
 
 static void
-FFMuxer_dealloc( py_obj_FFMuxer *self ) {
+AVMuxer_dealloc( py_obj_AVMuxer *self ) {
     while( self->stream_list ) {
         stream_t *current = self->stream_list;
         self->stream_list = current->next;
@@ -139,7 +139,7 @@ stream_append( stream_t **list, stream_t *next ) {
 }
 
 static PyObject *
-FFMuxer_add_video_stream( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
+AVMuxer_add_video_stream( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     PyObject *source_obj, *frame_rate_obj, *sample_aspect_ratio_obj, *frame_size_obj;
     const char *codec_name;
 
@@ -207,7 +207,7 @@ codec_getHeader( CodecPacketSourceHolder *holder, void *buffer ) {
 }
 
 static PyObject *
-FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
+AVMuxer_run( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     AVIOContext *stream;
     int error;
 
@@ -329,54 +329,54 @@ FFMuxer_run( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
 }
 
 static PyObject *
-FFMuxer_cancel( py_obj_FFMuxer *self, PyObject *args, PyObject *kw ) {
+AVMuxer_cancel( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     self->quit = true;
     Py_RETURN_NONE;
 }
 
-static PyGetSetDef FFMuxer_getsetters[] = {
+static PyGetSetDef AVMuxer_getsetters[] = {
     { NULL }
 };
 
-static PyMethodDef FFMuxer_methods[] = {
-    { "add_video_stream", (PyCFunction) FFMuxer_add_video_stream, METH_VARARGS | METH_KEYWORDS,
+static PyMethodDef AVMuxer_methods[] = {
+    { "add_video_stream", (PyCFunction) AVMuxer_add_video_stream, METH_VARARGS | METH_KEYWORDS,
         "Add a video stream to the output.\n"
         "\n"
         "muxer.add_video_stream(source, codec, frame_rate, frame_size, sample_aspect_ratio)\n"
         "\n"
         "source - A codec packet source.\n"
-        "codec - The name of the FFmpeg encoder for the codec. The actual codec used\n"
-        "    doesn't have to be an FFmpeg codec, but FFmpeg uses its codec definitions to\n"
-        "    identify the codec in the file. (In the future, this parameter will accept FFmpeg codec ID's.)\n"
+        "codec - The name of the Libav encoder for the codec. The actual codec used\n"
+        "    doesn't have to be an Libav codec, but Libav uses its codec definitions to\n"
+        "    identify the codec in the file. (In the future, this parameter will accept Libav codec ID's.)\n"
         "frame_rate - The video frame rate as a rational.\n"
         "frame_size - A v2i value with the size of the frame.\n"
         "sample_aspect_ratio - The sample aspect ratio as a rational." },
-    { "run", (PyCFunction) FFMuxer_run, METH_NOARGS,
+    { "run", (PyCFunction) AVMuxer_run, METH_NOARGS,
         "Run the muxer and write the complete file." },
-    { "cancel", (PyCFunction) FFMuxer_cancel, METH_NOARGS,
+    { "cancel", (PyCFunction) AVMuxer_cancel, METH_NOARGS,
         "Cancel a current run() call." },
     { NULL }
 };
 
-static PyTypeObject py_type_FFMuxer = {
+static PyTypeObject py_type_AVMuxer = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.ffmpeg.FFMuxer",    // tp_name
-    sizeof(py_obj_FFMuxer),    // tp_basicsize
+    "fluggo.media.libav.AVMuxer",    // tp_name
+    sizeof(py_obj_AVMuxer),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFMuxer_dealloc,
-    .tp_init = (initproc) FFMuxer_init,
-    .tp_getset = FFMuxer_getsetters,
-    .tp_methods = FFMuxer_methods
+    .tp_dealloc = (destructor) AVMuxer_dealloc,
+    .tp_init = (initproc) AVMuxer_init,
+    .tp_getset = AVMuxer_getsetters,
+    .tp_methods = AVMuxer_methods
 };
 
-void init_FFMuxer( PyObject *module ) {
-    if( PyType_Ready( &py_type_FFMuxer ) < 0 )
+void init_AVMuxer( PyObject *module ) {
+    if( PyType_Ready( &py_type_AVMuxer ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFMuxer );
-    PyModule_AddObject( module, "FFMuxer", (PyObject *) &py_type_FFMuxer );
+    Py_INCREF( &py_type_AVMuxer );
+    PyModule_AddObject( module, "AVMuxer", (PyObject *) &py_type_AVMuxer );
 }
 
 

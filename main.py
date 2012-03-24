@@ -5,14 +5,14 @@ import gtk
 import gtk.glade
 from fractions import Fraction
 
-from fluggo.media import process, ffmpeg
+from fluggo.media import process, libav
 from fluggo.media.basetypes import *
 import fluggo.media.gtk
 
 gtk.gdk.threads_init()
 
 #clock = SystemPresentationClock()
-audio = process.FFAudioSource('/home/james/Videos/Soft Boiled/Sources/BWFF/1B_1.wav')
+audio = process.AVAudioSource('/home/james/Videos/Soft Boiled/Sources/BWFF/1B_1.wav')
 player = process.AlsaPlayer(48000, source=audio)
 clock = player
 
@@ -62,8 +62,8 @@ class MainWindow(object):
         glib.timeout_add(100, self.update_current_frame)
 
         #av = AVFileReader('/home/james/Videos/Home Movies 2009-05-07-000-003.m2t')
-        demux = ffmpeg.FFDemuxer('test_packet.dv', 0)
-        decoder = ffmpeg.FFVideoDecoder(demux, 'dvvideo')
+        demux = libav.AVDemuxer('test_packet.dv', 0)
+        decoder = libav.AVVideoDecoder(demux, 'dvvideo')
         videro = process.DVReconstructionFilter(decoder)
         pulldown = process.Pulldown23RemovalFilter(videro, 0);
 

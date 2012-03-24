@@ -29,10 +29,10 @@ typedef struct {
     bool context_initialized;
     bool interlaced, top_field_first;
     int start_frame, current_frame, end_frame;
-} py_obj_FFVideoEncoder;
+} py_obj_AVVideoEncoder;
 
 static int
-FFVideoEncoder_init( py_obj_FFVideoEncoder *self, PyObject *args, PyObject *kw ) {
+AVVideoEncoder_init( py_obj_AVVideoEncoder *self, PyObject *args, PyObject *kw ) {
     int error;
 
     PyObject *source_obj, *frame_rate_obj, *sample_aspect_ratio_obj, *frame_size_obj,
@@ -117,7 +117,7 @@ FFVideoEncoder_init( py_obj_FFVideoEncoder *self, PyObject *args, PyObject *kw )
 }
 
 static void
-FFVideoEncoder_dealloc( py_obj_FFVideoEncoder *self ) {
+AVVideoEncoder_dealloc( py_obj_AVVideoEncoder *self ) {
     if( self->context_initialized )
         avcodec_close( &self->context );
 
@@ -133,7 +133,7 @@ my_packet_free( codec_packet *packet ) {
 }
 
 static int
-FFVideoEncoder_get_header( py_obj_FFVideoEncoder *self, void *buffer ) {
+AVVideoEncoder_get_header( py_obj_AVVideoEncoder *self, void *buffer ) {
     if( !self->context.extradata )
         return 0;
 
@@ -145,7 +145,7 @@ FFVideoEncoder_get_header( py_obj_FFVideoEncoder *self, void *buffer ) {
 }
 
 static codec_packet *
-FFVideoEncoder_get_next_packet( py_obj_FFVideoEncoder *self ) {
+AVVideoEncoder_get_next_packet( py_obj_AVVideoEncoder *self ) {
     // Would be happy to have a better size estimate for a bit bucket
     int bit_bucket_size = (self->context.width * self->context.height) * 6 + 200;
     void *bit_bucket = g_malloc( bit_bucket_size );
@@ -229,59 +229,59 @@ FFVideoEncoder_get_next_packet( py_obj_FFVideoEncoder *self ) {
 }
 
 static codec_packet_source_funcs source_funcs = {
-    .getHeader = (codec_getHeaderFunc) FFVideoEncoder_get_header,
-    .getNextPacket = (codec_getNextPacketFunc) FFVideoEncoder_get_next_packet,
+    .getHeader = (codec_getHeaderFunc) AVVideoEncoder_get_header,
+    .getNextPacket = (codec_getNextPacketFunc) AVVideoEncoder_get_next_packet,
 };
 
 static PyObject *pySourceFuncs;
 
 static PyObject *
-FFVideoEncoder_getFuncs( py_obj_FFVideoEncoder *self, void *closure ) {
+AVVideoEncoder_getFuncs( py_obj_AVVideoEncoder *self, void *closure ) {
     Py_INCREF(pySourceFuncs);
     return pySourceFuncs;
 }
 
 static PyObject *
-FFVideoEncoder_get_progress( py_obj_FFVideoEncoder *self, void *closure ) {
+AVVideoEncoder_get_progress( py_obj_AVVideoEncoder *self, void *closure ) {
     return PyInt_FromLong( self->current_frame - self->start_frame );
 }
 
 static PyObject *
-FFVideoEncoder_get_progress_count( py_obj_FFVideoEncoder *self, void *closure ) {
+AVVideoEncoder_get_progress_count( py_obj_AVVideoEncoder *self, void *closure ) {
     return PyInt_FromLong( self->end_frame - self->start_frame );
 }
 
-static PyGetSetDef FFVideoEncoder_getsetters[] = {
-    { CODEC_PACKET_SOURCE_FUNCS, (getter) FFVideoEncoder_getFuncs, NULL, "Codec packet source C API." },
-    { "progress", (getter) FFVideoEncoder_get_progress, NULL, "Encoder progress, from zero to progress_count." },
-    { "progress_count", (getter) FFVideoEncoder_get_progress_count, NULL, "Number of items to complete. Compare to progress." },
+static PyGetSetDef AVVideoEncoder_getsetters[] = {
+    { CODEC_PACKET_SOURCE_FUNCS, (getter) AVVideoEncoder_getFuncs, NULL, "Codec packet source C API." },
+    { "progress", (getter) AVVideoEncoder_get_progress, NULL, "Encoder progress, from zero to progress_count." },
+    { "progress_count", (getter) AVVideoEncoder_get_progress_count, NULL, "Number of items to complete. Compare to progress." },
     { NULL }
 };
 
-static PyMethodDef FFVideoEncoder_methods[] = {
+static PyMethodDef AVVideoEncoder_methods[] = {
     { NULL }
 };
 
-static PyTypeObject py_type_FFVideoEncoder = {
+static PyTypeObject py_type_AVVideoEncoder = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.ffmpeg.FFVideoEncoder",    // tp_name
-    sizeof(py_obj_FFVideoEncoder),    // tp_basicsize
+    "fluggo.media.libav.AVVideoEncoder",    // tp_name
+    sizeof(py_obj_AVVideoEncoder),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodecPacketSource,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFVideoEncoder_dealloc,
-    .tp_init = (initproc) FFVideoEncoder_init,
-    .tp_getset = FFVideoEncoder_getsetters,
-    .tp_methods = FFVideoEncoder_methods
+    .tp_dealloc = (destructor) AVVideoEncoder_dealloc,
+    .tp_init = (initproc) AVVideoEncoder_init,
+    .tp_getset = AVVideoEncoder_getsetters,
+    .tp_methods = AVVideoEncoder_methods
 };
 
-void init_FFVideoEncoder( PyObject *module ) {
-    if( PyType_Ready( &py_type_FFVideoEncoder ) < 0 )
+void init_AVVideoEncoder( PyObject *module ) {
+    if( PyType_Ready( &py_type_AVVideoEncoder ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFVideoEncoder );
-    PyModule_AddObject( module, "FFVideoEncoder", (PyObject *) &py_type_FFVideoEncoder );
+    Py_INCREF( &py_type_AVVideoEncoder );
+    PyModule_AddObject( module, "AVVideoEncoder", (PyObject *) &py_type_AVVideoEncoder );
 
     pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
 }

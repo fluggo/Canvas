@@ -360,18 +360,18 @@ class MainWindow(QMainWindow):
                 source = self.source_list.get_stream(item.source_name, item.source_stream_id)
                 workspace.add(x=item.x, width=item.width, z=i, offset=item.offset, source=source)
 
-            from fluggo.media import ffmpeg
+            from fluggo.media import libav
 
             right = max(item.x + item.width for item in self.space)
 
             # TODO: Put black at the bottom so that we always composite against it
 
-            packet_source = ffmpeg.FFVideoEncoder(process.DVSubsampleFilter(workspace),
+            packet_source = libav.AVVideoEncoder(process.DVSubsampleFilter(workspace),
                 'dvvideo', start_frame=0, end_frame=right - 1,
                 frame_size=v2i(720, 480), sample_aspect_ratio=fractions.Fraction(33, 40),
                 interlaced=True, top_field_first=False, frame_rate=fractions.Fraction(30000/1001))
 
-            muxer = ffmpeg.FFMuxer(str(path), 'avi')
+            muxer = libav.AVMuxer(str(path), 'avi')
             muxer.add_video_stream(packet_source, 'dvvideo', frame_rate=fractions.Fraction(30000, 1001),
                 frame_size = v2i(720, 480), sample_aspect_ratio=fractions.Fraction(33, 40))
 

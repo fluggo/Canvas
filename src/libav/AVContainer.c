@@ -21,7 +21,7 @@
 #include "pyframework.h"
 #include <libavformat/avformat.h>
 
-// Support old FFmpeg
+// Support old Libav
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
 #define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
 #define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO
@@ -37,17 +37,17 @@ typedef struct {
     AVFormatContext *format;
     AVOutputFormat *out;
     PyObject *streamList;
-} py_obj_FFContainer;
+} py_obj_AVContainer;
 
 typedef struct {
     PyObject_HEAD
 
-    py_obj_FFContainer *container;
+    py_obj_AVContainer *container;
     AVStream *stream;
-} py_obj_FFStream;
+} py_obj_AVStream;
 
 static int
-FFStream_init( py_obj_FFStream *self, PyObject *args, PyObject *kwds ) {
+AVStream_init( py_obj_AVStream *self, PyObject *args, PyObject *kwds ) {
     self->container = NULL;
     self->stream = NULL;
 
@@ -55,24 +55,24 @@ FFStream_init( py_obj_FFStream *self, PyObject *args, PyObject *kwds ) {
 }
 
 static void
-FFStream_dealloc( py_obj_FFStream *self ) {
+AVStream_dealloc( py_obj_AVStream *self ) {
     Py_CLEAR( self->container );
     self->ob_type->tp_free( (PyObject*) self );
 }
 
-static PyTypeObject py_type_FFStream = {
+static PyTypeObject py_type_AVStream = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.ffmpeg.FFStream",    // tp_name
-    sizeof(py_obj_FFStream),    // tp_basicsize
+    "fluggo.media.libav.AVStream",    // tp_name
+    sizeof(py_obj_AVStream),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFStream_dealloc,
-    .tp_init = (initproc) FFStream_init,
+    .tp_dealloc = (destructor) AVStream_dealloc,
+    .tp_init = (initproc) AVStream_init,
 };
 
 static int
-FFContainer_init( py_obj_FFContainer *self, PyObject *args, PyObject *kwds ) {
+AVContainer_init( py_obj_AVContainer *self, PyObject *args, PyObject *kwds ) {
     int error;
     char *filename;
 
@@ -101,7 +101,7 @@ FFContainer_init( py_obj_FFContainer *self, PyObject *args, PyObject *kwds ) {
     self->streamList = PyList_New( self->format->nb_streams );
 
     for( int i = 0; i < self->format->nb_streams; i++ ) {
-        py_obj_FFStream *stream = (py_obj_FFStream *) PyObject_CallObject( (PyObject *) &py_type_FFStream, NULL );
+        py_obj_AVStream *stream = (py_obj_AVStream *) PyObject_CallObject( (PyObject *) &py_type_AVStream, NULL );
         Py_INCREF( self );
         stream->container = self;
         stream->stream = self->format->streams[i];
@@ -121,7 +121,7 @@ FFContainer_init( py_obj_FFContainer *self, PyObject *args, PyObject *kwds ) {
 }
 
 static void
-FFContainer_dealloc( py_obj_FFContainer *self ) {
+AVContainer_dealloc( py_obj_AVContainer *self ) {
     Py_CLEAR( self->streamList );
 
     if( self->format != NULL ) {
@@ -133,17 +133,17 @@ FFContainer_dealloc( py_obj_FFContainer *self ) {
 }
 
 static PyObject *
-FFContainer_formatName( py_obj_FFContainer *self, void *closure ) {
+AVContainer_formatName( py_obj_AVContainer *self, void *closure ) {
     return PyString_FromString( self->format->iformat->name );
 }
 
 static PyObject *
-FFContainer_formatLongName( py_obj_FFContainer *self, void *closure ) {
+AVContainer_formatLongName( py_obj_AVContainer *self, void *closure ) {
     return PyString_FromString( self->format->iformat->long_name );
 }
 
 static PyObject *
-FFContainer_mimeType( py_obj_FFContainer *self, void *closure ) {
+AVContainer_mimeType( py_obj_AVContainer *self, void *closure ) {
     if( !self->out || !self->out->mime_type )
         Py_RETURN_NONE;
 
@@ -151,45 +151,45 @@ FFContainer_mimeType( py_obj_FFContainer *self, void *closure ) {
 }
 
 static PyObject *
-FFContainer_bitRate( py_obj_FFContainer *self, void *closure ) {
+AVContainer_bitRate( py_obj_AVContainer *self, void *closure ) {
     return PyInt_FromLong( self->format->bit_rate );
 }
 
 static PyObject *
-FFContainer_loopCount( py_obj_FFContainer *self, void *closure ) {
+AVContainer_loopCount( py_obj_AVContainer *self, void *closure ) {
     return PyInt_FromLong( self->format->loop_output );
 }
 
 static PyObject *
-FFContainer_streams( py_obj_FFContainer *self, void *closure ) {
+AVContainer_streams( py_obj_AVContainer *self, void *closure ) {
     Py_INCREF( self->streamList );
     return self->streamList;
 }
 
 static PyObject *
-FFContainer_duration( py_obj_FFContainer *self, void *closure ) {
+AVContainer_duration( py_obj_AVContainer *self, void *closure ) {
     return PyLong_FromLongLong( self->format->duration );
 }
 
-static PyGetSetDef FFContainer_getsetters[] = {
-    { "format_name", (getter) FFContainer_formatName, NULL, "The short name of the container format." },
-    { "format_long_name", (getter) FFContainer_formatLongName, NULL, "A more descriptive name of the container format." },
-    { "bit_rate", (getter) FFContainer_bitRate, NULL, "The bit rate of the file in bit/s." },
-    { "loop_count", (getter) FFContainer_loopCount, NULL, "The number of times the output should loop, or -1 for no looping or 0 for infinite looping." },
-    { "streams", (getter) FFContainer_streams, NULL, "List of stream descriptors found in the container." },
-    { "mime_type", (getter) FFContainer_mimeType, NULL, "The MIME type of the format, if known." },
-    { "duration", (getter) FFContainer_duration, NULL, "The file's (estimated) duration in microseconds." },
+static PyGetSetDef AVContainer_getsetters[] = {
+    { "format_name", (getter) AVContainer_formatName, NULL, "The short name of the container format." },
+    { "format_long_name", (getter) AVContainer_formatLongName, NULL, "A more descriptive name of the container format." },
+    { "bit_rate", (getter) AVContainer_bitRate, NULL, "The bit rate of the file in bit/s." },
+    { "loop_count", (getter) AVContainer_loopCount, NULL, "The number of times the output should loop, or -1 for no looping or 0 for infinite looping." },
+    { "streams", (getter) AVContainer_streams, NULL, "List of stream descriptors found in the container." },
+    { "mime_type", (getter) AVContainer_mimeType, NULL, "The MIME type of the format, if known." },
+    { "duration", (getter) AVContainer_duration, NULL, "The file's (estimated) duration in microseconds." },
     { NULL }
 };
 
 static PyObject *
-FFStream_timeBase( py_obj_FFStream *self, void *closure ) {
+AVStream_timeBase( py_obj_AVStream *self, void *closure ) {
     rational result = { .n = self->stream->time_base.num, .d = self->stream->time_base.den };
     return py_make_rational( &result );
 }
 
 static PyObject *
-FFStream_realFrameRate( py_obj_FFStream *self, void *closure ) {
+AVStream_realFrameRate( py_obj_AVStream *self, void *closure ) {
     rational result = { .n = self->stream->r_frame_rate.num, .d = self->stream->r_frame_rate.den };
 
     if( result.n == 0 )
@@ -199,7 +199,7 @@ FFStream_realFrameRate( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_sampleAspectRatio( py_obj_FFStream *self, void *closure ) {
+AVStream_sampleAspectRatio( py_obj_AVStream *self, void *closure ) {
     AVRational sar = self->stream->sample_aspect_ratio;
 
     if( sar.num == 0 )
@@ -216,7 +216,7 @@ static PyObject *pixFmtLookup[PIX_FMT_NB];
 static PyObject *streamTypeLookup[AVMEDIA_TYPE_NB];
 
 static PyObject *
-FFStream_pixelFormat( py_obj_FFStream *self, void *closure ) {
+AVStream_pixelFormat( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->pix_fmt < 0 )
         Py_RETURN_NONE;
 
@@ -230,7 +230,7 @@ FFStream_pixelFormat( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_type( py_obj_FFStream *self, void *closure ) {
+AVStream_type( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_type < 0 )
         Py_RETURN_NONE;
 
@@ -244,17 +244,17 @@ FFStream_type( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_index( py_obj_FFStream *self, void *closure ) {
+AVStream_index( py_obj_AVStream *self, void *closure ) {
     return PyInt_FromLong( self->stream->index );
 }
 
 static PyObject *
-FFStream_id( py_obj_FFStream *self, void *closure ) {
+AVStream_id( py_obj_AVStream *self, void *closure ) {
     return PyInt_FromLong( self->stream->id );
 }
 
 static PyObject *
-FFStream_bitRate( py_obj_FFStream *self, void *closure ) {
+AVStream_bitRate( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->bit_rate )
         return PyInt_FromLong( self->stream->codec->bit_rate );
 
@@ -262,7 +262,7 @@ FFStream_bitRate( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_frameSize( py_obj_FFStream *self, void *closure ) {
+AVStream_frameSize( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_type == AVMEDIA_TYPE_VIDEO )
         return Py_BuildValue( "ii", self->stream->codec->width, self->stream->codec->height );
 
@@ -270,7 +270,7 @@ FFStream_frameSize( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_sampleRate( py_obj_FFStream *self, void *closure ) {
+AVStream_sampleRate( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_type == AVMEDIA_TYPE_AUDIO )
         return PyInt_FromLong( self->stream->codec->sample_rate );
 
@@ -278,7 +278,7 @@ FFStream_sampleRate( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_channels( py_obj_FFStream *self, void *closure ) {
+AVStream_channels( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_type == AVMEDIA_TYPE_AUDIO )
         return PyInt_FromLong( self->stream->codec->channels );
 
@@ -286,12 +286,12 @@ FFStream_channels( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_codec_id( py_obj_FFStream *self, void *closure ) {
+AVStream_codec_id( py_obj_AVStream *self, void *closure ) {
     return PyInt_FromLong( self->stream->codec->codec_id );
 }
 
 static PyObject *
-FFStream_codec( py_obj_FFStream *self, void *closure ) {
+AVStream_codec( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_id == CODEC_ID_NONE )
         Py_RETURN_NONE;
 
@@ -304,7 +304,7 @@ FFStream_codec( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_encoding( py_obj_FFStream *self, void *closure ) {
+AVStream_encoding( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_name[0] == '\0' )
         Py_RETURN_NONE;
 
@@ -312,7 +312,7 @@ FFStream_encoding( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_frameCount( py_obj_FFStream *self, void *closure ) {
+AVStream_frameCount( py_obj_AVStream *self, void *closure ) {
     if( self->stream->nb_frames <= INT64_C(0) )
         Py_RETURN_NONE;
 
@@ -320,7 +320,7 @@ FFStream_frameCount( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_startTime( py_obj_FFStream *self, void *closure ) {
+AVStream_startTime( py_obj_AVStream *self, void *closure ) {
     if( self->stream->start_time <= INT64_C(0) )
         Py_RETURN_NONE;
 
@@ -328,47 +328,47 @@ FFStream_startTime( py_obj_FFStream *self, void *closure ) {
 }
 
 static PyObject *
-FFStream_duration( py_obj_FFStream *self, void *closure ) {
+AVStream_duration( py_obj_AVStream *self, void *closure ) {
     if( self->stream->duration <= INT64_C(0) )
         Py_RETURN_NONE;
 
     return PyLong_FromLongLong( self->stream->duration );
 }
 
-static PyGetSetDef FFStream_getsetters[] = {
-    { "time_base", (getter) FFStream_timeBase, NULL, "The time base of the stream." },
-    { "sample_aspect_ratio", (getter) FFStream_sampleAspectRatio, NULL, "For picture streams, the aspect ratio of each sample, or None if it's unknown." },
-    { "pixel_format", (getter) FFStream_pixelFormat, NULL, "FFmpeg's pixel format for this stream, or None if there isn't one." },
-    { "type", (getter) FFStream_type, NULL, "The type of stream, one of 'video', 'audio', 'data', 'subtitle', or 'attachment', or None if unknown." },
-    { "index", (getter) FFStream_index, NULL, "The index of this stream." },
-    { "id", (getter) FFStream_id, NULL, "The format-specific ID of this stream." },
-    { "bit_rate", (getter) FFStream_bitRate, NULL, "The bit rate of this stream." },
-    { "frame_size", (getter) FFStream_frameSize, NULL, "The size of the frame in the video stream." },
-    { "real_frame_rate", (getter) FFStream_realFrameRate, NULL, "A guess at the real frame rate of the stream." },
-    { "sample_rate", (getter) FFStream_sampleRate, NULL, "The sample rate in the audio stream." },
-    { "channels", (getter) FFStream_channels, NULL, "The number of channels in the audio stream." },
-    { "codec", (getter) FFStream_codec, NULL, "The name of the FFmpeg codec that recognizes this stream." },
-    { "codec_id", (getter) FFStream_codec_id, NULL, "The ID of the codec." },
-    { "encoding", (getter) FFStream_encoding, NULL, "If available, the name of the subformat of this stream." },
-    { "frame_count", (getter) FFStream_frameCount, NULL, "If available, the number of frames in this stream." },
-    { "start_time", (getter) FFStream_startTime, NULL, "If available, the presentation start time of this stream in timeBase units." },
-    { "duration", (getter) FFStream_duration, NULL, "If available, the duration of the stream in timeBase units." },
+static PyGetSetDef AVStream_getsetters[] = {
+    { "time_base", (getter) AVStream_timeBase, NULL, "The time base of the stream." },
+    { "sample_aspect_ratio", (getter) AVStream_sampleAspectRatio, NULL, "For picture streams, the aspect ratio of each sample, or None if it's unknown." },
+    { "pixel_format", (getter) AVStream_pixelFormat, NULL, "Libav's pixel format for this stream, or None if there isn't one." },
+    { "type", (getter) AVStream_type, NULL, "The type of stream, one of 'video', 'audio', 'data', 'subtitle', or 'attachment', or None if unknown." },
+    { "index", (getter) AVStream_index, NULL, "The index of this stream." },
+    { "id", (getter) AVStream_id, NULL, "The format-specific ID of this stream." },
+    { "bit_rate", (getter) AVStream_bitRate, NULL, "The bit rate of this stream." },
+    { "frame_size", (getter) AVStream_frameSize, NULL, "The size of the frame in the video stream." },
+    { "real_frame_rate", (getter) AVStream_realFrameRate, NULL, "A guess at the real frame rate of the stream." },
+    { "sample_rate", (getter) AVStream_sampleRate, NULL, "The sample rate in the audio stream." },
+    { "channels", (getter) AVStream_channels, NULL, "The number of channels in the audio stream." },
+    { "codec", (getter) AVStream_codec, NULL, "The name of the Libav codec that recognizes this stream." },
+    { "codec_id", (getter) AVStream_codec_id, NULL, "The ID of the codec." },
+    { "encoding", (getter) AVStream_encoding, NULL, "If available, the name of the subformat of this stream." },
+    { "frame_count", (getter) AVStream_frameCount, NULL, "If available, the number of frames in this stream." },
+    { "start_time", (getter) AVStream_startTime, NULL, "If available, the presentation start time of this stream in time_base units." },
+    { "duration", (getter) AVStream_duration, NULL, "If available, the duration of the stream in time_base units." },
     { NULL }
 };
 
-static PyTypeObject py_type_FFContainer = {
+static PyTypeObject py_type_AVContainer = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.ffmpeg.FFContainer",    // tp_name
-    sizeof(py_obj_FFContainer),    // tp_basicsize
+    "fluggo.media.libav.AVContainer",    // tp_name
+    sizeof(py_obj_AVContainer),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFContainer_dealloc,
-    .tp_init = (initproc) FFContainer_init,
-    .tp_getset = FFContainer_getsetters,
+    .tp_dealloc = (destructor) AVContainer_dealloc,
+    .tp_init = (initproc) AVContainer_init,
+    .tp_getset = AVContainer_getsetters,
 };
 
-void init_FFContainer( PyObject *module ) {
+void init_AVContainer( PyObject *module ) {
 #define MKCASE(fmt)        pixFmtLookup[PIX_FMT_##fmt] = PyString_FromString( #fmt );
     MKCASE(YUV420P)
     MKCASE(YUYV422)
@@ -443,18 +443,18 @@ void init_FFContainer( PyObject *module ) {
     streamTypeLookup[AVMEDIA_TYPE_SUBTITLE] = PyString_FromString( "subtitle" );
     streamTypeLookup[AVMEDIA_TYPE_ATTACHMENT] = PyString_FromString( "attachment" );
 
-    py_type_FFStream.tp_getset = FFStream_getsetters;
+    py_type_AVStream.tp_getset = AVStream_getsetters;
 
-    if( PyType_Ready( &py_type_FFContainer ) < 0 )
+    if( PyType_Ready( &py_type_AVContainer ) < 0 )
         return;
 
-    if( PyType_Ready( &py_type_FFStream ) < 0 )
+    if( PyType_Ready( &py_type_AVStream ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFContainer );
-    PyModule_AddObject( module, "FFContainer", (PyObject *) &py_type_FFContainer );
+    Py_INCREF( &py_type_AVContainer );
+    PyModule_AddObject( module, "AVContainer", (PyObject *) &py_type_AVContainer );
 
-    Py_INCREF( &py_type_FFStream );
-    PyModule_AddObject( module, "FFStream", (PyObject *) &py_type_FFStream );
+    Py_INCREF( &py_type_AVStream );
+    PyModule_AddObject( module, "AVStream", (PyObject *) &py_type_AVStream );
 }
 

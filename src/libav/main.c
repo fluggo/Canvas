@@ -32,37 +32,37 @@ static PyMethodDef module_methods[] = {
     { NULL }
 };
 
-void init_FFVideoSource( PyObject *module );
-void init_FFVideoDecoder( PyObject *module );
-void init_FFVideoEncoder( PyObject *module );
-void init_FFAudioSource( PyObject *module );
-void init_FFAudioDecoder( PyObject *module );
-void init_FFDemuxer( PyObject *module );
-void init_FFMuxer( PyObject *module );
-void init_FFContainer( PyObject *module );
+void init_AVVideoSource( PyObject *module );
+void init_AVVideoDecoder( PyObject *module );
+void init_AVVideoEncoder( PyObject *module );
+void init_AVAudioSource( PyObject *module );
+void init_AVAudioDecoder( PyObject *module );
+void init_AVDemuxer( PyObject *module );
+void init_AVMuxer( PyObject *module );
+void init_AVContainer( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
-initffmpeg() {
-    PyObject *m = Py_InitModule3( "ffmpeg", module_methods,
-        "FFmpeg support for the Fluggo media processing library." );
+initlibav() {
+    PyObject *m = Py_InitModule3( "libav", module_methods,
+        "Libav support for the Fluggo media processing library." );
 
     // Make sure process is available and initialized
     if( !PyImport_ImportModule( "fluggo.media.process" ) )
         return;
 
-    init_FFVideoSource( m );
-    init_FFVideoDecoder( m );
-    init_FFVideoEncoder( m );
-    init_FFAudioSource( m );
-    init_FFAudioDecoder( m );
-    init_FFDemuxer( m );
-    init_FFMuxer( m );
-    init_FFContainer( m );
+    init_AVVideoSource( m );
+    init_AVVideoDecoder( m );
+    init_AVVideoEncoder( m );
+    init_AVAudioSource( m );
+    init_AVAudioDecoder( m );
+    init_AVDemuxer( m );
+    init_AVMuxer( m );
+    init_AVContainer( m );
 
     if( !g_thread_supported() )
         g_thread_init( NULL );
 
-    // Declare FFmpeg pixel formats
+    // Declare Libav pixel formats
     PyModule_AddIntMacro( m, PIX_FMT_NONE );
     PyModule_AddIntMacro( m, PIX_FMT_YUV420P );
     PyModule_AddIntMacro( m, PIX_FMT_YUYV422 );

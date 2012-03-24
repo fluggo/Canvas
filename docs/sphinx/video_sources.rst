@@ -211,14 +211,14 @@ in the chain on a playback control or some other output.
 
 For example::
 
-    from fluggo.media import process
+    from fluggo.media import process, libav
 
-    videro = process.FFVideoSource('softboiled01;03;21;24.avi')
+    videro = libav.AVVideoSource('softboiled01;03;21;24.avi')
     pulldown = process.Pulldown23RemovalFilter(videro, 0)
     mix = VideoMixFilter(src_a=pulldown, src_b=SolidColorVideoSource(rgba(1.0, 0.0, 0.0, 0.5), box2i(50, 50, 100, 100)), mix_b=LinearFrameFunc(a=1/300.0, b=0))
 
-This example uses four sources. :py:class:`FFVideoSource` is a source that reads
-a video file using FFmpeg. We use it as input to :py:class:`Pulldown23RemovalFilter`,
+This example uses four sources. :py:class:`AVVideoSource` is a source that reads
+a video file using Libav. We use it as input to :py:class:`Pulldown23RemovalFilter`,
 which will remove 2:3 pulldown in the file. That output then becomes input to a
 :py:class:`VideoMixFilter`, along with a :py:class:`SolidColorVideoSource`. The
 mix filter will mix between the two. The :py:class:`LinearFrameFunc` is a

@@ -62,7 +62,7 @@ counted_get_buffer( AVCodecContext *codec, AVFrame *frame ) {
         image->image.stride[i] = picture.linesize[i];
     }
 
-    frame->age = 256*256*256*64;        // BJC: Yeah, don't ask me, look at FFmpeg.
+    frame->age = 256*256*256*64;        // BJC: Yeah, don't ask me, look at Libav.
     frame->opaque = image;
     frame->type = FF_BUFFER_TYPE_USER;
 
@@ -116,10 +116,10 @@ typedef struct {
     int64_t next_frame;
 
     GStaticMutex mutex;
-} py_obj_FFVideoDecoder;
+} py_obj_AVVideoDecoder;
 
 static int
-FFVideoDecoder_init( py_obj_FFVideoDecoder *self, PyObject *args, PyObject *kw ) {
+AVVideoDecoder_init( py_obj_AVVideoDecoder *self, PyObject *args, PyObject *kw ) {
     int error;
 
     // Zero all pointers (so we know later what needs deleting)
@@ -164,7 +164,7 @@ FFVideoDecoder_init( py_obj_FFVideoDecoder *self, PyObject *args, PyObject *kw )
 }
 
 static void
-FFVideoDecoder_dealloc( py_obj_FFVideoDecoder *self ) {
+AVVideoDecoder_dealloc( py_obj_AVVideoDecoder *self ) {
     avcodec_close( &self->context );
 
     py_codec_packet_take_source( NULL, &self->source );
@@ -174,7 +174,7 @@ FFVideoDecoder_dealloc( py_obj_FFVideoDecoder *self ) {
 }
 
 static coded_image *
-FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
+AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame ) {
     g_static_mutex_lock( &self->mutex );
 
     if( self->source.source.funcs->seek && frame != self->next_frame ) {
@@ -248,46 +248,46 @@ FFVideoDecoder_get_frame( py_obj_FFVideoDecoder *self, int frame ) {
 }
 
 static coded_image_source_funcs source_funcs = {
-    .getFrame = (coded_image_getFrameFunc) FFVideoDecoder_get_frame,
+    .getFrame = (coded_image_getFrameFunc) AVVideoDecoder_get_frame,
 };
 
 static PyObject *pySourceFuncs;
 
 static PyObject *
-FFVideoDecoder_getFuncs( py_obj_FFVideoDecoder *self, void *closure ) {
+AVVideoDecoder_getFuncs( py_obj_AVVideoDecoder *self, void *closure ) {
     Py_INCREF(pySourceFuncs);
     return pySourceFuncs;
 }
 
-static PyGetSetDef FFVideoDecoder_getsetters[] = {
-    { CODED_IMAGE_SOURCE_FUNCS, (getter) FFVideoDecoder_getFuncs, NULL, "Coded image source C API." },
+static PyGetSetDef AVVideoDecoder_getsetters[] = {
+    { CODED_IMAGE_SOURCE_FUNCS, (getter) AVVideoDecoder_getFuncs, NULL, "Coded image source C API." },
     { NULL }
 };
 
-static PyMethodDef FFVideoDecoder_methods[] = {
+static PyMethodDef AVVideoDecoder_methods[] = {
     { NULL }
 };
 
-static PyTypeObject py_type_FFVideoDecoder = {
+static PyTypeObject py_type_AVVideoDecoder = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.ffmpeg.FFVideoDecoder",    // tp_name
-    sizeof(py_obj_FFVideoDecoder),    // tp_basicsize
+    "fluggo.media.libav.AVVideoDecoder",    // tp_name
+    sizeof(py_obj_AVVideoDecoder),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodedImageSource,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFVideoDecoder_dealloc,
-    .tp_init = (initproc) FFVideoDecoder_init,
-    .tp_getset = FFVideoDecoder_getsetters,
-    .tp_methods = FFVideoDecoder_methods
+    .tp_dealloc = (destructor) AVVideoDecoder_dealloc,
+    .tp_init = (initproc) AVVideoDecoder_init,
+    .tp_getset = AVVideoDecoder_getsetters,
+    .tp_methods = AVVideoDecoder_methods
 };
 
-void init_FFVideoDecoder( PyObject *module ) {
-    if( PyType_Ready( &py_type_FFVideoDecoder ) < 0 )
+void init_AVVideoDecoder( PyObject *module ) {
+    if( PyType_Ready( &py_type_AVVideoDecoder ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFVideoDecoder );
-    PyModule_AddObject( module, "FFVideoDecoder", (PyObject *) &py_type_FFVideoDecoder );
+    Py_INCREF( &py_type_AVVideoDecoder );
+    PyModule_AddObject( module, "AVVideoDecoder", (PyObject *) &py_type_AVVideoDecoder );
 
     pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
 }

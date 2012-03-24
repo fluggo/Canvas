@@ -32,10 +32,10 @@ typedef struct {
     bool context_open;
 
     GStaticMutex mutex;
-} py_obj_FFAudioDecoder;
+} py_obj_AVAudioDecoder;
 
 static int
-FFAudioDecoder_init( py_obj_FFAudioDecoder *self, PyObject *args, PyObject *kw ) {
+AVAudioDecoder_init( py_obj_AVAudioDecoder *self, PyObject *args, PyObject *kw ) {
     int error;
 
     // Zero all pointers (so we know later what needs deleting)
@@ -91,7 +91,7 @@ FFAudioDecoder_init( py_obj_FFAudioDecoder *self, PyObject *args, PyObject *kw )
 }
 
 static void
-FFAudioDecoder_dealloc( py_obj_FFAudioDecoder *self ) {
+AVAudioDecoder_dealloc( py_obj_AVAudioDecoder *self ) {
     PyMem_Free( self->audio_buffer );
     self->audio_buffer = NULL;
 
@@ -150,7 +150,7 @@ static int get_sample_count( int bytes, enum SampleFormat sample_fmt, int channe
 }
 
 static void
-FFAudioDecoder_get_frame( py_obj_FFAudioDecoder *self, audio_frame *frame ) {
+AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
     g_static_mutex_lock( &self->mutex );
 
     if( self->source.source.funcs->seek &&
@@ -298,46 +298,46 @@ FFAudioDecoder_get_frame( py_obj_FFAudioDecoder *self, audio_frame *frame ) {
 }
 
 static AudioFrameSourceFuncs source_funcs = {
-    .getFrame = (audio_getFrameFunc) FFAudioDecoder_get_frame,
+    .getFrame = (audio_getFrameFunc) AVAudioDecoder_get_frame,
 };
 
 static PyObject *pySourceFuncs;
 
 static PyObject *
-FFAudioDecoder_getFuncs( py_obj_FFAudioDecoder *self, void *closure ) {
+AVAudioDecoder_getFuncs( py_obj_AVAudioDecoder *self, void *closure ) {
     Py_INCREF(pySourceFuncs);
     return pySourceFuncs;
 }
 
-static PyGetSetDef FFAudioDecoder_getsetters[] = {
-    { AUDIO_FRAME_SOURCE_FUNCS, (getter) FFAudioDecoder_getFuncs, NULL, "Audio frame source C API." },
+static PyGetSetDef AVAudioDecoder_getsetters[] = {
+    { AUDIO_FRAME_SOURCE_FUNCS, (getter) AVAudioDecoder_getFuncs, NULL, "Audio frame source C API." },
     { NULL }
 };
 
-static PyMethodDef FFAudioDecoder_methods[] = {
+static PyMethodDef AVAudioDecoder_methods[] = {
     { NULL }
 };
 
-static PyTypeObject py_type_FFAudioDecoder = {
+static PyTypeObject py_type_AVAudioDecoder = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.ffmpeg.FFAudioDecoder",    // tp_name
-    sizeof(py_obj_FFAudioDecoder),    // tp_basicsize
+    "fluggo.media.libav.AVAudioDecoder",    // tp_name
+    sizeof(py_obj_AVAudioDecoder),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_AudioSource,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFAudioDecoder_dealloc,
-    .tp_init = (initproc) FFAudioDecoder_init,
-    .tp_getset = FFAudioDecoder_getsetters,
-    .tp_methods = FFAudioDecoder_methods
+    .tp_dealloc = (destructor) AVAudioDecoder_dealloc,
+    .tp_init = (initproc) AVAudioDecoder_init,
+    .tp_getset = AVAudioDecoder_getsetters,
+    .tp_methods = AVAudioDecoder_methods
 };
 
-void init_FFAudioDecoder( PyObject *module ) {
-    if( PyType_Ready( &py_type_FFAudioDecoder ) < 0 )
+void init_AVAudioDecoder( PyObject *module ) {
+    if( PyType_Ready( &py_type_AVAudioDecoder ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFAudioDecoder );
-    PyModule_AddObject( module, "FFAudioDecoder", (PyObject *) &py_type_FFAudioDecoder );
+    Py_INCREF( &py_type_AVAudioDecoder );
+    PyModule_AddObject( module, "AVAudioDecoder", (PyObject *) &py_type_AVAudioDecoder );
 
     pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
 }

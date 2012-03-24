@@ -21,7 +21,7 @@
 #include "pyframework.h"
 #include <libavformat/avformat.h>
 
-// Support old FFmpeg
+// Support old Libav
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
 #define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
 #define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO
@@ -40,7 +40,7 @@ typedef struct {
     bool allKeyframes;
     int currentVideoFrame;
     GStaticMutex mutex;
-} py_obj_FFVideoSource;
+} py_obj_AVVideoSource;
 
 typedef struct {
     float cb, cr;
@@ -48,10 +48,10 @@ typedef struct {
 
 static half gamma22[65536];
 
-static void FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f16 *frame );
+static void AVVideoSource_getFrame( py_obj_AVVideoSource *self, int frameIndex, rgba_frame_f16 *frame );
 
 static int
-FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds ) {
+AVVideoSource_init( py_obj_AVVideoSource *self, PyObject *args, PyObject *kwds ) {
     int error;
     char *filename;
 
@@ -141,7 +141,7 @@ FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds )
 
     if( !self->allKeyframes ) {
         // Prime the pump for MPEG so we get frame accuracy (otherwise we seem to start a few frames in)
-        FFVideoSource_getFrame( self, 0, NULL );
+        AVVideoSource_getFrame( self, 0, NULL );
         av_seek_frame( self->context, self->firstVideoStream, 0, AVSEEK_FLAG_BACKWARD );
     }
 
@@ -149,7 +149,7 @@ FFVideoSource_init( py_obj_FFVideoSource *self, PyObject *args, PyObject *kwds )
 }
 
 static void
-FFVideoSource_dealloc( py_obj_FFVideoSource *self ) {
+AVVideoSource_dealloc( py_obj_AVVideoSource *self ) {
     if( self->codecContext != NULL ) {
         avcodec_close( self->codecContext );
         self->codecContext = NULL;
@@ -166,7 +166,7 @@ FFVideoSource_dealloc( py_obj_FFVideoSource *self ) {
 }
 
 static bool
-read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
+read_frame( py_obj_AVVideoSource *self, int frameIndex, AVFrame *frame ) {
     //printf( "Requested %ld\n", frameIndex );
 
     // This formula should be right for most cases, except, of course, when r_frame_rate is wrong
@@ -247,7 +247,7 @@ read_frame( py_obj_FFVideoSource *self, int frameIndex, AVFrame *frame ) {
 }
 
 static void
-FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f16 *frame ) {
+AVVideoSource_getFrame( py_obj_AVVideoSource *self, int frameIndex, rgba_frame_f16 *frame ) {
     if( frameIndex < 0 ) {
         // No result
         box2i_set_empty( &frame->current_window );
@@ -280,7 +280,7 @@ FFVideoSource_getFrame( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_f
 
     //printf( "pix_fmt: %d\n", self->codecContext->pix_fmt );
 
-    // Dupe the input planes, because FFmpeg will reuse them
+    // Dupe the input planes, because Libav will reuse them
     uint8_t *yplane, *cbplane, *crplane;
     uint8_t *yrow, *cbrow, *crrow;
 
@@ -483,7 +483,7 @@ static void destroyShader( gl_shader_state *shader ) {
 }
 
 static void
-FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame_gl *frame ) {
+AVVideoSource_getFrameGL( py_obj_AVVideoSource *self, int frameIndex, rgba_frame_gl *frame ) {
     if( frameIndex < 0 ) {
         // No result
         box2i_set_empty( &frame->current_window );
@@ -605,50 +605,50 @@ FFVideoSource_getFrameGL( py_obj_FFVideoSource *self, int frameIndex, rgba_frame
 }
 
 static video_frame_source_funcs videoSourceFuncs = {
-    .get_frame = (video_get_frame_func) FFVideoSource_getFrame,
-    .get_frame_gl = (video_get_frame_gl_func) FFVideoSource_getFrameGL,
+    .get_frame = (video_get_frame_func) AVVideoSource_getFrame,
+    .get_frame_gl = (video_get_frame_gl_func) AVVideoSource_getFrameGL,
 };
 
 static PyObject *pyVideoSourceFuncs;
 
 static PyObject *
-FFVideoSource_getFuncs( py_obj_FFVideoSource *self, void *closure ) {
+AVVideoSource_getFuncs( py_obj_AVVideoSource *self, void *closure ) {
     Py_INCREF(pyVideoSourceFuncs);
     return pyVideoSourceFuncs;
 }
 
-static PyGetSetDef FFVideoSource_getsetters[] = {
-    { VIDEO_FRAME_SOURCE_FUNCS, (getter) FFVideoSource_getFuncs, NULL, "Video frame source C API." },
+static PyGetSetDef AVVideoSource_getsetters[] = {
+    { VIDEO_FRAME_SOURCE_FUNCS, (getter) AVVideoSource_getFuncs, NULL, "Video frame source C API." },
     { NULL }
 };
 
 static PyObject *
-FFVideoSource_size( py_obj_FFVideoSource *self ) {
+AVVideoSource_size( py_obj_AVVideoSource *self ) {
     v2i size = { self->codecContext->width, self->codecContext->height };
     return py_make_v2i( &size );
 }
 
-static PyMethodDef FFVideoSource_methods[] = {
-    { "size", (PyCFunction) FFVideoSource_size, METH_NOARGS,
+static PyMethodDef AVVideoSource_methods[] = {
+    { "size", (PyCFunction) AVVideoSource_size, METH_NOARGS,
         "Gets the frame size for this video." },
     { NULL }
 };
 
-static PyTypeObject py_type_FFVideoSource = {
+static PyTypeObject py_type_AVVideoSource = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.ffmpeg.FFVideoSource",    // tp_name
-    sizeof(py_obj_FFVideoSource),    // tp_basicsize
+    "fluggo.media.libav.AVVideoSource",    // tp_name
+    sizeof(py_obj_AVVideoSource),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFVideoSource_dealloc,
-    .tp_init = (initproc) FFVideoSource_init,
-    .tp_getset = FFVideoSource_getsetters,
-    .tp_methods = FFVideoSource_methods
+    .tp_dealloc = (destructor) AVVideoSource_dealloc,
+    .tp_init = (initproc) AVVideoSource_init,
+    .tp_getset = AVVideoSource_getsetters,
+    .tp_methods = AVVideoSource_methods
 };
 
-void init_FFVideoSource( PyObject *module ) {
+void init_AVVideoSource( PyObject *module ) {
     float *f = g_malloc( sizeof(float) * 65536 );
 
     for( int i = 0; i < 65536; i++ )
@@ -663,15 +663,15 @@ void init_FFVideoSource( PyObject *module ) {
 
     g_free( f );
 
-    if( PyType_Ready( &py_type_FFVideoSource ) < 0 )
+    if( PyType_Ready( &py_type_AVVideoSource ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFVideoSource );
-    PyModule_AddObject( module, "FFVideoSource", (PyObject *) &py_type_FFVideoSource );
+    Py_INCREF( &py_type_AVVideoSource );
+    PyModule_AddObject( module, "AVVideoSource", (PyObject *) &py_type_AVVideoSource );
 
     pyVideoSourceFuncs = PyCObject_FromVoidPtr( &videoSourceFuncs, NULL );
 
-    q_recon411Shader = g_quark_from_static_string( "FFVideoSource::recon411Filter" );
+    q_recon411Shader = g_quark_from_static_string( "AVVideoSource::recon411Filter" );
 }
 
 

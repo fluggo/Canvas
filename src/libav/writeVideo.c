@@ -29,7 +29,7 @@
 // RGB -> YUV matrix
 // chromaticities
 
-// Support old FFmpeg
+// Support old Libav
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
 #define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
 #define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO

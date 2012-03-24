@@ -17,13 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from fluggo.media import process, ffmpeg
+from fluggo.media import process, libav
 from fluggo.media.formats import *
 from fluggo.editor import model
 
 _CODEC_FORMAT_MAP = {}
 
-for (name, const) in ffmpeg.__dict__.iteritems():
+for (name, const) in libav.__dict__.iteritems():
     if name.startswith('CONST_ID_'):
         _CODEC_FORMAT_MAP[const] = name[9:]
 
@@ -48,11 +48,11 @@ class FFMuxPlugin(object):
             if stream.index != index:
                 continue
 
-            demux = ffmpeg.FFDemuxer(container.path, index)
+            demux = libav.AVDemuxer(container.path, index)
 
             if stream.type == 'video':
                 # TODO: Right now, anticipate only DV video
-                decode = ffmpeg.FFVideoDecoder(demux, 'dvvideo')
+                decode = libav.AVVideoDecoder(demux, 'dvvideo')
                 source = process.DVReconstructionFilter(decode)
 
                 if stream.pulldown_type == '2:3':
@@ -60,7 +60,7 @@ class FFMuxPlugin(object):
 
                 return model.VideoStream(source, stream)
             elif stream.type == 'audio':
-                return model.AudioStream(ffmpeg.FFAudioDecoder(demux, 'pcm_s16le', 2), stream)
+                return model.AudioStream(libav.AVAudioDecoder(demux, 'pcm_s16le', 2), stream)
 
             raise RuntimeError('Could not identify stream type.')
 
@@ -69,7 +69,7 @@ class FFMuxPlugin(object):
     @classmethod
     def detect_container(cls, path):
         # Should return None or throw exception if unable to handle
-        data = ffmpeg.FFContainer(path)
+        data = libav.AVContainer(path)
 
         result = ContainerFormat()
         result.detected[ContainerProperty.FORMAT] = _FF_CONTAINER_FORMAT_TO_STD.get(data.format_name, 'ffmpeg/' + data.format_name)

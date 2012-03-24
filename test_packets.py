@@ -1,14 +1,14 @@
-from fluggo.media import process, ffmpeg
+from fluggo.media import process, libav
 from fluggo.media.basetypes import *
 import fractions
 import sys
 
-packet_source = ffmpeg.FFDemuxer(sys.argv[1], 0)
-coded_image = ffmpeg.FFVideoDecoder(packet_source, 'dvvideo')
-packet_source = ffmpeg.FFVideoEncoder(coded_image, 'dvvideo', start_frame=0, end_frame=200, frame_size=v2i(720, 480),
+packet_source = libav.AVDemuxer(sys.argv[1], 0)
+coded_image = libav.AVVideoDecoder(packet_source, 'dvvideo')
+packet_source = libav.AVVideoEncoder(coded_image, 'dvvideo', start_frame=0, end_frame=200, frame_size=v2i(720, 480),
     sample_aspect_ratio=fractions.Fraction(33, 40), interlaced=True, top_field_first=False, frame_rate=fractions.Fraction(30000/1001))
 
-muxer = ffmpeg.FFMuxer('/home/james/software/fluggo-media/test_packet.avi', 'avi')
+muxer = libav.AVMuxer('/home/james/software/fluggo-media/test_packet.avi', 'avi')
 muxer.add_video_stream(packet_source, 'dvvideo', frame_rate=fractions.Fraction(30000, 1001),
     frame_size = v2i(720, 480), sample_aspect_ratio=fractions.Fraction(33, 40))
 #muxer.run()

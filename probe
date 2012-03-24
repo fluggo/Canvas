@@ -4,9 +4,9 @@
 from __future__ import print_function
 
 import sys
-from fluggo.media.ffmpeg import FFContainer
+from fluggo.media.libav import AVContainer
 
-c = FFContainer(sys.argv[1])
+c = AVContainer(sys.argv[1])
 
 print('Format: ', c.format_long_name, ' (', c.format_name, ')', sep='')
 print('Duration:', c.duration / 1000000.0)

@@ -91,7 +91,7 @@
 
         Identifies a specific muxer for encoding or decoding this :attr:`FORMAT`.
         In Canvas, this is the name of the plugin followed by a forward slash and
-        the plugin-specific name for the muxer, such as ``'ffmpeg/dv'``.
+        the plugin-specific name for the muxer, such as ``'libav/dv'``.
 
         For decode:
 
@@ -131,7 +131,7 @@
 
         Identifies a specific codec for encoding or decoding this :attr:`FORMAT`.
         In Canvas, this is the name of the plugin followed by a forward slash and
-        the plugin-specific name for the codec, such as ``'ffmpeg/dv'``.
+        the plugin-specific name for the codec, such as ``'libav/dv'``.
 
         For decode:
 

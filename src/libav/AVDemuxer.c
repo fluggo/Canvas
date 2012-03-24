@@ -21,7 +21,7 @@
 #include "pyframework.h"
 #include <libavformat/avformat.h>
 
-// Support old FFmpeg
+// Support old Libav
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 64, 0)
 #define AVMEDIA_TYPE_VIDEO      CODEC_TYPE_VIDEO
 #define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO
@@ -44,10 +44,10 @@ typedef struct {
     bool raw_timestamps;
     rational frame_duration;
     GStaticMutex mutex;
-} py_obj_FFDemuxer;
+} py_obj_AVDemuxer;
 
 static int
-FFDemuxer_init( py_obj_FFDemuxer *self, PyObject *args, PyObject *kw ) {
+AVDemuxer_init( py_obj_AVDemuxer *self, PyObject *args, PyObject *kw ) {
     int error;
     char *filename;
     PyObject *raw_timestamp_obj = NULL;
@@ -111,7 +111,7 @@ FFDemuxer_init( py_obj_FFDemuxer *self, PyObject *args, PyObject *kw ) {
 }
 
 static void
-FFDemuxer_dealloc( py_obj_FFDemuxer *self ) {
+AVDemuxer_dealloc( py_obj_AVDemuxer *self ) {
     if( self->context != NULL ) {
         av_close_input_file( self->context );
         self->context = NULL;
@@ -123,7 +123,7 @@ FFDemuxer_dealloc( py_obj_FFDemuxer *self ) {
 }
 
 static bool
-FFDemuxer_seek( py_obj_FFDemuxer *self, int64_t frame ) {
+AVDemuxer_seek( py_obj_AVDemuxer *self, int64_t frame ) {
     int64_t timestamp;
 
     if( self->raw_timestamps )
@@ -151,7 +151,7 @@ my_packet_free( my_packet *packet ) {
 }
 
 static int
-FFDemuxer_get_header( py_obj_FFDemuxer *self, void *buffer ) {
+AVDemuxer_get_header( py_obj_AVDemuxer *self, void *buffer ) {
     if( !self->codecContext->extradata )
         return 0;
 
@@ -163,7 +163,7 @@ FFDemuxer_get_header( py_obj_FFDemuxer *self, void *buffer ) {
 }
 
 static codec_packet *
-FFDemuxer_get_next_packet( py_obj_FFDemuxer *self ) {
+AVDemuxer_get_next_packet( py_obj_AVDemuxer *self ) {
     my_packet *packet = g_slice_new0( my_packet );
     av_init_packet( &packet->av_packet );
 
@@ -194,7 +194,7 @@ FFDemuxer_get_next_packet( py_obj_FFDemuxer *self ) {
 
     // TODO: There are a lot of cases where this won't work
     if( packet->packet.pts == PACKET_TS_NONE ) {
-        g_warning( "FFmpeg format did not supply pts, dts is %" PRId64 ".", packet->packet.dts );
+        g_warning( "Libav format did not supply pts, dts is %" PRId64 ".", packet->packet.dts );
         packet->packet.pts = packet->packet.dts;
     }
 
@@ -213,48 +213,48 @@ FFDemuxer_get_next_packet( py_obj_FFDemuxer *self ) {
 }
 
 static codec_packet_source_funcs source_funcs = {
-    .getHeader = (codec_getHeaderFunc) FFDemuxer_get_header,
-    .getNextPacket = (codec_getNextPacketFunc) FFDemuxer_get_next_packet,
-    .seek = (codec_seekFunc) FFDemuxer_seek,
+    .getHeader = (codec_getHeaderFunc) AVDemuxer_get_header,
+    .getNextPacket = (codec_getNextPacketFunc) AVDemuxer_get_next_packet,
+    .seek = (codec_seekFunc) AVDemuxer_seek,
 };
 
 static PyObject *pySourceFuncs;
 
 static PyObject *
-FFDemuxer_getFuncs( py_obj_FFDemuxer *self, void *closure ) {
+AVDemuxer_getFuncs( py_obj_AVDemuxer *self, void *closure ) {
     Py_INCREF(pySourceFuncs);
     return pySourceFuncs;
 }
 
-static PyGetSetDef FFDemuxer_getsetters[] = {
-    { CODEC_PACKET_SOURCE_FUNCS, (getter) FFDemuxer_getFuncs, NULL, "Codec packet source C API." },
+static PyGetSetDef AVDemuxer_getsetters[] = {
+    { CODEC_PACKET_SOURCE_FUNCS, (getter) AVDemuxer_getFuncs, NULL, "Codec packet source C API." },
     { NULL }
 };
 
-static PyMethodDef FFDemuxer_methods[] = {
+static PyMethodDef AVDemuxer_methods[] = {
     { NULL }
 };
 
-static PyTypeObject py_type_FFDemuxer = {
+static PyTypeObject py_type_AVDemuxer = {
     PyObject_HEAD_INIT(NULL)
     0,            // ob_size
-    "fluggo.media.ffmpeg.FFDemuxer",    // tp_name
-    sizeof(py_obj_FFDemuxer),    // tp_basicsize
+    "fluggo.media.libav.AVDemuxer",    // tp_name
+    sizeof(py_obj_AVDemuxer),    // tp_basicsize
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodecPacketSource,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) FFDemuxer_dealloc,
-    .tp_init = (initproc) FFDemuxer_init,
-    .tp_getset = FFDemuxer_getsetters,
-    .tp_methods = FFDemuxer_methods
+    .tp_dealloc = (destructor) AVDemuxer_dealloc,
+    .tp_init = (initproc) AVDemuxer_init,
+    .tp_getset = AVDemuxer_getsetters,
+    .tp_methods = AVDemuxer_methods
 };
 
-void init_FFDemuxer( PyObject *module ) {
-    if( PyType_Ready( &py_type_FFDemuxer ) < 0 )
+void init_AVDemuxer( PyObject *module ) {
+    if( PyType_Ready( &py_type_AVDemuxer ) < 0 )
         return;
 
-    Py_INCREF( &py_type_FFDemuxer );
-    PyModule_AddObject( module, "FFDemuxer", (PyObject *) &py_type_FFDemuxer );
+    Py_INCREF( &py_type_AVDemuxer );
+    PyModule_AddObject( module, "AVDemuxer", (PyObject *) &py_type_AVDemuxer );
 
     pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
 }

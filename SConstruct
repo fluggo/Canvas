@@ -110,23 +110,23 @@ Alias('all', 'process')
 Default('process')
 
 if not env.Execute('@pkg-config --exists libavformat libswscale'):
-    ffmpeg_env = python_env.Clone()
-    ffmpeg_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale glib-2.0 gthread-2.0')
-    ffmpeg_env.Append(LIBS=[process])
+    libav_env = python_env.Clone()
+    libav_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale glib-2.0 gthread-2.0')
+    libav_env.Append(LIBS=[process])
 
     if env['PLATFORM'] == 'win32':
-        ffmpeg_env.Append(LIBS=['glew32', 'opengl32'])
+        libav_env.Append(LIBS=['glew32', 'opengl32'])
     else:
-        ffmpeg_env.ParseConfig('pkg-config --libs --cflags gl')
-        ffmpeg_env.Append(LIBS=['GLEW'])
+        libav_env.ParseConfig('pkg-config --libs --cflags gl')
+        libav_env.Append(LIBS=['GLEW'])
 
-    ffmpeg = ffmpeg_env.SharedLibrary('fluggo/media/ffmpeg', env.Glob('src/ffmpeg/*.c'))
+    libav = libav_env.SharedLibrary('fluggo/media/libav', env.Glob('src/libav/*.c'))
 
-    Alias('ffmpeg', ffmpeg)
-    Alias('all', 'ffmpeg')
-    Default('ffmpeg')
+    Alias('libav', libav)
+    Alias('all', 'libav')
+    Default('libav')
 else:
-    print 'Skipping FFmpeg library build'
+    print 'Skipping Libav library build'
 
 if not env.Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
     gtk_env = python_env.Clone()
