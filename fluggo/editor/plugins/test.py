@@ -1,18 +1,17 @@
 from fluggo.editor import plugins
 
 class TestSourcePlugin(plugins.SourcePlugin):
-    def name(self):
-        return 'Test Source Plugin'
+    name = 'Test Source Plugin'
+    description = 'Tests the plugin system'
+    plugin_urn = 'urn:fluggo.com/canvas/plugins:test'
 
-    def description(self):
-        return 'Tests the plugin system'
-
-    def plugin_urn(self):
-        return 'urn:fluggo.com/canvas/plugins:test'
+    def __init__(self, *args, **kw):
+        plugins.SourcePlugin.__init__(self, *args, **kw)
+        self.alert = plugins.Alert('test', 'Test notification', icon=plugins.AlertIcon.Information, source=self.name)
 
     def activate(self):
-        print 'activated!'
+        self.add_alert(self.alert)
 
     def deactivate(self):
-        print 'deactivated!'
+        self.remove_alert(self.alert)
 

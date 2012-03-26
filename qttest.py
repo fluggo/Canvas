@@ -14,6 +14,7 @@ from fluggo.media import process, timecode, qt, formats, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
 from fluggo.editor import ui, model, graph, plugins
+from fluggo.editor.ui import notificationwidget
 import fluggo.editor
 
 plugins.PluginManager.load_all()
@@ -162,6 +163,9 @@ class MainWindow(QMainWindow):
 
         self.search_dock = SourceSearchWidget(self.source_list)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.search_dock)
+
+        self.notify_dock = notificationwidget.NotificationWidget(plugins.PluginManager.alert_manager)
+        self.tabifyDockWidget(self.search_dock, self.notify_dock)
 
         # Set up UI
         self.create_actions()

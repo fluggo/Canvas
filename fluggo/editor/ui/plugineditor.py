@@ -39,9 +39,9 @@ class _PluginModel(QtCore.QAbstractListModel):
     def data(self, index, role=QtCore.Qt.DisplayRole):
         if index.column() == 0:
             if role == QtCore.Qt.DisplayRole:
-                return self._plugins[index.row()].name()
+                return self._plugins[index.row()].name
             elif role == SUBTITLE:
-                return self._plugins[index.row()].description()
+                return self._plugins[index.row()].description
             elif role == QtCore.Qt.CheckStateRole:
                 return QtCore.Qt.Checked if plugins.PluginManager.is_enabled(self._plugins[index.row()]) else QtCore.Qt.Unchecked
 

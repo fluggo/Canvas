@@ -24,47 +24,88 @@ from fluggo import signal, logging
 
 _log = logging.getLogger(__name__)
 
-class NotificationManager(object):
+class _AlertManager(object):
     '''Not a plugin. Lets plugins report errors and give the user ways to manage them.'''
-    def add_notification(self, notification):
-        '''Add a notification to the list of notifications shown to the user.'''
-        raise NotImplementedError
+    def __init__(self):
+        self.added = signal.Signal()
+        self.removed = signal.Signal()
+        self._alerts = {}
 
-    def remove_notification(self, notification):
-        raise NotImplementedError
+    def add(self, alert):
+        '''Add an alert to the list of alerts shown to the user.'''
+        self.remove(alert)
 
-class Notification(object):
-    '''Base class of NotificationManager notifications.'''
+        self._alerts[alert.key] = alert
+        self.added(alert)
 
-    def plugin(self):
-        '''Return a reference to the plugin that made this notification.
+    def remove(self, alert):
+        if alert.key in self._alerts:
+            del self._alerts[alert.key]
+            self.removed(alert)
 
-        Some notifications don't even have this, such as for a plugin load error.'''
-        raise NotImplementedError
+    def __iter__(self):
+        return self._alerts.itervalues()
 
-    def affected_object(self):
-        '''Return a reference to the object affected by this notification, such as a source.
+class AlertIcon(object):
+    NoIcon, Information, Warning, Error = range(4)
 
-        If the notification is general, return None.'''
-        return None
+class Alert(object):
+    '''An alert for use with the AlertManager.'''
+    def __init__(self, key, description, icon=AlertIcon.NoIcon, source='', actions=[]):
+        '''Create an alert. *key* is a way to uniquely identify this alert.
+        *description* is the text to show. *icon* is either one of the values from AlertIcon
+        or a custom QIcon. *source* gives the user a way to sort similar alerts together;
+        give a name that would be useful for that. *actions* is a list of QActions to show the user for resolving
+        the issue.'''
 
+        self.key = key
+        self._description = description
+        self._source = source
+        self._icon = icon
+        self._actions = actions
+
+    @property
     def description(self):
-        '''Return a short, localized string description of the error or warning.'''
-        raise NotImplementedError
+        '''Localized description of the error or warning.'''
+        return self._description
 
+    @property
+    def source(self):
+        return self._source
+
+    @property
+    def icon(self):
+        '''A value from AlertIcon, or a custom QIcon.'''
+        return self._icon
+
+    @property
     def actions(self):
-        '''Return a list of QActions the user can choose from to resolve the notification.'''
-        return []
+        '''Return a list of QActions the user can choose from to resolve the alert.'''
+
+        # TODO: Add a general hide command
+        return self._actions
 
 class Plugin(object):
+    def __init__(self, alert_manager):
+        self._alert_manager = alert_manager
+
+    def add_alert(self, alert):
+        self._alert_manager.add(alert)
+
+    def remove_alert(self, alert):
+        self._alert_manager.remove(alert)
+
+    @property
     def name(self):
         '''Return the name of the plugin.'''
         raise NotImplementedError
 
+    @property
     def description(self):
         '''Return a short (one-line) description of the plugin.'''
         raise NotImplementedError
 
+    @property
     def plugin_urn(self):
         '''Return a URN that uniquely identifies all versions of this plugin.'''
         raise NotImplementedError
@@ -86,6 +127,7 @@ class PluginManager(object):
     plugin_modules = None
     plugins = None
     enabled_plugins = None
+    alert_manager = _AlertManager()
 
     @classmethod
     def load_all(cls):
@@ -111,11 +153,11 @@ class PluginManager(object):
 
         for plugin_cls in plugin_classes:
             try:
-                new_plugin = plugin_cls()
-                existing_plugin = plugins.setdefault(new_plugin.plugin_urn(), new_plugin)
+                new_plugin = plugin_cls(cls.alert_manager)
+                existing_plugin = plugins.setdefault(new_plugin.plugin_urn, new_plugin)
 
                 if new_plugin is not existing_plugin:
-                    _log.warning('Two plugins tried to claim the URN "{0}"', new_plugin.plugin_urn())
+                    _log.warning('Two plugins tried to claim the URN "{0}"', new_plugin.plugin_urn)
             except Exception as ex:
                 _log.warning('Could not create {0} plugin class: {1}', plugin_cls.__name__, ex)
 
@@ -135,7 +177,7 @@ class PluginManager(object):
                     plugin.activate()
                     cls.enabled_plugins[key] = plugin
                 except Exception as ex:
-                    _log.warning('Failed to activate plugin "{0}"', plugin.name())
+                    _log.warning('Failed to activate plugin "{0}"', plugin.name)
 
     @classmethod
     def find(cls, baseclass=Plugin, enabled_only=True):
@@ -146,32 +188,32 @@ class PluginManager(object):
 
     @classmethod
     def is_enabled(cls, plugin):
-        return plugin.plugin_urn() in cls.enabled_plugins
+        return plugin.plugin_urn in cls.enabled_plugins
 
     @classmethod
     def set_enabled(cls, plugin, enable):
-        if plugin.plugin_urn() not in cls.plugins:
+        if plugin.plugin_urn not in cls.plugins:
             raise ValueError('Given plugin is not in the list of available plugins.')
 
         enabled = cls.is_enabled(plugin)
         settings = QtCore.QSettings()
 
-        settings.beginGroup('plugins/' + plugin.plugin_urn())
+        settings.beginGroup('plugins/' + plugin.plugin_urn)
 
         if enable and not enabled:
             try:
                 plugin.activate()
-                cls.enabled_plugins[plugin.plugin_urn()] = plugin
+                cls.enabled_plugins[plugin.plugin_urn] = plugin
                 settings.setValue('enabled', True)
             except Exception as ex:
-                _log.warning('Failed to activate plugin "{0}"', plugin.name())
+                _log.warning('Failed to activate plugin "{0}"', plugin.name)
         elif not enable and enabled:
             try:
                 plugin.deactivate()
-                del cls.enabled_plugins[plugin.plugin_urn()]
+                del cls.enabled_plugins[plugin.plugin_urn]
                 settings.setValue('enabled', False)
             except Exception as ex:
-                _log.warning('Failed to deactivate plugin "{0}"', plugin.name())
+                _log.warning('Failed to deactivate plugin "{0}"', plugin.name)
 
         settings.endGroup()
 
