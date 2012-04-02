@@ -221,7 +221,7 @@ class PluginManager(object):
                 if new_plugin is not existing_plugin:
                     _log.warning('Two plugins tried to claim the URN "{0}"', new_plugin.plugin_urn)
             except Exception as ex:
-                _log.warning('Could not create {0} plugin class: {1}', plugin_cls.__name__, ex)
+                _log.warning('Could not create {0} plugin class: {1}', plugin_cls.__name__, ex, exc_info=True)
 
         cls.plugins = plugins
         cls.enabled_plugins = {}
@@ -240,7 +240,7 @@ class PluginManager(object):
                     cls.alert_manager.follow_alerts(plugin)
                     cls.enabled_plugins[key] = plugin
                 except Exception as ex:
-                    _log.warning('Failed to activate plugin "{0}"', plugin.name)
+                    _log.warning('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
 
     @classmethod
     def find(cls, baseclass=Plugin, enabled_only=True):
@@ -270,7 +270,7 @@ class PluginManager(object):
                 cls.enabled_plugins[plugin.plugin_urn] = plugin
                 settings.setValue('enabled', True)
             except Exception as ex:
-                _log.warning('Failed to activate plugin "{0}"', plugin.name)
+                _log.warning('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
         elif not enable and enabled:
             try:
                 plugin.deactivate()
@@ -278,7 +278,7 @@ class PluginManager(object):
                 del cls.enabled_plugins[plugin.plugin_urn]
                 settings.setValue('enabled', False)
             except Exception as ex:
-                _log.warning('Failed to deactivate plugin "{0}"', plugin.name)
+                _log.warning('Failed to deactivate plugin "{0}"', plugin.name, exc_info=True)
 
         settings.endGroup()
 
@@ -296,7 +296,7 @@ class PluginManager(object):
                     for plugin in PluginModule.from_file(os.path.join(directory, filename)):
                         yield plugin
                 except Exception as ex:
-                    _log.warning('Could not read the plugin {0}: {1}', filename, ex)
+                    _log.warning('Could not read the plugin {0}', filename, exc_info=True)
 
 class PluginModule(object):
     def __init__(self, name, module_name):
