@@ -30,7 +30,59 @@ class Notification(object):
         return []
 
 # More plugin types: File output, preview output, transitions, effects,
-# timecodes, compositions, codecs...
+# timecodes, compositions, codecs, transitions...
+
+# One thing I wonder... I spent a good deal of time on the
+# canvas spaces separating model from UI from rendering, so that
+# a program could load just the model and the rendering and
+# go straight at it. The plugins kind of mess with that.
+#
+# Are the plugins strictly an editor thing? No... the very first
+# thing I'm implementing are source plugins. Any rendering/playback
+# program will need those to read the source files. But how much
+# UI do I put in the source (and other) plugins? Does each plugin
+# perhaps need a separate editor UI provider?
+#
+# Take an Effect. I was thinking you can easily programmatically
+# specify a set of EffectParameters, which can be animated and
+# set independently of any UI. They could also raise alerts, but
+# absent of a user, how will they tell a program what's wrong
+# and what could fix it? I could raise exceptions, but that
+# means the editor will have to catch them and know how to present
+# alternatives to the user. Finally, I had the thought that
+# some effects might have options that couldn't be tuned generically;
+# the effect UI might display an "Options..." link which goes to
+# a specialized dialog box. How does this tie in with programs that
+# have no UI?
+#
+# Clearly some of these things need to have a UI, but it needs to
+# be separate from the plugin *just enough* that a program without
+# a UI need not deal with them, perhaps even so far as to say that
+# the calling program need not have PyQt4 installed. When the editor
+# wants to ask for a QAction, QIcon, or QWidget to present some
+# specialized UI element, only then may the plugin attempt to load
+# PyQt4.
+#
+# I see this causing the most trouble for alerts. Alerts are
+# necessarily UI things; so far, the idea has been to allow an
+# AlertPublisher to create and present alerts, and the calling
+# program can optionally listen for those alerts and display them.
+# But these alerts require certain UI services, namely:
+#
+#  * UI translation
+#  * QActions for menu items
+#  * Possible custom QIcons
+#
+# Can a plugin passively provide these things? Or do I need to
+# load QtGui, even if I don't have a GUI? I can create Python-only
+# analogs of QAction, but not QIcon (resource paths are possible--
+# I can have the module register its resources with pyrcc4 or
+# QtCore.registerResource()). Translations are in QtCore.
+# So only QAction would need to be replicated.
+#
+# I'm thinking maybe QtGui should just be requisite. I don't think
+# anybody packages QtCore without QtGui (besides with the commercial
+# licensees). I don't want to duplicate QActions.
 
 class Plugin(object):
     def get_plugin_urn(self):
@@ -138,6 +190,9 @@ class SourcePlugin(Plugin):
 #        return []
 
 class Source(object):
+    def __init__(self):
+        self.updated = signal.Signal()
+
     def get_plugin(self):
         '''Return a reference to the plugin that created this source.'''
         raise NotImplementedError
@@ -198,6 +253,10 @@ class Source(object):
         *size* (a v2i).'''
         raise NotImplementedError
 
+    def get_effect_parameters(self):
+        '''Return a list of EffectParameters that the user interface can use to animate this source.'''
+        return []
+
     # TODO: Property sheets, tool boxes, menu items, 3D
     # What about sources that can produce to any specification?
     #   * Probably have the specification set by the user before transform
@@ -212,9 +271,25 @@ class Source(object):
 class TransformPlugin(Plugin):
     '''Base class for plugins that can transform a source format to a target format.'''
 
-    pass
+    def has_scaler(self):
+        return False
 
-class Transform(object):
+    def create_scaler(self, source, input_interlaced, input_rect, output_interlaced, output_rect):
+        # What if there are aspects of the scaler that we should be able to configure?
+        # Really, maybe we should just build the effects plugins, and let
+        # the return value here be an effect instance, and configurable via
+        # the same methods.
+        raise NotImplementedError
+
+    def has_frame_rate_conversion(self):
+        return False
+
+    def create_frame_rate_converter(self, source, interlaced, in_frames, out_frames):
+        '''Create a filter that converts every *in_frames* frames to *out_frames*
+        frames. *interlaced* is whether the frames are interlaced.'''
+        raise NotImplementedError
+
+class ScalingTransform(object):
     '''Base class for objects that manage the transformation of a specific source to a specific target.'''
 
     # Struggling to think of this class. The easiest concept is a fully
@@ -229,23 +304,145 @@ class Transform(object):
     # to a progressive source? You could discard the deinterlace step, I suppose.
     # The transform could just be a list of ways to perform the transform should it
     # be necessary; if deinterlacing, bob, if interlacing, weave, etc.
+    #
+    # Better yet, transform could be just a normal built-in component, and the
+    # plugins to deal with the steps. Transform could include steps for:
+    #
+    # (Video)
+    # * Pulldown
+    # * Interlacing/scaling/pixel aspect - these belong together
+    #   * Letterboxing/fill <- Canvas supplies these options
+    # * Frame rate conversion
+    # * Color conversion (not system, because source should output XYZ; white point mainly)
+    # * Active area?
+    #
+    # (Audio)
+    # * Sample rate conversion
+    # * Channels?
+    # * Normalization
+    #
+    # Even better: When a user selects a clip in the space, let there be three regions in
+    # the effects box, stacked one below the other:
+    #
+    #   Source: Information about the source stream, which applies to all
+    #       references to that source. After the source block itself, allow
+    #       the user to attach effects that are performed before the transform
+    #       block.
+    #   Transform: Effects that transform the source into this space, if any
+    #       are necessary. The effects are created automatically, and can be
+    #       re-created if the user wishes, but at all other times, the user can
+    #       add, remove, or alter any effect they wish in the stack. Transform
+    #       effects are applied wherever that particular source stream appears
+    #       in the space, but after source-level and before clip-level plugins.
+    #   Effects: Effects that apply to only this clip. These are applied last.
+    #
+    # I'm thinking there are no standard motion controls; these must be supplied by
+    # an effect.
 
     def get_plugin(self):
         '''Return a reference to the plugin that created this transform.'''
         raise NotImplementedError
 
-    def set_source_format(self, format):
-        raise NotImplementedError
 
-    def set_target_format(self, format):
-        raise NotImplementedError
+class VideoFormat(object):
+    # interlaced = bool
+    # active_rect = box2f
+    # pixel_aspect_ratio = fractions.Fraction
+    # white_point = (float, float, float) or wellknownwhitepoint
+    # frame_rate = fractions.Fraction
 
-    def build_stream(self, input_stream):
-        '''Return a stream with all of the transformations applied.'''
-        raise NotImplementedError
+    pass
 
+class AudioFormat(object):
+    # sample_rate = fractions.Fraction
+    # channel_assignment = [one of ('FrontRight', 'FrontLeft', 'Center', 'Solo',
+    #       'CenterLeft', 'CenterRight', 'BackLeft', 'BackRight', 'LFE')]
+    # loudness = something resembling an RMS of the signal, useful toward
+    #       getting a sane default loudness before adjusting +/- dB
+
+    pass
 
 class RenderPlugin(Plugin):
     '''Provides renderers, which send a source to some final format, usually a file.'''
     pass
+
+class EffectPlugin(Plugin):
+    def create_effect(self, name, definition=None):
+        '''Return a supported VideoEffect or AudioEffect.'''
+        pass
+
+class Effect(object):
+    # An effect. An effect can have whatever UI it likes, but it
+    # can also expose EffectParameters which are animatable.
+
+    # Raises the updated signal (one parameter, the effect)
+    # when any of the parameters changes. (The single source doesn't count.)
+
+    def __init__(self):
+        self.updated = signal.Signal()
+
+    def get_plugin(self):
+        raise NotImplementedError
+
+    def get_name(self):
+        raise NotImplementedError
+
+    def get_localized_name(self):
+        raise NotImplementedError
+
+    def get_definition(self):
+        '''Return an object that the effect plugin can use to recreate this
+        effect in the future. The returned object is considered opaque (the
+        caller promises not to alter it), but it should be representable in
+        YAML.'''
+        raise NotImplementedError
+
+    def get_effect_parameters(self):
+        '''Return a list of EffectParameters that the user interface can use to animate this effect.'''
+        return []
+
+    def set_source(self, source):
+        '''Sets the raw source for this effect.'''
+        raise NotImplementedError
+
+class VideoEffect(Effect, process.VideoPassThroughFilter):
+    pass
+
+class AudioEffect(Effect, process.AudioPassThroughFilter):
+    pass
+
+class EffectParameter(object):
+    # Animatable parameter
+    # type: int, float, v2i, v2f, box2i, box2f, rgba
+
+    # Parameters are not pluggable. At the moment, I'm thinking
+    # they're just a wrapper around process.AnimationFunc.
+
+    def get_name(self):
+        '''Return a programmatic name for the parameter.'''
+        raise NotImplementedError
+
+    def get_localized_name(self):
+        '''Return a localized name for the parameter to display in the UI.'''
+        return self.get_name()
+
+    def get_constant(self):
+        '''Return a constant value if one is set, otherwise None.'''
+        raise NotImplementedError
+
+    def set_constant(self, value):
+        '''Set this effect to a constant value. Raise ValueError
+        if it's the wrong type.'''
+        raise NotImplementedError
+
+    def get_type(self):
+        # Get the type of the parameter, either int, float, v2i, v2f, box2i, box2f, rgba
+        raise NotImplementedError
+
+    # TODO: Need support for hold, linear-interp, and Bezier-curve points;
+    # for cubic Bezier curves, store the start point and the two control points
+    # at the beginning animation point, and let the next animation point be the end point
+
+
+
 
