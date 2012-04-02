@@ -25,25 +25,25 @@ class NotificationModel(QAbstractTableModel):
     def __init__(self, manager):
         QAbstractTableModel.__init__(self)
         self._manager = manager
-        self._list = list(self._manager)
+        self._list = list(self._manager.alerts)
         self._list.sort(key=lambda n: n.key)
         self._keys = [n.key for n in self._list]
 
-        self._manager.added.connect(self._item_added)
-        self._manager.removed.connect(self._item_removed)
+        self._manager.alert_added.connect(self._item_added)
+        self._manager.alert_removed.connect(self._item_removed)
 
-    def _item_added(self, notification):
-        index = bisect.bisect(self._keys, notification.key)
+    def _item_added(self, alert):
+        index = bisect.bisect(self._keys, alert.key)
 
         self.beginInsertRows(QModelIndex(), index, index)
-        self._keys.insert(index, notification.key)
-        self._list.insert(index, notification)
+        self._keys.insert(index, alert.key)
+        self._list.insert(index, alert)
         self.endInsertRows()
 
-    def _item_removed(self, notification):
-        index = bisect.bisect_left(self._keys, notification.key)
+    def _item_removed(self, alert):
+        index = bisect.bisect_left(self._keys, alert.key)
 
-        if index != len(self._keys) and self._keys[index] == notification.key:
+        if index != len(self._keys) and self._keys[index] == alert.key:
             self.beginRemoveRows(QModelIndex(), index, index)
             del self._list[index]
             del self._keys[index]

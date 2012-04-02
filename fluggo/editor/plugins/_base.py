@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, os.path
+import os, os.path, weakref
 import ConfigParser
 from PyQt4 import QtCore
 
@@ -24,37 +24,99 @@ from fluggo import signal, logging
 
 _log = logging.getLogger(__name__)
 
-class _AlertManager(object):
-    '''Not a plugin. Lets plugins report errors and give the user ways to manage them.'''
-    def __init__(self):
-        self.added = signal.Signal()
-        self.removed = signal.Signal()
-        self._alerts = {}
+class _AlertTracker(object):
+    __slots__ = ('trackee', 'tracker', 'alerts', '__weakref__')
 
-    def add(self, alert):
+    def __init__(self, trackee, tracker):
+        self.trackee = weakref.ref(trackee, self.stop_tracking)
+        self.tracker = tracker
+        self.alerts = None
+        trackee.alert_added.connect(self.item_added)
+        trackee.alert_removed.connect(self.item_removed)
+
+        for alert in trackee._alerts.itervalues():
+            self.item_added(alert)
+
+    def stop_tracking(self):
+        # For this to work via weak references, the alerts themselves
+        # must not have strong references to the object in question
+        trackee = self.trackee()
+
+        if trackee is not None:
+            trackee.alert_added.disconnect(self.item_added)
+            trackee.alert_removed.disconnect(self.item_removed)
+
+        if self.alerts is not None:
+            for alert in self.alerts.itervalues():
+                self.tracker.remove_alert(alert)
+
+        self.alerts = None
+
+    def item_added(self, alert):
+        if self.alerts is None:
+            self.alerts = {}
+
+        self.alerts[alert.key] = alert
+        self.tracker.show_alert(alert)
+
+    def item_removed(self, alert):
+        del self.alerts[alert.key]
+        self.tracker.hide_alert(alert)
+
+class AlertPublisher(object):
+    '''Mixin class that reports errors and give the user ways to manage them.'''
+    __slots__ = ('alert_added', 'alert_removed', '_alerts', '_tracked_publishers')
+
+    def __init__(self):
+        self.alert_added = signal.Signal()
+        self.alert_removed = signal.Signal()
+        self._alerts = {}
+        self._tracked_publishers = None
+
+    def show_alert(self, alert):
         '''Add an alert to the list of alerts shown to the user.'''
-        self.remove(alert)
+        self.hide_alert(alert)
 
         self._alerts[alert.key] = alert
-        self.added(alert)
+        self.alert_added(alert)
 
-    def remove(self, alert):
+    def hide_alert(self, alert):
         if alert.key in self._alerts:
             del self._alerts[alert.key]
-            self.removed(alert)
+            self.alert_removed(alert)
 
-    def __iter__(self):
-        return self._alerts.itervalues()
+    @property
+    def alerts(self):
+        return self._alerts.values()
+
+    def follow_alerts(self, publisher):
+        '''Re-publishes alerts published by *publisher*. The publisher is tracked with
+        a weak reference; if the publisher disappears, its alerts will be unpublished.'''
+        if self._tracked_publishers is None:
+            self._tracked_publishers = weakref.WeakKeyDictionary()
+
+        if publisher not in self._tracked_publishers:
+            self._tracked_publishers[publisher] = _AlertTracker(publisher, self)
+
+    def unfollow_alerts(self, publisher):
+        '''Stops tracking alerts from the given *publisher*.'''
+        if self._tracked_publishers is None:
+            return
+
+        tracker = self._tracked_publishers.pop(publisher, None)
+
+        if tracker is not None:
+            tracker.stop_tracking()
 
 class AlertIcon(object):
     NoIcon, Information, Warning, Error = range(4)
 
 class Alert(object):
-    '''An alert for use with the AlertManager.'''
+    '''An alert for use with the AlertPublisher.'''
     def __init__(self, key, description, icon=AlertIcon.NoIcon, source='', actions=[]):
         '''Create an alert. *key* is a way to uniquely identify this alert.
-        *description* is the text to show. *icon* is either one of the values from AlertIcon
-        or a custom QIcon. *source* gives the user a way to sort similar alerts together;
+        *description* is the text to show. *icon* is either one of the values from AlertIcon,
+        a QIcon, or a path to an image (Qt resource paths allowed). *source* gives the user a way to sort similar alerts together;
         give a name that would be useful for that. *actions* is a list of QActions to show the user for resolving
         the issue.'''
 
@@ -85,15 +147,15 @@ class Alert(object):
         # TODO: Add a general hide command
         return self._actions
 
-class Plugin(object):
-    def __init__(self, alert_manager):
-        self._alert_manager = alert_manager
 
-    def add_alert(self, alert):
-        self._alert_manager.add(alert)
 
-    def remove_alert(self, alert):
-        self._alert_manager.remove(alert)
+class Plugin(AlertPublisher):
+    def __init__(self):
+        # TODO: keep track of alert keys so we can clean up after ourselves
+        # TODO: Or, should alerts just be a property on a plugin or other
+        #   object so that we don't have to keep up with alert managers? That
+        #   seems like the easier option.
+        AlertPublisher.__init__(self)
 
     @property
     def name(self):
@@ -127,7 +189,7 @@ class PluginManager(object):
     plugin_modules = None
     plugins = None
     enabled_plugins = None
-    alert_manager = _AlertManager()
+    alert_manager = AlertPublisher()
 
     @classmethod
     def load_all(cls):
@@ -153,7 +215,7 @@ class PluginManager(object):
 
         for plugin_cls in plugin_classes:
             try:
-                new_plugin = plugin_cls(cls.alert_manager)
+                new_plugin = plugin_cls()
                 existing_plugin = plugins.setdefault(new_plugin.plugin_urn, new_plugin)
 
                 if new_plugin is not existing_plugin:
@@ -175,6 +237,7 @@ class PluginManager(object):
             if enabled:
                 try:
                     plugin.activate()
+                    cls.alert_manager.follow_alerts(plugin)
                     cls.enabled_plugins[key] = plugin
                 except Exception as ex:
                     _log.warning('Failed to activate plugin "{0}"', plugin.name)
@@ -203,6 +266,7 @@ class PluginManager(object):
         if enable and not enabled:
             try:
                 plugin.activate()
+                cls.alert_manager.follow_alerts(plugin)
                 cls.enabled_plugins[plugin.plugin_urn] = plugin
                 settings.setValue('enabled', True)
             except Exception as ex:
@@ -210,6 +274,7 @@ class PluginManager(object):
         elif not enable and enabled:
             try:
                 plugin.deactivate()
+                cls.alert_manager.unfollow_alerts(plugin)
                 del cls.enabled_plugins[plugin.plugin_urn]
                 settings.setValue('enabled', False)
             except Exception as ex:
