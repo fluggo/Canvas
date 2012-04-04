@@ -340,6 +340,6 @@ class PluginModule(object):
             _log.warning('Plugin "{0}" failed to load: {1}', self.name, ex)
             self.load_error = ex
 
-from .codec import *
-from .source import *
+from ._codec import *
+from ._source import *
 
