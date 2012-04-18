@@ -22,6 +22,9 @@ from fluggo import signal
 from fluggo.media import process
 from fluggo.media.basetypes import *
 
+from fluggo import logging
+
+_log = logging.getLogger(__name__)
 _queue = process.VideoPullQueue()
 
 class ThumbnailPainter(object):
@@ -32,16 +35,26 @@ class ThumbnailPainter(object):
         self._stream = None
         self.updated = signal.Signal()
         self._length = 1
+        self._offset = 0
 
     def set_stream(self, stream):
         self.clear()
         self._stream = stream
+        self.updated()
 
     def set_length(self, length):
         # TODO: Really, we should work to preserve as many
         # thumbnails as we can
         self.clear()
         self._length = length
+        self.updated()
+
+    def set_offset(self, offset):
+        # TODO: Really, we should work to preserve as many
+        # thumbnails as we can
+        self.clear()
+        self._offset = offset
+        self.updated()
 
     def clear(self):
         for frame in self._thumbnails:
@@ -66,9 +79,9 @@ class ThumbnailPainter(object):
         self._thumbnails = [None for a in range(count)]
 
         if count == 1:
-            self._thumbnail_indexes = [0]
+            self._thumbnail_indexes = [self._offset]
         else:
-            self._thumbnail_indexes = [0 + int(float(a) * (frame_count - 1) / (count - 1)) for a in range(count)]
+            self._thumbnail_indexes = [self._offset + int(float(a) * (frame_count - 1) / (count - 1)) for a in range(count)]
 
     def paint(self, painter, rect, clip_rect):
         # Figure out which thumbnails belong here and paint them
@@ -77,6 +90,10 @@ class ThumbnailPainter(object):
         stream = self._stream
 
         if stream:
+            if not stream.format:
+                _log.warning('Encountered stream with no format')
+                return
+
             self._create_thumbnails(rect.width(), rect.height())
             box = stream.format.thumbnail_box
 

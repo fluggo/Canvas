@@ -137,6 +137,10 @@ class _SequenceItemHandler(SceneItem):
     def source_ref(self):
         return self.item.source
 
+    @property
+    def offset(self):
+        return self.item.offset
+
     def added_to_scene(self):
         SceneItem.added_to_scene(self)
 
@@ -174,13 +178,16 @@ class _SequenceItemHandler(SceneItem):
             self.reset_view_decorations()
             self.prepareGeometryChange()
 
+        if 'offset' in kw and self._stream:
+            self._stream.offset = self.item.offset
+
         # Changes requiring a reset of the thumbnails
         # TODO: This resets thumbnails *way* more than is necessary
         if self.painter and 'length' in kw:
             self.painter.set_length(self.length)
 
         if self.painter and 'offset' in kw:
-            self.painter.clear()
+            self.painter.set_offset(self.offset)
 
         if 'x' in kw or 'height' in kw:
             self.setPos(float(self.item.x / self.owner.units_per_second), self.y())
@@ -191,8 +198,7 @@ class _SequenceItemHandler(SceneItem):
             source_ref = self.source_ref
 
             if self.type == 'video':
-                self._stream = self.scene().source_list[source_ref.source_name].get_stream(source_ref.stream_index)
-                self._stream.offset = self.item.offset
+                self._stream = model.VideoSourceRefConnector(self.scene().source_list, source_ref, model_obj=self.item)
 
         return self._stream
 
@@ -266,6 +272,10 @@ class VideoSequence(ClipItem):
     @property
     def format(self):
         return self.scene().space.video_format
+
+    @property
+    def offset(self):
+        return 0
 
     def added_to_scene(self):
         ClipItem.added_to_scene(self)

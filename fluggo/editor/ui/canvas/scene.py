@@ -77,7 +77,7 @@ class Scene(QtGui.QGraphicsScene):
                 rate = self.scene.get_rate(item.stream_format.type)
 
                 items.append(model.Clip(type=item.stream_format.type,
-                    source=model.StreamSourceRef(source_name=item.source_name, stream_index=item.stream_format.index),
+                    source=model.StreamSourceRef(source_name=item.source_name, stream=item.stream_format.index),
                     x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), length=item.width, height=item.height))
 
                 self.scene.removeItem(item)

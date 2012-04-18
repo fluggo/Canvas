@@ -26,16 +26,17 @@
 # kristina!!!!!
 
 from fluggo import sortlist, signal
-from fluggo.editor import model
+from fluggo.editor import model, plugins
 from fluggo.media import process
 
-class SpaceVideoManager(model.VideoStream):
+class SpaceVideoManager(plugins.VideoStream):
     class ItemWatcher(object):
-        def __init__(self, owner, canvas_item, workspace_item):
+        def __init__(self, owner, canvas_item, workspace_item, connector):
             self.owner = owner
             self.canvas_item = canvas_item
             self.workspace_item = workspace_item
             self.canvas_item.updated.connect(self.handle_updated)
+            self.connector = connector
             self._z_order = 0
 
         def handle_updated(self, **kw):
@@ -81,7 +82,7 @@ class SpaceVideoManager(model.VideoStream):
 
     def __init__(self, canvas_space, source_list, format):
         self.workspace = process.VideoWorkspace()
-        model.VideoStream.__init__(self, self.workspace, format)
+        plugins.VideoStream.__init__(self, self.workspace, format)
 
         self.canvas_space = canvas_space
         self.canvas_space.item_added.connect(self.handle_item_added)
@@ -101,20 +102,25 @@ class SpaceVideoManager(model.VideoStream):
         if item.type() != 'video':
             return
 
-        source = None
+        stream = None
         offset = 0
+        connector = None
 
         if isinstance(item, model.Sequence):
-            source = SequenceVideoManager(item, self.source_list, self.format)
-        elif hasattr(item, 'source') and isinstance(item.source, model.StreamSourceRef):
-            source = self.source_list[item.source.source_name].get_stream(item.source.stream_index)
+            stream = SequenceVideoManager(item, self.source_list, self.format)
+        elif hasattr(item, 'source'):
+            connector = model.VideoSourceRefConnector(self.source_list, item.source, model_obj=item)
+            self.follow_alerts(connector)
+            stream = connector
             offset = item.offset
 
-        workspace_item = self.workspace.add(x=item.x, length=item.length, z=item.z, offset=offset, source=source)
+        workspace_item = self.workspace.add(x=item.x, length=item.length, z=item.z, offset=offset, source=stream)
 
-        watcher = self.ItemWatcher(self, item, workspace_item)
+        watcher = self.ItemWatcher(self, item, workspace_item, connector)
         self.watchers[id(item)] = watcher
         self.watchers_sorted.add(watcher)
+
+        # TODO: Follow alerts
 
     def handle_item_removed(self, item):
         if item.type() != 'video':
@@ -125,8 +131,10 @@ class SpaceVideoManager(model.VideoStream):
         self.watchers_sorted.remove(watcher)
         self.workspace.remove(watcher.workspace_item)
 
-class SequenceVideoManager(model.VideoStream):
-    class ItemWatcher(process.VideoPassThroughFilter):
+        # TODO: Unfollow alerts
+
+class SequenceVideoManager(plugins.VideoStream):
+    class ItemWatcher(plugins.VideoStream):
         '''An ItemWatcher constructs the video for one clip in a sequence. It includes
         the "out" transition but not the "in" transition. If there is a gap before the
         clip (transition_length < 0), that's included, too.'''
@@ -135,9 +143,11 @@ class SequenceVideoManager(model.VideoStream):
             self.owner = owner
             self.seq = seq
             self.seq_item = seq_item
+            self.connector = model.VideoSourceRefConnector(owner.source_list,
+                ref=seq_item.source, model_obj=seq_item)
 
             # Source A is the current clip, B is the next one (unless there's a gap, next_item.transition_length < 0)
-            self.source_a = process.VideoPassThroughFilter(None, start_frame=0)
+            self.source_a = process.VideoPassThroughFilter(self.connector, start_frame=0)
             self.gap_proxy = process.VideoPassThroughFilter(self.source_a)
             self.source_b = process.VideoPassThroughFilter(None)
 
@@ -151,15 +161,15 @@ class SequenceVideoManager(model.VideoStream):
             self.out_point = self.mix_b.add(process.POINT_HOLD, 0.0, 1.0)
 
             self.mix_filter = process.VideoMixFilter(self.gap_proxy, self.source_b, self.mix_b)
-            process.VideoPassThroughFilter.__init__(self, self.mix_filter)
+            plugins.VideoStream.__init__(self, self.mix_filter)
+            self.follow_alerts(self.connector)
 
     def __init__(self, sequence, source_list, format):
         self.seqfilter = process.VideoSequence()
-        model.VideoStream.__init__(self, self.seqfilter, format)
+        plugins.VideoStream.__init__(self, self.seqfilter, format)
 
         self.sequence = sequence
         self.source_list = source_list
-        self.frames_updated = signal.Signal()
 
         self.sequence.item_added.connect(self._handle_item_added)
         self.sequence.items_removed.connect(self._handle_items_removed)
@@ -178,6 +188,7 @@ class SequenceVideoManager(model.VideoStream):
     def _handle_item_added(self, item):
         # Insert a watcher at the same index
         watcher = self.ItemWatcher(self, self.sequence, item)
+        self.follow_alerts(watcher)
         self.watchers.insert(item.index, watcher)
         self.seqfilter.insert(item.index, (watcher, 0, item.length))
 
@@ -189,7 +200,7 @@ class SequenceVideoManager(model.VideoStream):
         next_watcher = item.index + 1 < len(self.watchers) and self.watchers[item.index + 1]
 
         if next_watcher:
-            watcher.source_b.set_source(next_watcher.source_a.source())
+            watcher.source_b.set_source(next_watcher.connector)
 
     def _handle_items_removed(self, start, stop):
         # Get enough info to send an update
@@ -197,6 +208,9 @@ class SequenceVideoManager(model.VideoStream):
         end_frame = self.seqfilter.get_start_frame(len(self.seqfilter) - 1) + self.seqfilter[-1][2] - 1
 
         # Remove the watchers in this range
+        for watcher in self.watchers[start:stop]:
+            self.unfollow_alerts(watcher)
+
         del self.watchers[start:stop]
 
         for i in range(stop - 1, start - 1, -1):
@@ -206,7 +220,7 @@ class SequenceVideoManager(model.VideoStream):
         if start < len(self.watchers):
             item = self.watchers[start].seq_item
 
-            self._handle_item_updated(item, source=item.source,
+            self._handle_item_updated(item,
                 transition_length=item.transition_length)
         elif len(self.watchers):
             # There is no item afterward; clear source_b and reset its transition_point
@@ -236,10 +250,12 @@ class SequenceVideoManager(model.VideoStream):
         if next_item:
             mid_width -= next_item.transition_length
             watcher.source_b.offset = next_item.offset - mid_width
+            watcher.source_b.set_source(next_watcher.connector)
 
         if prev_item:
             prev_length = prev_item.length - prev_item.transition_length
             prev_watcher.source_b.offset = item.offset - (prev_length - item.transition_length)
+            prev_watcher.source_b.set_source(watcher.connector)
 
         watcher.source_a.offset = item.offset + max(0, item.transition_length)
 
@@ -250,16 +266,7 @@ class SequenceVideoManager(model.VideoStream):
             self.frames_updated(start_frame - item.transition_length, start_frame + length - 1)
 
         if 'source' in kw:
-            source = None
-
-            if isinstance(item.source, model.StreamSourceRef):
-                source = self.source_list[item.source.source_name].get_stream(item.source.stream_index)
-
-            watcher.source_a.set_source(source)
-
-            if prev_watcher:
-                prev_watcher.source_b.set_source(source)
-
+            watcher.connector.set_ref(item.source)
             self.frames_updated(start_frame - item.transition_length, start_frame + length - 1)
 
         if 'transition_length' in kw or 'length' in kw:

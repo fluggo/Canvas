@@ -117,6 +117,7 @@ class SceneItem(QtGui.QGraphicsItem):
         if self.painter:
             self.painter.set_stream(self.stream)
             self.painter.set_length(self.length)
+            self.painter.set_offset(self.offset)
 
     def removed_from_scene(self):
         pass
@@ -131,12 +132,11 @@ class SceneItem(QtGui.QGraphicsItem):
 
     @property
     def source_ref(self):
-        return None
+        raise NotImplementedError
 
     @property
     def format(self):
         if not self._format and self.source_ref:
-            source_ref = self.source_ref
             self._format = self.stream.format
 
         return self._format
@@ -147,22 +147,25 @@ class SceneItem(QtGui.QGraphicsItem):
             source_ref = self.source_ref
 
             if self.type == 'video':
-                self._stream = self.scene().source_list[source_ref.source_name].get_stream(source_ref.stream_index)
-                self._stream.offset = self.item.offset
+                self._stream = model.VideoSourceRefConnector(self.scene().source_list, source_ref, model_obj=self.item)
 
         return self._stream
 
     @property
     def type(self):
-        return None
+        raise NotImplementedError
 
     @property
     def length(self):
-        return None
+        raise NotImplementedError
 
     @property
     def max_length(self):
         return self.format.adjusted_length
+
+    @property
+    def offset(self):
+        raise NotImplementedError
 
     @property
     def z_order(self):
@@ -301,6 +304,10 @@ class ClipItem(SceneItem):
     def source_ref(self):
         return self.item.source
 
+    @property
+    def offset(self):
+        return self.item.offset
+
     def added_to_scene(self):
         SceneItem.added_to_scene(self)
 
@@ -333,7 +340,7 @@ class ClipItem(SceneItem):
             self.painter.set_length(self.length)
 
         if self.painter and 'offset' in kw:
-            self.painter.clear()
+            self.painter.set_offset(self.offset)
 
         if 'length' in kw or 'height' in kw:
             self.right_handle.setPos(self.length / self.units_per_second, 0.0)

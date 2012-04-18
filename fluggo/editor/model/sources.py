@@ -2,7 +2,7 @@
 # This file is part of the Fluggo Media Library for high-quality
 # video and audio processing.
 #
-# Copyright 2009 Brian J. Crowell <brian@fluggo.com>
+# Copyright 2009-12 Brian J. Crowell <brian@fluggo.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,23 +23,32 @@ from fluggo.media import process
 import yaml
 from fluggo import signal, logging
 from fluggo.media.formats import *
+from fluggo.editor import plugins
+from PyQt4 import QtGui
 
 _log = logging.getLogger(__name__)
 
-class Source(object):
+class Source(plugins.Source):
     # Base source class:
     #   Keywords
     #   Authorship metadata
     #   Proxies
-    #   Format conformance
 
-    def __init__(self, keywords=[]):
+    # Notes: This extends the plugin Source class with more attributes that
+    # the editor itself keeps track of, such as proxy and keyword info.
+    # There may be *some* more convergence of these types in the future,
+    # but the nice thing about this class living here is that we can safely
+    # add features to it, and it can be our way of looking up true plugin
+    # sources.
+
+    def __init__(self, name, keywords=[]):
+        plugins.Source.__init__(self, name)
         self._keywords = set(keywords)
         self.updated = signal.Signal()
         self.keywords_updated = signal.Signal()
         self._source_list = None
 
-    def _create_repr_dict(self):
+    def get_definition(self):
         return {'keywords': list(self.keywords)}
 
     @property
@@ -50,14 +59,10 @@ class Source(object):
     def keywords(self):
         return self._keywords
 
-    @property
-    def stream_formats(self):
-        return []
-
     def fixup(self):
         # Prepares temporary data, such as checking up on
         # source and proxy files; sources should expect this can run more
-        # than once, such as if the muxers list changes
+        # than once
         pass
 
     def visit(self, visitfunc):
@@ -65,76 +70,174 @@ class Source(object):
 
     def get_default_stream_formats(self):
         # For now, first video stream and first audio stream
-        video_streams = [stream for stream in self.stream_formats if stream.type == 'video']
-        audio_streams = [stream for stream in self.stream_formats if stream.type == 'audio']
+        streams = self.get_stream_formats()
+
+        video_streams = [stream for stream in streams if stream[1].format_type == u'video']
+        audio_streams = [stream for stream in streams if stream[1].format_type == u'audio']
 
         return video_streams[0:1] + audio_streams[0:1]
 
-    def get_stream(self, stream_index):
-        raise NotImplementedError
-
     @classmethod
     def to_yaml(cls, dumper, data):
-        return dumper.represent_mapping(cls.yaml_tag, data._create_repr_dict())
+        return dumper.represent_mapping(cls.yaml_tag, data.get_definition())
 
     @classmethod
     def from_yaml(cls, loader, node):
-        return cls(**loader.construct_mapping(node))
+        return cls(name=u'', **loader.construct_mapping(node))
 
-class FileSource(Source):
-    yaml_tag = '!FileSource'
+class PluginSource(Source):
+    yaml_tag = '!PluginSource'
 
-    def __init__(self, container, **kw):
-        Source.__init__(self, **kw)
-        self.main_container = container
-        self.detected_container = None
-        self.detected_muxer = None
+    def _handle_offline_changed(self, source):
+        self.offline = self._source.offline
 
-    def _create_repr_dict(self):
-        result = Source._create_repr_dict(self)
-        result['container'] = self.main_container
+    def __init__(self, name, plugin_urn, definition, **kw):
+        Source.__init__(self, name, **kw)
+        self.definition = definition
+        self.plugin_urn = plugin_urn
+        self._plugin = None
+        self._source = None
+        self._load_alert = None
 
-        return result
+    def bring_online(self):
+        if not self.offline:
+            return
+
+        if self._load_alert:
+            self.hide_alert(self._load_alert)
+            self._load_alert = None
+
+        if not self._plugin:
+            self._plugin = plugins.PluginManager.find_by_urn(self.plugin_urn)
+
+            if self._plugin is None:
+                _log.debug('Couldn\'t find plugin {0} for source {1}', self.plugin_urn, self.name)
+                self._load_alert = plugins.Alert(id(self),
+                    u'Plugin ' + self.plugin_urn + u' unavailable or disabled',
+                    icon=plugins.AlertIcon.Error,
+                    source=self.name,
+                    model_obj=self,
+                    actions=[
+                        QtGui.QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)])
+
+                self.show_alert(self._load_alert)
+
+                # TODO: Maybe listen for plugins to come online
+                # and automatically nab our plugin when it appears
+                return
+
+        if not self._source:
+            # TODO: Try to create source from plugin
+            try:
+                self._source = self._plugin.create_source(self.name, self.definition)
+                self._source.offline_changed.connect(self._handle_offline_changed)
+                self.follow_alerts(self._source)
+            except Exception as ex:
+                if self._source:
+                    self._source.offline_changed.disconnect(self._handle_offline_changed)
+
+                self._source = None
+
+                _log.debug('Error while creating source {0} from plugin', self.name, exc_info=True)
+                self._load_alert = plugins.Alert(id(self),
+                    u'Unexpected ' + ex.__class__.__name__ + u' while creating source from plugin: ' + unicode(ex),
+                    icon=plugins.AlertIcon.Error,
+                    source=self.name,
+                    model_obj=self,
+                    actions=[
+                        QtGui.QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)],
+                    exc_info=True)
+
+                self.show_alert(self._load_alert)
+                return
+
+        if self._source.offline:
+            try:
+                self._source.bring_online()
+            except Exception as ex:
+                _log.debug('Error while bringing source {0} online', self.name, exc_info=True)
+                self._load_alert = plugins.Alert(id(self),
+                    u'Unexpected ' + ex.__class__.__name__ + u' while bringing source online: ' + unicode(ex),
+                    icon=plugins.AlertIcon.Error,
+                    source=self.name,
+                    model_obj=self,
+                    actions=[
+                        QtGui.QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)],
+                    exc_info=True)
+
+                self.show_alert(self._load_alert)
+                return
+
+        if not self._source.offline:
+            self.offline = False
+
+    def _retry_load(self, checked):
+        self.bring_online()
+
+    def take_offline(self):
+        if self.offline or not self._source:
+            return
+
+        try:
+            self._source.take_offline()
+        except:
+            # TODO: Use generic error alert I'm going to create someday
+            pass
+
+        self.offline = True
 
     @property
-    def stream_formats(self):
-        return self.main_container.streams
+    def file_path(self):
+        if self.source:
+            return self.source.file_path
 
-    def fixup(self):
-        Source.fixup(self)
-        (self.detected_muxer, self.detected_container) = self.source_list.detect_container(self.main_container.path)
+        return None
 
-        if not self.detected_container:
-            _log.warning("Couldn't open the file {0}", self.main_container.path)
+    def get_definition(self):
+        root = Source.get_definition(self)
 
-    def get_stream(self, stream_index):
-        if self.detected_muxer:
-            return self.detected_muxer.get_stream(self.main_container, stream_index)
+        root['plugin_urn'] = plugin_urn
 
-        # Temporary: in the future, render an appropriate "missing video" stream
-        return VideoStream(process.EmptyVideoSource(), self.main_container.streams[stream_index])
+        if self._source:
+            root['definition'] = self._source.get_definition()
+        else:
+            root['definition'] = self.definition
+
+        return root
+
+    def get_stream_formats(self):
+        if not self.offline and self._source:
+            return self._source.get_stream_formats()
+
+        # Come back when we're online
+        return []
+
+    def get_stream(self, name):
+        if not self.offline and self._source:
+            return self._source.get_stream(name)
+
+        raise plugins.SourceOfflineError
 
 class RuntimeSource(Source):
     '''
     A runtime source is a source with a list of already-generated and ready-to-go
     streams. It can't be saved in a file-- its main purpose is to support testing.
     '''
-    def __init__(self, streams, keywords=[]):
-        Source.__init__(self, keywords)
+    def __init__(self, name, streams, keywords=[]):
+        '''Create a runtime source. *streams* is a dictionary of streams.'''
+        Source.__init__(self, name, keywords)
         self._streams = streams
 
-        # Set the stream indexes
-        for i, stream in enumerate(self._streams):
-            stream.format.override[ContainerProperty.STREAM_INDEX] = i
+    def get_stream_formats(self):
+        return [(stream.name, stream.format) for stream in self._streams]
 
-    @property
-    def stream_formats(self):
-        return [stream.format for stream in self._streams]
+    def get_stream(self, name):
+        if self.offline:
+            raise plugins.SourceOfflineError
 
-    def get_stream(self, stream_index):
-        return self._streams[stream_index]
+        return self._streams[name]
 
-    def _create_repr_dict(self):
+    def get_definition(self):
         raise RuntimeError("Runtime sources can't be written to a file.")
 
 class StreamSourceRef(object):
@@ -142,23 +245,24 @@ class StreamSourceRef(object):
     References a stream from a video or audio file.
     '''
     yaml_tag = u'!StreamSourceRef'
+    __slots__ = ('_source_name', '_stream')
 
-    def __init__(self, source_name=None, stream_index=None, **kw):
+    def __init__(self, source_name=None, stream=None, **kw):
         self._source_name = source_name
-        self._stream_index = stream_index
+        self._stream = stream
 
     @property
     def source_name(self):
         return self._source_name
 
     @property
-    def stream_index(self):
-        return self._stream_index
+    def stream(self):
+        return self._stream
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        result = {'source_name': data._source_name,
-            'stream_index': data._stream_index}
+        result = {u'source_name': data._source_name,
+            u'stream': data._stream}
 
         return dumper.represent_mapping(cls.yaml_tag, result)
 
@@ -166,14 +270,10 @@ class StreamSourceRef(object):
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
 
-class GeneratedSource(Source):
-    '''
-    A generated source is a special kind of source that can stand in for a source
-    reference (in which case, it's an ad-hoc generated source). Generated sources
-    have only one stream and can adapt it to a StreamFormat.
-    '''
-    def adapt(self, format):
-        raise NotImplementedError
+    def __eq__(self, other):
+        return (isinstance(other, StreamSourceRef) and
+            other._source_name == self._source_name and
+            other._stream == self._stream)
 
 class SourceList(collections.MutableMapping):
     def __init__(self, muxers, sources=None):
@@ -192,11 +292,11 @@ class SourceList(collections.MutableMapping):
         if old:
             self.removed(name)
             old._source_list = None
-            old._name = None
+            old.name = None
 
         self.sources[name] = value
         value._source_list = self
-        value._name = name
+        value.name = name
 
         self.added(name)
 
@@ -205,7 +305,7 @@ class SourceList(collections.MutableMapping):
 
         self.removed(name)
         old._source_list = None
-        old._name = None
+        old.name = None
 
         del self.sources[name]
 
@@ -234,27 +334,11 @@ class SourceList(collections.MutableMapping):
     def fixup(self):
         # Give each object its name and source_list
         for (name, source) in self.sources.iteritems():
-            source._name = name
+            source.name = name
             source._source_list = self
 
         for source in self.sources.itervalues():
             source.fixup()
-
-class VideoStream(process.VideoPassThroughFilter):
-    def __init__(self, base_stream, format=None):
-        self.format = format or (base_stream.format if hasattr(base_stream, 'format') else StreamFormat(type='video'))
-        self.length = self.format.adjusted_length
-        self.frames_updated = signal.Signal()
-
-        process.VideoPassThroughFilter.__init__(self, base_stream)
-
-class AudioStream(process.AudioPassThroughFilter):
-    def __init__(self, base_stream, format=None):
-        self.format = format or (base_stream.format if hasattr(base_stream, 'format') else StreamFormat(type='audio'))
-        self.length = self.format.adjusted_length
-        self.samples_updated = signal.Signal()
-
-        process.AudioPassThroughFilter.__init__(self, base_stream)
 
 class Project(object):
     yaml_tag = '!Project'
@@ -311,7 +395,7 @@ def _yamlreg(cls):
     yaml.add_constructor(cls.yaml_tag, cls.from_yaml)
 
 _yamlreg(StreamSourceRef)
-_yamlreg(FileSource)
+_yamlreg(PluginSource)
 _yamlreg(Project)
 
 

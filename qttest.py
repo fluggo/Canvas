@@ -1,5 +1,15 @@
+import argparse
+
+argparser = argparse.ArgumentParser()
+argparser.add_argument('--log', dest='log_level',
+                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                        default='WARNING',
+                        help='Logging level to use.')
+
+args = argparser.parse_args()
+
 import logging
-logging.basicConfig()
+logging.basicConfig(level=args.log_level)
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -140,6 +150,11 @@ class MainWindow(QMainWindow):
 
         self.audio_player = alsa.AlsaPlayer(48000, 2, None)
 
+        self.alert_publisher = plugins.AlertPublisher()
+        self.alert_publisher.follow_alerts(plugins.PluginManager.alert_manager)
+
+        self.video_graph_manager = None
+
         # Set up canvas
         #self.clock = process.SystemPresentationClock()
         self.clock = self.audio_player
@@ -164,7 +179,7 @@ class MainWindow(QMainWindow):
         self.search_dock = SourceSearchWidget(self.source_list)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.search_dock)
 
-        self.notify_dock = notificationwidget.NotificationWidget(plugins.PluginManager.alert_manager)
+        self.notify_dock = notificationwidget.NotificationWidget(self.alert_publisher)
         self.tabifyDockWidget(self.search_dock, self.notify_dock)
 
         # Set up UI
@@ -204,7 +219,7 @@ class MainWindow(QMainWindow):
         audformat.override[formats.AudioProperty.SAMPLE_RATE] = 48000
         audformat.override[formats.AudioProperty.CHANNELS] = ['FL', 'FR']
 
-        self.space = model.Space(vidformat, audformat)
+        self.space = model.Space(u'', vidformat, audformat)
         self.setup_space()
 
         # FOR TESTING
@@ -224,6 +239,9 @@ class MainWindow(QMainWindow):
             self.view.set_space(None, self.source_list)
             return
 
+        if self.video_graph_manager:
+            self.alert_publisher.unfollow_alerts(self.video_graph_manager)
+
         self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
         self.audio_player.set_audio_source(self.audio_graph_manager)
 
@@ -232,6 +250,8 @@ class MainWindow(QMainWindow):
         self.video_widget.setDisplayWindow(self.space.video_format.max_data_window)
         self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
         self.video_widget.setVideoSource(self.video_graph_manager)
+
+        self.alert_publisher.follow_alerts(self.video_graph_manager)
 
         self.view.set_space(self.space, self.source_list)
 

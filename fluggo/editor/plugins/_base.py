@@ -16,13 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, os.path, weakref
+import os, os.path, weakref, sys, traceback
 import ConfigParser
 from PyQt4 import QtCore
 
 from fluggo import signal, logging
 
 _log = logging.getLogger(__name__)
+
+# TODO: Need redo/undo support
 
 class _AlertTracker(object):
     __slots__ = ('trackee', 'tracker', 'alerts', '__weakref__')
@@ -48,7 +50,7 @@ class _AlertTracker(object):
 
         if self.alerts is not None:
             for alert in self.alerts.itervalues():
-                self.tracker.remove_alert(alert)
+                self.tracker.hide_alert(alert)
 
         self.alerts = None
 
@@ -65,8 +67,6 @@ class _AlertTracker(object):
 
 class AlertPublisher(object):
     '''Mixin class that reports errors and give the user ways to manage them.'''
-    __slots__ = ('alert_added', 'alert_removed', '_alerts', '_tracked_publishers')
-
     def __init__(self):
         self.alert_added = signal.Signal()
         self.alert_removed = signal.Signal()
@@ -113,18 +113,25 @@ class AlertIcon(object):
 
 class Alert(object):
     '''An alert for use with the AlertPublisher.'''
-    def __init__(self, key, description, icon=AlertIcon.NoIcon, source='', actions=[]):
+    def __init__(self, key, description, icon=AlertIcon.NoIcon, source=u'', model_obj=None, actions=[], exc_info=False):
         '''Create an alert. *key* is a way to uniquely identify this alert.
         *description* is the text to show. *icon* is either one of the values from AlertIcon,
         a QIcon, or a path to an image (Qt resource paths allowed). *source* gives the user a way to sort similar alerts together;
         give a name that would be useful for that. *actions* is a list of QActions to show the user for resolving
-        the issue.'''
+        the issue. *model_obj* is an object in that could be found in the model for this alert.'''
+        # TODO: Add exc_info like on logging to allow capturing tracebacks on exceptions
 
         self.key = key
         self._description = description
         self._source = source
         self._icon = icon
         self._actions = actions
+        self._model_obj = model_obj
+        self._exc_info = None
+
+        if exc_info:
+            _log.debug('Alert with error: {0}', description, exc_info=True)
+            self._exc_info = sys.exc_info()
 
     @property
     def description(self):
@@ -144,10 +151,41 @@ class Alert(object):
     def actions(self):
         '''Return a list of QActions the user can choose from to resolve the alert.'''
 
-        # TODO: Add a general hide command
+        # TODO: Add a general hide command?
         return self._actions
 
+    @property
+    def model_object(self):
+        '''Optional object in the model that is associated with this alert. Having this
+        object lets the user navigate from this alert to the object.'''
+        return self._model_obj
 
+    @property
+    def exc_info(self):
+        '''Optional exception info captured at the time of the alert.'''
+        return self._exc_info
+
+    def __str__(self):
+        result = unicode(self.description)
+
+        if self._source:
+            result = self._source + u': ' + result
+
+        if self._exc_info:
+            result = result + u'\r\n' + u''.join(traceback.format_exception(*self._exc_info))
+
+        return result
+
+# TODO: Create standard alerts for things like file/plugin missing;
+# the UI can possibly coalesce these and treat them as a group, or
+# provide special assistance to the user
+
+# Standard alerts:
+#
+#   Plain warning/error messages (only option is to dismiss)
+#   Plugin missing
+#   File missing
+#   Failure to bring online?
 
 class Plugin(AlertPublisher):
     def __init__(self):
@@ -219,9 +257,9 @@ class PluginManager(object):
                 existing_plugin = plugins.setdefault(new_plugin.plugin_urn, new_plugin)
 
                 if new_plugin is not existing_plugin:
-                    _log.warning('Two plugins tried to claim the URN "{0}"', new_plugin.plugin_urn)
+                    _log.error('Two plugins tried to claim the URN "{0}"', new_plugin.plugin_urn)
             except Exception as ex:
-                _log.warning('Could not create {0} plugin class: {1}', plugin_cls.__name__, ex, exc_info=True)
+                _log.error('Could not create {0} plugin class: {1}', plugin_cls.__name__, ex, exc_info=True)
 
         cls.plugins = plugins
         cls.enabled_plugins = {}
@@ -240,7 +278,7 @@ class PluginManager(object):
                     cls.alert_manager.follow_alerts(plugin)
                     cls.enabled_plugins[key] = plugin
                 except Exception as ex:
-                    _log.warning('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
+                    _log.error('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
 
     @classmethod
     def find(cls, baseclass=Plugin, enabled_only=True):
@@ -248,6 +286,10 @@ class PluginManager(object):
 
         plugins = cls.enabled_plugins if enabled_only else cls.plugins
         return [plugin for plugin in plugins.itervalues() if isinstance(plugin, baseclass)]
+
+    @classmethod
+    def find_by_urn(cls, urn):
+        return cls.enabled_plugins.get(urn, None)
 
     @classmethod
     def is_enabled(cls, plugin):
@@ -270,7 +312,7 @@ class PluginManager(object):
                 cls.enabled_plugins[plugin.plugin_urn] = plugin
                 settings.setValue('enabled', True)
             except Exception as ex:
-                _log.warning('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
+                _log.error('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
         elif not enable and enabled:
             try:
                 plugin.deactivate()
@@ -278,7 +320,7 @@ class PluginManager(object):
                 del cls.enabled_plugins[plugin.plugin_urn]
                 settings.setValue('enabled', False)
             except Exception as ex:
-                _log.warning('Failed to deactivate plugin "{0}"', plugin.name, exc_info=True)
+                _log.error('Failed to deactivate plugin "{0}"', plugin.name, exc_info=True)
 
         settings.endGroup()
 
@@ -337,7 +379,7 @@ class PluginModule(object):
 
             self.load_error = None
         except Exception as ex:
-            _log.warning('Plugin "{0}" failed to load: {1}', self.name, ex)
+            _log.error('Plugin "{0}" failed to load: {1}', self.name, ex)
             self.load_error = ex
 
 from ._codec import *

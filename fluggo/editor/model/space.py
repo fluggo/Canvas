@@ -21,7 +21,8 @@ from fluggo import ezlist, sortlist, signal
 from fluggo.editor.model import sources
 
 class Space(sources.Source, ezlist.EZList):
-    def __init__(self, video_format, audio_format):
+    def __init__(self, name, video_format, audio_format):
+        sources.Source.__init__(self, name)
         ezlist.EZList.__init__(self)
         self.item_added = signal.Signal()
         self.item_removed = signal.Signal()
@@ -129,7 +130,7 @@ def _space_represent(dumper, data):
 
 def _space_construct(loader, node):
     mapping = loader.construct_mapping(node)
-    result = Space(mapping['video_format'], mapping['audio_format'])
+    result = Space(u'', mapping['video_format'], mapping['audio_format'])
     result._items = mapping['items']
     return result
 
