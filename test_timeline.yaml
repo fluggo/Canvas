@@ -4,15 +4,14 @@
       plugin_urn: urn:fluggo.com/canvas/plugins:libav-dv
       definition: {path: "/home/james/Videos/Okra - 79b,100.avi"}
     test: !CanvasSpace
-      video_format: !StreamFormat
-        override:
-          frame_rate: !rational [24000, 1001]
-          max_data_window: !box2i [!v2i '(0, -1)', !v2i '(719, 478)']
-          sample_aspect_ratio: !rational [40, 33]
-      audio_format: !StreamFormat
-        override:
-          sample_rate: 48000
-          channels: [FL, FR]
+      video_format: !VideoFormat
+        frame_rate: !rational [24000, 1001]
+        full_frame: !box2i [!v2i '(-8, -1)', !v2i '(711, 478)']
+        active_area: !box2i [!v2i '(0, -1)', !v2i '(703, 478)']
+        pixel_aspect_ratio: !rational [40, 33]
+      audio_format: !AudioFormat
+        sample_rate: 48000
+        channel_assignment: [FrontLeft, FrontRight]
       items:
       - !CanvasClip {height: 40.0, offset: 1000, source: !StreamSourceRef {source_name: 79b, stream: Video},
         type: video, length: 100, x: 60, y: 30.0}

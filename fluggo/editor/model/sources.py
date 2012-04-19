@@ -276,8 +276,7 @@ class StreamSourceRef(object):
             other._stream == self._stream)
 
 class SourceList(collections.MutableMapping):
-    def __init__(self, muxers, sources=None):
-        self.muxers = muxers
+    def __init__(self, sources=None):
         self.sources = sources or {}
         self.added = signal.Signal()
         self.renamed = signal.Signal()
@@ -315,19 +314,6 @@ class SourceList(collections.MutableMapping):
     def __iter__(self):
         return self.sources.__iter__()
 
-    def detect_container(self, path):
-        for muxer in self.muxers:
-            try:
-                container = muxer.detect_container(path)
-
-                if container:
-                    return (muxer, container)
-            except Exception as ex:
-                _log.warning('Muxer {0} returned error "{1}" for path {2}', muxer, ex, path)
-                pass
-
-        return (None, None)
-
     def get_source_list(self):
         return self.sources
 
@@ -348,9 +334,9 @@ class Project(object):
         self._sources = sources if sources is not None else {}
         self._project_settings = project_settings if project_settings is not None else {}
 
-    def fixup(self, muxers):
+    def fixup(self):
         if isinstance(self._sources, dict):
-            self._sources = SourceList(muxers, sources=self._sources)
+            self._sources = SourceList(sources=self._sources)
 
         self._sources.fixup()
 
@@ -369,17 +355,6 @@ class Project(object):
     @classmethod
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
-
-class MappingProperty:
-    FRAME_CONVERSION = 'frame_conversion'
-    FRAME_RATE_CONVERSION = 'frame_rate_conversion'
-    # COLOR_CONVERSION
-    # PIXEL_ASPECT_RATIO_CONVERSION
-
-class FrameConversionType:
-    FILL = 'fill'
-    BOX = 'box'
-    NONE = 'none'
 
 class FrameRateConversionType:
     DISCARD_FIELD = 'discard_field'

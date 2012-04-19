@@ -20,7 +20,7 @@ QCoreApplication.setOrganizationDomain('fluggo.com')
 QCoreApplication.setApplicationName('Canvas')
 
 from fluggo import signal, sortlist
-from fluggo.media import process, timecode, qt, formats, alsa
+from fluggo.media import process, timecode, qt, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
 from fluggo.editor import ui, model, graph, plugins
@@ -28,8 +28,6 @@ from fluggo.editor.ui import notificationwidget
 import fluggo.editor
 
 plugins.PluginManager.load_all()
-
-from fluggo.media.muxers.ffmpeg import FFMuxPlugin
 
 class SourceSearchModel(QAbstractTableModel):
     def __init__(self, source_list):
@@ -138,15 +136,12 @@ class SourceSearchWidget(QDockWidget):
             path = url.toLocalFile()
 
 
-
-muxers = (FFMuxPlugin,)
-
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
         self.setMinimumHeight(600)
 
-        self.source_list = model.SourceList(muxers)
+        self.source_list = model.SourceList()
 
         self.audio_player = alsa.AlsaPlayer(48000, 2, None)
 
@@ -211,13 +206,15 @@ class MainWindow(QMainWindow):
 
         # Set up the defaults
         # Only one space for now, we'll do multiple later
-        vidformat = formats.StreamFormat('video')
-        vidformat.override[formats.VideoProperty.SAMPLE_ASPECT_RATIO] = fractions.Fraction(40, 33)
-        vidformat.override[formats.VideoProperty.FRAME_RATE] = fractions.Fraction(24000, 1001)
-        vidformat.override[formats.VideoProperty.MAX_DATA_WINDOW] = box2i((0, -1), (719, 478))
-        audformat = formats.StreamFormat('audio')
-        audformat.override[formats.AudioProperty.SAMPLE_RATE] = 48000
-        audformat.override[formats.AudioProperty.CHANNELS] = ['FL', 'FR']
+        vidformat = plugins.VideoFormat(interlaced=True,
+            full_frame=box2i(-8, -1, -8 + 720 - 1, -1 + 480 - 1),
+            active_area=box2i(0, -1, 704 - 1, -1 + 480 - 1),
+            pixel_aspect_ratio=fractions.Fraction(40, 33),
+            white_point='D65',
+            frame_rate=fractions.Fraction(24000, 1001))
+
+        audformat = plugins.AudioFormat(sample_rate=48000,
+            channel_assignment=('FrontLeft', 'FrontRight'))
 
         self.space = model.Space(u'', vidformat, audformat)
         self.setup_space()
@@ -247,7 +244,7 @@ class MainWindow(QMainWindow):
 
         self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list, self.space.video_format)
         self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
-        self.video_widget.setDisplayWindow(self.space.video_format.max_data_window)
+        self.video_widget.setDisplayWindow(self.space.video_format.active_area)
         self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
         self.video_widget.setVideoSource(self.video_graph_manager)
 
@@ -346,7 +343,7 @@ class MainWindow(QMainWindow):
 
         with open(path) as stream:
             project = yaml.load(stream)
-            project.fixup(muxers)
+            project.fixup()
 
         self.source_list = project.sources
         self.setup_source_list()
