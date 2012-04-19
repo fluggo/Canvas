@@ -193,6 +193,7 @@ class _DVVideo(plugins.VideoStream):
         base_filter = self.get_static_stream()
 
         video_format = plugins.VideoFormat(interlaced=True,
+            full_frame=box2i(-8, -1, -8 + 720 - 1, -1 + 480 - 1),
             active_area=box2i(0, -1, 704 - 1, -1 + 480 - 1),
             pixel_aspect_ratio=fractions.Fraction(10, 11),
             white_point='D65',

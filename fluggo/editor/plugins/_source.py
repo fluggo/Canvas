@@ -270,7 +270,7 @@ class Source(AlertPublisher):
     # Reinterpretation of formats
     # TODO: Proxies, which are probably handled by host
 
-_VideoFormat = collections.namedtuple('_VideoFormat', 'interlaced pulldown_type pulldown_phase active_area pixel_aspect_ratio white_point frame_rate')
+_VideoFormat = collections.namedtuple('_VideoFormat', 'interlaced pulldown_type pulldown_phase full_frame active_area pixel_aspect_ratio white_point frame_rate')
 
 class VideoFormat(_VideoFormat):
     '''Provides Canvas-relevant video format information.'''
@@ -287,11 +287,12 @@ class VideoFormat(_VideoFormat):
     format_type = u'video'
 
     def __new__(cls, interlaced=False, pulldown_type=PULLDOWN_NONE, pulldown_phase=0,
-        active_area=box2i(0, 0, 99, 99), pixel_aspect_ratio=fractions.Fraction(1, 1),
-        white_point=u'D65', frame_rate=fractions.Fraction(1, 1)):
+        full_frame=box2i(0, 0, 99, 99), active_area=None,
+        pixel_aspect_ratio=fractions.Fraction(1, 1), white_point=u'D65',
+        frame_rate=fractions.Fraction(1, 1)):
 
         return _VideoFormat.__new__(cls, interlaced, pulldown_type, pulldown_phase,
-            active_area, pixel_aspect_ratio, white_point, frame_rate)
+            full_frame, active_area or full_frame, pixel_aspect_ratio, white_point, frame_rate)
 
     @property
     def white_point_value(self):
@@ -305,6 +306,38 @@ class VideoFormat(_VideoFormat):
         '''Return the box from which thumbnails should be taken.
         Defaults to active_area.'''
         return self.active_area
+
+def _VideoFormat_represent(dumper, data):
+    mapp = {}
+
+    if data.interlaced != False:
+        mapp[u'interlaced'] = data.interlaced
+
+    if data.pulldown_type != PULLDOWN_NONE:
+        mapp[u'pulldown_type'] = data.pulldown_type
+
+        if data.pulldown_phase != 0:
+            mapp[u'pulldown_phase'] = data.pulldown_phase
+
+    mapp[u'full_frame'] = data.full_frame
+
+    if data.active_area != data.full_frame:
+        mapp[u'active_area'] = data.active_area
+
+    if data.pixel_aspect_ratio != fractions.Fraction(1, 1):
+        mapp[u'pixel_aspect_ratio'] = data.pixel_aspect_ratio
+
+    mapp[u'white_point'] = data.white_point
+    mapp[u'frame_rate'] = data.frame_rate
+
+    return dumper.represent_mapping(u'!VideoFormat', mapp)
+
+def _VideoFormat_construct(loader, node):
+    return VideoFormat(**loader.construct_mapping(node))
+
+yaml.add_representer(VideoFormat, _VideoFormat_represent)
+yaml.add_constructor(u'!VideoFormat', _VideoFormat_construct)
+
 
 _AudioFormat = collections.namedtuple('_AudioFormat', 'sample_rate channel_assignment')
 
@@ -326,6 +359,17 @@ class AudioFormat(_AudioFormat):
 
     def __new__(cls, sample_rate=fractions.Fraction(1, 1), channel_assignment=None):
         return _AudioFormat.__new__(cls, sample_rate, channel_assignment or [])
+
+def _AudioFormat_represent(dumper, data):
+    mapp = {u'sample_rate': data.sample_rate, u'channel_assignment': data.channel_assignment}
+    return dumper.represent_mapping(u'!AudioFormat', mapp)
+
+def _AudioFormat_construct(loader, node):
+    return AudioFormat(**loader.construct_mapping(node))
+
+yaml.add_representer(AudioFormat, _AudioFormat_represent)
+yaml.add_constructor(u'!AudioFormat', _AudioFormat_construct)
+
 
 class VideoStream(process.VideoPassThroughFilter, AlertPublisher):
     '''Abstract base class for a video stream.
