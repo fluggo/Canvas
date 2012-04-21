@@ -111,8 +111,6 @@ class _SequenceItemHandler(SceneItem):
 
         self.owner = owner
         self.item = item
-        self._format = None
-        self._stream = None
 
         self.left_handle = HorizontalHandle(owner, _ItemLeftController, self)
         self.left_handle.setZValue(LEVEL_TIME_HANDLES)
@@ -193,23 +191,6 @@ class _SequenceItemHandler(SceneItem):
 
         if 'x' in kw or 'height' in kw:
             self.setPos(float(self.item.x / self.owner.units_per_second), self.y())
-
-    @property
-    def stream(self):
-        if not self._stream and self.source_ref:
-            source_ref = self.source_ref
-
-            if self.type == 'video':
-                self._stream = model.VideoSourceRefConnector(self.scene().source_list, source_ref, model_obj=self.item)
-
-        return self._stream
-
-    @property
-    def format(self):
-        if not self._format:
-            self._format = self.stream.format
-
-        return self._format
 
     def kill(self):
         self.owner.scene().removeItem(self.left_handle)
