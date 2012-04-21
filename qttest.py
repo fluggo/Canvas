@@ -5,11 +5,21 @@ argparser.add_argument('--log', dest='log_level',
                         choices=['debug', 'info', 'warning', 'error', 'critical'],
                         default='warning',
                         help='Logging level to use.')
+argparser.add_argument('--break-exc', dest='break_exc', action='store_true', default=False,
+                        help='Instructs PDB to break at all exceptions.')
 
 args = argparser.parse_args()
 
 import logging
 logging.basicConfig(level=args.log_level.upper())
+
+if args.break_exc:
+    import pdb, sys
+
+    def excepthook(*args):
+        pdb.set_trace()
+
+    sys.excepthook = excepthook
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
