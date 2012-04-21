@@ -161,15 +161,12 @@ class _DVSource(plugins.Source):
     def file_path(self):
         return self.path
 
-    def get_stream_formats(self):
+    def get_streams(self):
         # TODO: Should this method return length/valid frames as well?
         if self.offline:
             raise plugins.SourceOfflineError
 
-        return [
-            (u'Video', self._video.format),
-            (u'Audio', self._audio.format)
-        ]
+        return [self._video, self._audio]
 
     def get_stream(self, name):
         if self.offline:

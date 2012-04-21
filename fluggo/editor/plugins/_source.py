@@ -211,16 +211,35 @@ class Source(AlertPublisher):
         directory and needs to remap them.'''
         return None
 
-    def get_stream_formats(self):
-        '''Return a list of descriptions for streams in this source.
+    def get_streams(self):
+        '''Return a list of streams in this source.
 
-        At the moment, the DV source returns a list of tuples pairing the stream
-        name with its format.'''
+        The streams returned should be in some sensible order based on the source.
+        The default implementation of get_default_streams() returns the first video
+        and the first audio streams it finds.'''
         # TODO: What should this do if the source is offline? On the one hand,
         # it would be nice to know what to expect from an offline source. On the
         # other, you can't actually do anything with those streams, and they
         # might not even exist when the source does come online.
         raise NotImplementedError
+
+    def get_default_streams(self):
+        '''Return the streams the user is most likely to want to work with.
+
+        Override this if the source provides a stream that the user probably doesn't
+        want by default, but could choose to add on later, such as a commentary audio track.
+        The default streams are used to determine what to lay out when a source gets
+        dragged from the source list into a composition.
+
+        The base implementation returns the first video and the first audio stream, in that order.'''
+
+        # For now, first video stream and first audio stream
+        streams = self.get_streams()
+
+        video_streams = [stream for stream in streams if stream.stream_type == u'video']
+        audio_streams = [stream for stream in streams if stream.stream_type == u'audio']
+
+        return video_streams[0:1] + audio_streams[0:1]
 
     def get_stream(self, name):
         '''Return the stream with the given name. The returned stream will be updated

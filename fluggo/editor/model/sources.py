@@ -68,15 +68,6 @@ class Source(plugins.Source):
     def visit(self, visitfunc):
         pass
 
-    def get_default_stream_formats(self):
-        # For now, first video stream and first audio stream
-        streams = self.get_stream_formats()
-
-        video_streams = [stream for stream in streams if stream[1].format_type == u'video']
-        audio_streams = [stream for stream in streams if stream[1].format_type == u'audio']
-
-        return video_streams[0:1] + audio_streams[0:1]
-
     @classmethod
     def to_yaml(cls, dumper, data):
         return dumper.represent_mapping(cls.yaml_tag, data.get_definition())
