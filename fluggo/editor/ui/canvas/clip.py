@@ -160,8 +160,12 @@ class SceneItem(QtGui.QGraphicsItem):
         raise NotImplementedError
 
     @property
-    def max_length(self):
-        return self.format.adjusted_length
+    def min_frame(self):
+        return self.stream.defined_range[0]
+
+    @property
+    def max_frame(self):
+        return self.stream.defined_range[1]
 
     @property
     def offset(self):
@@ -223,11 +227,12 @@ class ClipItem(SceneItem):
             self.original_x = self.item.x
             self.original_length = self.item.length
             self.original_offset = self.item.offset
+            self.min_frame = item.min_frame
 
         def move(self, x):
-            if self.original_offset + x < 0:
-                self.item.update(x=self.original_x - self.original_offset, length=self.original_length + self.original_offset,
-                    offset=0)
+            if self.min_frame is not None and self.original_offset + x < self.min_frame:
+                self.item.update(x=self.original_x + self.min_frame - self.original_offset, length=self.original_length + self.original_offset,
+                    offset=self.min_frame)
             elif self.original_length > x:
                 self.item.update(x=self.original_x + x, length=self.original_length - x,
                     offset=self.original_offset + x)
@@ -239,11 +244,11 @@ class ClipItem(SceneItem):
         def __init__(self, item, view):
             self.item = item.item
             self.original_length = self.item.length
-            self.max_length = item.max_length
+            self.max_frame = item.max_frame
 
         def move(self, x):
-            if self.original_length + self.item.offset + x > self.max_length:
-                self.item.update(length=self.max_length - self.item.offset)
+            if self.max_frame is not None and self.original_length + self.item.offset + x > self.max_frame:
+                self.item.update(length=self.max_frame - self.item.offset)
             elif self.original_length > -x:
                 self.item.update(length=self.original_length + x)
             else:

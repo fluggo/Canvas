@@ -28,8 +28,8 @@ from .thumbnails import ThumbnailPainter
 (LEVEL_ITEMS, LEVEL_MOVE_HANDLES, LEVEL_TRANSITION_HANDLES, LEVEL_TIME_HANDLES, LEVEL_HEIGHT_HANDLES) = range(5)
 
 class _ItemLeftController(Controller1D):
-    def __init__(self, item, view):
-        self.item = item
+    def __init__(self, handler, view):
+        self.item = handler.item
         self.prev_item = self.item.sequence[self.item.index - 1] if self.item.index > 0 else None
         self.next_item = self.item.sequence[self.item.index + 1] if self.item.index < len(self.item.sequence) - 1 else None
         self.sequence = self.item.sequence
@@ -40,10 +40,12 @@ class _ItemLeftController(Controller1D):
         self.original_trans_length = self.item.transition_length
         self.original_seq_x = self.sequence.x
 
+        self.min_frame = handler.stream.defined_range[0]
+
     def move(self, delta):
         # Don't move past the beginning of the clip
-        if self.original_offset + delta < 0:
-            delta = -self.original_offset
+        if self.min_frame is not None and self.original_offset + delta < self.min_frame:
+            delta = self.min_frame - self.original_offset
 
         # Don't make the clip shorter than one frame
         if delta >= self.original_length:
@@ -76,13 +78,13 @@ class _ItemRightController(Controller1D):
         self.next_item = self.sequence[self.item.index + 1] if self.item.index < len(self.sequence) - 1 else None
 
         self.original_length = self.item.length
-        self.max_length = handler.format.adjusted_length
+        self.max_frame = handler.stream.defined_range[1]
         self.original_trans_length = self.next_item.transition_length if self.next_item else 0
 
     def move(self, delta):
         # Don't move past the end of the clip
-        if self.original_length + self.item.offset + delta > self.max_length:
-            delta = self.max_length - self.original_length - self.item.offset
+        if self.max_frame is not None and self.original_length + self.item.offset + delta > self.max_frame:
+            delta = self.max_frame - self.original_length - self.item.offset
 
         # Don't make the clip shorter than one frame
         if self.original_length + delta < 1:
@@ -112,7 +114,7 @@ class _SequenceItemHandler(SceneItem):
         self._format = None
         self._stream = None
 
-        self.left_handle = HorizontalHandle(owner, _ItemLeftController, item)
+        self.left_handle = HorizontalHandle(owner, _ItemLeftController, self)
         self.left_handle.setZValue(LEVEL_TIME_HANDLES)
         self.right_handle = HorizontalHandle(owner, _ItemRightController, self)
         self.right_handle.setZValue(LEVEL_TIME_HANDLES)
