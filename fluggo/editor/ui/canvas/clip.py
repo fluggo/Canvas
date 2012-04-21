@@ -128,7 +128,7 @@ class SceneItem(QtGui.QGraphicsItem):
         A float giving the number of units per second in the X axis.
         This will typically be float(scene().frame_rate) or float(scene().sample_rate).
         '''
-        return self.scene().get_rate(self.type)
+        return self.scene().get_rate(self.stream_type)
 
     @property
     def source_ref(self):
@@ -146,13 +146,13 @@ class SceneItem(QtGui.QGraphicsItem):
         if not self._stream and self.source_ref:
             source_ref = self.source_ref
 
-            if self.type == 'video':
+            if self.stream_type == 'video':
                 self._stream = model.VideoSourceRefConnector(self.scene().source_list, source_ref, model_obj=self.item)
 
         return self._stream
 
     @property
-    def type(self):
+    def stream_type(self):
         raise NotImplementedError
 
     @property
@@ -297,7 +297,7 @@ class ClipItem(SceneItem):
         return self.item.length
 
     @property
-    def type(self):
+    def stream_type(self):
         return self.item.type()
 
     @property

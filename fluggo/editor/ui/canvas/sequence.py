@@ -130,8 +130,8 @@ class _SequenceItemHandler(SceneItem):
         return self.owner.item_display_height
 
     @property
-    def type(self):
-        return self.owner.type
+    def stream_type(self):
+        return self.owner.stream_type
 
     @property
     def source_ref(self):
