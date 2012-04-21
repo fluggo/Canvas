@@ -2,14 +2,14 @@ import argparse
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--log', dest='log_level',
-                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-                        default='WARNING',
+                        choices=['debug', 'info', 'warning', 'error', 'critical'],
+                        default='warning',
                         help='Logging level to use.')
 
 args = argparser.parse_args()
 
 import logging
-logging.basicConfig(level=args.log_level)
+logging.basicConfig(level=args.log_level.upper())
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
