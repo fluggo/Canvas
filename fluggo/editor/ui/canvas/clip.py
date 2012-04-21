@@ -18,10 +18,13 @@
 
 from ..canvas import *
 from .markers import *
+from fluggo import logging
 from fluggo.editor import model
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from .thumbnails import ThumbnailPainter
+
+_log = logging.getLogger(__name__)
 
 class Handle(QtGui.QGraphicsRectItem, Draggable):
     invisibrush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
@@ -322,40 +325,43 @@ class ClipItem(SceneItem):
         self.right_handle.setPos(self.length / self.units_per_second, 0.0)
 
     def _update(self, **kw):
-        '''
-        Called by the item model to update our appearance.
-        '''
-        if not self.scene():
-            return
+        try:
+            '''
+            Called by the item model to update our appearance.
+            '''
+            if not self.scene():
+                return
 
-        # Alter the apparent Z-order of the item
-        if 'z' in kw:
-            self.scene().resort_item(self)
+            # Alter the apparent Z-order of the item
+            if 'z' in kw:
+                self.scene().resort_item(self)
 
-        # Changes in item position
-        pos = self.pos()
+            # Changes in item position
+            pos = self.pos()
 
-        if 'x' in kw or 'y' in kw:
-            self.setPos(kw.get('x', pos.x() * self.units_per_second) / self.units_per_second, kw.get('y', pos.y()))
+            if 'x' in kw or 'y' in kw:
+                self.setPos(kw.get('x', pos.x() * self.units_per_second) / self.units_per_second, kw.get('y', pos.y()))
 
-        # Changes in item size
-        # Changes requiring a reset of the thumbnails
-        # TODO: This resets thumbnails *way* more than is necessary
-        if self.painter and 'length' in kw:
-            self.painter.set_length(self.length)
+            # Changes in item size
+            # Changes requiring a reset of the thumbnails
+            # TODO: This resets thumbnails *way* more than is necessary
+            if self.painter and 'length' in kw:
+                self.painter.set_length(self.length)
 
-        if self.painter and 'offset' in kw:
-            self.painter.set_offset(self.offset)
+            if self.painter and 'offset' in kw:
+                self.painter.set_offset(self.offset)
 
-        if 'length' in kw or 'height' in kw:
-            self.right_handle.setPos(self.length / self.units_per_second, 0.0)
-            self.bottom_handle.setPos(0.0, self.height)
-            self.reset_view_decorations()
+            if 'length' in kw or 'height' in kw:
+                self.right_handle.setPos(self.length / self.units_per_second, 0.0)
+                self.bottom_handle.setPos(0.0, self.height)
+                self.reset_view_decorations()
 
-            self.prepareGeometryChange()
+                self.prepareGeometryChange()
 
-        if 'in_motion' in kw:
-            self.setOpacity(0.5 if self.item.in_motion else 1.0)
+            if 'in_motion' in kw:
+                self.setOpacity(0.5 if self.item.in_motion else 1.0)
+        except:
+            _log.error('Error while updating clip item display', exc_info=True)
 
     def update_view_decorations(self, view):
         # BJC I tried to keep it view-independent, but the handles need to have different sizes

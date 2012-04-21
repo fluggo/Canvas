@@ -136,6 +136,7 @@ class ThumbnailPainter(object):
                         painter.drawImage(rect.x() + (i * (rect.width() - self._thumbnail_width) / (len(self._thumbnails) - 1)),
                             rect.y(), self._thumbnails[i])
         else:
+            _log.debug('Thumbnail painter has no stream')
             # TODO: Show a slug or something?
             pass
 
