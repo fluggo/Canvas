@@ -279,7 +279,7 @@ class PluginManager(object):
                     plugin.activate()
                     cls.alert_manager.follow_alerts(plugin)
                     cls.enabled_plugins[key] = plugin
-                except Exception as ex:
+                except:
                     _log.error('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
 
         cls.reset_codecs()
@@ -343,7 +343,7 @@ class PluginManager(object):
                 try:
                     for plugin in PluginModule.from_file(os.path.join(directory, filename)):
                         yield plugin
-                except Exception as ex:
+                except:
                     _log.warning('Could not read the plugin {0}', filename, exc_info=True)
 
     @classmethod
@@ -414,9 +414,10 @@ class PluginModule(object):
 
             self.load_error = None
         except Exception as ex:
-            _log.error('Plugin "{0}" failed to load: {1}', self.name, ex)
+            _log.warning('Plugin "{0}" failed to load: {1}', self.name, ex, exc_info=True)
             self.load_error = ex
 
 from ._source import *
 from ._codec import *
+
 

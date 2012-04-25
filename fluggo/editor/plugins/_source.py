@@ -192,7 +192,7 @@ class Source(AlertPublisher):
     @property
     def plugin(self):
         '''Return a reference to the plugin that created this source.'''
-        raise NotImplementedError
+        return None
 
     def get_definition(self):
         '''Return an object that the source plugin can use to recreate this
