@@ -227,6 +227,8 @@ class PluginManager(object):
     plugin_modules = None
     plugins = None
     enabled_plugins = None
+    enabled_codecs = {}
+    codecs_by_priority = []   # Enabled codecs in preference order
     alert_manager = AlertPublisher()
 
     @classmethod
@@ -280,6 +282,8 @@ class PluginManager(object):
                 except Exception as ex:
                     _log.error('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
 
+        cls.reset_codecs()
+
     @classmethod
     def find(cls, baseclass=Plugin, enabled_only=True):
         cls.load_all()
@@ -311,6 +315,7 @@ class PluginManager(object):
                 cls.alert_manager.follow_alerts(plugin)
                 cls.enabled_plugins[plugin.plugin_urn] = plugin
                 settings.setValue('enabled', True)
+                cls.reset_codecs()
             except Exception as ex:
                 _log.error('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
         elif not enable and enabled:
@@ -319,6 +324,7 @@ class PluginManager(object):
                 cls.alert_manager.unfollow_alerts(plugin)
                 del cls.enabled_plugins[plugin.plugin_urn]
                 settings.setValue('enabled', False)
+                cls.reset_codecs()
             except Exception as ex:
                 _log.error('Failed to deactivate plugin "{0}"', plugin.name, exc_info=True)
 
@@ -339,6 +345,35 @@ class PluginManager(object):
                         yield plugin
                 except Exception as ex:
                     _log.warning('Could not read the plugin {0}', filename, exc_info=True)
+
+    @classmethod
+    def reset_codecs(cls):
+        '''Clear out all codecs and start over.'''
+        cls.enabled_codecs = {}
+
+        for plugin in cls.find(CodecPlugin):
+            try:
+                for codec in plugin.get_all_codecs():
+                    cls.enabled_codecs[codec.urn] = codec
+            except:
+                _log.warning('Could not get a list of codecs from a plugin', exc_info=True)
+
+        cls.codecs_by_priority = list(cls.enabled_codecs.values())
+        cls.codecs_by_priority.sort(key=lambda i: (i.default_priority, i.urn), reverse=True)
+
+    @classmethod
+    def get_codec_by_urn(cls, urn):
+        '''Return the codec with the given URN, or None if it isn't enabled.'''
+        return cls.enabled_codecs.get(urn)
+
+    @classmethod
+    def find_decoders(cls, format_urn):
+        '''Return a list of codecs supporting the given *format_urn* in descending
+        order of preference.'''
+        for codec in cls.codecs_by_priority:
+            print repr(codec.format_urns)
+
+        return [codec for codec in cls.codecs_by_priority if format_urn in codec.format_urns and codec.can_decode]
 
 class PluginModule(object):
     def __init__(self, name, module_name):
@@ -382,6 +417,6 @@ class PluginModule(object):
             _log.error('Plugin "{0}" failed to load: {1}', self.name, ex)
             self.load_error = ex
 
-from ._codec import *
 from ._source import *
+from ._codec import *
 

@@ -17,68 +17,77 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from ._base import *
+from ._source import *
 
 class CodecPlugin(Plugin):
     '''Provides encoders and decoders for one or more stream formats.
 
-    Encoders and decoders transform from CodecPacketSource to AudioSource or VideoSource and back.
+    Encoders and decoders transform from CodecPacketSource to AudioStream or VideoStream and back.
     They do not expose any intermediate steps, such as CodedImageSources, except
     where options for reconstructing images are exposed in the codec's settings.'''
 
-    def getDecoderUrn(self, formatUrn):
-        '''Return a codec URN if the plugin can decode a stream with the given stream format.'''
-        return None
-
-    def createDecoder(self, stream, codecUrn, options={}):
-        '''Create a decoder (class Codec).'''
-        raise NotImplementedError
-
-    def getEncoderUrn(self, formatUrn):
-        '''Return a codec URN if the plugin can encode a stream with the given stream format.'''
-        return None
-
-    def createEncoder(self, stream, codecUrn, options={}):
-        '''Create an encoder (class Codec).'''
-        raise NotImplementedError
-
-    # TODO: Get the list of supported codecs
+    def get_all_codecs(self):
+        '''Return a list of all codecs supported by this plugin.'''
+        return []
 
 class Codec(object):
-    def getPlugin(self):
-        '''Return a reference to the plugin that created this codec.'''
+    '''Sets this codec's initial place among other codecs. If a codec thinks
+    it might be particularly good at decoding/encoding a format, it might bump
+    this higher.'''
+    default_priority = 0
+
+    @property
+    def plugin(self):
+        '''Return a reference to the plugin that created this source.'''
+        return None
+
+    @property
+    def name(self):
         raise NotImplementedError
 
-    def getFormatUrn(self):
-        '''Return the URN of the format this codec encodes or decodes.'''
+    @property
+    def format_urns(self):
+        '''Return a frozenset of format URNs this codec supports.'''
         raise NotImplementedError
 
-    def getUrn(self):
-        '''Return the URN of this specific codec. This should be unique among codec plugins.'''
+    @property
+    def urn(self):
+        '''Return a URN that uniquely identifies this codec.'''
         raise NotImplementedError
 
-    def getMediaType(self):
+    @property
+    def stream_type(self):
         # Video/audio/subtitle/etc.
         raise NotImplementedError
 
-    def getOptions(self):
-        '''Return an object with the current settings for the codec, or
-        None if there are no configurable settings.'''
-        return None
+    @property
+    def can_decode(self):
+        '''Return true if the codec can decode streams.'''
+        return False
 
-    def setOptions(self, options):
+    @property
+    def can_encode(self):
+        '''Return true if the codec can encode streams.'''
+        return False
+
+    def create_encoder(self, stream, offset, length, definition):
+        '''Return a CodecPacketSource for the given stream and definition (which can be None if a source is trying to discover).
+
+        *defined_range* identifies which part of the stream should be encoded.
+
+        The returned object needs to have a get_definition() method, which sources
+        can pass to this method to re-create the encoder, and a codec attribute which
+        could be used to identify this codec.'''
         raise NotImplementedError
 
-    def isDecoder(self):
-        '''Return true if this is a decoder, false if it's an encoder.'''
-        raise NotImplementedError
+    def create_decoder(self, packet_stream, offset, length, definition):
+        '''Return a stream object (VideoStream, AudioStream, etc.) to decode the given packet stream and definition (which can be None if a source is trying to discover).
 
-    # TODO: Property dialogs
+        *defined_range* is supplied by the source, and should indicate where and how long the
+        stream is.
 
-class Encoder(Codec):
-    def getCodedStream(self, input_stream):
-        raise NotImplementedError
-
-class Decoder(Codec):
-    def getDecodedStream(self, input_stream):
+        The returned object needs to have a get_definition() method, which sources
+        can pass to this method to re-create the decoder, and a codec attribute which
+        could be used to identify this codec.'''
         raise NotImplementedError
 
