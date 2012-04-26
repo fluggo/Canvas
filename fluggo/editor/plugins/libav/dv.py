@@ -291,8 +291,8 @@ class _LibavSource(plugins.Source):
         definition = {u'path': self.path}
         streams = {}
 
-        for id_, stream in self._streams:
-            streams[id_] = {u'urn': stream.plugin.ur, u'definition': stream.get_definition()}
+        for stream in self._streams:
+            streams[stream.id] = {u'urn': stream.codec.urn, u'definition': stream.get_definition()}
 
         definition[u'streams'] = streams
         return definition

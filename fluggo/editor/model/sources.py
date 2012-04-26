@@ -187,7 +187,7 @@ class PluginSource(Source):
     def get_definition(self):
         root = Source.get_definition(self)
 
-        root['plugin_urn'] = plugin_urn
+        root['plugin_urn'] = self.plugin_urn
 
         if self._source:
             root['definition'] = self._source.get_definition()

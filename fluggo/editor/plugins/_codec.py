@@ -164,6 +164,7 @@ class _DecoderConnector(object):
 
                 try:
                     self.decoder = codec.create_decoder(self._pktstream, self._offset, self._length, self._start_definition)
+                    self.codec = codec
                 except:
                     self._clear()
                     self._error = Alert(id(self), u'Error while creating decoder',
@@ -184,6 +185,7 @@ class _DecoderConnector(object):
                 for codec in codecs:
                     try:
                         self.decoder = codec.create_decoder(self._pktstream, self._offset, self._length, None)
+                        self.codec = codec
                     except:
                         _log.warning(u'Error while trying codec {0}', codec.urn, exc_info=True)
 
