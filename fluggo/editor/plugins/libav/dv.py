@@ -225,9 +225,10 @@ class _LibavSource(plugins.Source):
                     # Find codec
                     # TODO: I don't know if this is the best way to store
                     # the stream ID's; we do need to accomodate the names, though
-                    stream = self._find_codec(stream_desc, 0, video_length)
+                    stream = self._find_codec(plugins.VideoDecoderConnector, stream_desc, 0, video_length)
                     stream.name = unicode(stream_desc.id)
                     stream.id = stream_desc.id
+                    self.follow_alerts(stream)
                     self._streams.append(stream)
                 elif stream_desc.type == 'audio':
                     audio_length = stream_desc.frame_count
@@ -242,9 +243,10 @@ class _LibavSource(plugins.Source):
                         audio_length = int(audio_length)
 
                     # Find codec
-                    stream = self._find_codec(stream_desc, 0, audio_length)
+                    stream = self._find_codec(plugins.AudioDecoderConnector, stream_desc, 0, audio_length)
                     stream.name = unicode(stream_desc.id)
                     stream.id = stream_desc.id
+                    self.follow_alerts(stream)
                     self._streams.append(stream)
 
             self.offline = False
@@ -262,36 +264,17 @@ class _LibavSource(plugins.Source):
                 QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)], exc_info=True)
             self.show_alert(self._load_alert)
 
-    def _find_codec(self, stream_desc, offset, length):
+    def _find_codec(self, cls, stream_desc, offset, length):
+        format_urn = u'urn:libav:codec-format:' + unicode(_codec_format_names[stream_desc.codec_id]).lower()[9:]
+        demuxer = libav.AVDemuxer(self.path, stream_desc.index)
         loaded_desc = self._loaded_definitions.get(stream_desc.id)
+        urn, definition = None, None
 
         if loaded_desc:
             urn, definition = loaded_desc[u'urn'], loaded_desc[u'definition']
-            _log.debug('Looking for codec {0}', urn)
-            codec = plugins.PluginManager.get_codec_by_urn(urn)
 
-            if not codec:
-                # TODO: Create alert
-                raise ValueError(u'Specified codec not found')
-            else:
-                # TODO: Handle errors
-                _log.debug('Found codec {0} by URN', codecs[0].name)
-                demuxer = libav.AVDemuxer(self.path, stream_desc.index)
-                return codec.create_decoder(demuxer, offset, length, definition)
-        else:
-            format_urn = u'urn:libav:codec-format:' + unicode(_codec_format_names[stream_desc.codec_id]).lower()[9:]
-            _log.debug('Looking for codec supporting {0}', format_urn)
-            codecs = plugins.PluginManager.find_decoders(format_urn)
-
-            if not codecs:
-                # TODO: Blaaaaaargh!
-                _log.debug('Couldn\'t find codec to handle format {0}', format_urn)
-                raise ValueError(u'''Couldn't find codec to handle format.''')
-            else:
-                # TODO: Handle errors
-                _log.debug('Found codec {0}', codecs[0].name)
-                demuxer = libav.AVDemuxer(self.path, stream_desc.index)
-                return codecs[0].create_decoder(demuxer, offset, length, None)
+        return cls(demuxer, format_urn, offset, length,
+            model_obj=self, codec_urn=urn, definition=definition)
 
     def _retry_load(self, checked):
         self.bring_online()
