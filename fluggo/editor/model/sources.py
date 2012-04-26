@@ -99,7 +99,7 @@ class PluginSource(Source):
             self._load_alert = None
 
         if not self._plugin:
-            self._plugin = plugins.PluginManager.find_by_urn(self.plugin_urn)
+            self._plugin = plugins.PluginManager.find_plugin_by_urn(self.plugin_urn)
 
             if self._plugin is None:
                 _log.debug('Couldn\'t find plugin {0} for source {1}', self.plugin_urn, self.name)

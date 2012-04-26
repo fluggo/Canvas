@@ -285,26 +285,26 @@ class PluginManager(object):
         cls.reset_codecs()
 
     @classmethod
-    def find(cls, baseclass=Plugin, enabled_only=True):
+    def find_plugins(cls, baseclass=Plugin, enabled_only=True):
         cls.load_all()
 
         plugins = cls.enabled_plugins if enabled_only else cls.plugins
         return [plugin for plugin in plugins.itervalues() if isinstance(plugin, baseclass)]
 
     @classmethod
-    def find_by_urn(cls, urn):
+    def find_plugin_by_urn(cls, urn):
         return cls.enabled_plugins.get(urn, None)
 
     @classmethod
-    def is_enabled(cls, plugin):
+    def is_plugin_enabled(cls, plugin):
         return plugin.plugin_urn in cls.enabled_plugins
 
     @classmethod
-    def set_enabled(cls, plugin, enable):
+    def set_plugin_enabled(cls, plugin, enable):
         if plugin.plugin_urn not in cls.plugins:
             raise ValueError('Given plugin is not in the list of available plugins.')
 
-        enabled = cls.is_enabled(plugin)
+        enabled = cls.is_plugin_enabled(plugin)
         settings = QtCore.QSettings()
 
         settings.beginGroup('plugins/' + plugin.plugin_urn)
@@ -351,7 +351,7 @@ class PluginManager(object):
         '''Clear out all codecs and start over.'''
         cls.enabled_codecs = {}
 
-        for plugin in cls.find(CodecPlugin):
+        for plugin in cls.find_plugins(CodecPlugin):
             try:
                 for codec in plugin.get_all_codecs():
                     cls.enabled_codecs[codec.urn] = codec
@@ -362,7 +362,7 @@ class PluginManager(object):
         cls.codecs_by_priority.sort(key=lambda i: (i.default_priority, i.urn), reverse=True)
 
     @classmethod
-    def get_codec_by_urn(cls, urn):
+    def find_codec_by_urn(cls, urn):
         '''Return the codec with the given URN, or None if it isn't enabled.'''
         return cls.enabled_codecs.get(urn)
 

@@ -28,7 +28,7 @@ SUBTITLE = QtCore.Qt.UserRole
 class _PluginModel(QtCore.QAbstractListModel):
     def __init__(self):
         QtCore.QAbstractListModel.__init__(self)
-        self._plugins = plugins.PluginManager.find(enabled_only=False)
+        self._plugins = plugins.PluginManager.find_plugins(enabled_only=False)
 
     def rowCount(self, parent):
         if parent.isValid():
@@ -43,7 +43,7 @@ class _PluginModel(QtCore.QAbstractListModel):
             elif role == SUBTITLE:
                 return self._plugins[index.row()].description
             elif role == QtCore.Qt.CheckStateRole:
-                return QtCore.Qt.Checked if plugins.PluginManager.is_enabled(self._plugins[index.row()]) else QtCore.Qt.Unchecked
+                return QtCore.Qt.Checked if plugins.PluginManager.is_plugin_enabled(self._plugins[index.row()]) else QtCore.Qt.Unchecked
 
     def flags(self, index):
         if index.column() == 0:
@@ -58,7 +58,7 @@ class _PluginModel(QtCore.QAbstractListModel):
     def setData(self, index, value, role):
         if index.column() == 0:
             if role == QtCore.Qt.CheckStateRole:
-                plugins.PluginManager.set_enabled(self._plugins[index.row()], value == QtCore.Qt.Checked)
+                plugins.PluginManager.set_plugin_enabled(self._plugins[index.row()], value == QtCore.Qt.Checked)
                 self.dataChanged.emit(index, index)
                 return True
 
