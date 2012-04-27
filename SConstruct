@@ -112,7 +112,7 @@ Default('process')
 if not env.Execute('@pkg-config --exists libavformat libswscale'):
     libav_env = python_env.Clone()
     libav_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale glib-2.0 gthread-2.0')
-    libav_env.Append(LIBS=[process])
+    libav_env.Append(LIBS=[process], CCFLAGS=['-Wno-error=deprecated-declarations'])
 
     if env['PLATFORM'] == 'win32':
         libav_env.Append(LIBS=['glew32', 'opengl32'])
