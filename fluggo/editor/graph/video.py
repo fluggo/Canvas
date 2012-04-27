@@ -233,7 +233,7 @@ class SequenceVideoManager(plugins.VideoStream):
         self.frames_updated(start_frame, end_frame)
 
     def _handle_item_updated(self, item, **kw):
-        if frozenset(('offset', 'source', 'transition_length', 'length')) .isdisjoint(frozenset(kw.keys())):
+        if frozenset(('offset', 'source', 'transition_length', 'length')) .isdisjoint(frozenset(list(kw.keys()))):
             return
 
         watcher = self.watchers[item.index]

@@ -14,7 +14,7 @@ audformat = plugins.AudioFormat(
 class test_ItemManipulator(unittest.TestCase):
     def test_sample(self):
         '''Sample'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0))]
 
@@ -23,7 +23,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_1_grab_move_once(self):
         '''Grab and do a single move'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0))]
 
@@ -68,7 +68,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_1_grab_move_twice(self):
         '''Grab and do two moves'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0))]
 
@@ -114,7 +114,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_one_item_add_seq(self):
         '''Drag one item into a sequence'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
@@ -265,7 +265,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_one_item_add_seq_gap(self):
         '''Drag one item into a sequence in the middle of a gap'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
@@ -294,7 +294,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_one_item_add_seq_gap_short(self):
         '''Drag one short item into a sequence at the beginning of a gap'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
@@ -323,7 +323,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_one_item_add_seq_cross_transition(self):
         '''Drag one short item into a sequence where it should fail to insert across a transition'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
@@ -341,7 +341,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_one_item_add_seq_backwards(self):
         '''Like test_one_item_add_seq, but in reverse order'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
@@ -459,7 +459,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_one_item_add_seq_overlap(self):
         '''Drag one item into a sequence'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
@@ -512,7 +512,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_one_item_add_seq_short(self):
         '''Drag one item into a sequence, but the item is short'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=15, source=model.StreamSourceRef('red', 0), type='noon'),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
@@ -666,7 +666,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_one_item_add_seq_reset(self):
         '''Test resets from various spots'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
@@ -717,7 +717,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_seq_item_simple_move(self):
         '''Test moving a single sequence item around within the same sequence'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
@@ -845,7 +845,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_seq_item_simple_move_middle(self):
         '''Test moving a single sequence item starting in the middle'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=3, length=10, transition_length=3)])]
@@ -880,7 +880,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_seq_item_simple_move_backwards(self):
         '''Test moving a single sequence item around within the same sequence'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
         space[:] = [
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
@@ -1008,7 +1008,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_seq_item_single_move_space(self):
         '''Move a single sequence item into a space, where it should manifest as a clip'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
 
         seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
@@ -1066,7 +1066,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_seq_item_multiple_move_space(self):
         '''Move a multiple sequences item into a space, where they should manifest as a sequence'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
 
         seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=6, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=13, length=10),
@@ -1139,7 +1139,7 @@ class test_ItemManipulator(unittest.TestCase):
 
     def test_seq_item_single_move_space_from_middle(self):
         '''Move a single sequence item from the middle of a sequence into a space, where it should manifest as a clip and leave a gap behind'''
-        space = model.Space(u'', vidformat, audformat)
+        space = model.Space('', vidformat, audformat)
 
         seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=18, length=10, transition_length=0),

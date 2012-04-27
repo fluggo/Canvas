@@ -74,7 +74,7 @@ class Source(plugins.Source):
 
     @classmethod
     def from_yaml(cls, loader, node):
-        return cls(name=u'', **loader.construct_mapping(node))
+        return cls(name='', **loader.construct_mapping(node))
 
 class PluginSource(Source):
     yaml_tag = '!PluginSource'
@@ -104,12 +104,12 @@ class PluginSource(Source):
             if self._plugin is None:
                 _log.debug('Couldn\'t find plugin {0} for source {1}', self.plugin_urn, self.name)
                 self._load_alert = plugins.Alert(id(self),
-                    u'Plugin ' + self.plugin_urn + u' unavailable or disabled',
+                    'Plugin ' + self.plugin_urn + ' unavailable or disabled',
                     icon=plugins.AlertIcon.Error,
                     source=self.name,
                     model_obj=self,
                     actions=[
-                        QtGui.QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)])
+                        QtGui.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)])
 
                 self.show_alert(self._load_alert)
 
@@ -131,12 +131,12 @@ class PluginSource(Source):
 
                 _log.debug('Error while creating source {0} from plugin', self.name, exc_info=True)
                 self._load_alert = plugins.Alert(id(self),
-                    u'Unexpected ' + ex.__class__.__name__ + u' while creating source from plugin: ' + unicode(ex),
+                    'Unexpected ' + ex.__class__.__name__ + ' while creating source from plugin: ' + str(ex),
                     icon=plugins.AlertIcon.Error,
                     source=self.name,
                     model_obj=self,
                     actions=[
-                        QtGui.QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)],
+                        QtGui.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)],
                     exc_info=True)
 
                 self.show_alert(self._load_alert)
@@ -148,12 +148,12 @@ class PluginSource(Source):
             except Exception as ex:
                 _log.debug('Error while bringing source {0} online', self.name, exc_info=True)
                 self._load_alert = plugins.Alert(id(self),
-                    u'Unexpected ' + ex.__class__.__name__ + u' while bringing source online: ' + unicode(ex),
+                    'Unexpected ' + ex.__class__.__name__ + ' while bringing source online: ' + str(ex),
                     icon=plugins.AlertIcon.Error,
                     source=self.name,
                     model_obj=self,
                     actions=[
-                        QtGui.QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)],
+                        QtGui.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)],
                     exc_info=True)
 
                 self.show_alert(self._load_alert)
@@ -235,7 +235,7 @@ class StreamSourceRef(object):
     '''
     References a stream from a video or audio file.
     '''
-    yaml_tag = u'!StreamSourceRef'
+    yaml_tag = '!StreamSourceRef'
     __slots__ = ('_source_name', '_stream')
 
     def __init__(self, source_name=None, stream=None, **kw):
@@ -252,8 +252,8 @@ class StreamSourceRef(object):
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        result = {u'source_name': data._source_name,
-            u'stream': data._stream}
+        result = {'source_name': data._source_name,
+            'stream': data._stream}
 
         return dumper.represent_mapping(cls.yaml_tag, result)
 
@@ -310,11 +310,11 @@ class SourceList(collections.MutableMapping):
 
     def fixup(self):
         # Give each object its name and source_list
-        for (name, source) in self.sources.iteritems():
+        for (name, source) in self.sources.items():
             source.name = name
             source._source_list = self
 
-        for source in self.sources.itervalues():
+        for source in self.sources.values():
             source.fixup()
 
 class Project(object):

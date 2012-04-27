@@ -85,7 +85,8 @@ print(distutils.sysconfig.get_python_inc())
 
 python_env = env.Clone(SHLIBPREFIX='')
 python_env.Append(CPPPATH=[python_include],
-                  CCFLAGS=['-fno-strict-aliasing'])
+                  CCFLAGS=['-fno-strict-aliasing'],
+                  LIBS=['python3.2mu'])
 
 if mingw or env['PLATFORM'] == 'win32':
     python_env['SHLIBSUFFIX'] = '.pyd'
@@ -243,7 +244,7 @@ test_cprocess = testenv.Program('tests/cprocess_test', env.Glob('src/tests/*.c')
 testenv.Alias('test', testenv.Command('test_dummy', 'tests/cprocess_test', '@tests/cprocess_test'))
 
 for testfile in locate('*.py', 'tests'):
-    testenv.Alias('test', testenv.Command(None, testfile, '@python testrunner.py $SOURCE'))
+    testenv.Alias('test', testenv.Command(None, testfile, '@python3 testrunner.py $SOURCE'))
 
 Requires('test', cprocess)
 Requires('test', test_cprocess)

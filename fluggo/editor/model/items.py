@@ -67,7 +67,7 @@ class Item(object):
     like groups found in other editors.
     '''
 
-    yaml_tag = u'!CanvasItem'
+    yaml_tag = '!CanvasItem'
 
     def __init__(self, x=0, y=0.0, length=1, height=1.0, type=None, anchor=None,
             anchor_target_offset=None, anchor_source_offset=None, anchor_visible=False, tags=None,
@@ -244,7 +244,7 @@ class Clip(Item):
     '''
     A freestanding video or audio clip.
     '''
-    yaml_tag = u'!CanvasClip'
+    yaml_tag = '!CanvasClip'
 
     def __init__(self, type=None, offset=0, source=None, **kw):
         Item.__init__(self, **kw)
@@ -294,7 +294,7 @@ class PlaceholderItem(Item):
         raise NotImplementedError
 
 class Sequence(Item, ezlist.EZList):
-    yaml_tag = u'!CanvasSequence'
+    yaml_tag = '!CanvasSequence'
 
     def __init__(self, type=None, items=None, expanded=False, **kw):
         Item.__init__(self, **kw)
@@ -429,7 +429,7 @@ class Sequence(Item, ezlist.EZList):
         Item.update(self, length=total_length)
 
 class SequenceItem(object):
-    yaml_tag = u'!CanvasSequenceItem'
+    yaml_tag = '!CanvasSequenceItem'
 
     def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0, type=None, in_motion=False):
         if length < 1:

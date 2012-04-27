@@ -33,15 +33,15 @@ class _DVError(Exception):
     pass
 
 class LibavDvSourcePlugin(plugins.SourcePlugin):
-    plugin_urn = u'urn:fluggo.com/canvas/plugins:libav-dv'
+    plugin_urn = 'urn:fluggo.com/canvas/plugins:libav-dv'
 
     @property
     def name(self):
-        return u'Libav DV Source'
+        return 'Libav DV Source'
 
     @property
     def description(self):
-        return u'Provides special DV support from Libav'
+        return 'Provides special DV support from Libav'
 
     def create_source(self, name, definition):
         '''Return a source from the given definition.
@@ -62,7 +62,7 @@ class LibavDvSourcePlugin(plugins.SourcePlugin):
             return source
 
 class LibavDVCodecPlugin(plugins.CodecPlugin):
-    plugin_urn = u'urn:fluggo.com/canvas/plugins:libav-dv-codec'
+    plugin_urn = 'urn:fluggo.com/canvas/plugins:libav-dv-codec'
 
     def __init__(self):
         plugins.CodecPlugin.__init__(self)
@@ -70,20 +70,20 @@ class LibavDVCodecPlugin(plugins.CodecPlugin):
 
     @property
     def name(self):
-        return u'Libav DV Codec'
+        return 'Libav DV Codec'
 
     @property
     def description(self):
-        return u'Provides codec support for DV using Libav'
+        return 'Provides codec support for DV using Libav'
 
     def get_all_codecs(self):
         '''Return a list of all codecs supported by this plugin.'''
         return self.codecs
 
 class _DVCodec(plugins.Codec):
-    urn = u'urn:fluggo.com/canvas/codecs:libav-dv-codec'
-    format_urns = frozenset([u'urn:libav:codec-format:dvvideo'])
-    stream_type = u'video'
+    urn = 'urn:fluggo.com/canvas/codecs:libav-dv-codec'
+    format_urns = frozenset(['urn:libav:codec-format:dvvideo'])
+    stream_type = 'video'
     can_decode = True
     name = 'Libav DV Video'
     #can_encode = True
@@ -131,9 +131,9 @@ class _DVVideoDecoder(plugins.VideoStream):
         return process.DVReconstructionFilter(decoder)
 
 class _PCMCodec(plugins.Codec):
-    urn = u'urn:fluggo.com/canvas/codecs:libav-pcm-codec'
-    format_urns = frozenset([u'urn:libav:codec-format:pcm_s16le'])
-    stream_type = u'audio'
+    urn = 'urn:fluggo.com/canvas/codecs:libav-pcm-codec'
+    format_urns = frozenset(['urn:libav:codec-format:pcm_s16le'])
+    stream_type = 'audio'
     can_decode = True
     name = 'Libav PCM'
     #can_encode = True
@@ -175,10 +175,10 @@ class _PCMs16leAudioDecoder(plugins.AudioStream):
         return libav.AVAudioDecoder(self._pktstream, 'pcm_s16le', 2)
 
 
-_codec_format_names = {codec_id: name for name, codec_id in libav.__dict__.iteritems() if name.startswith('CODEC_ID_')}
+_codec_format_names = {codec_id: name for name, codec_id in libav.__dict__.items() if name.startswith('CODEC_ID_')}
 
 class _LibavSource(plugins.Source):
-    translation_context = u'fluggo.editor.plugins.libav._LibavSource'
+    translation_context = 'fluggo.editor.plugins.libav._LibavSource'
 
     def __init__(self, name, plugin, path):
         self._plugin = plugin
@@ -226,7 +226,7 @@ class _LibavSource(plugins.Source):
                     # TODO: I don't know if this is the best way to store
                     # the stream ID's; we do need to accomodate the names, though
                     stream = self._find_codec(plugins.VideoDecoderConnector, stream_desc, 0, video_length)
-                    stream.name = unicode(stream_desc.id)
+                    stream.name = str(stream_desc.id)
                     stream.id = stream_desc.id
                     self.follow_alerts(stream)
                     self._streams.append(stream)
@@ -244,15 +244,15 @@ class _LibavSource(plugins.Source):
 
                     # Find codec
                     stream = self._find_codec(plugins.AudioDecoderConnector, stream_desc, 0, audio_length)
-                    stream.name = unicode(stream_desc.id)
+                    stream.name = str(stream_desc.id)
                     stream.id = stream_desc.id
                     self.follow_alerts(stream)
                     self._streams.append(stream)
 
             self.offline = False
         except _DVError as ex:
-            self._load_alert = plugins.Alert(id(self), unicode(ex), icon=plugins.AlertIcon.Error, source=self.name, actions=[
-                QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)])
+            self._load_alert = plugins.Alert(id(self), str(ex), icon=plugins.AlertIcon.Error, source=self.name, actions=[
+                QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)])
             self.show_alert(self._load_alert)
         except Exception as ex:
             # TODO: This would probably be easier if we set up specific exceptions that
@@ -260,18 +260,18 @@ class _LibavSource(plugins.Source):
             # we could make specific handlers for specific situations (example: file is
             # missing, so remap to another file) without requiring every source to code it
             # separately.
-            self._load_alert = plugins.Alert(id(self), u'Unexpected ' + ex.__class__.__name__ + u': ' + unicode(ex), icon=plugins.AlertIcon.Error, source=self.name, actions=[
-                QAction(u'Retry', None, statusTip=u'Try bringing the source online again', triggered=self._retry_load)], exc_info=True)
+            self._load_alert = plugins.Alert(id(self), 'Unexpected ' + ex.__class__.__name__ + ': ' + str(ex), icon=plugins.AlertIcon.Error, source=self.name, actions=[
+                QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)], exc_info=True)
             self.show_alert(self._load_alert)
 
     def _find_codec(self, cls, stream_desc, offset, length):
-        format_urn = u'urn:libav:codec-format:' + unicode(_codec_format_names[stream_desc.codec_id]).lower()[9:]
+        format_urn = 'urn:libav:codec-format:' + str(_codec_format_names[stream_desc.codec_id]).lower()[9:]
         demuxer = libav.AVDemuxer(self.path, stream_desc.index)
         loaded_desc = self._loaded_definitions.get(stream_desc.id)
         urn, definition = None, None
 
         if loaded_desc:
-            urn, definition = loaded_desc[u'urn'], loaded_desc[u'definition']
+            urn, definition = loaded_desc['urn'], loaded_desc['definition']
 
         return cls(demuxer, format_urn, offset, length,
             model_obj=self, codec_urn=urn, definition=definition)
@@ -282,19 +282,19 @@ class _LibavSource(plugins.Source):
     @classmethod
     def from_definition(cls, plugin, name, definition):
         _log.debug('Producing DV source from definition {0!r}', definition)
-        source = cls(name, plugin, definition[u'path'])
-        source._loaded_definitions = definition.get(u'streams') or {}
+        source = cls(name, plugin, definition['path'])
+        source._loaded_definitions = definition.get('streams') or {}
 
         return source
 
     def get_definition(self):
-        definition = {u'path': self.path}
+        definition = {'path': self.path}
         streams = {}
 
         for stream in self._streams:
-            streams[stream.id] = {u'urn': stream.codec.urn, u'definition': stream.get_definition()}
+            streams[stream.id] = {'urn': stream.codec.urn, 'definition': stream.get_definition()}
 
-        definition[u'streams'] = streams
+        definition['streams'] = streams
         return definition
 
     @property

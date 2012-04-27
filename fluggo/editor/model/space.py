@@ -126,14 +126,14 @@ class Space(sources.Source, ezlist.EZList):
         return result
 
 def _space_represent(dumper, data):
-    return dumper.represent_mapping(u'!CanvasSpace', {'items': data._items})
+    return dumper.represent_mapping('!CanvasSpace', {'items': data._items})
 
 def _space_construct(loader, node):
     mapping = loader.construct_mapping(node)
-    result = Space(u'', mapping['video_format'], mapping['audio_format'])
+    result = Space('', mapping['video_format'], mapping['audio_format'])
     result._items = mapping['items']
     return result
 
 yaml.add_representer(Space, _space_represent)
-yaml.add_constructor(u'!CanvasSpace', _space_construct)
+yaml.add_constructor('!CanvasSpace', _space_construct)
 

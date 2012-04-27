@@ -18,7 +18,7 @@
 
 # This extends ordinary Python logging to support new-style format strings
 
-from __future__ import absolute_import
+
 from logging import *
 
 class _DeferredFormat(object):

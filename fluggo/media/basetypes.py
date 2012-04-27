@@ -22,13 +22,13 @@ import yaml, re
 import numbers, fractions
 
 def _rational_represent(dumper, data):
-    return dumper.represent_sequence(u'!rational', [data.numerator, data.denominator])
+    return dumper.represent_sequence('!rational', [data.numerator, data.denominator])
 
 def _rational_construct(loader, node):
     return fractions.Fraction(*loader.construct_sequence(node))
 
 yaml.add_representer(fractions.Fraction, _rational_represent)
-yaml.add_constructor(u'!rational', _rational_construct)
+yaml.add_constructor('!rational', _rational_construct)
 
 
 _v2i = collections.namedtuple('_v2i', 'x y')
@@ -52,7 +52,7 @@ class v2i(_v2i):
         return 'v2i({0.x!r}, {0.y!r})'.format(self)
 
 def _v2i_represent(dumper, data):
-    return dumper.represent_scalar(u'!v2i', repr(data)[3:])
+    return dumper.represent_scalar('!v2i', repr(data)[3:])
 
 def _v2i_construct(loader, node):
     value = loader.construct_scalar(node)
@@ -60,7 +60,7 @@ def _v2i_construct(loader, node):
     return v2i(x, y)
 
 yaml.add_representer(v2i, _v2i_represent)
-yaml.add_constructor(u'!v2i', _v2i_construct)
+yaml.add_constructor('!v2i', _v2i_construct)
 
 
 _box2i = collections.namedtuple('_box2i', 'min max')
@@ -94,20 +94,20 @@ class box2i(_box2i):
     def empty(self):
         return not self.__nonzero__()
 
-    def __nonzero__(self):
+    def __bool__(self):
         return self.max.x >= self.min.x and self.max.y >= self.min.y
 
     def __repr__(self):
         return 'box2i({0.min!r}, {0.max!r})'.format(self)
 
 def _box2i_represent(dumper, data):
-    return dumper.represent_sequence(u'!box2i', [data.min, data.max])
+    return dumper.represent_sequence('!box2i', [data.min, data.max])
 
 def _box2i_construct(loader, node):
     return box2i(*loader.construct_sequence(node))
 
 yaml.add_representer(box2i, _box2i_represent)
-yaml.add_constructor(u'!box2i', _box2i_construct)
+yaml.add_constructor('!box2i', _box2i_construct)
 
 
 _v2f = collections.namedtuple('_v2f', 'x y')
@@ -131,7 +131,7 @@ class v2f(_v2f):
         return _v2f.__repr__(self)[1:]
 
 def _v2f_represent(dumper, data):
-    return dumper.represent_scalar(u'!v2f', repr(data)[3:])
+    return dumper.represent_scalar('!v2f', repr(data)[3:])
 
 def _v2f_construct(loader, node):
     value = loader.construct_scalar(node)
@@ -139,7 +139,7 @@ def _v2f_construct(loader, node):
     return v2f(x, y)
 
 yaml.add_representer(v2f, _v2f_represent)
-yaml.add_constructor(u'!v2f', _v2f_construct)
+yaml.add_constructor('!v2f', _v2f_construct)
 
 
 _box2f = collections.namedtuple('_box2f', 'min max')
@@ -171,20 +171,20 @@ class box2f(_box2f):
     def empty(self):
         return not self.__nonzero__()
 
-    def __nonzero__(self):
+    def __bool__(self):
         return self.max.x >= self.min.x and self.max.y >= self.min.y
 
     def __repr__(self):
         return _box2f.__repr__(self)[1:]
 
 def _box2f_represent(dumper, data):
-    return dumper.represent_sequence(u'!box2f', [data.min, data.max])
+    return dumper.represent_sequence('!box2f', [data.min, data.max])
 
 def _box2f_construct(loader, node):
     return box2f(*loader.construct_sequence(node))
 
 yaml.add_representer(box2f, _box2f_represent)
-yaml.add_constructor(u'!box2f', _box2f_construct)
+yaml.add_constructor('!box2f', _box2f_construct)
 
 
 _rgba = collections.namedtuple('_rgba', 'r g b a')

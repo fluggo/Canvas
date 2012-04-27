@@ -53,11 +53,11 @@ class TimeRuler(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            frame = long(round(float(fractions.Fraction(event.x()) / self.scale) + self.left_frame))
+            frame = int(round(float(fractions.Fraction(event.x()) / self.scale) + self.left_frame))
             self.set_current_frame(frame)
 
     def mouseMoveEvent(self, event):
-        frame = long(round(float(fractions.Fraction(event.x()) / self.scale) + self.left_frame))
+        frame = int(round(float(fractions.Fraction(event.x()) / self.scale) + self.left_frame))
         self.set_current_frame(frame)
 
     def scale(self):
@@ -100,7 +100,7 @@ class TimeRuler(QWidget):
         self.update()
 
     def frame_to_pixel(self, frame):
-        return float(long((float(long(frame)) - self.left_frame) * float(self.scale))) + 0.5
+        return float(int((float(int(frame)) - self.left_frame) * float(self.scale))) + 0.5
 
     def paintEvent(self, event):
         paint = QPainter(self)
@@ -109,8 +109,8 @@ class TimeRuler(QWidget):
 
         major_ticks = self.timecode.get_major_ticks()
 
-        start_frame = long(self.left_frame)
-        width_frames = long(float(fractions.Fraction(self.width()) / self.scale))
+        start_frame = int(self.left_frame)
+        width_frames = int(float(fractions.Fraction(self.width()) / self.scale))
         height = self.height()
 
         if self.minor_tick:

@@ -52,7 +52,7 @@ class SourceSearchModel(QAbstractTableModel):
         self.search('')
 
     def _item_added(self, name):
-        print 'Added ' + name
+        print('Added ' + name)
         if self._match(name):
             length = len(self.current_list)
             self.beginInsertRows(QModelIndex(), length, length)
@@ -60,7 +60,7 @@ class SourceSearchModel(QAbstractTableModel):
             self.endInsertRows()
 
     def _item_removed(self, name):
-        print 'Removed ' + name
+        print('Removed ' + name)
         if self._match(name):
             index = self.current_list.index(name)
             self.beginRemoveRows(QModelIndex(), index, index)
@@ -74,7 +74,7 @@ class SourceSearchModel(QAbstractTableModel):
         self.search_string = search_string.lower()
 
         self.beginResetModel()
-        self.current_list = [name for name in self.source_list.iterkeys() if self._match(name)]
+        self.current_list = [name for name in self.source_list.keys() if self._match(name)]
         self.endResetModel()
 
     def data(self, index, role=Qt.DisplayRole):
@@ -226,7 +226,7 @@ class MainWindow(QMainWindow):
         audformat = plugins.AudioFormat(sample_rate=48000,
             channel_assignment=('FrontLeft', 'FrontRight'))
 
-        self.space = model.Space(u'', vidformat, audformat)
+        self.space = model.Space('', vidformat, audformat)
         self.setup_space()
 
         # FOR TESTING
