@@ -149,7 +149,7 @@ AVAudioSource_dealloc( py_obj_AVAudioSource *self ) {
         self->context = NULL;
     }
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static void convert_uint8( float *out, int outChannels, uint8_t *in, int inChannels, int duration ) {
@@ -434,10 +434,9 @@ static PyGetSetDef AVAudioSource_getsetters[] = {
 };
 
 static PyTypeObject py_type_AVAudioSource = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.libav.AVAudioSource",    // tp_name
-    sizeof(py_obj_AVAudioSource),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.libav.AVAudioSource",
+    .tp_basicsize = sizeof(py_obj_AVAudioSource),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_AudioSource,
     .tp_new = PyType_GenericNew,
@@ -454,6 +453,7 @@ void init_AVAudioSource( PyObject *module ) {
     Py_INCREF( &py_type_AVAudioSource );
     PyModule_AddObject( module, "AVAudioSource", (PyObject *) &py_type_AVAudioSource );
 
-    pyAudioSourceFuncs = PyCObject_FromVoidPtr( &audioSourceFuncs, NULL );
+    pyAudioSourceFuncs = PyCapsule_New( &audioSourceFuncs,
+        AUDIO_FRAME_SOURCE_FUNCS, NULL );
 }
 

@@ -23,17 +23,29 @@
 void init_AlsaPlayer( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
-initalsa() {
-    PyObject *m = Py_InitModule3( "alsa", NULL,
-        "ALSA support for the Fluggo media processing library." );
+PyInit_alsa() {
+    static PyModuleDef mdef = {
+        .m_base = PyModuleDef_HEAD_INIT,
+        .m_name = "alsa",
+        .m_doc = "ALSA support for the Fluggo media processing library.",
+
+        // TODO: Consider making use of this; see Python docs
+        .m_size = -1,
+
+        // TODO: Consider supporting module cleanup
+    };
+
+    PyObject *m = PyModule_Create( &mdef );
 
     // Make sure process is available and initialized
     if( !PyImport_ImportModule( "fluggo.media.process" ) )
-        return;
+        return NULL;
 
     init_AlsaPlayer( m );
 
     if( !g_thread_supported() )
         g_thread_init( NULL );
+
+    return m;
 }
 

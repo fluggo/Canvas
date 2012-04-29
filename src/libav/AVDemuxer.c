@@ -119,7 +119,7 @@ AVDemuxer_dealloc( py_obj_AVDemuxer *self ) {
 
     g_static_mutex_free( &self->mutex );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static bool
@@ -236,10 +236,9 @@ static PyMethodDef AVDemuxer_methods[] = {
 };
 
 static PyTypeObject py_type_AVDemuxer = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.libav.AVDemuxer",    // tp_name
-    sizeof(py_obj_AVDemuxer),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.libav.AVDemuxer",
+    .tp_basicsize = sizeof(py_obj_AVDemuxer),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodecPacketSource,
     .tp_new = PyType_GenericNew,
@@ -256,7 +255,8 @@ void init_AVDemuxer( PyObject *module ) {
     Py_INCREF( &py_type_AVDemuxer );
     PyModule_AddObject( module, "AVDemuxer", (PyObject *) &py_type_AVDemuxer );
 
-    pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pySourceFuncs = PyCapsule_New( &source_funcs,
+        CODEC_PACKET_SOURCE_FUNCS, NULL );
 }
 
 

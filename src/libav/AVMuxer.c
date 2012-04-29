@@ -120,7 +120,7 @@ AVMuxer_dealloc( py_obj_AVMuxer *self ) {
         self->context = NULL;
     }
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static void
@@ -359,10 +359,9 @@ static PyMethodDef AVMuxer_methods[] = {
 };
 
 static PyTypeObject py_type_AVMuxer = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.libav.AVMuxer",    // tp_name
-    sizeof(py_obj_AVMuxer),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.libav.AVMuxer",
+    .tp_basicsize = sizeof(py_obj_AVMuxer),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AVMuxer_dealloc,

@@ -42,13 +42,24 @@ void init_AVMuxer( PyObject *module );
 void init_AVContainer( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
-initlibav() {
-    PyObject *m = Py_InitModule3( "libav", module_methods,
-        "Libav support for the Fluggo media processing library." );
+PyInit_libav() {
+    static PyModuleDef mdef = {
+        .m_base = PyModuleDef_HEAD_INIT,
+        .m_name = "libav",
+        .m_doc = "Libav support for the Fluggo media processing library.",
+
+        // TODO: Consider making use of this; see Python docs
+        .m_size = -1,
+        .m_methods = module_methods,
+
+        // TODO: Consider supporting module cleanup
+    };
+
+    PyObject *m = PyModule_Create( &mdef );
 
     // Make sure process is available and initialized
     if( !PyImport_ImportModule( "fluggo.media.process" ) )
-        return;
+        return NULL;
 
     init_AVVideoSource( m );
     init_AVVideoDecoder( m );
@@ -412,5 +423,7 @@ initlibav() {
     PyModule_AddIntMacro( m, CODEC_ID_TTF );
 
     PyModule_AddIntMacro( m, CODEC_ID_PROBE );
+
+    return m;
 }
 

@@ -162,7 +162,7 @@ AVVideoSource_dealloc( py_obj_AVVideoSource *self ) {
 
     g_static_mutex_free( &self->mutex );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static bool
@@ -635,10 +635,9 @@ static PyMethodDef AVVideoSource_methods[] = {
 };
 
 static PyTypeObject py_type_AVVideoSource = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.libav.AVVideoSource",    // tp_name
-    sizeof(py_obj_AVVideoSource),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.libav.AVVideoSource",
+    .tp_basicsize = sizeof(py_obj_AVVideoSource),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
@@ -669,7 +668,8 @@ void init_AVVideoSource( PyObject *module ) {
     Py_INCREF( &py_type_AVVideoSource );
     PyModule_AddObject( module, "AVVideoSource", (PyObject *) &py_type_AVVideoSource );
 
-    pyVideoSourceFuncs = PyCObject_FromVoidPtr( &videoSourceFuncs, NULL );
+    pyVideoSourceFuncs = PyCapsule_New( &videoSourceFuncs,
+        VIDEO_FRAME_SOURCE_FUNCS, NULL );
 
     q_recon411Shader = g_quark_from_static_string( "AVVideoSource::recon411Filter" );
 }

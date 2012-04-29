@@ -57,14 +57,13 @@ AVStream_init( py_obj_AVStream *self, PyObject *args, PyObject *kwds ) {
 static void
 AVStream_dealloc( py_obj_AVStream *self ) {
     Py_CLEAR( self->container );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyTypeObject py_type_AVStream = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.libav.AVStream",    // tp_name
-    sizeof(py_obj_AVStream),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.libav.AVStream",
+    .tp_basicsize = sizeof(py_obj_AVStream),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AVStream_dealloc,
@@ -129,17 +128,19 @@ AVContainer_dealloc( py_obj_AVContainer *self ) {
         self->format = NULL;
     }
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyObject *
 AVContainer_formatName( py_obj_AVContainer *self, void *closure ) {
-    return PyString_FromString( self->format->iformat->name );
+    return PyUnicode_DecodeASCII( self->format->iformat->name,
+        strlen(self->format->iformat->name), NULL );
 }
 
 static PyObject *
 AVContainer_formatLongName( py_obj_AVContainer *self, void *closure ) {
-    return PyString_FromString( self->format->iformat->long_name );
+    return PyUnicode_DecodeASCII( self->format->iformat->long_name,
+        strlen(self->format->iformat->long_name), NULL );
 }
 
 static PyObject *
@@ -147,17 +148,18 @@ AVContainer_mimeType( py_obj_AVContainer *self, void *closure ) {
     if( !self->out || !self->out->mime_type )
         Py_RETURN_NONE;
 
-    return PyString_FromString( self->out->mime_type );
+    return PyUnicode_DecodeASCII( self->out->mime_type,
+        strlen(self->out->mime_type), NULL );
 }
 
 static PyObject *
 AVContainer_bitRate( py_obj_AVContainer *self, void *closure ) {
-    return PyInt_FromLong( self->format->bit_rate );
+    return PyLong_FromLong( self->format->bit_rate );
 }
 
 static PyObject *
 AVContainer_loopCount( py_obj_AVContainer *self, void *closure ) {
-    return PyInt_FromLong( self->format->loop_output );
+    return PyLong_FromLong( self->format->loop_output );
 }
 
 static PyObject *
@@ -245,18 +247,18 @@ AVStream_type( py_obj_AVStream *self, void *closure ) {
 
 static PyObject *
 AVStream_index( py_obj_AVStream *self, void *closure ) {
-    return PyInt_FromLong( self->stream->index );
+    return PyLong_FromLong( self->stream->index );
 }
 
 static PyObject *
 AVStream_id( py_obj_AVStream *self, void *closure ) {
-    return PyInt_FromLong( self->stream->id );
+    return PyLong_FromLong( self->stream->id );
 }
 
 static PyObject *
 AVStream_bitRate( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->bit_rate )
-        return PyInt_FromLong( self->stream->codec->bit_rate );
+        return PyLong_FromLong( self->stream->codec->bit_rate );
 
     Py_RETURN_NONE;
 }
@@ -272,7 +274,7 @@ AVStream_frameSize( py_obj_AVStream *self, void *closure ) {
 static PyObject *
 AVStream_sampleRate( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_type == AVMEDIA_TYPE_AUDIO )
-        return PyInt_FromLong( self->stream->codec->sample_rate );
+        return PyLong_FromLong( self->stream->codec->sample_rate );
 
     Py_RETURN_NONE;
 }
@@ -280,14 +282,14 @@ AVStream_sampleRate( py_obj_AVStream *self, void *closure ) {
 static PyObject *
 AVStream_channels( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_type == AVMEDIA_TYPE_AUDIO )
-        return PyInt_FromLong( self->stream->codec->channels );
+        return PyLong_FromLong( self->stream->codec->channels );
 
     Py_RETURN_NONE;
 }
 
 static PyObject *
 AVStream_codec_id( py_obj_AVStream *self, void *closure ) {
-    return PyInt_FromLong( self->stream->codec->codec_id );
+    return PyLong_FromLong( self->stream->codec->codec_id );
 }
 
 static PyObject *
@@ -300,7 +302,7 @@ AVStream_codec( py_obj_AVStream *self, void *closure ) {
     if( !codec )
         Py_RETURN_NONE;
 
-    return PyString_FromString( codec->name );
+    return PyUnicode_DecodeASCII( codec->name, strlen(codec->name), NULL );
 }
 
 static PyObject *
@@ -308,7 +310,8 @@ AVStream_encoding( py_obj_AVStream *self, void *closure ) {
     if( self->stream->codec->codec_name[0] == '\0' )
         Py_RETURN_NONE;
 
-    return PyString_FromString( self->stream->codec->codec_name );
+    return PyUnicode_DecodeASCII( self->stream->codec->codec_name,
+        strlen(self->stream->codec->codec_name), NULL );
 }
 
 static PyObject *
@@ -357,10 +360,9 @@ static PyGetSetDef AVStream_getsetters[] = {
 };
 
 static PyTypeObject py_type_AVContainer = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.libav.AVContainer",    // tp_name
-    sizeof(py_obj_AVContainer),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.libav.AVContainer",
+    .tp_basicsize = sizeof(py_obj_AVContainer),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AVContainer_dealloc,
@@ -369,7 +371,7 @@ static PyTypeObject py_type_AVContainer = {
 };
 
 void init_AVContainer( PyObject *module ) {
-#define MKCASE(fmt)        pixFmtLookup[PIX_FMT_##fmt] = PyString_FromString( #fmt );
+#define MKCASE(fmt)        pixFmtLookup[PIX_FMT_##fmt] = PyUnicode_FromString( #fmt );
     MKCASE(YUV420P)
     MKCASE(YUYV422)
     MKCASE(RGB24)
@@ -437,11 +439,11 @@ void init_AVContainer( PyObject *module ) {
     MKCASE(YUV444PLE)
     MKCASE(YUV444PBE)*/
 
-    streamTypeLookup[AVMEDIA_TYPE_VIDEO] = PyString_FromString( "video" );
-    streamTypeLookup[AVMEDIA_TYPE_AUDIO] = PyString_FromString( "audio" );
-    streamTypeLookup[AVMEDIA_TYPE_DATA] = PyString_FromString( "data" );
-    streamTypeLookup[AVMEDIA_TYPE_SUBTITLE] = PyString_FromString( "subtitle" );
-    streamTypeLookup[AVMEDIA_TYPE_ATTACHMENT] = PyString_FromString( "attachment" );
+    streamTypeLookup[AVMEDIA_TYPE_VIDEO] = PyUnicode_FromString( "video" );
+    streamTypeLookup[AVMEDIA_TYPE_AUDIO] = PyUnicode_FromString( "audio" );
+    streamTypeLookup[AVMEDIA_TYPE_DATA] = PyUnicode_FromString( "data" );
+    streamTypeLookup[AVMEDIA_TYPE_SUBTITLE] = PyUnicode_FromString( "subtitle" );
+    streamTypeLookup[AVMEDIA_TYPE_ATTACHMENT] = PyUnicode_FromString( "attachment" );
 
     py_type_AVStream.tp_getset = AVStream_getsetters;
 
