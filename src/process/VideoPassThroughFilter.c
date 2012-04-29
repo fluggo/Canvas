@@ -144,7 +144,7 @@ VideoPassThroughFilter_dealloc( py_obj_VideoPassThroughFilter *self ) {
     py_video_take_source( NULL, &self->source );
     g_static_rw_lock_free( &self->rwlock );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyObject *
@@ -177,12 +177,12 @@ VideoPassThroughFilter_setSource( py_obj_VideoPassThroughFilter *self, PyObject 
 
 static PyObject *
 VideoPassThroughFilter_get_offset( py_obj_VideoPassThroughFilter *self, void *closure ) {
-    return PyInt_FromLong( self->offset );
+    return PyLong_FromLong( self->offset );
 }
 
 static int
 VideoPassThroughFilter_set_offset( py_obj_VideoPassThroughFilter *self, PyObject *value, void *closure ) {
-    int offset = PyInt_AsLong( value );
+    int offset = PyLong_AsLong( value );
 
     if( offset == -1 && PyErr_Occurred() )
         return -1;
@@ -194,7 +194,7 @@ VideoPassThroughFilter_set_offset( py_obj_VideoPassThroughFilter *self, PyObject
 static PyObject *
 VideoPassThroughFilter_get_start_frame( py_obj_VideoPassThroughFilter *self, void *closure ) {
     if( self->start_frame_valid )
-        return PyInt_FromLong( self->start_frame );
+        return PyLong_FromLong( self->start_frame );
 
     Py_RETURN_NONE;
 }
@@ -206,7 +206,7 @@ VideoPassThroughFilter_set_start_frame( py_obj_VideoPassThroughFilter *self, PyO
         return 0;
     }
 
-    int start_frame = PyInt_AsLong( value );
+    int start_frame = PyLong_AsLong( value );
 
     if( start_frame == -1 && PyErr_Occurred() )
         return -1;
@@ -219,7 +219,7 @@ VideoPassThroughFilter_set_start_frame( py_obj_VideoPassThroughFilter *self, PyO
 static PyObject *
 VideoPassThroughFilter_get_end_frame( py_obj_VideoPassThroughFilter *self, void *closure ) {
     if( self->end_frame_valid )
-        return PyInt_FromLong( self->end_frame );
+        return PyLong_FromLong( self->end_frame );
 
     Py_RETURN_NONE;
 }
@@ -231,7 +231,7 @@ VideoPassThroughFilter_set_end_frame( py_obj_VideoPassThroughFilter *self, PyObj
         return 0;
     }
 
-    int end_frame = PyInt_AsLong( value );
+    int end_frame = PyLong_AsLong( value );
 
     if( end_frame == -1 && PyErr_Occurred() )
         return -1;
@@ -270,10 +270,9 @@ static PyMethodDef VideoPassThroughFilter_methods[] = {
 };
 
 static PyTypeObject py_type_VideoPassThroughFilter = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.VideoPassThroughFilter",    // tp_name
-    sizeof(py_obj_VideoPassThroughFilter),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.VideoPassThroughFilter",
+    .tp_basicsize = sizeof(py_obj_VideoPassThroughFilter),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
@@ -290,7 +289,7 @@ void init_VideoPassThroughFilter( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_VideoPassThroughFilter );
     PyModule_AddObject( module, "VideoPassThroughFilter", (PyObject *) &py_type_VideoPassThroughFilter );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

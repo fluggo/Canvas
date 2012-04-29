@@ -45,7 +45,7 @@ DVSubsampleFilter_init( py_obj_DVSubsampleFilter *self, PyObject *args, PyObject
 static void
 DVSubsampleFilter_dealloc( py_obj_DVSubsampleFilter *self ) {
     py_video_take_source( NULL, &self->source );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static coded_image *
@@ -87,10 +87,9 @@ static PyMethodDef DVSubsampleFilter_methods[] = {
 };
 
 static PyTypeObject py_type_DVSubsampleFilter = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.DVSubsampleFilter",    // tp_name
-    sizeof(py_obj_DVSubsampleFilter),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.DVSubsampleFilter",
+    .tp_basicsize = sizeof(py_obj_DVSubsampleFilter),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodedImageSource,
     .tp_new = PyType_GenericNew,
@@ -107,7 +106,7 @@ void init_DVSubsampleFilter( PyObject *module ) {
     Py_INCREF( &py_type_DVSubsampleFilter );
     PyModule_AddObject( module, "DVSubsampleFilter", (PyObject *) &py_type_DVSubsampleFilter );
 
-    pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pySourceFuncs = PyCapsule_New( &source_funcs, CODED_IMAGE_SOURCE_FUNCS, NULL );
 }
 
 

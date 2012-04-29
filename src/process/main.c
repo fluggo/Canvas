@@ -50,7 +50,7 @@ EXPORT bool py_video_take_source( PyObject *obj, video_source **source_ ) {
     source->source.obj = obj;
     source->csource = PyObject_GetAttrString( obj, VIDEO_FRAME_SOURCE_FUNCS );
 
-    if( source->csource == NULL ) {
+    if( !PyCapsule_IsValid( source->csource, VIDEO_FRAME_SOURCE_FUNCS ) ) {
         Py_DECREF( obj );
         g_slice_free( py_video_source, source );
 
@@ -58,7 +58,8 @@ EXPORT bool py_video_take_source( PyObject *obj, video_source **source_ ) {
         return false;
     }
 
-    source->source.funcs = (video_frame_source_funcs*) PyCObject_AsVoidPtr( source->csource );
+    source->source.funcs = (video_frame_source_funcs*) PyCapsule_GetPointer(
+        source->csource, VIDEO_FRAME_SOURCE_FUNCS );
     *source_ = (video_source *) source;
 
     return true;
@@ -76,13 +77,14 @@ EXPORT bool py_audio_take_source( PyObject *source, AudioSourceHolder *holder ) 
     holder->source.obj = source;
     holder->csource = PyObject_GetAttrString( source, AUDIO_FRAME_SOURCE_FUNCS );
 
-    if( holder->csource == NULL ) {
+    if( !PyCapsule_IsValid( holder->csource, AUDIO_FRAME_SOURCE_FUNCS ) ) {
         Py_CLEAR( holder->source.obj );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " AUDIO_FRAME_SOURCE_FUNCS " attribute." );
         return false;
     }
 
-    holder->source.funcs = (AudioFrameSourceFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->source.funcs = (AudioFrameSourceFuncs*) PyCapsule_GetPointer(
+        holder->csource, AUDIO_FRAME_SOURCE_FUNCS );
 
     return true;
 }
@@ -200,9 +202,20 @@ void init_VideoPullQueue( PyObject *module );
 void init_AnimationFunc( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
-initprocess() {
-    PyObject *m = Py_InitModule3( "process", module_methods,
-        "The Fluggo media processing library for Python." );
+PyInit_process() {
+    static PyModuleDef mdef = {
+        .m_base = PyModuleDef_HEAD_INIT,
+        .m_name = "process",
+        .m_doc = "The Fluggo media processing library for Python.",
+
+        // TODO: Consider making use of this; see Python docs
+        .m_size = -1,
+        .m_methods = module_methods,
+
+        // TODO: Consider supporting module cleanup
+    };
+
+    PyObject *m = PyModule_Create( &mdef );
 
     init_half();
     init_basetypes( m );
@@ -232,6 +245,8 @@ initprocess() {
 
     if( !g_thread_supported() )
         g_thread_init( NULL );
+
+    return m;
 }
 
 #if 0

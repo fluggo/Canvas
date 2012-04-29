@@ -185,7 +185,7 @@ VideoMixFilter_dealloc( py_obj_VideoMixFilter *self ) {
     py_video_take_source( NULL, &self->srcB );
     py_framefunc_take_source( NULL, &self->mixB );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static video_frame_source_funcs sourceFuncs = {
@@ -205,10 +205,9 @@ static PyGetSetDef VideoMixFilter_getsetters[] = {
 };
 
 static PyTypeObject py_type_VideoMixFilter = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.VideoMixFilter",    // tp_name
-    sizeof(py_obj_VideoMixFilter),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.VideoMixFilter",
+    .tp_basicsize = sizeof(py_obj_VideoMixFilter),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
@@ -224,7 +223,7 @@ void init_VideoMixFilter( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_VideoMixFilter );
     PyModule_AddObject( module, "VideoMixFilter", (PyObject *) &py_type_VideoMixFilter );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 
     q_crossfadeShader = g_quark_from_static_string( "VideoMixFilter::crossfadeShader" );
 }

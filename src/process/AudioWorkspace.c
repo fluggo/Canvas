@@ -220,16 +220,15 @@ static PyMethodDef WorkspaceItem_methods[] = {
 static void
 WorkspaceItem_dealloc( py_obj_WorkspaceItem *self ) {
     Py_CLEAR( self->workspace );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyObject *WorkspaceItem_richcompare( PyObject *a, PyObject *b, int op );
 
 static PyTypeObject py_type_WorkspaceItem = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.AudioWorkspaceItem",    // tp_name
-    sizeof(py_obj_WorkspaceItem),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.AudioWorkspaceItem",
+    .tp_basicsize = sizeof(py_obj_WorkspaceItem),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) WorkspaceItem_dealloc,
@@ -404,7 +403,7 @@ static PyMethodDef AudioWorkspace_methods[] = {
 };
 
 static PyTypeObject py_type_AudioWorkspace = {
-    PyObject_HEAD_INIT(NULL)
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.AudioWorkspace",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_AudioSource,
@@ -425,7 +424,7 @@ void init_AudioWorkspace( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_AudioWorkspace );
     PyModule_AddObject( module, "AudioWorkspace", (PyObject *) &py_type_AudioWorkspace );
 
-    pysource_funcs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pysource_funcs = PyCapsule_New( &source_funcs, AUDIO_FRAME_SOURCE_FUNCS, NULL );
 
     if( PyType_Ready( &py_type_WorkspaceItem ) < 0 )
         return;

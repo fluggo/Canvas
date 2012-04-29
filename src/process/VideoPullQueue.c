@@ -61,7 +61,7 @@ static PyMethodDef VideoPullQueueItem_methods[] = {
 };
 
 static PyTypeObject py_type_VideoPullQueueItem = {
-    PyObject_HEAD_INIT(NULL)
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.VideoPullQueueItem",
     .tp_basicsize = sizeof(py_obj_VideoPullQueueItem),
     .tp_flags = Py_TPFLAGS_DEFAULT,
@@ -176,7 +176,7 @@ VideoPullQueue_dealloc( py_obj_VideoPullQueue *self ) {
     // There shouldn't be anything on the pool if we're being dealloc'd
     g_thread_pool_free( self->pool, false, true );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyMethodDef VideoPullQueue_methods[] = {
@@ -195,7 +195,7 @@ static PyMethodDef VideoPullQueue_methods[] = {
 };
 
 static PyTypeObject py_type_VideoPullQueue = {
-    PyObject_HEAD_INIT(NULL)
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.VideoPullQueue",
     .tp_basicsize = sizeof(py_obj_VideoPullQueue),
     .tp_flags = Py_TPFLAGS_DEFAULT,

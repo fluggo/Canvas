@@ -47,27 +47,27 @@ AudioFrame_get_funcs( PyObject *self, void *closure ) {
 
 static PyObject *
 AudioFrame_get_full_min_sample( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->full_min_sample );
+    return PyLong_FromLong( PRIV(self)->full_min_sample );
 }
 
 static PyObject *
 AudioFrame_get_full_max_sample( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->full_max_sample );
+    return PyLong_FromLong( PRIV(self)->full_max_sample );
 }
 
 static PyObject *
 AudioFrame_get_current_min_sample( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->current_min_sample );
+    return PyLong_FromLong( PRIV(self)->current_min_sample );
 }
 
 static PyObject *
 AudioFrame_get_current_max_sample( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->current_max_sample );
+    return PyLong_FromLong( PRIV(self)->current_max_sample );
 }
 
 static PyObject *
 AudioFrame_get_channels( PyObject *self, void *closure ) {
-    return PyInt_FromLong( PRIV(self)->channels );
+    return PyLong_FromLong( PRIV(self)->channels );
 }
 
 static PyGetSetDef AudioFrame_getsetters[] = {
@@ -126,7 +126,7 @@ static PyMethodDef AudioFrame_methods[] = {
 };
 
 static PyTypeObject py_type_AudioFrame = {
-    PyObject_HEAD_INIT(NULL)
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.AudioFrame",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
@@ -201,7 +201,7 @@ void init_AudioFrame( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_AudioFrame );
     PyModule_AddObject( module, "AudioFrame", (PyObject *) &py_type_AudioFrame );
 
-    pysource_funcs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pysource_funcs = PyCapsule_New( &source_funcs, AUDIO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

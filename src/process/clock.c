@@ -46,7 +46,7 @@ ClockCallbackHandle_dealloc( py_obj_ClockCallbackHandle *self ) {
 
     py_presentation_clock_take_source( NULL, &self->holder );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyMethodDef ClockCallbackHandle_methods[] = {
@@ -56,10 +56,9 @@ static PyMethodDef ClockCallbackHandle_methods[] = {
 };
 
 static PyTypeObject py_type_ClockCallbackHandle = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.ClockCallbackHandle",    // tp_name
-    sizeof(py_obj_ClockCallbackHandle),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.ClockCallbackHandle",
+    .tp_basicsize = sizeof(py_obj_ClockCallbackHandle),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_methods = ClockCallbackHandle_methods,
     .tp_dealloc = (destructor) ClockCallbackHandle_dealloc,
@@ -179,10 +178,9 @@ static PyMethodDef PresentationClock_methods[] = {
 };
 
 EXPORT PyTypeObject py_type_PresentationClock = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.PresentationClock",    // tp_name
-    0,    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.PresentationClock",
+    .tp_basicsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_methods = PresentationClock_methods,
 };
@@ -206,13 +204,14 @@ EXPORT bool py_presentation_clock_take_source( PyObject *source, PresentationClo
     holder->source.obj = source;
     holder->csource = PyObject_GetAttrString( source, PRESENTATION_CLOCK_FUNCS );
 
-    if( holder->csource == NULL ) {
+    if( !PyCapsule_IsValid( holder->csource, PRESENTATION_CLOCK_FUNCS ) ) {
         Py_CLEAR( holder->source.obj );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " PRESENTATION_CLOCK_FUNCS " attribute." );
         return false;
     }
 
-    holder->source.funcs = (PresentationClockFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->source.funcs = (PresentationClockFuncs*) PyCapsule_GetPointer(
+        holder->csource, PRESENTATION_CLOCK_FUNCS );
     g_assert(holder->source.funcs);
 
     return true;
@@ -265,7 +264,7 @@ SystemPresentationClock_dealloc( py_obj_SystemPresentationClock *self ) {
     g_mutex_free( self->mutex );
     g_static_rw_lock_free( &self->callback_lock );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static void
@@ -473,10 +472,9 @@ static PyGetSetDef SystemPresentationClock_getsetters[] = {
 };
 
 static PyTypeObject py_type_SystemPresentationClock = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.SystemPresentationClock",    // tp_name
-    sizeof(py_obj_SystemPresentationClock),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.SystemPresentationClock",
+    .tp_basicsize = sizeof(py_obj_SystemPresentationClock),
     .tp_base = &py_type_PresentationClock,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
@@ -497,7 +495,7 @@ void init_SystemPresentationClock( PyObject *module ) {
     Py_INCREF( &py_type_SystemPresentationClock );
     PyModule_AddObject( module, "SystemPresentationClock", (PyObject *) &py_type_SystemPresentationClock );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, PRESENTATION_CLOCK_FUNCS, NULL );
 
     if( PyType_Ready( &py_type_ClockCallbackHandle ) < 0 )
         return;

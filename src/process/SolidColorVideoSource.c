@@ -155,7 +155,7 @@ static void
 SolidColorVideoSource_dealloc( py_obj_SolidColorVideoSource *self ) {
     py_framefunc_take_source( NULL, &self->window );
     py_framefunc_take_source( NULL, &self->color_f32 );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static video_frame_source_funcs sourceFuncs = {
@@ -176,10 +176,9 @@ static PyGetSetDef SolidColorVideoSource_getsetters[] = {
 };
 
 static PyTypeObject py_type_SolidColorVideoSource = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.SolidColorVideoSource",    // tp_name
-    sizeof(py_obj_SolidColorVideoSource),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.SolidColorVideoSource",
+    .tp_basicsize = sizeof(py_obj_SolidColorVideoSource),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
@@ -195,7 +194,7 @@ void init_SolidColorVideoSource( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_SolidColorVideoSource );
     PyModule_AddObject( module, "SolidColorVideoSource", (PyObject *) &py_type_SolidColorVideoSource );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

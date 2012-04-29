@@ -55,7 +55,7 @@ AudioPassThroughFilter_getFrame( py_obj_AudioPassThroughFilter *self, audio_fram
 static void
 AudioPassThroughFilter_dealloc( py_obj_AudioPassThroughFilter *self ) {
     py_audio_take_source( NULL, &self->source );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyObject *
@@ -105,10 +105,9 @@ static PyMethodDef AudioPassThroughFilter_methods[] = {
 };
 
 static PyTypeObject py_type_AudioPassThroughFilter = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.AudioPassThroughFilter",    // tp_name
-    sizeof(py_obj_AudioPassThroughFilter),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.AudioPassThroughFilter",
+    .tp_basicsize = sizeof(py_obj_AudioPassThroughFilter),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_base = &py_type_AudioSource,
     .tp_new = PyType_GenericNew,
@@ -125,5 +124,5 @@ void init_AudioPassThroughFilter( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_AudioPassThroughFilter );
     PyModule_AddObject( module, "AudioPassThroughFilter", (PyObject *) &py_type_AudioPassThroughFilter );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, AUDIO_FRAME_SOURCE_FUNCS, NULL );
 }

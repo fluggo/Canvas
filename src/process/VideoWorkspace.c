@@ -264,16 +264,15 @@ static PyMethodDef WorkspaceItem_methods[] = {
 static void
 WorkspaceItem_dealloc( py_obj_WorkspaceItem *self ) {
     Py_CLEAR( self->workspace );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyObject *WorkspaceItem_richcompare( PyObject *a, PyObject *b, int op );
 
 static PyTypeObject py_type_WorkspaceItem = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.VideoWorkspaceItem",    // tp_name
-    sizeof(py_obj_WorkspaceItem),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.VideoWorkspaceItem",
+    .tp_basicsize = sizeof(py_obj_WorkspaceItem),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) WorkspaceItem_dealloc,
@@ -465,8 +464,8 @@ static PyMethodDef Workspace_methods[] = {
 };
 
 static PyTypeObject py_type_Workspace = {
-    PyObject_HEAD_INIT(NULL)
-    .tp_name = "fluggo.media.process.VideoWorkspace",    // tp_name
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.VideoWorkspace",
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
@@ -486,7 +485,7 @@ void init_VideoWorkspace( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_Workspace );
     PyModule_AddObject( module, "VideoWorkspace", (PyObject *) &py_type_Workspace );
 
-    pysource_funcs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pysource_funcs = PyCapsule_New( &source_funcs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 
     if( PyType_Ready( &py_type_WorkspaceItem ) < 0 )
         return;

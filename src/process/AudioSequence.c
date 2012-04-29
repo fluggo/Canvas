@@ -280,7 +280,7 @@ static PyMethodDef AudioSequence_methods[] = {
 };
 
 static PyTypeObject py_type_AudioSequence = {
-    PyObject_HEAD_INIT(NULL)
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.AudioSequence",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_dealloc = (destructor) AudioSequence_dealloc,
@@ -306,7 +306,7 @@ void init_AudioSequence( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_AudioSequence );
     PyModule_AddObject( module, "AudioSequence", (PyObject *) &py_type_AudioSequence );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, AUDIO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 
