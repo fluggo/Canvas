@@ -174,12 +174,11 @@ AnimationPoint_clear( py_obj_AnimationPoint *self ) {
 static void
 AnimationPoint_dealloc( py_obj_AnimationPoint *self ) {
     Py_CLEAR( self->owner );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyTypeObject py_type_AnimationPoint = {
-    PyObject_HEAD_INIT(NULL)
-    .ob_size = 0,
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.AnimationPoint",
     .tp_basicsize = sizeof(py_obj_AnimationPoint),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
@@ -217,7 +216,7 @@ AnimationFunc_dealloc( py_obj_AnimationFunc *self ) {
     g_sequence_free( self->sequence );
     g_static_rw_lock_free( &self->lock );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static int
@@ -349,8 +348,7 @@ static PyMethodDef AnimationFunc_methods[] = {
 };
 
 EXPORT PyTypeObject py_type_AnimationFunc = {
-    PyObject_HEAD_INIT(NULL)
-    .ob_size = 0,
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.AnimationFunc",
     .tp_basicsize = sizeof(py_obj_AnimationFunc),
     .tp_base = &py_type_FrameFunction,
@@ -482,6 +480,7 @@ void init_AnimationFunc( PyObject *module ) {
     PyModule_AddIntMacro( module, POINT_HOLD );
     PyModule_AddIntMacro( module, POINT_LINEAR );
 
-    AnimationFunc_pysourceFuncs = PyCObject_FromVoidPtr( &AnimationFunc_sourceFuncs, NULL );
+    AnimationFunc_pysourceFuncs = PyCapsule_New( &AnimationFunc_sourceFuncs,
+        FRAME_FUNCTION_FUNCS, NULL );
 }
 

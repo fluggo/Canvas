@@ -44,7 +44,7 @@ DVReconstructionFilter_init( py_obj_DVReconstructionFilter *self, PyObject *args
 static void
 DVReconstructionFilter_dealloc( py_obj_DVReconstructionFilter *self ) {
     py_coded_image_take_source( NULL, &self->source );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static void
@@ -80,10 +80,9 @@ static PyGetSetDef DVReconstructionFilter_getsetters[] = {
 };
 
 static PyTypeObject py_type_DVReconstructionFilter = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.DVReconstructionFilter",    // tp_name
-    sizeof(py_obj_DVReconstructionFilter),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.DVReconstructionFilter",
+    .tp_basicsize = sizeof(py_obj_DVReconstructionFilter),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
@@ -99,7 +98,7 @@ void init_DVReconstructionFilter( PyObject *module ) {
     Py_INCREF( &py_type_DVReconstructionFilter );
     PyModule_AddObject( module, "DVReconstructionFilter", (PyObject *) &py_type_DVReconstructionFilter );
 
-    pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pySourceFuncs = PyCapsule_New( &source_funcs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

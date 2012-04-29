@@ -75,8 +75,8 @@ py_parse_rgba_f32( PyObject *o, rgba_f32 *v ) {
 
 EXPORT bool py_parse_rational( PyObject *in, rational *out ) {
     // Accept integers as rationals
-    if( PyInt_Check( in ) ) {
-        out->n = PyInt_AsLong( in );
+    if( PyLong_Check( in ) ) {
+        out->n = PyLong_AsLong( in );
         out->d = 1;
 
         return true;
@@ -87,7 +87,7 @@ EXPORT bool py_parse_rational( PyObject *in, rational *out ) {
     if( numerator == NULL )
         return false;
 
-    long n = PyInt_AsLong( numerator );
+    long n = PyLong_AsLong( numerator );
     Py_DECREF(numerator);
 
     if( n == -1 && PyErr_Occurred() != NULL )
@@ -98,7 +98,7 @@ EXPORT bool py_parse_rational( PyObject *in, rational *out ) {
     if( denominator == NULL )
         return false;
 
-    long d = PyInt_AsLong( denominator );
+    long d = PyLong_AsLong( denominator );
     Py_DECREF(denominator);
 
     if( d == -1 && PyErr_Occurred() != NULL )

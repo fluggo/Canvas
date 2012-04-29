@@ -27,10 +27,9 @@ generic_dealloc( PyObject *self ) {
 
 #define DECLARE_FRAMEFUNC(name, deallocFunc)    \
     static PyTypeObject py_type_##name = { \
-        PyObject_HEAD_INIT(NULL) \
-        0, \
-        "fluggo.media.process." #name, \
-        sizeof(py_obj_##name), \
+        PyVarObject_HEAD_INIT(NULL, 0) \
+        .tp_name = "fluggo.media.process." #name, \
+        .tp_basicsize = sizeof(py_obj_##name), \
         .tp_flags = Py_TPFLAGS_DEFAULT, \
         .tp_base = &py_type_FrameFunction, \
         .tp_new = PyType_GenericNew, \
@@ -64,7 +63,7 @@ generic_dealloc( PyObject *self ) {
     Py_INCREF( (PyObject*) &py_type_##name ); \
     PyModule_AddObject( module, #name, (PyObject *) &py_type_##name ); \
     \
-    name##_pysourceFuncs = PyCObject_FromVoidPtr( &name##_sourceFuncs, NULL );
+    name##_pysourceFuncs = PyCapsule_New( &name##_sourceFuncs, FRAME_FUNCTION_FUNCS, NULL );
 
 
 typedef struct {
@@ -262,13 +261,14 @@ py_framefunc_take_source( PyObject *source, FrameFunctionHolder *holder ) {
     holder->source = source;
     holder->csource = PyObject_GetAttrString( source, FRAME_FUNCTION_FUNCS );
 
-    if( holder->csource == NULL ) {
+    if( !PyCapsule_IsValid( holder->csource, FRAME_FUNCTION_FUNCS ) ) {
         Py_CLEAR( holder->source );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " FRAME_FUNCTION_FUNCS " attribute." );
         return false;
     }
 
-    holder->funcs = (FrameFunctionFuncs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->funcs = (FrameFunctionFuncs*) PyCapsule_GetPointer(
+        holder->csource, FRAME_FUNCTION_FUNCS );
 
     return true;
 }
@@ -437,10 +437,9 @@ static PyMethodDef FrameFunction_methods[] = {
 };
 
 EXPORT PyTypeObject py_type_FrameFunction = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.FrameFunction",    // tp_name
-    0,    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.FrameFunction",
+    .tp_basicsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_methods = FrameFunction_methods,
 };

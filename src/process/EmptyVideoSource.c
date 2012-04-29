@@ -77,10 +77,9 @@ static PyGetSetDef EmptyVideoSource_getsetters[] = {
 };
 
 static PyTypeObject py_type_EmptyVideoSource = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.EmptyVideoSource",    // tp_name
-    sizeof(PyObject),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.EmptyVideoSource",
+    .tp_basicsize = sizeof(PyObject),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
@@ -96,7 +95,7 @@ void init_EmptyVideoSource( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_EmptyVideoSource );
     PyModule_AddObject( module, "EmptyVideoSource", (PyObject *) &py_type_EmptyVideoSource );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

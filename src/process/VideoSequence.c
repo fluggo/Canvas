@@ -340,8 +340,8 @@ static PyMethodDef VideoSequence_methods[] = {
 };
 
 static PyTypeObject py_type_VideoSequence = {
-    PyObject_HEAD_INIT(NULL)
-    .tp_name = "fluggo.media.process.VideoSequence",    // tp_name
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.VideoSequence",
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
     .tp_new = PyType_GenericNew,
@@ -361,7 +361,7 @@ void init_VideoSequence( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_VideoSequence );
     PyModule_AddObject( module, "VideoSequence", (PyObject *) &py_type_VideoSequence );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

@@ -35,13 +35,14 @@ py_coded_image_take_source( PyObject *source, CodedImageSourceHolder *holder ) {
     holder->source.obj = source;
     holder->csource = PyObject_GetAttrString( source, CODED_IMAGE_SOURCE_FUNCS );
 
-    if( holder->csource == NULL ) {
+    if( !PyCapsule_IsValid( holder->csource, CODED_IMAGE_SOURCE_FUNCS ) ) {
         Py_CLEAR( holder->source.obj );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " CODED_IMAGE_SOURCE_FUNCS " attribute." );
         return false;
     }
 
-    holder->source.funcs = (coded_image_source_funcs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->source.funcs = (coded_image_source_funcs*)
+        PyCapsule_GetPointer( holder->csource, CODED_IMAGE_SOURCE_FUNCS );
 
     return true;
 }
@@ -104,10 +105,9 @@ static PyMethodDef CodedImageSource_methods[] = {
 };
 
 EXPORT PyTypeObject py_type_CodedImageSource = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.CodedImageSource",    // tp_name
-    0,    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.CodedImageSource",
+    .tp_basicsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_methods = CodedImageSource_methods,
 };

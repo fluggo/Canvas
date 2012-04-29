@@ -141,7 +141,7 @@ RgbaFrameF16_to_argb32_string( PyObject *self, PyObject *args ) {
         }
     }
 
-    PyObject *result = PyString_FromStringAndSize( (const char *) data, len * sizeof(uint32_t) );
+    PyObject *result = PyByteArray_FromStringAndSize( (const char *) data, len * sizeof(uint32_t) );
 
     PyMem_Free( data );
 
@@ -151,14 +151,14 @@ RgbaFrameF16_to_argb32_string( PyObject *self, PyObject *args ) {
 static PyMethodDef RgbaFrameF16_methods[] = {
     { "pixel", (PyCFunction) RgbaFrameF16_pixel, METH_VARARGS,
         "Get the pixel at the given coordinates, or None if the pixel isn't defined in this frame." },
-    { "to_argb32_string", (PyCFunction) RgbaFrameF16_to_argb32_string, METH_VARARGS,
-        "Get the defined window in the image as a string containing premultiplied ARGB values, suitable for use with QImage." },
+    { "to_argb32_bytes", (PyCFunction) RgbaFrameF16_to_argb32_string, METH_VARARGS,
+        "Get the defined window in the image as a bytes object containing premultiplied ARGB values, suitable for use with QImage." },
     { NULL }
 };
 
 static PyTypeObject py_type_RgbaFrameF16 = {
-    PyObject_HEAD_INIT(NULL)
-    .tp_name = "fluggo.media.process.RgbaFrameF16",    // tp_name
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.RgbaFrameF16",
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_base = &py_type_VideoSource,
@@ -263,7 +263,7 @@ void init_RgbaFrameF16( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_RgbaFrameF16 );
     PyModule_AddObject( module, "RgbaFrameF16", (PyObject *) &py_type_RgbaFrameF16 );
 
-    pysource_funcs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pysource_funcs = PyCapsule_New( &source_funcs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

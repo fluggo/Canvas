@@ -113,7 +113,7 @@ static PyMethodDef RgbaFrameF32_methods[] = {
 };
 
 static PyTypeObject py_type_RgbaFrameF32 = {
-    PyObject_HEAD_INIT(NULL)
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.RgbaFrameF32",    // tp_name
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_VideoSource,
@@ -219,7 +219,7 @@ void init_RgbaFrameF32( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_RgbaFrameF32 );
     PyModule_AddObject( module, "RgbaFrameF32", (PyObject *) &py_type_RgbaFrameF32 );
 
-    pysource_funcs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pysource_funcs = PyCapsule_New( &source_funcs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

@@ -35,13 +35,14 @@ py_codec_packet_take_source( PyObject *source, CodecPacketSourceHolder *holder )
     holder->source.obj = source;
     holder->csource = PyObject_GetAttrString( source, CODEC_PACKET_SOURCE_FUNCS );
 
-    if( holder->csource == NULL ) {
+    if( !PyCapsule_IsValid( holder->csource, CODEC_PACKET_SOURCE_FUNCS ) ) {
         Py_CLEAR( holder->source.obj );
         PyErr_SetString( PyExc_Exception, "The source didn't have an acceptable " CODEC_PACKET_SOURCE_FUNCS " attribute." );
         return false;
     }
 
-    holder->source.funcs = (codec_packet_source_funcs*) PyCObject_AsVoidPtr( holder->csource );
+    holder->source.funcs = (codec_packet_source_funcs*)
+        PyCapsule_GetPointer( holder->csource, CODEC_PACKET_SOURCE_FUNCS );
 
     return true;
 }
@@ -180,10 +181,9 @@ static PyMethodDef CodecPacketSource_methods[] = {
 };
 
 EXPORT PyTypeObject py_type_CodecPacketSource = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.CodecPacketSource",    // tp_name
-    0,    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.CodecPacketSource",
+    .tp_basicsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_methods = CodecPacketSource_methods,
 };
