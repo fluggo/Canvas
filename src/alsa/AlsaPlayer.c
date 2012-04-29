@@ -428,7 +428,7 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
     g_static_rw_lock_free( &self->callback_lock );
     g_static_rw_lock_free( &self->frame_read_rwlock );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static PyObject *AlsaPlayer_setConfig( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
@@ -655,10 +655,9 @@ static PyMethodDef AlsaPlayer_methods[] = {
 };
 
 static PyTypeObject py_type_AlsaPlayer = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.process.AlsaPlayer",    // tp_name
-    sizeof(py_obj_AlsaPlayer),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.process.AlsaPlayer",
+    .tp_basicsize = sizeof(py_obj_AlsaPlayer),
     .tp_base = &py_type_PresentationClock,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
@@ -675,6 +674,6 @@ void init_AlsaPlayer( PyObject *module ) {
     Py_INCREF( &py_type_AlsaPlayer );
     PyModule_AddObject( module, "AlsaPlayer", (PyObject *) &py_type_AlsaPlayer );
 
-    pysourceFuncs = PyCObject_FromVoidPtr( &sourceFuncs, NULL );
+    pysourceFuncs = PyCapsule_New( &sourceFuncs, PRESENTATION_CLOCK_FUNCS, NULL );
 }
 

@@ -170,7 +170,7 @@ AVVideoDecoder_dealloc( py_obj_AVVideoDecoder *self ) {
     py_codec_packet_take_source( NULL, &self->source );
     g_static_mutex_free( &self->mutex );
 
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static coded_image *
@@ -269,10 +269,9 @@ static PyMethodDef AVVideoDecoder_methods[] = {
 };
 
 static PyTypeObject py_type_AVVideoDecoder = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.libav.AVVideoDecoder",    // tp_name
-    sizeof(py_obj_AVVideoDecoder),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.libav.AVVideoDecoder",
+    .tp_basicsize = sizeof(py_obj_AVVideoDecoder),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodedImageSource,
     .tp_new = PyType_GenericNew,
@@ -289,7 +288,8 @@ void init_AVVideoDecoder( PyObject *module ) {
     Py_INCREF( &py_type_AVVideoDecoder );
     PyModule_AddObject( module, "AVVideoDecoder", (PyObject *) &py_type_AVVideoDecoder );
 
-    pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pySourceFuncs = PyCapsule_New( &source_funcs,
+        VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
 
 

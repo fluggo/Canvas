@@ -122,7 +122,7 @@ AVVideoEncoder_dealloc( py_obj_AVVideoEncoder *self ) {
         avcodec_close( &self->context );
 
     py_coded_image_take_source( NULL, &self->source );
-    self->ob_type->tp_free( (PyObject*) self );
+    Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static void
@@ -243,12 +243,12 @@ AVVideoEncoder_getFuncs( py_obj_AVVideoEncoder *self, void *closure ) {
 
 static PyObject *
 AVVideoEncoder_get_progress( py_obj_AVVideoEncoder *self, void *closure ) {
-    return PyInt_FromLong( self->current_frame - self->start_frame );
+    return PyLong_FromLong( self->current_frame - self->start_frame );
 }
 
 static PyObject *
 AVVideoEncoder_get_progress_count( py_obj_AVVideoEncoder *self, void *closure ) {
-    return PyInt_FromLong( self->end_frame - self->start_frame );
+    return PyLong_FromLong( self->end_frame - self->start_frame );
 }
 
 static PyGetSetDef AVVideoEncoder_getsetters[] = {
@@ -263,10 +263,9 @@ static PyMethodDef AVVideoEncoder_methods[] = {
 };
 
 static PyTypeObject py_type_AVVideoEncoder = {
-    PyObject_HEAD_INIT(NULL)
-    0,            // ob_size
-    "fluggo.media.libav.AVVideoEncoder",    // tp_name
-    sizeof(py_obj_AVVideoEncoder),    // tp_basicsize
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.libav.AVVideoEncoder",
+    .tp_basicsize = sizeof(py_obj_AVVideoEncoder),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_base = &py_type_CodecPacketSource,
     .tp_new = PyType_GenericNew,
@@ -283,7 +282,8 @@ void init_AVVideoEncoder( PyObject *module ) {
     Py_INCREF( &py_type_AVVideoEncoder );
     PyModule_AddObject( module, "AVVideoEncoder", (PyObject *) &py_type_AVVideoEncoder );
 
-    pySourceFuncs = PyCObject_FromVoidPtr( &source_funcs, NULL );
+    pySourceFuncs = PyCapsule_New( &source_funcs,
+        CODEC_PACKET_SOURCE_FUNCS, NULL );
 }
 
 
