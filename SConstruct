@@ -1,4 +1,4 @@
-import distutils.sysconfig, os.path, sys
+import distutils.sysconfig, os.path, os, sys
 import fnmatch
 import SCons.Defaults, SCons.Errors
 
@@ -9,6 +9,22 @@ def locate(pattern, root=os.curdir):
     for path, dirs, files in os.walk(os.path.abspath(root)):
         for filename in fnmatch.filter(files, pattern):
             yield os.path.join(path, filename)
+
+# Utility function to find out what Python3 thinks
+def python3_script(script):
+    with open('.temp_python', 'w') as scriptfile:
+        scriptfile.write(script)
+
+    Execute('@python3 .temp_python > .temp_python_out')
+
+    os.remove('.temp_python')
+    result = None
+
+    with open('.temp_python_out', 'r') as outfile:
+        result = outfile.read(-1)
+
+    os.remove('.temp_python_out')
+    return result
 
 debug = int(ARGUMENTS.get('debug', 0))
 assembly = int(ARGUMENTS.get('assembly', 0))
@@ -62,8 +78,13 @@ elif not (debug or assembly):
     env.Append(CCFLAGS=['-fno-signed-zeros'])
 
 # Set up a basic Python environment
+python_include = python3_script('''
+import distutils.sysconfig
+print(distutils.sysconfig.get_python_inc())
+''').strip()
+
 python_env = env.Clone(SHLIBPREFIX='')
-python_env.Append(CPPPATH=[distutils.sysconfig.get_python_inc()],
+python_env.Append(CPPPATH=[python_include],
                   CCFLAGS=['-fno-strict-aliasing'])
 
 if mingw or env['PLATFORM'] == 'win32':
@@ -153,8 +174,14 @@ else:
     print 'Skipping ALSA build'
 
 try:
-    import PyQt4.pyqtconfig
-    config = PyQt4.pyqtconfig.Configuration()
+    (sip_bin, pyqt_sip_dir, pyqt_sip_flags) = python3_script('''
+import PyQt4.pyqtconfig
+config = PyQt4.pyqtconfig.Configuration()
+
+print(config.sip_bin)
+print(config.pyqt_sip_dir)
+print(config.pyqt_sip_flags)
+''').splitlines()
 
     # TODO: Separate this out as a tool
 
@@ -163,9 +190,9 @@ try:
     # We need to publish initqt, let sip handle it
     qt_env['CCFLAGS'].remove('-fvisibility=hidden')
 
-    qt_env['SIP'] = config.sip_bin
-    qt_env['SIPINCLUDE'] = config.pyqt_sip_dir
-    qt_env['SIPFLAGS'] = config.pyqt_sip_flags
+    qt_env['SIP'] = sip_bin
+    qt_env['SIPINCLUDE'] = pyqt_sip_dir
+    qt_env['SIPFLAGS'] = pyqt_sip_flags
     qt_env['SIPCOM'] = '$SIP -I $SIPINCLUDE -c $SIPSRCDIR $SIPFLAGS $SOURCES'
     qt_env['SIPSRCDIR'] = 'build/qt/sip'
     sip_action = Action('$SIPCOM', '$SIPCOMSTR')
