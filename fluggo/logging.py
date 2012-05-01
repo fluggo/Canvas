@@ -32,14 +32,11 @@ class _DeferredFormat(object):
     def __str__(self):
         return self.format.format(*self.args, **self.kw)
 
-_baseLog = getLoggerClass()
+# Works for Python 3.2 and later
+_baseFactory = getLogRecordFactory()
 
-class _logger(_baseLog):
-    def warning(self, *args, **kw):
-        _baseLog.warning(self, *args, **kw)
+def _factory(name, lvl, fn, lno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
+    return _baseFactory(name, lvl, fn, lno, _DeferredFormat(msg, *args, **kwargs), [], exc_info, func=func, sinfo=sinfo)
 
-    def makeRecord(self, name, lvl, fn, lno, msg, args, exc_info, func=None, extra=None):
-        return _baseLog.makeRecord(self, name, lvl, fn, lno, _DeferredFormat(msg, *args, **(extra or {})), [], exc_info, func=func, extra=extra)
-
-setLoggerClass(_logger)
+setLogRecordFactory(_factory)
 
