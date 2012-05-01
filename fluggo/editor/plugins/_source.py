@@ -377,7 +377,7 @@ class AudioFormat(_AudioFormat):
     format_type = u'audio'
 
     def __new__(cls, sample_rate=fractions.Fraction(1, 1), channel_assignment=None):
-        return _AudioFormat.__new__(cls, sample_rate, channel_assignment or [])
+        return _AudioFormat.__new__(cls, fractions.Fraction(sample_rate), channel_assignment or [])
 
 def _AudioFormat_represent(dumper, data):
     mapp = {u'sample_rate': data.sample_rate, u'channel_assignment': data.channel_assignment}
