@@ -1,15 +1,15 @@
 import unittest
 from fluggo.media import process, formats
 from fluggo.media.basetypes import *
-from fluggo.editor import model
+from fluggo.editor import model, plugins
 
-vidformat = formats.StreamFormat('video')
-vidformat.override[formats.VideoProperty.SAMPLE_ASPECT_RATIO] = fractions.Fraction(40, 33)
-vidformat.override[formats.VideoProperty.FRAME_RATE] = fractions.Fraction(24000, 1001)
-vidformat.override[formats.VideoProperty.MAX_DATA_WINDOW] = box2i((0, -1), (719, 478))
-audformat = formats.StreamFormat('audio')
-audformat.override[formats.AudioProperty.SAMPLE_RATE] = 48000
-audformat.override[formats.AudioProperty.CHANNELS] = ['FL', 'FR']
+vidformat = plugins.VideoFormat(
+    pixel_aspect_ratio = fractions.Fraction(40, 33),
+    frame_rate = fractions.Fraction(24000, 1001),
+    full_frame = box2i((0, -1), (719, 478)))
+
+audformat = plugins.AudioFormat(
+    sample_rate = 48000, channel_assignment=['FL', 'FR'])
 
 class test_ItemManipulator(unittest.TestCase):
     def test_sample(self):
