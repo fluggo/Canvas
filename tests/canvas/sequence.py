@@ -4,15 +4,6 @@ from fluggo.media.basetypes import *
 from fluggo.editor.graph.video import SequenceVideoManager
 from fluggo.editor import model, plugins
 
-class DeadMuxer(object):
-    @classmethod
-    def handles_container(cls, container):
-        return True
-
-    @classmethod
-    def get_stream(cls, container, stream_index):
-        return container
-
 class FailedSource(plugins.Source):
     '''A source that refuses to come online.'''
     def __init__(self, name):
@@ -36,7 +27,7 @@ class SilentFailedSource(plugins.Source):
     def get_stream(self, name):
         raise plugins.SourceOfflineError
 
-slist = model.SourceList([DeadMuxer])
+slist = model.SourceList()
 slist[u'red'] = model.RuntimeSource(u'red', {u'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100)))})
 slist[u'green'] = model.RuntimeSource(u'green', {u'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 100, 0, 1), 100)))})
 slist[u'blue'] = model.RuntimeSource(u'blue', {u'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 0, 100, 1), 100)))})
