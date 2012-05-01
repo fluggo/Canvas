@@ -559,7 +559,7 @@ class ItemManipulator(object):
                 seq_items.append(item)
 
         # Sort and combine the sequence items
-        for seq, itemlist in itertools.groupby(sorted(seq_items, cmp=lambda a, b: cmp(a.sequence, b.sequence) or cmp(a.index, b.index)), key=lambda a: a.sequence):
+        for seq, itemlist in itertools.groupby(sorted(seq_items, key=lambda a: (a.sequence, a.index)), key=lambda a: a.sequence):
             self.manips.append(_SequenceItemGroupManipulator(list(itemlist), grab_x, grab_y))
 
     def can_set_space_item(self, space, x, y):

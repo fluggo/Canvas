@@ -61,7 +61,7 @@ class AutoIndexList(ezlist.EZList):
         return len(self.list)
 
 class SortedList(collections.Sequence):
-    def __init__(self, iterable=None, keyfunc=None, cmpfunc=None, index_attr=None):
+    def __init__(self, iterable=None, keyfunc=None, index_attr=None):
         '''
         Create a sorted list.
 
@@ -71,23 +71,9 @@ class SortedList(collections.Sequence):
             can be compared with other keys. Keys must be immutable; if SortedList
             suspects that the item has changed, it will call keyfunc to request
             a new key.
-        cmpfunc - Optional function that compares two items, like the cmp() function.
-            This overrides keyfunc.
         index_attr - If a string, store the item's index on the item as an attribute
             with this name.
         '''
-        if cmpfunc:
-            class Key(object):
-                __slots__ = ('item')
-
-                def __init__(self, item):
-                    self.item = item
-
-                def __cmp__(self, other):
-                    return cmpfunc(self.item, other.item)
-
-            keyfunc = Key
-
         if iterable:
             self.list = list(iterable)
             self.list.sort(key=keyfunc)

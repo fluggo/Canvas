@@ -16,15 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import collections, weakref
+import collections, weakref, functools
 
 class EZList(collections.MutableSequence):
     def __init__(self):
         self._marks = []
 
+    @functools.total_ordering
     class Mark(object):
-        __slots__ = ('__weakref__', 'index', 'left_gravity')
-
         def __init__(self, index, left_gravity):
             self.index = index
             self.left_gravity = left_gravity
@@ -44,8 +43,11 @@ class EZList(collections.MutableSequence):
         def __rsub__(self, other):
             return other.__index__() - self.index
 
-        def __cmp__(self, other):
-            return self.index.__cmp__(other.__index__())
+        def __lt__(self, other):
+            return self.index < other.__index__()
+
+        def __eq__(self, other):
+            return self.index == other.__index__()
 
         def __repr__(self):
             return 'Mark({0.index}, left_gravity={0.left_gravity})'.format(self)

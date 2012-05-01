@@ -29,7 +29,7 @@ class TestSortedList(unittest.TestCase):
         for j, k in itertools.izip_longest(l, [9,6,5,3,2]):
             self.assertEquals(j, k)
 
-        l = SortedList([9,6,3,2], cmpfunc=lambda a, b: -cmp(a, b))
+        l = SortedList([9,6,3,2], keyfunc=lambda a: -a)
 
         l.add(5)
 
