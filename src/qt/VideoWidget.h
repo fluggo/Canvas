@@ -1,9 +1,10 @@
+#pragma once
 
 #include "pyframework.h"
 #include <qobject.h>
 #include <QGLWidget>
 
-class VideoWidget : public QGLWidget {
+class EXPORT VideoWidget : public QGLWidget {
     Q_OBJECT
 
 public:

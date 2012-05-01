@@ -34,7 +34,9 @@
 
 #include <glib.h>
 
+#if !defined(BUILD_SHIBOKEN)
 #include <GL/glew.h>
+#endif
 #include <GL/gl.h>
 
 #define NS_PER_SEC    INT64_C(1000000000)
@@ -230,6 +232,7 @@ void video_transfer_rec709_to_linear_display( half *out, const half *in, size_t 
 void video_transfer_linear_to_rec709( half *out, const half *in, size_t count );
 void video_transfer_linear_to_sRGB( half *out, const half *in, size_t count );
 
+#if !defined(BUILD_SHIBOKEN)
 // OpenGL utility routines
 void *getCurrentGLContext();
 
@@ -239,6 +242,7 @@ void __gl_checkError(const char *file, const unsigned long line);
 void gl_printShaderErrors( GLhandleARB shader );
 void gl_renderToTexture( rgba_frame_gl *frame );
 void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );
+#endif
 
 /************* Audio *******/
 

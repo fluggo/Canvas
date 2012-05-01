@@ -186,45 +186,77 @@ print(config.pyqt_sip_flags)
 
     # TODO: Separate this out as a tool
 
-    qt_env = python_env.Clone(tools=['default', 'qt4'], toolpath=['tools'])
+    qt_env = python_env.Clone()
 
-    # We need to publish initqt, let sip handle it
+    # Get type system includes
+    def get_pkg_config(module, variable):
+        my_env = env.Clone()
+        my_env['MODNAME'] = module
+        my_env['VARNAME'] = variable
+        my_env.Execute('@pkg-config --variable=$VARNAME $MODNAME > .temppkgconfig')
+
+        result = None
+
+        with open('.temppkgconfig', 'r') as outfile:
+            result = outfile.read(-1)
+
+        os.remove('.temppkgconfig')
+        return result.strip()
+
+    # We need to publish PyInit_qt, let sip handle it
     qt_env['CCFLAGS'].remove('-fvisibility=hidden')
 
-    qt_env['SIP'] = sip_bin
-    qt_env['SIPINCLUDE'] = pyqt_sip_dir
-    qt_env['SIPFLAGS'] = pyqt_sip_flags
-    qt_env['SIPCOM'] = '$SIP -I $SIPINCLUDE -c $SIPSRCDIR $SIPFLAGS $SOURCES'
-    qt_env['SIPSRCDIR'] = 'build/qt/sip'
-    sip_action = Action('$SIPCOM', '$SIPCOMSTR')
+    # These flags *would* come from "pkg-config --cflags pyside"
+    # except that on my system, that includes /usr/include/python2.7
+    qt_env.Append(CPPPATH='/usr/include/shiboken')
+    qt_env.Append(CPPPATH='/usr/include/PySide')
+    qt_env.Append(CPPPATH='/usr/include/PySide/QtCore')
+    qt_env.Append(CPPPATH='/usr/include/PySide/QtGui')
+    qt_env.Append(CPPPATH='/usr/include/PySide/QtOpenGL')
+    qt_env.Append(CCFLAGS='-DBUILD_SHIBOKEN')
+    qt_env.Append(CCFLAGS='-frtti')
+    qt_env.Append(CPPPATH='/usr/include')
+    qt_env.Append(LIBS=['pyside.cpython-32mu', 'shiboken.cpython-32mu'])
+
+    qt_env['GENERATORRUNNER'] = qt_env.WhereIs('generatorrunner')
+    qt_env['GENERATORRUNNERINC'] = ['src/qt', 'include', get_pkg_config('pyside', 'includedir'),
+        get_pkg_config('QtCore', 'includedir'), get_pkg_config('QtGui', 'includedir'),
+        get_pkg_config('QtOpenGL', 'includedir'), '/usr/include/qt4', '/usr/include']
+    qt_env['TYPESYSTEMINC'] = ['.', get_pkg_config('pyside', 'typesystemdir')]
+    qt_env['SHIBOKENOUTDIR'] = 'build/qt'
+    qt_env['SHIBOKENCOM'] = ('$GENERATORRUNNER --generatorSet=shiboken ' +
+        "--include-paths=${':'.join(GENERATORRUNNERINC)} " +
+        "--typesystem-paths=${':'.join(TYPESYSTEMINC)} " +
+        '--output-directory=build/qt ' +
+        '${SOURCES[0]} ${SOURCES[1]}')
+    gr_action = Action('$SHIBOKENCOM', '$SHIBOKENCOMSTR')
 
     def emitter(target, source, env):
         module = str(target[0])
 
-        sip_targets = [env.File('$SIPSRCDIR/sip' + module + 'cmodule.cpp')]
-        sip_sources = []
+        gr_targets = [env.File('$SHIBOKENOUTDIR/' + module + '/' + module + '_module_wrapper.cpp')]
         module_sources = []
+        headers = [env.File('$SHIBOKENOUTDIR/' + module + '/' + module + '_python.h')]
 
-        for s in source:
+        for s in source[2:]:
             (root, ext) = os.path.splitext(os.path.basename(str(s)))
 
-            file = env.File('$SIPSRCDIR/sip' + module + root + '.cpp')
-            sip_targets.append(file)
-            sip_sources.append(s)
+            file = env.File('$SHIBOKENOUTDIR/' + module + '/' + root.lower() + '_wrapper.cpp')
+            gr_targets.append(file)
+            headers.append(env.File('$SHIBOKENOUTDIR/' + module + '/' + root.lower() + '_wrapper.h'))
 
-        header = '$SIPSRCDIR/sipAPI' + module + '.h'
-        env.SideEffect(header, sip_targets)
-        env.Clean(sip_targets, header)
+        env.SideEffect(headers, gr_targets)
+        env.Clean(gr_targets, headers)
 
-        return (sip_targets, sip_sources)
+        return (gr_targets, source)
 
-    sip_builder = Builder(action=sip_action, emitter=emitter, source_scanner=SCons.Defaults.CScan)
+    gr_builder = Builder(action=gr_action, emitter=emitter, source_scanner=SCons.Defaults.CScan)
 
-    qt_env.Append(BUILDERS={'SipModule': sip_builder}, CPPPATH=['src/qt'], LIBS=[process])
+    qt_env.Append(BUILDERS={'ShibokenModule': gr_builder}, CPPPATH=['src/qt'], LIBS=[process])
     qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl glib-2.0')
 
-    qt_sip = qt_env.SipModule('qt', env.Glob('src/qt/*.sip'))
-    qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip + env.Glob('src/qt/*.cpp'))
+    qt_sip = qt_env.ShibokenModule('qt', ['src/qt/global.h', 'src/qt/sidetypes.xml', 'src/qt/VideoWidget.h'])
+    qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip + env.Glob('src/qt/*.cpp') + env.Glob('src/qt/*.cc'))
 
     qt_env.Clean(qt, 'build/qt')
 

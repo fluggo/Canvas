@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<typesystem package="qt">
+    <load-typesystem name="typesystem_core.xml" generate="no" />
+    <load-typesystem name="typesystem_opengl.xml" generate="no" />
+    <load-typesystem name="typesystem_gui.xml" generate="no" />
+    <custom-type name="video_source"/>
+    <custom-type name="box2i"/>
+    <object-type name="VideoWidget">
+        <modify-field name="_source" remove="all"/>
+        <modify-field name="_clockHolder" remove="all"/>
+        <modify-function signature="setVideoSource(video_source*)">
+            <modify-argument index="1"><replace-type modified-type="PyObject"/></modify-argument>
+            <inject-code class="target" position="beginning"><![CDATA[
+        bool takeResult = py_video_take_source( %PYARG_1, &%CPPSELF._source );
+
+        if( !takeResult )
+            return 0;
+        else
+            %CPPSELF.%FUNCTION_NAME( %CPPSELF._source );
+]]>
+            </inject-code>
+        </modify-function>
+        <modify-function signature="setDisplayWindow(box2i*)">
+            <modify-argument index="1"><replace-type modified-type="PyObject"/></modify-argument>
+            <inject-code class="target" position="beginning"><![CDATA[
+        box2i window;
+
+        if( !py_parse_box2i( %PYARG_1, &window ) ) {
+            return 0;
+        }
+        else if( box2i_is_empty( &window ) ) {
+            PyErr_SetString( PyExc_Exception, "An empty window was passed to setDisplayWindow." );
+            return 0;
+        }
+        else {
+            %CPPSELF.%FUNCTION_NAME( &window );
+        }
+]]>
+            </inject-code>
+        </modify-function>
+        <modify-function signature="getDisplayWindow(box2i*)">
+            <modify-argument index="1"><remove-argument/></modify-argument>
+            <inject-code class="target" position="beginning"><![CDATA[
+        box2i window;
+        %CPPSELF.%FUNCTION_NAME( &window );
+
+        return py_make_box2i( &window );
+]]>
+            </inject-code>
+        </modify-function>
+    </object-type>
+</typesystem>
+
