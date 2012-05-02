@@ -140,6 +140,8 @@ PresentationClock_register_callback( PyObject *self, PyObject *args, PyObject *k
 
     handle->holder.source.obj = NULL;
     handle->holder.csource = NULL;
+    handle->callable = NULL;
+    handle->data = NULL;
 
     if( !py_presentation_clock_take_source( self, &handle->holder ) ) {
         Py_DECREF(handle);
