@@ -35,6 +35,8 @@ slist[u'noload'] = FailedSource(u'noload')
 slist[u'noload_silent'] = SilentFailedSource(u'noload_silent')
 slist[u'nostreams'] = model.RuntimeSource(u'nostreams', {})
 
+vidformat = plugins.VideoFormat()
+
 def getcolor(source, frame):
     return source.get_frame_f32(frame, box2i(0, 0, 0, 0)).pixel(0, 0)
 
@@ -103,7 +105,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
         self.check1(manager)
 
@@ -114,7 +116,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=19),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=100, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
@@ -142,7 +144,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=5),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=22, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
@@ -170,7 +172,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=3),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=7)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
@@ -191,7 +193,7 @@ class test_SequenceVideoManager(unittest.TestCase):
         sequence = model.Sequence(type='video', items=[
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
@@ -212,7 +214,7 @@ class test_SequenceVideoManager(unittest.TestCase):
         sequence = model.Sequence(type='video', items=[
             model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
@@ -233,7 +235,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=9, length=7),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
@@ -260,7 +262,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=9, length=7),
             ])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
@@ -323,7 +325,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=5),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
         self.check2(manager)
 
@@ -334,7 +336,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
         sequence[1].update(transition_length=5)
         sequence[2].update(transition_length=5)
@@ -346,7 +348,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
         sequence.insert(1, model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=5))
         self.check2(manager)
@@ -358,7 +360,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=7),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=3)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
         sequence[1].update(transition_length=5)
         sequence[2].update(transition_length=5)
@@ -371,7 +373,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=3),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=7)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
         sequence[1].update(transition_length=5)
         sequence[2].update(transition_length=5)
@@ -432,7 +434,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
         sequence[1].update(transition_length=-5)
         sequence[2].update(transition_length=5)
@@ -476,7 +478,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'badsource', u'video'), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
 
         self.assertEquals(1, len(manager.alerts))
@@ -491,7 +493,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'noload_silent', u'video'), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
 
         self.assertEquals(1, len(manager.alerts))
@@ -506,7 +508,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'noload', u'video'), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
 
         self.assertEquals(1, len(manager.alerts))
@@ -522,7 +524,7 @@ class test_SequenceVideoManager(unittest.TestCase):
             model.SequenceItem(source=model.StreamSourceRef(u'nostreams', u'video'), offset=1, length=10),
             model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
 
-        manager = SequenceVideoManager(sequence, slist, formats.StreamFormat('video'))
+        manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
 
         self.assertEquals(1, len(manager.alerts))

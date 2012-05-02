@@ -3,15 +3,6 @@ from fluggo.media import process, formats
 from fluggo.media.basetypes import *
 from fluggo.editor import model, plugins
 
-class DeadMuxer(object):
-    @classmethod
-    def handles_container(cls, container):
-        return True
-
-    @classmethod
-    def get_stream(cls, container, stream_index):
-        return container
-
 class FailedSource(plugins.Source):
     '''A source that refuses to come online.'''
     def __init__(self, name):
@@ -35,11 +26,11 @@ class SilentFailedSource(plugins.Source):
     def get_stream(self, name):
         raise plugins.SourceOfflineError
 
-red_format = plugins.VideoFormat(active_rect=box2i(-1, -1, 20, 20))
-green_format = plugins.VideoFormat(active_rect=box2i(12, -6, 100, 210))
-blue_format = plugins.VideoFormat(active_rect=box2i(0, 0, 14, 19))
+red_format = plugins.VideoFormat(active_area=box2i(-1, -1, 20, 20))
+green_format = plugins.VideoFormat(active_area=box2i(12, -6, 100, 210))
+blue_format = plugins.VideoFormat(active_area=box2i(0, 0, 14, 19))
 
-slist = model.SourceList([DeadMuxer])
+slist = model.SourceList()
 slist[u'red'] = model.RuntimeSource(u'red', {u'video': 
     plugins.VideoStream(
         process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100)),
