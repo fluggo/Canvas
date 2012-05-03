@@ -271,7 +271,7 @@ class PluginManager(object):
             settings = QtCore.QSettings()
 
             settings.beginGroup('plugins/' + key)
-            enabled = settings.value('enabled', False).toBool()
+            enabled = bool(settings.value('enabled', False))
             settings.endGroup()
 
             if enabled:
