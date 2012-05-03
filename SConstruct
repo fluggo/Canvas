@@ -255,8 +255,14 @@ print(config.pyqt_sip_flags)
     qt_env.Append(BUILDERS={'ShibokenModule': gr_builder}, CPPPATH=['src/qt'], LIBS=[process])
     qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl glib-2.0')
 
+    # BJC: Doing this in the qt_env adds a weird -lqt to the proceedings,
+    # and even appears to add moc_VideoWidget.os twice; this gets us what
+    # we want
+    moc_env = qt_env.Clone(tools=['default', 'qt'])
+    moc = moc_env.Moc('src/qt/VideoWidget.h')
+
     qt_sip = qt_env.ShibokenModule('qt', ['src/qt/global.h', 'src/qt/sidetypes.xml', 'src/qt/VideoWidget.h'])
-    qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip + env.Glob('src/qt/*.cpp') + env.Glob('src/qt/*.cc'))
+    qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip + moc + env.Glob('src/qt/*.cpp'))
 
     qt_env.Clean(qt, 'build/qt')
 
