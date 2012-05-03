@@ -20,8 +20,8 @@ from ..canvas import *
 from .markers import *
 from fluggo import logging
 from fluggo.editor import model
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import Qt
+from PySide import QtCore, QtGui
+from PySide.QtCore import Qt
 from .thumbnails import ThumbnailPainter
 
 _log = logging.getLogger(__name__)

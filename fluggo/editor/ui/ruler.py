@@ -18,14 +18,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fractions
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PySide.QtCore import *
+from PySide.QtGui import *
 from fluggo.media import process, timecode
 
 SMALL_TICK_THRESHOLD = 2
 
 class TimeRuler(QWidget):
-    current_frame_changed = pyqtSignal(float, name='currentFrameChanged')
+    current_frame_changed = Signal(float, name='current_frame_changed')
 
     def __init__(self, parent=None, timecode=timecode.Frames(), scale=fractions.Fraction(1), frame_rate=fractions.Fraction(30, 1)):
         QWidget.__init__(self, parent)

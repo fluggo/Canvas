@@ -17,11 +17,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fractions, threading, os.path
-from PyQt4 import QtCore, QtGui
-import PyQt4.uic
+from PySide import QtCore, QtGui
+import PySide.uic
 from fluggo.editor import plugins
 
-(_type, _base) = PyQt4.uic.loadUiType(os.path.join(os.path.dirname(__file__), 'plugineditor.ui'))
+(_type, _base) = PySide.uic.loadUiType(os.path.join(os.path.dirname(__file__), 'plugineditor.ui'))
 
 SUBTITLE = QtCore.Qt.UserRole
 

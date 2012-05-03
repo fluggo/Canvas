@@ -21,9 +21,9 @@ if args.break_exc:
 
     sys.excepthook = excepthook
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from PyQt4.QtOpenGL import *
+from PySide.QtCore import *
+from PySide.QtGui import *
+from PySide.QtOpenGL import *
 
 QCoreApplication.setOrganizationName('Fluggo Productions')
 QCoreApplication.setOrganizationDomain('fluggo.com')

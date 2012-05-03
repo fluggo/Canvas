@@ -17,8 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fractions
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import Qt
+from PySide import QtCore, QtGui
+from PySide.QtCore import Qt
 from ..canvas import *
 from fluggo import sortlist, signal
 from fluggo.editor import model

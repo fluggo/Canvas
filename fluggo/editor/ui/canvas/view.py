@@ -18,8 +18,8 @@
 
 from .scene import *
 from ..ruler import TimeRuler
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import Qt
+from PySide import QtCore, QtGui
+from PySide.QtCore import Qt
 from fluggo.media import timecode, process
 
 class RulerView(QtGui.QWidget):
