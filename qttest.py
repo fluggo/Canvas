@@ -1,3 +1,4 @@
+# Grab command-line arguments
 import argparse
 
 argparser = argparse.ArgumentParser()
@@ -10,9 +11,11 @@ argparser.add_argument('--break-exc', dest='break_exc', action='store_true', def
 
 args = argparser.parse_args()
 
+# Set up logging
 import logging
 logging.basicConfig(level=args.log_level.upper())
 
+# Set up pdb debugging if requested
 if args.break_exc:
     import pdb, sys
 
@@ -21,6 +24,7 @@ if args.break_exc:
 
     sys.excepthook = excepthook
 
+# Identify ourselves to Qt
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtOpenGL import *
@@ -29,7 +33,7 @@ QCoreApplication.setOrganizationName('Fluggo Productions')
 QCoreApplication.setOrganizationDomain('fluggo.com')
 QCoreApplication.setApplicationName('Canvas')
 
-from fluggo import signal, sortlist
+from fluggo import signal, sortlist, logging
 from fluggo.media import process, timecode, qt, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
@@ -37,6 +41,9 @@ from fluggo.editor import ui, model, graph, plugins
 from fluggo.editor.ui import notificationwidget
 import fluggo.editor
 
+_log = logging.getLogger(__name__)
+
+# Load all plugins
 plugins.PluginManager.load_all()
 
 class SourceSearchModel(QAbstractTableModel):
@@ -466,10 +473,14 @@ class MainWindow(QMainWindow):
             self.space[z1:z2 + 1] = temp_items
 
     def edit_plugins(self):
-        from fluggo.editor.ui.plugineditor import PluginEditorDialog
+        try:
+            from fluggo.editor.ui.plugineditor import PluginEditorDialog
 
-        dialog = PluginEditorDialog()
-        dialog.exec_()
+            dialog = PluginEditorDialog()
+            dialog.exec_()
+        except:
+            _log.warning('Error executing plugin editor dialog', exc_info=True)
+
 
 
 app = QApplication(sys.argv)
