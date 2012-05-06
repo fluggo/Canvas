@@ -1,3 +1,12 @@
+# Setup sip API usage (remove for Python 3)
+import sip
+sip.setapi('QDate', 2)
+sip.setapi('QDateTime', 2)
+sip.setapi('QTime', 2)
+sip.setapi('QUrl', 2)
+sip.setapi('QString', 2)
+sip.setapi('QVariant', 2)
+
 # Grab command-line arguments
 import argparse
 

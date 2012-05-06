@@ -122,10 +122,10 @@ class _PluginDelegate(QtGui.QStyledItemDelegate):
 
         cg = QtGui.QPalette.Normal if (option.state & QtGui.QStyle.State_Enabled) else QtGui.QPalette.Disabled
 
-        title_text = index.data(QtCore.Qt.DisplayRole).toString() or ''
+        title_text = index.data(QtCore.Qt.DisplayRole) or u''
         title_text = bold_metrics.elidedText(title_text, QtCore.Qt.ElideRight, baserect.width() - 2 * margin)
 
-        subtitle_text = index.data(SUBTITLE).toString() or ''
+        subtitle_text = index.data(SUBTITLE) or u''
         subtitle_text = metrics.elidedText(subtitle_text, QtCore.Qt.ElideRight, baserect.width() - 2 * margin)
 
         painter.save()

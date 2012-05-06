@@ -223,6 +223,9 @@ class Plugin(AlertPublisher):
     # TODO: Dialogs for settings/about, global vs. project settings,
     # notifications from these stored objects that settings have changed
 
+PLUGINS_PREFIX = u'plugins/'
+DECODERS_PREFIX = u'decoders/'
+
 class PluginManager(object):
     plugin_modules = None
     plugins = None
@@ -270,8 +273,8 @@ class PluginManager(object):
         for (key, plugin) in cls.plugins.iteritems():
             settings = QtCore.QSettings()
 
-            settings.beginGroup('plugins/' + key)
-            enabled = settings.value('enabled', False).toBool()
+            settings.beginGroup(PLUGINS_PREFIX + key)
+            enabled = settings.value('enabled', False, type=bool)
             settings.endGroup()
 
             if enabled:
@@ -307,7 +310,7 @@ class PluginManager(object):
         enabled = cls.is_plugin_enabled(plugin)
         settings = QtCore.QSettings()
 
-        settings.beginGroup('plugins/' + plugin.plugin_urn)
+        settings.beginGroup(PLUGINS_PREFIX + plugin.plugin_urn)
 
         if enable and not enabled:
             try:
