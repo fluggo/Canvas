@@ -291,8 +291,10 @@ class MainWindow(QMainWindow):
         self.render_dv_action = QAction('&Render DV...', self,
             statusTip='Render the entire canvas to a DV video', triggered=self.render_dv)
 
-        self.tools_edit_plugins = QAction('&Edit Plugins...', self,
+        self.tools_edit_plugins = QAction('Edit &plugins...', self,
             statusTip='Enable, disable, or configure plugins', triggered=self.edit_plugins)
+        self.tools_edit_decoders = QAction('Edit &decoders...', self,
+            statusTip='Enable, disable, or prioritize decoders', triggered=self.edit_decoders)
 
         self.view_video_preview = self.video_dock.toggleViewAction()
         self.view_video_preview.setText('Video &Preview')
@@ -335,6 +337,7 @@ class MainWindow(QMainWindow):
 
         self.tools_menu = self.menuBar().addMenu('&Tools')
         self.tools_menu.addAction(self.tools_edit_plugins)
+        self.tools_menu.addAction(self.tools_edit_decoders)
 
     def handle_update_frames(self, min_frame, max_frame):
         if not self.space:
@@ -490,6 +493,14 @@ class MainWindow(QMainWindow):
         except:
             _log.warning('Error executing plugin editor dialog', exc_info=True)
 
+    def edit_decoders(self):
+        try:
+            from fluggo.editor.ui.codeceditor import DecoderEditorDialog
+
+            dialog = DecoderEditorDialog()
+            dialog.exec_()
+        except:
+            _log.warning('Error executing codec editor dialog', exc_info=True)
 
 
 app = QApplication(sys.argv)

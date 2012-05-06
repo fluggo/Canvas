@@ -230,7 +230,9 @@ class PluginManager(object):
     plugin_modules = None
     plugins = None
     enabled_plugins = None
-    enabled_codecs = {}
+    codecs = []
+    enabled_codecs = {} # urn -> (priority, codec)
+    codec_priorities = {}
     codecs_by_priority = []   # Enabled codecs in preference order
     alert_manager = AlertPublisher()
 
@@ -352,17 +354,31 @@ class PluginManager(object):
     @classmethod
     def reset_codecs(cls):
         '''Clear out all codecs and start over.'''
+
+        cls.codecs = []
         cls.enabled_codecs = {}
 
         for plugin in cls.find_plugins(CodecPlugin):
             try:
-                for codec in plugin.get_all_codecs():
-                    cls.enabled_codecs[codec.urn] = codec
+                cls.codecs.extend(plugin.get_all_codecs())
             except:
                 _log.warning('Could not get a list of codecs from a plugin', exc_info=True)
 
+        for codec in cls.codecs:
+            settings = QtCore.QSettings()
+
+            settings.beginGroup(DECODERS_PREFIX + codec.urn)
+            enabled = settings.value('enabled', True, type=bool)
+            priority = settings.value('priority', codec.default_priority, type=int)
+            settings.endGroup()
+
+            codec.priority = priority
+
+            if enabled:
+                cls.enabled_codecs[codec.urn] = codec
+
         cls.codecs_by_priority = list(cls.enabled_codecs.values())
-        cls.codecs_by_priority.sort(key=lambda i: (i.default_priority, i.urn), reverse=True)
+        cls.codecs_by_priority.sort(key=lambda i: (i.priority, i.urn), reverse=True)
 
     @classmethod
     def find_codec_by_urn(cls, urn):
@@ -370,13 +386,64 @@ class PluginManager(object):
         return cls.enabled_codecs.get(urn)
 
     @classmethod
-    def find_decoders(cls, format_urn):
+    def find_decoders(cls, format_urn=None, enabled_only=True):
         '''Return a list of codecs supporting the given *format_urn* in descending
-        order of preference.'''
-        for codec in cls.codecs_by_priority:
-            print repr(codec.format_urns)
+        order of preference. If *format_urn* is not given, get all codecs.'''
+        # TODO: Make can_decode a method, not a property
 
-        return [codec for codec in cls.codecs_by_priority if format_urn in codec.format_urns and codec.can_decode]
+        if enabled_only:
+            return [codec for codec in cls.codecs_by_priority if
+                codec.can_decode and (format_urn is None or format_urn in codec.format_urns)]
+        else:
+            result = [codec for codec in cls.codecs if
+                codec.can_decode and (format_urn is None or format_urn in codec.format_urns)]
+            result.sort(key=lambda i: (i.priority, i.urn), reverse=True)
+            return result
+
+    @classmethod
+    def is_decoder_enabled(cls, codec=None, codec_urn=None):
+        return (codec_urn or codec.urn) in cls.enabled_codecs
+
+    @classmethod
+    def set_decoder_enabled(cls, codec, enable):
+        if codec not in cls.codecs:
+            raise ValueError('Given codec is not in the list of available codecs.')
+
+        enabled = cls.is_decoder_enabled(codec=codec)
+        settings = QtCore.QSettings()
+
+        settings.beginGroup(DECODERS_PREFIX + codec.urn)
+
+        if enable and not enabled:
+            try:
+                settings.setValue('enabled', True)
+                cls.reset_codecs()
+            except Exception as ex:
+                _log.error('Failed to enable decoder "{0}"', codec.name, exc_info=True)
+        elif not enable and enabled:
+            try:
+                settings.setValue('enabled', False)
+                cls.reset_codecs()
+            except Exception as ex:
+                _log.error('Failed to disable decoder "{0}"', codec.name, exc_info=True)
+
+        settings.endGroup()
+
+    @classmethod
+    def set_decoder_priority(cls, codec, priority):
+        if codec not in cls.codecs:
+            raise ValueError('Given codec is not in the list of available codecs.')
+
+        settings = QtCore.QSettings()
+        settings.beginGroup(DECODERS_PREFIX + codec.urn)
+
+        try:
+            settings.setValue('priority', priority)
+            cls.reset_codecs()
+        except Exception as ex:
+            _log.error('Failed to set priority for decoder "{0}"', codec.name, exc_info=True)
+
+        settings.endGroup()
 
 class PluginModule(object):
     def __init__(self, name, module_name):
