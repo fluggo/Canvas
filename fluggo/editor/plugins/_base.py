@@ -27,8 +27,6 @@ _log = logging.getLogger(__name__)
 # TODO: Need redo/undo support
 
 class _AlertTracker(object):
-    __slots__ = ('trackee', 'tracker', 'alerts', '__weakref__')
-
     def __init__(self, trackee, tracker):
         self.trackee = weakref.ref(trackee, self.stop_tracking)
         self.tracker = tracker
@@ -39,20 +37,24 @@ class _AlertTracker(object):
         for alert in trackee._alerts.itervalues():
             self.item_added(alert)
 
-    def stop_tracking(self):
+    def stop_tracking(self, weakref_=None):
         # For this to work via weak references, the alerts themselves
         # must not have strong references to the object in question
-        trackee = self.trackee()
 
-        if trackee is not None:
-            trackee.alert_added.disconnect(self.item_added)
-            trackee.alert_removed.disconnect(self.item_removed)
+        # BJC: The "trackee" attribute seems to be missing sometimes; I
+        # suspect this is because I'm being torn down when this is called
+        if hasattr(self, 'trackee'):
+            trackee = self.trackee()
 
-        if self.alerts is not None:
+            if trackee is not None:
+                trackee.alert_added.disconnect(self.item_added)
+                trackee.alert_removed.disconnect(self.item_removed)
+
+        if hasattr(self, 'alerts') and self.alerts is not None:
             for alert in self.alerts.itervalues():
                 self.tracker.hide_alert(alert)
 
-        self.alerts = None
+            self.alerts = None
 
     def item_added(self, alert):
         if self.alerts is None:
