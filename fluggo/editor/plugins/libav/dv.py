@@ -55,7 +55,7 @@ class LibavDvSourcePlugin(plugins.SourcePlugin):
 
         This method is only called to attempt to read new files. Existing
         sources are re-created using create_source().'''
-        source = _LibavSource(self, name, self, path)
+        source = _LibavSource(name, self, path)
         source.bring_online()
 
         if not source.offline:
