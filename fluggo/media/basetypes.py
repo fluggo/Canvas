@@ -92,7 +92,7 @@ class box2i(_box2i):
         return self.max - self.min + v2f(1, 1)
 
     def empty(self):
-        return not self.__nonzero__()
+        return not bool(self)
 
     def __bool__(self):
         return self.max.x >= self.min.x and self.max.y >= self.min.y
@@ -169,7 +169,7 @@ class box2f(_box2f):
         return self.max - self.min
 
     def empty(self):
-        return not self.__nonzero__()
+        return not bool(self)
 
     def __bool__(self):
         return self.max.x >= self.min.x and self.max.y >= self.min.y
