@@ -46,6 +46,7 @@ from fluggo import signal, sortlist, logging
 from fluggo.media import process, timecode, qt, alsa
 from fluggo.media.basetypes import *
 import sys, fractions, array, collections
+import os.path
 from fluggo.editor import ui, model, graph, plugins
 from fluggo.editor.ui import notificationwidget
 import fluggo.editor
@@ -56,6 +57,8 @@ _log = logging.getLogger(__name__)
 plugins.PluginManager.load_all()
 
 class SourceSearchModel(QAbstractTableModel):
+    # TODO: Show if source is offline
+
     def __init__(self, source_list):
         QAbstractTableModel.__init__(self)
         self.source_list = source_list
@@ -137,6 +140,7 @@ class SourceSearchWidget(QDockWidget):
 
         self.setWidget(widget)
         self.setAcceptDrops(True)
+        self._dropSources = None
 
     def set_source_list(self, source_list):
         self.source_list = source_list
@@ -145,22 +149,113 @@ class SourceSearchWidget(QDockWidget):
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
-            # TODO: In the background, verify that they are files,
-            # that we can open them, and that we can understand them
-            event.acceptProposedAction()
+            if self._dropSources is None:
+                sources = []
+
+                for url in event.mimeData().urls():
+                    _log.debug(u'Url:' + unicode(url))
+
+                    if url.scheme() != 'file':
+                        sources.append(url + u' is not a local file.')
+                        continue
+
+                    path = os.path.normpath(url.toLocalFile())
+
+                    if not os.path.isfile(path):
+                        sources.append(u"Can't find the file at \"" + path + u"\".")
+                        continue
+
+                    name = os.path.splitext(os.path.basename(path))[0]
+                    source = None
+                    error = None
+
+                    _log.debug('Loading {0} as {1}', path, name)
+
+                    for plugin in plugins.PluginManager.find_plugins(plugins.SourcePlugin):
+                        _log.debug('Trying {0}', plugin.name)
+                        try:
+                            source = plugin.create_source_from_file(name, path)
+                        except Exception as ex:
+                            _log.debug(u'Error opening source {0}', path, exc_info=True)
+                            error = unicode(ex)
+
+                        _log.debug('Accepting {0}', plugin.name)
+
+                        if source is not None:
+                            break
+
+                    sources.append(source or error)
+
+                self._dropSources = sources
+
+            if any(isinstance(source, plugins.Source) for source in self._dropSources):
+                _log.debug('Accepting in drag enter')
+                event.acceptProposedAction()
+                return
+
+    def dragLeaveEvent(self, event):
+        _log.debug('Left drag')
+        self._dropSources = None
 
     def dropEvent(self, event):
+        _log.debug('In dropevent')
+
+        if not self._dropSources:
+            _log.debug('_dropSources not set')
+            return
+
+        if not any(isinstance(source, plugins.Source) for source in self._dropSources):
+            _log.debug('Only errors')
+
+            error_box = QMessageBox(QMessageBox.Warning,
+                QCoreApplication.applicationName(),
+                u'None of the dropped files could be opened.',
+                buttons=QMessageBox.Ok, parent=self,
+                detailedText='\n'.join(errors))
+
+            error_box.exec_()
+
+            self._dropSources = None
+            return
+
         event.acceptProposedAction()
 
+        # TODO: Handle dropping onto other sources, such as folders
         errors = []
 
-        for url in event.mimeData().urls():
-            if url.scheme() != 'file':
-                errors.append((url, 'Not a local file'))
+        for source in self._dropSources:
+            if not isinstance(source, plugins.Source):
+                errors.append(source)
                 continue
 
-            path = url.toLocalFile()
+            try:
+                base_name = source.name
+                name = base_name
+                i = 1
 
+                while name in self.source_list:
+                    name = u'{0} ({1})'.format(base_name, i)
+                    i += 1
+
+                source.name = name
+
+                self.source_list[name] = model.PluginSource.from_plugin_source(source)
+            except Exception as ex:
+                errors.append(u'Error while importing "{0}": {1}'.format(source.name, unicode(ex)))
+                _log.warning('Error creating PluginSource', exc_info=True)
+
+        # TODO: Show errors
+        if len(errors):
+            error_box = QMessageBox(QMessageBox.Information,
+                QCoreApplication.applicationName(),
+                u'Some of the dropped files could not be opened.',
+                buttons=QMessageBox.Ok, parent=self,
+                detailedText='\n'.join(errors))
+
+            error_box.exec_()
+
+        self._dropSources = None
+        return
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -379,15 +474,6 @@ class MainWindow(QMainWindow):
 
         self.space = self.source_list['test']
         self.setup_space()
-
-    def add_source_file(self, path):
-        try:
-            container = FFMuxPlugin.detect_container(path)
-            filename = os.path.split(path)[1]
-
-            self.source_list[filename] = container
-        except:
-            QMessageBox.warning(self, 'Canvas', str(sys.exc_info()[0]))
 
     def save_file(self, path):
         with open(path, 'w') as stream:

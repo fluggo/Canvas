@@ -196,6 +196,13 @@ class PluginSource(Source):
 
         return root
 
+    @classmethod
+    def from_plugin_source(cls, source):
+        # BJC: We could save a *little* work and set the source and plugin
+        # attributes of the new object, but I'm worried that could make this
+        # harder to maintain
+        return cls(source.name, source.plugin.plugin_urn, source.get_definition())
+
     def get_stream_formats(self):
         if not self.offline and self._source:
             return self._source.get_stream_formats()
