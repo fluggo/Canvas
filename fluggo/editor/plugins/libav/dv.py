@@ -299,7 +299,16 @@ class _LibavSource(plugins.Source):
         streams = {}
 
         for stream in self._streams:
-            streams[stream.id] = {u'urn': stream.codec.urn, u'definition': stream.get_definition()}
+            if stream.codec:
+                # Save the current definition from the codec
+                streams[stream.id] = {u'urn': stream.codec.urn, u'definition': stream.get_definition()}
+            else:
+                # Try to preserve the definition we loaded
+                loaded_desc = self._loaded_definitions.get(stream.id)
+
+                if loaded_desc:
+                    urn, definition = loaded_desc[u'urn'], loaded_desc[u'definition']
+                    streams[stream.od] = {u'urn': urn, u'definition': definition}
 
         definition[u'streams'] = streams
         return definition
