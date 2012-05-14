@@ -289,7 +289,7 @@ void init_AVVideoDecoder( PyObject *module ) {
     PyModule_AddObject( module, "AVVideoDecoder", (PyObject *) &py_type_AVVideoDecoder );
 
     pySourceFuncs = PyCapsule_New( &source_funcs,
-        VIDEO_FRAME_SOURCE_FUNCS, NULL );
+        CODED_IMAGE_SOURCE_FUNCS, NULL );
 }
 
 
