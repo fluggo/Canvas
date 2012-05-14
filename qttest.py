@@ -460,7 +460,11 @@ class MainWindow(QMainWindow):
         path = QFileDialog.getSaveFileName(self, "Save File", filter='YAML Files (*.yaml)')
 
         if path:
-            self.save_file(path)
+            try:
+                self.save_file(path)
+            except Exception as ex:
+                _log.warning('Failed to save file', exc_info=True)
+                QMessageBox.error(self, 'Canvas', unicode(ex))
 
     def open_file(self, path):
         project = None
