@@ -243,7 +243,7 @@ test_cprocess = testenv.Program('tests/cprocess_test', env.Glob('src/tests/*.c')
 testenv.Alias('test', testenv.Command('test_dummy', 'tests/cprocess_test', '@tests/cprocess_test'))
 
 for testfile in locate('*.py', 'tests'):
-    testenv.Alias('test', testenv.Command(None, testfile, '@python testrunner.py $SOURCE'))
+    testenv.Alias('test', testenv.Command(None, testfile, '@python3 testrunner.py $SOURCE'))
 
 Requires('test', cprocess)
 Requires('test', test_cprocess)
