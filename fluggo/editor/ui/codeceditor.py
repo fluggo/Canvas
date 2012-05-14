@@ -49,7 +49,7 @@ class _CodecModel(QAbstractTableModel):
                 return Qt.Checked if plugins.PluginManager.is_decoder_enabled(self._decoders[index.row()]) else Qt.Unchecked
         elif index.column() == 1:
             if role == Qt.DisplayRole:
-                return unicode(self._decoders[index.row()].priority)
+                return str(self._decoders[index.row()].priority)
 
     def flags(self, index):
         if index.column() == 0:

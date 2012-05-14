@@ -1,1 +1,1 @@
-import canvas, ruler
+from . import canvas, ruler

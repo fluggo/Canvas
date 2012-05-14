@@ -24,14 +24,14 @@ import collections, threading, traceback
 
 _log = logging.getLogger(__name__)
 
-PULLDOWN_NONE = u'None'
-PULLDOWN_23 = u'2:3'
-PULLDOWN_2332 = u'2:3:3:2'
+PULLDOWN_NONE = 'None'
+PULLDOWN_23 = '2:3'
+PULLDOWN_2332 = '2:3:3:2'
 
 class SourceOfflineError(Exception):
     '''Error raised when an operation on a source requires the source to be online.'''
     def __init__(self):
-        Exception.__init__(self, u'Source is offline.')
+        Exception.__init__(self, 'Source is offline.')
 
 class KnownIlluminants:
     '''
@@ -170,7 +170,7 @@ class Source(AlertPublisher):
 
     @name.setter
     def name(self, value):
-        self._name = unicode(value)
+        self._name = str(value)
 
     def bring_online(self):
         '''Populate the source's streams and metadata, and set offline to False.
@@ -236,8 +236,8 @@ class Source(AlertPublisher):
         # For now, first video stream and first audio stream
         streams = self.get_streams()
 
-        video_streams = [stream for stream in streams if stream.stream_type == u'video']
-        audio_streams = [stream for stream in streams if stream.stream_type == u'audio']
+        video_streams = [stream for stream in streams if stream.stream_type == 'video']
+        audio_streams = [stream for stream in streams if stream.stream_type == 'audio']
 
         return video_streams[0:1] + audio_streams[0:1]
 
@@ -303,11 +303,11 @@ class VideoFormat(_VideoFormat):
     # frame_rate = fractions.Fraction
 
     __slots__ = ()
-    format_type = u'video'
+    format_type = 'video'
 
     def __new__(cls, interlaced=False, pulldown_type=PULLDOWN_NONE, pulldown_phase=0,
         full_frame=box2i(0, 0, 99, 99), active_area=None,
-        pixel_aspect_ratio=fractions.Fraction(1, 1), white_point=u'D65',
+        pixel_aspect_ratio=fractions.Fraction(1, 1), white_point='D65',
         frame_rate=fractions.Fraction(1, 1)):
 
         return _VideoFormat.__new__(cls, interlaced, pulldown_type, pulldown_phase,
@@ -330,32 +330,32 @@ def _VideoFormat_represent(dumper, data):
     mapp = {}
 
     if data.interlaced != False:
-        mapp[u'interlaced'] = data.interlaced
+        mapp['interlaced'] = data.interlaced
 
     if data.pulldown_type != PULLDOWN_NONE:
-        mapp[u'pulldown_type'] = data.pulldown_type
+        mapp['pulldown_type'] = data.pulldown_type
 
         if data.pulldown_phase != 0:
-            mapp[u'pulldown_phase'] = data.pulldown_phase
+            mapp['pulldown_phase'] = data.pulldown_phase
 
-    mapp[u'full_frame'] = data.full_frame
+    mapp['full_frame'] = data.full_frame
 
     if data.active_area != data.full_frame:
-        mapp[u'active_area'] = data.active_area
+        mapp['active_area'] = data.active_area
 
     if data.pixel_aspect_ratio != fractions.Fraction(1, 1):
-        mapp[u'pixel_aspect_ratio'] = data.pixel_aspect_ratio
+        mapp['pixel_aspect_ratio'] = data.pixel_aspect_ratio
 
-    mapp[u'white_point'] = data.white_point
-    mapp[u'frame_rate'] = data.frame_rate
+    mapp['white_point'] = data.white_point
+    mapp['frame_rate'] = data.frame_rate
 
-    return dumper.represent_mapping(u'!VideoFormat', mapp)
+    return dumper.represent_mapping('!VideoFormat', mapp)
 
 def _VideoFormat_construct(loader, node):
     return VideoFormat(**loader.construct_mapping(node))
 
 yaml.add_representer(VideoFormat, _VideoFormat_represent)
-yaml.add_constructor(u'!VideoFormat', _VideoFormat_construct)
+yaml.add_constructor('!VideoFormat', _VideoFormat_construct)
 
 
 _AudioFormat = collections.namedtuple('_AudioFormat', 'sample_rate channel_assignment')
@@ -374,20 +374,20 @@ class AudioFormat(_AudioFormat):
     # is probably the wrong place to put it. I may backtrack on that later.
 
     __slots__ = ()
-    format_type = u'audio'
+    format_type = 'audio'
 
     def __new__(cls, sample_rate=fractions.Fraction(1, 1), channel_assignment=None):
         return _AudioFormat.__new__(cls, fractions.Fraction(sample_rate), channel_assignment or [])
 
 def _AudioFormat_represent(dumper, data):
-    mapp = {u'sample_rate': data.sample_rate, u'channel_assignment': data.channel_assignment}
-    return dumper.represent_mapping(u'!AudioFormat', mapp)
+    mapp = {'sample_rate': data.sample_rate, 'channel_assignment': data.channel_assignment}
+    return dumper.represent_mapping('!AudioFormat', mapp)
 
 def _AudioFormat_construct(loader, node):
     return AudioFormat(**loader.construct_mapping(node))
 
 yaml.add_representer(AudioFormat, _AudioFormat_represent)
-yaml.add_constructor(u'!AudioFormat', _AudioFormat_construct)
+yaml.add_constructor('!AudioFormat', _AudioFormat_construct)
 
 
 class VideoStream(process.VideoPassThroughFilter, AlertPublisher):
@@ -426,7 +426,7 @@ class VideoStream(process.VideoPassThroughFilter, AlertPublisher):
     # I'll probably come back and define other ways of getting at the
     # data. For now, it'll live in this class.
 
-    stream_type = u'video'
+    stream_type = 'video'
 
     def __init__(self, base_filter=None, format=None, range=(None, None)):
         self._format = format or VideoFormat()
@@ -511,7 +511,7 @@ class AudioStream(process.AudioPassThroughFilter, AlertPublisher):
     # TODO: Expect this class to provide the primary UI for altering the
     # properties of streams at their source.
 
-    stream_type = u'audio'
+    stream_type = 'audio'
 
     def __init__(self, base_filter=None, format=None, range=(None, None)):
         self._format = format or VideoFormat()

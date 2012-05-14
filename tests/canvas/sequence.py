@@ -8,7 +8,7 @@ class FailedSource(plugins.Source):
     '''A source that refuses to come online.'''
     def __init__(self, name):
         plugins.Source.__init__(self, name)
-        self._load_error = plugins.Alert(id(self), u'Can\'t load maaaan', source=name, icon=plugins.AlertIcon.Error)
+        self._load_error = plugins.Alert(id(self), 'Can\'t load maaaan', source=name, icon=plugins.AlertIcon.Error)
 
     def bring_online(self):
         self.show_alert(self._load_error)
@@ -28,12 +28,12 @@ class SilentFailedSource(plugins.Source):
         raise plugins.SourceOfflineError
 
 slist = model.SourceList()
-slist[u'red'] = model.RuntimeSource(u'red', {u'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100)))})
-slist[u'green'] = model.RuntimeSource(u'green', {u'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 100, 0, 1), 100)))})
-slist[u'blue'] = model.RuntimeSource(u'blue', {u'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 0, 100, 1), 100)))})
-slist[u'noload'] = FailedSource(u'noload')
-slist[u'noload_silent'] = SilentFailedSource(u'noload_silent')
-slist[u'nostreams'] = model.RuntimeSource(u'nostreams', {})
+slist['red'] = model.RuntimeSource('red', {'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100)))})
+slist['green'] = model.RuntimeSource('green', {'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 100, 0, 1), 100)))})
+slist['blue'] = model.RuntimeSource('blue', {'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 0, 100, 1), 100)))})
+slist['noload'] = FailedSource('noload')
+slist['noload_silent'] = SilentFailedSource('noload_silent')
+slist['nostreams'] = model.RuntimeSource('nostreams', {})
 
 vidformat = plugins.VideoFormat()
 
@@ -55,7 +55,7 @@ class UpdateTracker(object):
 class test_SequenceVideoManager(unittest.TestCase):
     def check_no_alerts(self, alert_source):
         if len(alert_source.alerts):
-            self.fail(u'Failed, found alert: ' + unicode(alert_source.alerts[0]))
+            self.fail('Failed, found alert: ' + str(alert_source.alerts[0]))
 
     def check1(self, source):
         # A lot of tests produce this same sequence:
@@ -101,9 +101,9 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_1_start(self):
         '''Start in the correct position'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=5)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
@@ -112,9 +112,9 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_1_adjlen1(self):
         '''Adjust the length of an item'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=7),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=19),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=100, transition_length=5)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=7),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=19),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=100, transition_length=5)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
@@ -140,9 +140,9 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_1_adjlen2(self):
         '''Adjust the length of an item (different order)'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=17),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=5),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=22, transition_length=5)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=17),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=5),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=22, transition_length=5)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
@@ -168,9 +168,9 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_1_adjtranslength(self):
         '''Adjust the transition_length of an item'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=3),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=7)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10, transition_length=3),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=7)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
@@ -191,18 +191,18 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_1_add(self):
         '''Add items one at a time'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10)])
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
-        sequence.append(model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5))
+        sequence.append(model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=5))
         self.assertEqual(track.min_frame, 5)
         self.assertEqual(track.max_frame, 14)
         track.reset()
 
-        sequence.insert(0, model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10))
+        sequence.insert(0, model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10))
         self.assertEqual(track.min_frame, 0)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 5 - 1)
         track.reset()
@@ -212,15 +212,15 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_1_addmultiple(self):
         '''Add multiple items at once'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
         self.check_no_alerts(manager)
 
         sequence.extend([
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=5)])
         self.assertEqual(track.min_frame, 10)
         self.assertEqual(track.max_frame, 10 + 10 + 10 - 5 - 1)
 
@@ -229,11 +229,11 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_1_remove(self):
         '''Remove items one at a time'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=25, length=14, transition_length=2),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=9, length=7),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=25, length=14, transition_length=2),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=9, length=7),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=5)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         track = UpdateTracker(manager)
@@ -254,12 +254,12 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_1_removeends(self):
         '''Remove items at the ends'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=9, length=114),
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=23, length=8, transition_length=5),
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=9, length=7),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=9, length=114),
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=23, length=8, transition_length=5),
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=5),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=9, length=7),
             ])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
@@ -321,9 +321,9 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_2_start(self):
         '''Start in the correct position'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=5),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10, transition_length=5),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=5)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
@@ -332,9 +332,9 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_2_add_transitions(self):
         '''Add both transitions'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
@@ -345,20 +345,20 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_2_add_green(self):
         '''Add green'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=5)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=5)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
-        sequence.insert(1, model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=5))
+        sequence.insert(1, model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10, transition_length=5))
         self.check2(manager)
 
     def test_2_adjust_transitions_1(self):
         '''Add both transitions'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=7),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=3)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10, transition_length=7),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=3)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
@@ -369,9 +369,9 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_2_adjust_transitions_2(self):
         '''Add both transitions'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10, transition_length=3),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10, transition_length=7)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10, transition_length=3),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10, transition_length=7)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
@@ -430,9 +430,9 @@ class test_SequenceVideoManager(unittest.TestCase):
     def test_3_add_transitions(self):
         '''Add both transitions'''
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'green', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('green', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_no_alerts(manager)
@@ -474,9 +474,9 @@ class test_SequenceVideoManager(unittest.TestCase):
 
     def test_alert_missing_source(self):
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'badsource', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('badsource', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
@@ -485,13 +485,13 @@ class test_SequenceVideoManager(unittest.TestCase):
         alert = manager.alerts[0]
 
         self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals(u'Reference refers to source "badsource" which doesn\'t exist.', alert.description)
+        self.assertEquals('Reference refers to source "badsource" which doesn\'t exist.', alert.description)
 
     def test_alert_offline_silent_source(self):
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'noload_silent', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('noload_silent', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
@@ -500,13 +500,13 @@ class test_SequenceVideoManager(unittest.TestCase):
         alert = manager.alerts[0]
 
         self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals(u'Unable to bring source "noload_silent" online.', alert.description)
+        self.assertEquals('Unable to bring source "noload_silent" online.', alert.description)
 
     def test_alert_offline_source(self):
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'noload', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('noload', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
@@ -515,14 +515,14 @@ class test_SequenceVideoManager(unittest.TestCase):
         alert = manager.alerts[0]
 
         self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals(u"Can't load maaaan", alert.description)
+        self.assertEquals("Can't load maaaan", alert.description)
 
     def test_alert_missing_stream(self):
         self.maxDiff = None
         sequence = model.Sequence(type='video', items=[
-            model.SequenceItem(source=model.StreamSourceRef(u'red', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'nostreams', u'video'), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef(u'blue', u'video'), offset=1, length=10)])
+            model.SequenceItem(source=model.StreamSourceRef('red', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('nostreams', 'video'), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('blue', 'video'), offset=1, length=10)])
 
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
@@ -531,6 +531,6 @@ class test_SequenceVideoManager(unittest.TestCase):
         alert = manager.alerts[0]
 
         self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals(u'Can\'t find stream "video" in source "nostreams".', unicode(alert))
+        self.assertEquals('Can\'t find stream "video" in source "nostreams".', str(alert))
 
 

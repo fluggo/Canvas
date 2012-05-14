@@ -71,7 +71,7 @@ class SourceSearchModel(QAbstractTableModel):
         self.search('')
 
     def _item_added(self, name):
-        print 'Added ' + name
+        print('Added ' + name)
         if self._match(name):
             length = len(self.current_list)
             self.beginInsertRows(QModelIndex(), length, length)
@@ -79,7 +79,7 @@ class SourceSearchModel(QAbstractTableModel):
             self.endInsertRows()
 
     def _item_removed(self, name):
-        print 'Removed ' + name
+        print('Removed ' + name)
         if self._match(name):
             index = self.current_list.index(name)
             self.beginRemoveRows(QModelIndex(), index, index)
@@ -93,7 +93,7 @@ class SourceSearchModel(QAbstractTableModel):
         self.search_string = search_string.lower()
 
         self.beginResetModel()
-        self.current_list = [name for name in self.source_list.iterkeys() if self._match(name)]
+        self.current_list = [name for name in self.source_list.keys() if self._match(name)]
         self.endResetModel()
 
     def data(self, index, role=Qt.DisplayRole):
@@ -153,16 +153,16 @@ class SourceSearchWidget(QDockWidget):
                 sources = []
 
                 for url in event.mimeData().urls():
-                    _log.debug(u'Url:' + unicode(url))
+                    _log.debug('Url:' + str(url))
 
                     if url.scheme() != 'file':
-                        sources.append(url + u' is not a local file.')
+                        sources.append(url + ' is not a local file.')
                         continue
 
                     path = os.path.normpath(url.toLocalFile())
 
                     if not os.path.isfile(path):
-                        sources.append(u"Can't find the file at \"" + path + u"\".")
+                        sources.append("Can't find the file at \"" + path + "\".")
                         continue
 
                     name = os.path.splitext(os.path.basename(path))[0]
@@ -176,8 +176,8 @@ class SourceSearchWidget(QDockWidget):
                         try:
                             source = plugin.create_source_from_file(name, path)
                         except Exception as ex:
-                            _log.debug(u'Error opening source {0}', path, exc_info=True)
-                            error = unicode(ex)
+                            _log.debug('Error opening source {0}', path, exc_info=True)
+                            error = str(ex)
 
                         _log.debug('Accepting {0}', plugin.name)
 
@@ -209,7 +209,7 @@ class SourceSearchWidget(QDockWidget):
 
             error_box = QMessageBox(QMessageBox.Warning,
                 QCoreApplication.applicationName(),
-                u'None of the dropped files could be opened.',
+                'None of the dropped files could be opened.',
                 buttons=QMessageBox.Ok, parent=self,
                 detailedText='\n'.join(errors))
 
@@ -234,21 +234,21 @@ class SourceSearchWidget(QDockWidget):
                 i = 1
 
                 while name in self.source_list:
-                    name = u'{0} ({1})'.format(base_name, i)
+                    name = '{0} ({1})'.format(base_name, i)
                     i += 1
 
                 source.name = name
 
                 self.source_list[name] = model.PluginSource.from_plugin_source(source)
             except Exception as ex:
-                errors.append(u'Error while importing "{0}": {1}'.format(source.name, unicode(ex)))
+                errors.append('Error while importing "{0}": {1}'.format(source.name, str(ex)))
                 _log.warning('Error creating PluginSource', exc_info=True)
 
         # TODO: Show errors
         if len(errors):
             error_box = QMessageBox(QMessageBox.Information,
                 QCoreApplication.applicationName(),
-                u'Some of the dropped files could not be opened.',
+                'Some of the dropped files could not be opened.',
                 buttons=QMessageBox.Ok, parent=self,
                 detailedText='\n'.join(errors))
 
@@ -337,7 +337,7 @@ class MainWindow(QMainWindow):
         audformat = plugins.AudioFormat(sample_rate=48000,
             channel_assignment=('FrontLeft', 'FrontRight'))
 
-        self.space = model.Space(u'', vidformat, audformat)
+        self.space = model.Space('', vidformat, audformat)
         self.setup_space()
 
         # FOR TESTING
@@ -464,7 +464,7 @@ class MainWindow(QMainWindow):
                 self.save_file(path)
             except Exception as ex:
                 _log.warning('Failed to save file', exc_info=True)
-                QMessageBox.error(self, 'Canvas', unicode(ex))
+                QMessageBox.error(self, 'Canvas', str(ex))
 
     def open_file(self, path):
         project = None

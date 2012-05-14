@@ -83,7 +83,7 @@ class RenderProgressDialog(_base, _type):
         try:
             self._muxer.run()
         except Exception as ex:
-            print ex
+            print(ex)
 
     def _cancel_clicked(self):
         self._muxer.cancel()

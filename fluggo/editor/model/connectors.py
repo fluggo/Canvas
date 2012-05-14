@@ -79,7 +79,7 @@ class VideoSourceRefConnector(plugins.VideoStream):
                 self.source = self.source_list[self.ref.source_name]
             except KeyError:
                 self._clear()
-                self._error = plugins.Alert(id(self), u'Reference refers to source "' + self.ref.source_name + u'" which doesn\'t exist.',
+                self._error = plugins.Alert(id(self), 'Reference refers to source "' + self.ref.source_name + '" which doesn\'t exist.',
                     model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                 self.show_alert(self._error)
                 return
@@ -91,7 +91,7 @@ class VideoSourceRefConnector(plugins.VideoStream):
                     self.source.bring_online()
                 except:
                     self._clear()
-                    self._error = plugins.Alert(id(self), u'Error while bringing source online',
+                    self._error = plugins.Alert(id(self), 'Error while bringing source online',
                         model_obj=self.model_obj, icon=plugins.AlertIcon.Error, exc_info=True)
                     self.show_alert(self._error)
                     return
@@ -100,7 +100,7 @@ class VideoSourceRefConnector(plugins.VideoStream):
                 self._clear()
 
                 if not len(self.source.alerts):
-                    self._error = plugins.Alert(id(self), u'Unable to bring source "' + self.ref.source_name + u'" online.',
+                    self._error = plugins.Alert(id(self), 'Unable to bring source "' + self.ref.source_name + '" online.',
                         model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                     self.show_alert(self._error)
 
@@ -110,7 +110,7 @@ class VideoSourceRefConnector(plugins.VideoStream):
                 self.stream = self.source.get_stream(self.ref.stream)
             except KeyError:
                 self._clear()
-                self._error = plugins.Alert(id(self), u'Can\'t find stream "' + self.ref.stream + u'" in source "' + self.ref.source_name + u'".',
+                self._error = plugins.Alert(id(self), 'Can\'t find stream "' + self.ref.stream + '" in source "' + self.ref.source_name + '".',
                     model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                 self.show_alert(self._error)
                 return
@@ -123,6 +123,6 @@ class VideoSourceRefConnector(plugins.VideoStream):
         except:
             _log.debug('Error while resolving reference', exc_info=True)
             self._clear()
-            self._error = plugins.Alert(id(self), u'Error while resolving reference', model_obj=self.model_obj, icon=plugins.AlertIcon.Error, exc_info=True)
+            self._error = plugins.Alert(id(self), 'Error while resolving reference', model_obj=self.model_obj, icon=plugins.AlertIcon.Error, exc_info=True)
             self.show_alert(self._error)
 

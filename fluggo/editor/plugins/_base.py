@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os, os.path, weakref, sys, traceback
-import ConfigParser
+import configparser
 from PyQt4 import QtCore
 
 from fluggo import signal, logging
@@ -34,7 +34,7 @@ class _AlertTracker(object):
         trackee.alert_added.connect(self.item_added)
         trackee.alert_removed.connect(self.item_removed)
 
-        for alert in trackee._alerts.itervalues():
+        for alert in trackee._alerts.values():
             self.item_added(alert)
 
     def stop_tracking(self, weakref_=None):
@@ -51,7 +51,7 @@ class _AlertTracker(object):
                 trackee.alert_removed.disconnect(self.item_removed)
 
         if hasattr(self, 'alerts') and self.alerts is not None:
-            for alert in self.alerts.itervalues():
+            for alert in self.alerts.values():
                 self.tracker.hide_alert(alert)
 
             self.alerts = None
@@ -89,7 +89,7 @@ class AlertPublisher(object):
 
     @property
     def alerts(self):
-        return self._alerts.values()
+        return list(self._alerts.values())
 
     def follow_alerts(self, publisher):
         '''Re-publishes alerts published by *publisher*. The publisher is tracked with
@@ -111,11 +111,11 @@ class AlertPublisher(object):
             tracker.stop_tracking()
 
 class AlertIcon(object):
-    NoIcon, Information, Warning, Error = range(4)
+    NoIcon, Information, Warning, Error = list(range(4))
 
 class Alert(object):
     '''An alert for use with the AlertPublisher.'''
-    def __init__(self, key, description, icon=AlertIcon.NoIcon, source=u'', model_obj=None, actions=[], exc_info=False):
+    def __init__(self, key, description, icon=AlertIcon.NoIcon, source='', model_obj=None, actions=[], exc_info=False):
         '''Create an alert. *key* is a way to uniquely identify this alert.
         *description* is the text to show. *icon* is either one of the values from AlertIcon,
         a QIcon, or a path to an image (Qt resource paths allowed). *source* gives the user a way to sort similar alerts together;
@@ -168,13 +168,13 @@ class Alert(object):
         return self._exc_info
 
     def __str__(self):
-        result = unicode(self.description)
+        result = str(self.description)
 
         if self._source:
-            result = self._source + u': ' + result
+            result = self._source + ': ' + result
 
         if self._exc_info:
-            result = result + u'\r\n' + u''.join(traceback.format_exception(*self._exc_info))
+            result = result + '\r\n' + ''.join(traceback.format_exception(*self._exc_info))
 
         return result
 
@@ -225,8 +225,8 @@ class Plugin(AlertPublisher):
     # TODO: Dialogs for settings/about, global vs. project settings,
     # notifications from these stored objects that settings have changed
 
-PLUGINS_PREFIX = u'plugins/'
-DECODERS_PREFIX = u'decoders/'
+PLUGINS_PREFIX = 'plugins/'
+DECODERS_PREFIX = 'decoders/'
 
 class PluginManager(object):
     plugin_modules = None
@@ -255,7 +255,7 @@ class PluginManager(object):
                 continue
 
             # Scan through the module's dictionary for plugins we can use
-            plugin_classes.extend(plugin for (name, plugin) in module.module.__dict__.iteritems()
+            plugin_classes.extend(plugin for (name, plugin) in module.module.__dict__.items()
                 if not name.startswith('_') and issubclass(type(plugin), type) and issubclass(plugin, Plugin))
 
         plugins = {}
@@ -274,7 +274,7 @@ class PluginManager(object):
         cls.enabled_plugins = {}
 
         # Read config file for enabled plugins
-        for (key, plugin) in cls.plugins.iteritems():
+        for (key, plugin) in cls.plugins.items():
             settings = QtCore.QSettings()
 
             settings.beginGroup(PLUGINS_PREFIX + key)
@@ -296,7 +296,7 @@ class PluginManager(object):
         cls.load_all()
 
         plugins = cls.enabled_plugins if enabled_only else cls.plugins
-        return [plugin for plugin in plugins.itervalues() if isinstance(plugin, baseclass)]
+        return [plugin for plugin in plugins.values() if isinstance(plugin, baseclass)]
 
     @classmethod
     def find_plugin_by_urn(cls, urn):
@@ -456,7 +456,7 @@ class PluginModule(object):
 
     @classmethod
     def from_file(cls, path):
-        parser = ConfigParser.RawConfigParser()
+        parser = configparser.RawConfigParser()
         parser.read(path)
 
         for section in parser.sections():

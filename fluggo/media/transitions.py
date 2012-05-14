@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import yaml
-import formats, process
+from . import formats, process
 
 class Transition(object):
     def create_source(self, source_a, source_b, length):

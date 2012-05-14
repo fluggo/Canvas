@@ -25,7 +25,7 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from .thumbnails import ThumbnailPainter
 
-(LEVEL_ITEMS, LEVEL_MOVE_HANDLES, LEVEL_TRANSITION_HANDLES, LEVEL_TIME_HANDLES, LEVEL_HEIGHT_HANDLES) = range(5)
+(LEVEL_ITEMS, LEVEL_MOVE_HANDLES, LEVEL_TRANSITION_HANDLES, LEVEL_TIME_HANDLES, LEVEL_HEIGHT_HANDLES) = list(range(5))
 
 class _ItemLeftController(Controller1D):
     def __init__(self, handler, view):
