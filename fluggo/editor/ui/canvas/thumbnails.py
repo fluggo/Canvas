@@ -111,15 +111,18 @@ class ThumbnailPainter(object):
                 source_rect=box)
 
             def callback(frame_index, frame, user_data):
-                (thumbnails, i) = user_data
+                try:
+                    (thumbnails, i) = user_data
 
-                size = frame.current_window.size()
-                img_str = frame.to_argb32_string()
+                    size = frame.current_window.size()
+                    img_str = frame.to_argb32_bytes()
 
-                thumbnails[i] = QtGui.QImage(img_str, size.x, size.y, QtGui.QImage.Format_ARGB32_Premultiplied).copy()
+                    thumbnails[i] = QtGui.QImage(img_str, size.x, size.y, QtGui.QImage.Format_ARGB32_Premultiplied).copy()
 
-                # TODO: limit to thumbnail's area
-                self.updated()
+                    # TODO: limit to thumbnail's area
+                    self.updated()
+                except:
+                    _log.warning('Error in thumbnail callback', exc_info=True)
 
             for i in range(left_nail, right_nail):
                 if not self._thumbnails[i]:
