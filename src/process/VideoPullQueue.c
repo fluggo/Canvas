@@ -77,7 +77,9 @@ _timeout_callback( py_obj_VideoPullQueueItem *item ) {
     if( item->active ) {
         PyObject *result = PyObject_CallFunction( item->callback, "iOO",
             item->frame_index, item->pyframe, item->user_data );
-        Py_DECREF(result);
+
+        if( result )
+            Py_DECREF(result);
     }
 
     // Clean up (do this immediately, because we may inadvertently be holding a ref to ourself)
