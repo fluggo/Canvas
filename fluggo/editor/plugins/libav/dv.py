@@ -265,7 +265,14 @@ class _LibavSource(plugins.Source):
             self.show_alert(self._load_alert)
 
     def _find_codec(self, cls, stream_desc, offset, length):
-        format_urn = u'urn:libav:codec-format:' + unicode(_codec_format_names[stream_desc.codec_id]).lower()[9:]
+        codec_id = _codec_format_names.get(stream_desc.codec_id)
+
+        if codec_id:
+            codec_id = unicode(codec_id).lower()[9:]
+        else:
+            codec_id = u'unknown-' + unicode(stream_desc.codec_id)
+
+        format_urn = u'urn:libav:codec-format:' + codec_id
         demuxer = libav.AVDemuxer(self.path, stream_desc.index)
         loaded_desc = self._loaded_definitions.get(stream_desc.id)
         urn, definition = None, None
