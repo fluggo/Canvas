@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import yaml, collections, itertools
+import yaml, collections, itertools, functools
 from fluggo import ezlist, sortlist, signal
 
+@functools.total_ordering
 class _ZSortKey():
     __slots__ = ('item', 'overlaps', 'y', 'z')
 
@@ -27,14 +28,26 @@ class _ZSortKey():
         self.y = y
         self.z = z
 
-    def __cmp__(self, other):
+    def __eq__(self, other):
         if other.item in self.item.overlap_items():
-            result = -cmp(self.z, other.z)
+            if self.z == other.z:
+                return True
 
-            if result:
-                return result
+        return self.y == other.y
 
-        return -cmp(self.y, other.y)
+    def __lt__(self, other):
+        if other.item in self.item.overlap_items():
+            if other.z < self.z:
+                return True
+
+        return other.y < self.y
+
+    def __le__(self, other):
+        if other.item in self.item.overlap_items():
+            if other.z <= self.z:
+                return True
+
+        return other.y <= self.y
 
     def __str__(self):
         return 'key(y={0.y}, z={0.z})'.format(self)
