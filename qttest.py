@@ -481,7 +481,7 @@ class MainWindow(QMainWindow):
 
     def save_file(self, path):
         with open(path, 'w') as stream:
-            yaml.dump_all((self.source_list.get_source_list(), self.space), stream)
+            yaml.dump_all(self.source_list.get_source_list(), stream)
 
     def render_dv(self):
         if not len(self.space):
