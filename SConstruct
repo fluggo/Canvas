@@ -93,6 +93,12 @@ if mingw or env['PLATFORM'] == 'win32':
 
     # HACK: Work around a stupid bug in the SCons mingw tool
     python_env['WINDOWS_INSERT_DEF'] = 1
+else:
+    python_suffix = python3_script('''import sysconfig
+print(sysconfig.get_config_var(\'SO\'))
+''').strip()
+
+    python_env['SHLIBSUFFIX'] = python_suffix
 
 # Generate the half/float conversion tables
 half = env.Command('src/cprocess/halftab.c', 'src/cprocess/genhalf.py', '$PYTHON $SOURCE > $TARGET')
