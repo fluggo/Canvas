@@ -7,12 +7,12 @@ class TestSortedList(unittest.TestCase):
         l = SortedList([5,9,2,3,6])
 
         for j, k in itertools.zip_longest(l, [2,3,5,6,9]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
         l = SortedList([5,9,2,3,6], keyfunc=lambda j: -j)
 
         for j, k in itertools.zip_longest(l, [9,6,5,3,2]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
     def testadd(self):
         l = SortedList([2,3,6,9])
@@ -20,36 +20,36 @@ class TestSortedList(unittest.TestCase):
         l.add(5)
 
         for j, k in itertools.zip_longest(l, [2,3,5,6,9]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
         l = SortedList([9,6,3,2], keyfunc=lambda j: -j)
 
         l.add(5)
 
         for j, k in itertools.zip_longest(l, [9,6,5,3,2]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
         l = SortedList([9,6,3,2], keyfunc=lambda a: -a)
 
         l.add(5)
 
         for j, k in itertools.zip_longest(l, [9,6,5,3,2]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
     def testfind(self):
         l = SortedList([9,7,1,3,6,2])
 
         for j, k in itertools.zip_longest(l.find(), [1,2,3,6,7,9]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
         for j, k in itertools.zip_longest(l.find(min_key=3), [3,6,7,9]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
         for j, k in itertools.zip_longest(l.find(max_key=6), [1,2,3,6]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
         for j, k in itertools.zip_longest(l.find(min_key=3, max_key=6), [3,6]):
-            self.assertEquals(j, k)
+            self.assertEqual(j, k)
 
     def testindexes(self):
         class Item(object):
@@ -67,7 +67,7 @@ class TestSortedList(unittest.TestCase):
 
         def check(l):
             for i in range(len(l)):
-                self.assertEquals(l[i].indx, i)
+                self.assertEqual(l[i].indx, i)
 
         l = SortedList([Item(v) for v in [9,7,1,3,6,2]], keyfunc=lambda a: a.value, index_attr='indx')
         check(l)

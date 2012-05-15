@@ -481,11 +481,11 @@ class test_SequenceVideoManager(unittest.TestCase):
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
 
-        self.assertEquals(1, len(manager.alerts))
+        self.assertEqual(1, len(manager.alerts))
         alert = manager.alerts[0]
 
-        self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals('Reference refers to source "badsource" which doesn\'t exist.', alert.description)
+        self.assertEqual(plugins.AlertIcon.Error, alert.icon)
+        self.assertEqual('Reference refers to source "badsource" which doesn\'t exist.', alert.description)
 
     def test_alert_offline_silent_source(self):
         sequence = model.Sequence(type='video', items=[
@@ -496,11 +496,11 @@ class test_SequenceVideoManager(unittest.TestCase):
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
 
-        self.assertEquals(1, len(manager.alerts))
+        self.assertEqual(1, len(manager.alerts))
         alert = manager.alerts[0]
 
-        self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals('Unable to bring source "noload_silent" online.', alert.description)
+        self.assertEqual(plugins.AlertIcon.Error, alert.icon)
+        self.assertEqual('Unable to bring source "noload_silent" online.', alert.description)
 
     def test_alert_offline_source(self):
         sequence = model.Sequence(type='video', items=[
@@ -511,11 +511,11 @@ class test_SequenceVideoManager(unittest.TestCase):
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
 
-        self.assertEquals(1, len(manager.alerts))
+        self.assertEqual(1, len(manager.alerts))
         alert = manager.alerts[0]
 
-        self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals("Can't load maaaan", alert.description)
+        self.assertEqual(plugins.AlertIcon.Error, alert.icon)
+        self.assertEqual("Can't load maaaan", alert.description)
 
     def test_alert_missing_stream(self):
         self.maxDiff = None
@@ -527,10 +527,10 @@ class test_SequenceVideoManager(unittest.TestCase):
         manager = SequenceVideoManager(sequence, slist, vidformat)
         self.check_bad_sequence(manager)
 
-        self.assertEquals(1, len(manager.alerts))
+        self.assertEqual(1, len(manager.alerts))
         alert = manager.alerts[0]
 
-        self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals('Can\'t find stream "video" in source "nostreams".', str(alert))
+        self.assertEqual(plugins.AlertIcon.Error, alert.icon)
+        self.assertEqual('Can\'t find stream "video" in source "nostreams".', str(alert))
 
 

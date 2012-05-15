@@ -44,11 +44,11 @@ class test_SolidColorVideoSource(unittest.TestCase):
         solid = process.SolidColorVideoSource(rgba(0.0, 0.0, 1.0, 1.0), process.LerpFunc((-2, -2, 2, 2), (-4, -4, 0, 6), 2))
 
         frame = solid.get_frame_f32(0, box2i(-5, -5, 5, 6))
-        self.assertEquals(frame.current_window, box2i(-2, -2, 2, 2))
+        self.assertEqual(frame.current_window, box2i(-2, -2, 2, 2))
 
         frame = solid.get_frame_f32(1, box2i(-5, -5, 5, 6))
-        self.assertEquals(frame.current_window, box2i(-3, -3, 1, 4))
+        self.assertEqual(frame.current_window, box2i(-3, -3, 1, 4))
 
         frame = solid.get_frame_f32(2, box2i(-5, -5, 5, 6))
-        self.assertEquals(frame.current_window, box2i(-4, -4, 0, 6))
+        self.assertEqual(frame.current_window, box2i(-4, -4, 0, 6))
 

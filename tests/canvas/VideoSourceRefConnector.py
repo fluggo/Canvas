@@ -115,14 +115,14 @@ class test_VideoSourceRefConnector(unittest.TestCase):
         ref = model.StreamSourceRef('badsource', 'video')
         conn.set_ref(ref)
 
-        self.assertEquals(1, len(conn.alerts))
+        self.assertEqual(1, len(conn.alerts))
         alert = conn.alerts[0]
 
-        self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals('Reference refers to source "badsource" which doesn\'t exist.', str(alert))
+        self.assertEqual(plugins.AlertIcon.Error, alert.icon)
+        self.assertEqual('Reference refers to source "badsource" which doesn\'t exist.', str(alert))
         self.check_empty(conn)
-        self.assertEquals((None, None), conn.defined_range)
-        self.assertEquals(None, conn.format)
+        self.assertEqual((None, None), conn.defined_range)
+        self.assertEqual(None, conn.format)
 
     def test_alert_offline_silent_source(self):
         ref = model.StreamSourceRef('red', 'video')
@@ -133,15 +133,15 @@ class test_VideoSourceRefConnector(unittest.TestCase):
         ref = model.StreamSourceRef('noload_silent', 'video')
         conn.set_ref(ref)
 
-        self.assertEquals(1, len(conn.alerts))
+        self.assertEqual(1, len(conn.alerts))
         alert = conn.alerts[0]
 
-        self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals('Unable to bring source "noload_silent" online.', str(alert))
-        self.assertEquals('blimog', alert.model_object)
+        self.assertEqual(plugins.AlertIcon.Error, alert.icon)
+        self.assertEqual('Unable to bring source "noload_silent" online.', str(alert))
+        self.assertEqual('blimog', alert.model_object)
         self.check_empty(conn)
-        self.assertEquals((None, None), conn.defined_range)
-        self.assertEquals(None, conn.format)
+        self.assertEqual((None, None), conn.defined_range)
+        self.assertEqual(None, conn.format)
 
     def test_alert_offline_source(self):
         ref = model.StreamSourceRef('red', 'video')
@@ -152,15 +152,15 @@ class test_VideoSourceRefConnector(unittest.TestCase):
         ref = model.StreamSourceRef('noload', 'video')
         conn.set_ref(ref)
 
-        self.assertEquals(1, len(conn.alerts))
+        self.assertEqual(1, len(conn.alerts))
         alert = conn.alerts[0]
 
-        self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals("noload: Can't load maaaan", str(alert))
-        self.assertEquals(slist['noload'], alert.model_object)
+        self.assertEqual(plugins.AlertIcon.Error, alert.icon)
+        self.assertEqual("noload: Can't load maaaan", str(alert))
+        self.assertEqual(slist['noload'], alert.model_object)
         self.check_empty(conn)
-        self.assertEquals((None, None), conn.defined_range)
-        self.assertEquals(None, conn.format)
+        self.assertEqual((None, None), conn.defined_range)
+        self.assertEqual(None, conn.format)
 
     def test_alert_missing_stream(self):
         ref = model.StreamSourceRef('red', 'video')
@@ -171,14 +171,14 @@ class test_VideoSourceRefConnector(unittest.TestCase):
         ref = model.StreamSourceRef('nostreams', 'video')
         conn.set_ref(ref)
 
-        self.assertEquals(1, len(conn.alerts))
+        self.assertEqual(1, len(conn.alerts))
         alert = conn.alerts[0]
 
-        self.assertEquals(plugins.AlertIcon.Error, alert.icon)
-        self.assertEquals('Can\'t find stream "video" in source "nostreams".', str(alert))
-        self.assertEquals('blimog', alert.model_object)
+        self.assertEqual(plugins.AlertIcon.Error, alert.icon)
+        self.assertEqual('Can\'t find stream "video" in source "nostreams".', str(alert))
+        self.assertEqual('blimog', alert.model_object)
         self.check_empty(conn)
-        self.assertEquals((None, None), conn.defined_range)
-        self.assertEquals(None, conn.format)
+        self.assertEqual((None, None), conn.defined_range)
+        self.assertEqual(None, conn.format)
 
 
