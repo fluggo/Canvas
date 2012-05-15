@@ -574,23 +574,19 @@ class MainWindow(QMainWindow):
 
             self.space[z1:z2 + 1] = temp_items
 
-    def edit_plugins(self):
-        try:
-            from fluggo.editor.ui.plugineditor import PluginEditorDialog
+    @_log.warnonerror('Error executing plugin editor dialog')
+    def edit_plugins(self, event):
+        from fluggo.editor.ui.plugineditor import PluginEditorDialog
 
-            dialog = PluginEditorDialog()
-            dialog.exec_()
-        except:
-            _log.warning('Error executing plugin editor dialog', exc_info=True)
+        dialog = PluginEditorDialog()
+        dialog.exec_()
 
-    def edit_decoders(self):
-        try:
-            from fluggo.editor.ui.codeceditor import DecoderEditorDialog
+    @_log.warnonerror('Error executing codec editor dialog')
+    def edit_decoders(self, event):
+        from fluggo.editor.ui.codeceditor import DecoderEditorDialog
 
-            dialog = DecoderEditorDialog()
-            dialog.exec_()
-        except:
-            _log.warning('Error executing codec editor dialog', exc_info=True)
+        dialog = DecoderEditorDialog()
+        dialog.exec_()
 
 
 app = QApplication(sys.argv)

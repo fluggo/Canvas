@@ -18,7 +18,6 @@
 
 # This extends ordinary Python logging to support new-style format strings
 
-
 from logging import *
 
 class _DeferredFormat(object):
@@ -31,6 +30,40 @@ class _DeferredFormat(object):
 
     def __str__(self):
         return self.format.format(*self.args, **self.kw)
+
+class _mylogger(getLoggerClass()):
+    def warnonerror(self, msg='Error while executing method'):
+        '''Logs a warning when an exception happens, and then eats the exception.'''
+        import functools
+
+        if callable(msg):
+            # We were called with the @warnonerror syntax; that's fine
+            func = msg
+            msg = 'Error while executing method'
+
+            @functools.wraps(func)
+            def wrapper_func(*args, **kw):
+                try:
+                    return func(*args, **kw)
+                except:
+                    self.warning(msg, exc_info=True)
+
+            return wrapper_func
+        else:
+            # We were called with the @warnonerror(msg) syntax
+            def wrapper(func):
+                @functools.wraps(func)
+                def wrapper_func(*args, **kw):
+                    try:
+                        return func(*args, **kw)
+                    except:
+                        self.warning(msg, exc_info=True)
+
+                return wrapper_func
+
+            return wrapper
+
+setLoggerClass(_mylogger)
 
 # Works for Python 3.2 and later
 _baseFactory = getLogRecordFactory()
