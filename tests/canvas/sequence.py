@@ -27,7 +27,7 @@ class SilentFailedSource(plugins.Source):
     def get_stream(self, name):
         raise plugins.SourceOfflineError
 
-slist = model.SourceList()
+slist = model.AssetList()
 slist['red'] = model.RuntimeSource('red', {'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100)))})
 slist['green'] = model.RuntimeSource('green', {'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 100, 0, 1), 100)))})
 slist['blue'] = model.RuntimeSource('blue', {'video': plugins.VideoStream(process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 0, 100, 1), 100)))})

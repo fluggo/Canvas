@@ -273,79 +273,79 @@ class StreamSourceRef(object):
             other._source_name == self._source_name and
             other._stream == self._stream)
 
-class SourceList(collections.MutableMapping):
-    def __init__(self, sources=None):
-        self.sources = sources or {}
+class AssetList(collections.MutableMapping):
+    def __init__(self, assets=None):
+        self.assets = assets or {}
         self.added = signal.Signal()
         self.renamed = signal.Signal()
         self.removed = signal.Signal()
 
     def __getitem__(self, name):
-        return self.sources[name]
+        return self.assets[name]
 
     def __setitem__(self, name, value):
-        old = self.sources.get(name)
+        old = self.assets.get(name)
 
         if old:
             self.removed(name)
-            old._source_list = None
+            old._asset_list = None
             old.name = None
 
-        self.sources[name] = value
-        value._source_list = self
+        self.assets[name] = value
+        value._asset_list = self
         value.name = name
 
         self.added(name)
 
     def __delitem__(self, name):
-        old = self.sources[name]
+        old = self.assets[name]
 
         self.removed(name)
-        old._source_list = None
+        old._asset_list = None
         old.name = None
 
-        del self.sources[name]
+        del self.assets[name]
 
     def __len__(self):
-        return len(self.sources)
+        return len(self.assets)
 
     def __iter__(self):
-        return self.sources.__iter__()
+        return self.assets.__iter__()
 
-    def get_source_list(self):
-        return self.sources
+    def get_asset_list(self):
+        return self.assets
 
     def fixup(self):
-        # Give each object its name and source_list
-        for (name, source) in self.sources.items():
-            source.name = name
-            source._source_list = self
+        # Give each object its name and asset_list
+        for (name, asset) in self.assets.items():
+            asset.name = name
+            asset._asset_list = self
 
-        for source in self.sources.values():
-            source.fixup()
+        for asset in self.assets.values():
+            asset.fixup()
 
 class Project(object):
     yaml_tag = '!Project'
 
-    def __init__(self, known_formats=None, sources=None, project_settings=None):
+    def __init__(self, known_formats=None, assets=None, project_settings=None):
         self._known_formats = known_formats if known_formats is not None else {}
-        self._sources = sources if sources is not None else {}
+        self._assets = assets if assets is not None else {}
         self._project_settings = project_settings if project_settings is not None else {}
 
     def fixup(self):
-        if isinstance(self._sources, dict):
-            self._sources = SourceList(sources=self._sources)
+        if isinstance(self._assets, dict):
+            self._assets = AssetList(assets=self._assets)
 
-        self._sources.fixup()
+        self._assets.fixup()
 
     @property
-    def sources(self):
-        return self._sources
+    def assets(self):
+        return self._assets
 
     @classmethod
     def to_yaml(cls, dumper, data):
         result = {'known_formats': data._known_formats,
-            'sources': data._sources.get_source_list(),
+            'assets': data._assets.get_asset_list(),
             'project_settings': data._project_settings}
 
         return dumper.represent_mapping(cls.yaml_tag, result)

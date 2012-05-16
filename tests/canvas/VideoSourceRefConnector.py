@@ -30,7 +30,7 @@ red_format = plugins.VideoFormat(active_area=box2i(-1, -1, 20, 20))
 green_format = plugins.VideoFormat(active_area=box2i(12, -6, 100, 210))
 blue_format = plugins.VideoFormat(active_area=box2i(0, 0, 14, 19))
 
-slist = model.SourceList()
+slist = model.AssetList()
 slist['red'] = model.RuntimeSource('red', {'video': 
     plugins.VideoStream(
         process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100)),

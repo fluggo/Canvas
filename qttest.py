@@ -56,15 +56,15 @@ _log = logging.getLogger(__name__)
 # Load all plugins
 plugins.PluginManager.load_all()
 
-class SourceSearchModel(QAbstractTableModel):
-    # TODO: Show if source is offline
+class AssetSearchModel(QAbstractTableModel):
+    # TODO: Show if asset is offline
 
-    def __init__(self, source_list):
+    def __init__(self, asset_list):
         QAbstractTableModel.__init__(self)
-        self.source_list = source_list
+        self.asset_list = asset_list
         self.current_list = []
-        self.source_list.added.connect(self._item_added)
-        self.source_list.removed.connect(self._item_removed)
+        self.asset_list.added.connect(self._item_added)
+        self.asset_list.removed.connect(self._item_removed)
         self.setSupportedDragActions(Qt.LinkAction)
 
         self.search_string = None
@@ -93,7 +93,7 @@ class SourceSearchModel(QAbstractTableModel):
         self.search_string = search_string.lower()
 
         self.beginResetModel()
-        self.current_list = [name for name in self.source_list.keys() if self._match(name)]
+        self.current_list = [name for name in self.asset_list.keys() if self._match(name)]
         self.endResetModel()
 
     def data(self, index, role=Qt.DisplayRole):
@@ -123,11 +123,11 @@ class SourceSearchModel(QAbstractTableModel):
 
         return 1
 
-class SourceSearchWidget(QDockWidget):
-    def __init__(self, source_list):
-        QDockWidget.__init__(self, 'Sources')
-        self.source_list = source_list
-        self.model = SourceSearchModel(source_list)
+class AssetSearchWidget(QDockWidget):
+    def __init__(self, asset_list):
+        QDockWidget.__init__(self, 'Assets')
+        self.asset_list = asset_list
+        self.model = AssetSearchModel(asset_list)
 
         widget = QWidget()
 
@@ -140,16 +140,16 @@ class SourceSearchWidget(QDockWidget):
 
         self.setWidget(widget)
         self.setAcceptDrops(True)
-        self._dropSources = None
+        self._dropAssets = None
 
-    def set_source_list(self, source_list):
-        self.source_list = source_list
-        self.model = SourceSearchModel(source_list)
+    def set_asset_list(self, asset_list):
+        self.asset_list = asset_list
+        self.model = AssetSearchModel(asset_list)
         self.view.setModel(self.model)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
-            if self._dropSources is None:
+            if self._dropAssets is None:
                 sources = []
 
                 for url in event.mimeData().urls():
@@ -186,25 +186,25 @@ class SourceSearchWidget(QDockWidget):
 
                     sources.append(source or error)
 
-                self._dropSources = sources
+                self._dropAssets = sources
 
-            if any(isinstance(source, plugins.Source) for source in self._dropSources):
+            if any(isinstance(source, plugins.Source) for source in self._dropAssets):
                 _log.debug('Accepting in drag enter')
                 event.acceptProposedAction()
                 return
 
     def dragLeaveEvent(self, event):
         _log.debug('Left drag')
-        self._dropSources = None
+        self._dropAssets = None
 
     def dropEvent(self, event):
         _log.debug('In dropevent')
 
-        if not self._dropSources:
-            _log.debug('_dropSources not set')
+        if not self._dropAssets:
+            _log.warning('_dropAssets not set')
             return
 
-        if not any(isinstance(source, plugins.Source) for source in self._dropSources):
+        if not any(isinstance(source, plugins.Source) for source in self._dropAssets):
             _log.debug('Only errors')
 
             error_box = QMessageBox(QMessageBox.Warning,
@@ -215,7 +215,7 @@ class SourceSearchWidget(QDockWidget):
 
             error_box.exec_()
 
-            self._dropSources = None
+            self._dropAssets = None
             return
 
         event.acceptProposedAction()
@@ -223,7 +223,7 @@ class SourceSearchWidget(QDockWidget):
         # TODO: Handle dropping onto other sources, such as folders
         errors = []
 
-        for source in self._dropSources:
+        for source in self._dropAssets:
             if not isinstance(source, plugins.Source):
                 errors.append(source)
                 continue
@@ -233,13 +233,13 @@ class SourceSearchWidget(QDockWidget):
                 name = base_name
                 i = 1
 
-                while name in self.source_list:
+                while name in self.asset_list:
                     name = '{0} ({1})'.format(base_name, i)
                     i += 1
 
                 source.name = name
 
-                self.source_list[name] = model.PluginSource.from_plugin_source(source)
+                self.asset_list[name] = model.PluginSource.from_plugin_source(source)
             except Exception as ex:
                 errors.append('Error while importing "{0}": {1}'.format(source.name, str(ex)))
                 _log.warning('Error creating PluginSource', exc_info=True)
@@ -254,7 +254,7 @@ class SourceSearchWidget(QDockWidget):
 
             error_box.exec_()
 
-        self._dropSources = None
+        self._dropAssets = None
         return
 
 class MainWindow(QMainWindow):
@@ -262,7 +262,7 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setMinimumHeight(600)
 
-        self.source_list = model.SourceList()
+        self.asset_list = model.AssetList()
 
         self.audio_player = alsa.AlsaPlayer(48000, 2, None)
 
@@ -292,7 +292,7 @@ class MainWindow(QMainWindow):
 
         self.addDockWidget(Qt.BottomDockWidgetArea, self.video_dock)
 
-        self.search_dock = SourceSearchWidget(self.source_list)
+        self.search_dock = AssetSearchWidget(self.asset_list)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.search_dock)
 
         self.notify_dock = notificationwidget.NotificationWidget(self.alert_publisher)
@@ -343,27 +343,27 @@ class MainWindow(QMainWindow):
         # FOR TESTING
         self.open_file('test_timeline.yaml')
 
-    def setup_source_list(self):
+    def setup_asset_list(self):
         self.space = None
         self.setup_space()
 
-        self.search_dock.set_source_list(self.source_list)
+        self.search_dock.set_asset_list(self.asset_list)
 
     def setup_space(self):
         '''Set up the work environment for the new value of self.space.'''
         if not self.space:
             self.audio_player.set_audio_source(None)
             self.video_widget.setVideoSource(None)
-            self.view.set_space(None, self.source_list)
+            self.view.set_space(None, self.asset_list)
             return
 
         if self.video_graph_manager:
             self.alert_publisher.unfollow_alerts(self.video_graph_manager)
 
-        self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.source_list)
+        self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.asset_list)
         self.audio_player.set_audio_source(self.audio_graph_manager)
 
-        self.video_graph_manager = graph.SpaceVideoManager(self.space, self.source_list, self.space.video_format)
+        self.video_graph_manager = graph.SpaceVideoManager(self.space, self.asset_list, self.space.video_format)
         self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
         self.video_widget.setDisplayWindow(self.space.video_format.active_area)
         self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
@@ -371,7 +371,7 @@ class MainWindow(QMainWindow):
 
         self.alert_publisher.follow_alerts(self.video_graph_manager)
 
-        self.view.set_space(self.space, self.source_list)
+        self.view.set_space(self.space, self.asset_list)
 
         self.clock.seek(0)
 
@@ -393,8 +393,8 @@ class MainWindow(QMainWindow):
 
         self.view_video_preview = self.video_dock.toggleViewAction()
         self.view_video_preview.setText('Video &Preview')
-        self.view_source_list = self.search_dock.toggleViewAction()
-        self.view_source_list.setText('&Sources')
+        self.view_asset_list = self.search_dock.toggleViewAction()
+        self.view_asset_list.setText('&Assets')
 
         self.transport_group = QActionGroup(self)
         self.transport_rewind_action = QAction('Rewind', self.transport_group,
@@ -427,7 +427,7 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(self.quit_action)
 
         self.view_menu = self.menuBar().addMenu('&View')
-        self.view_menu.addAction(self.view_source_list)
+        self.view_menu.addAction(self.view_asset_list)
         self.view_menu.addAction(self.view_video_preview)
 
         self.tools_menu = self.menuBar().addMenu('&Tools')
@@ -473,15 +473,15 @@ class MainWindow(QMainWindow):
             project = yaml.load(stream)
             project.fixup()
 
-        self.source_list = project.sources
-        self.setup_source_list()
+        self.asset_list = project.assets
+        self.setup_asset_list()
 
-        self.space = self.source_list['test']
+        self.space = self.asset_list['test']
         self.setup_space()
 
     def save_file(self, path):
         with open(path, 'w') as stream:
-            yaml.dump_all(self.source_list.get_source_list(), stream)
+            yaml.dump_all(self.asset_list.get_asset_list(), stream)
 
     def render_dv(self):
         if not len(self.space):
@@ -497,7 +497,7 @@ class MainWindow(QMainWindow):
             items = sorted(self.space, key=lambda a: a.z_sort_key())
 
             for i, item in enumerate(items):
-                source = self.source_list.get_stream(item.source_name, item.source_stream_id)
+                source = self.asset_list.get_stream(item.source_name, item.source_stream_id)
                 workspace.add(x=item.x, width=item.width, z=i, offset=item.offset, source=source)
 
             from fluggo.media import libav

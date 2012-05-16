@@ -1,5 +1,5 @@
 !Project
-  sources:
+  assets:
     79b: !PluginSource
       plugin_urn: urn:fluggo.com/canvas/plugins:libav-dv
       definition: {path: "/home/james/Videos/Okra - 79b,100.avi"}
