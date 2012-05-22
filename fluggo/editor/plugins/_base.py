@@ -115,7 +115,7 @@ class AlertIcon(object):
 
 class Alert(object):
     '''An alert for use with the AlertPublisher.'''
-    def __init__(self, key, description, icon=AlertIcon.NoIcon, source='', model_obj=None, actions=[], exc_info=False):
+    def __init__(self, description, icon=AlertIcon.NoIcon, source='', model_obj=None, actions=[], exc_info=False, key=None):
         '''Create an alert. *key* is a way to uniquely identify this alert.
         *description* is the text to show. *icon* is either one of the values from AlertIcon,
         a QIcon, or a path to an image (Qt resource paths allowed). *source* gives the user a way to sort similar alerts together;
@@ -123,7 +123,7 @@ class Alert(object):
         the issue. *model_obj* is an object in that could be found in the model for this alert.'''
         # TODO: Add exc_info like on logging to allow capturing tracebacks on exceptions
 
-        self.key = key
+        self.key = key or self
         self._description = description
         self._source = source
         self._icon = icon
@@ -146,7 +146,7 @@ class Alert(object):
 
     @property
     def icon(self):
-        '''A value from AlertIcon, or a custom QIcon.'''
+        '''A value from AlertIcon.'''
         return self._icon
 
     @property

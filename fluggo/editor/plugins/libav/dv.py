@@ -251,7 +251,7 @@ class _LibavSource(plugins.Source):
 
             self.offline = False
         except _DVError as ex:
-            self._load_alert = plugins.Alert(id(self), str(ex), icon=plugins.AlertIcon.Error, source=self.name, actions=[
+            self._load_alert = plugins.Alert(str(ex), icon=plugins.AlertIcon.Error, source=self.name, actions=[
                 QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)])
             self.show_alert(self._load_alert)
         except Exception as ex:
@@ -260,7 +260,7 @@ class _LibavSource(plugins.Source):
             # we could make specific handlers for specific situations (example: file is
             # missing, so remap to another file) without requiring every source to code it
             # separately.
-            self._load_alert = plugins.Alert(id(self), 'Unexpected ' + ex.__class__.__name__ + ': ' + str(ex), icon=plugins.AlertIcon.Error, source=self.name, actions=[
+            self._load_alert = plugins.Alert('Unexpected ' + ex.__class__.__name__ + ': ' + str(ex), icon=plugins.AlertIcon.Error, source=self.name, actions=[
                 QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)], exc_info=True)
             self.show_alert(self._load_alert)
 

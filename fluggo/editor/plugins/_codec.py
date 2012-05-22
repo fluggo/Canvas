@@ -157,7 +157,7 @@ class _DecoderConnector(object):
 
                 if not codec:
                     self._clear()
-                    self._error = Alert(id(self), 'Could not find codec "' + self._codec_urn + '". Check to see that it is installed and enabled.',
+                    self._error = Alert('Could not find codec "' + self._codec_urn + '". Check to see that it is installed and enabled.',
                         model_obj=self.model_obj, icon=AlertIcon.Error)
                     self.show_alert(self._error)
                     return
@@ -167,7 +167,7 @@ class _DecoderConnector(object):
                     self.codec = codec
                 except:
                     self._clear()
-                    self._error = Alert(id(self), 'Error while creating decoder',
+                    self._error = Alert('Error while creating decoder',
                         model_obj=self.model_obj, icon=AlertIcon.Error, exc_info=True)
                     self.show_alert(self._error)
                     return
@@ -177,7 +177,7 @@ class _DecoderConnector(object):
 
                 if not len(codecs):
                     self._clear()
-                    self._error = Alert(id(self), 'No codecs found to handle format "' + self._format_urn + '".',
+                    self._error = Alert('No codecs found to handle format "' + self._format_urn + '".',
                         model_obj=self.model_obj, icon=AlertIcon.Error)
                     self.show_alert(self._error)
                     return
@@ -191,7 +191,7 @@ class _DecoderConnector(object):
 
                 if not self.decoder:
                     self._clear()
-                    self._error = Alert(id(self), 'No codecs found to handle format "' + self._format_urn + '". All codecs that were tried failed. See log for details.',
+                    self._error = Alert('No codecs found to handle format "' + self._format_urn + '". All codecs that were tried failed. See log for details.',
                         model_obj=self.model_obj, icon=AlertIcon.Error)
                     self.show_alert(self._error)
                     return
@@ -206,7 +206,7 @@ class _DecoderConnector(object):
         except:
             _log.warning('Error while finding codec for format "' + self._format_urn + '"', exc_info=True)
             self._clear()
-            self._error = Alert(id(self), 'Error while finding codec for format "' + self._format_urn + '"', model_obj=self.model_obj, icon=AlertIcon.Error, exc_info=True)
+            self._error = Alert('Error while finding codec for format "' + self._format_urn + '"', model_obj=self.model_obj, icon=AlertIcon.Error, exc_info=True)
             self.show_alert(self._error)
 
 class VideoDecoderConnector(_DecoderConnector, VideoStream):

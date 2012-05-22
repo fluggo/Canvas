@@ -103,7 +103,7 @@ class PluginSource(Source):
 
             if self._plugin is None:
                 _log.debug('Couldn\'t find plugin {0} for source {1}', self.plugin_urn, self.name)
-                self._load_alert = plugins.Alert(id(self),
+                self._load_alert = plugins.Alert(
                     'Plugin ' + self.plugin_urn + ' unavailable or disabled',
                     icon=plugins.AlertIcon.Error,
                     source=self.name,
@@ -130,7 +130,7 @@ class PluginSource(Source):
                 self._source = None
 
                 _log.debug('Error while creating source {0} from plugin', self.name, exc_info=True)
-                self._load_alert = plugins.Alert(id(self),
+                self._load_alert = plugins.Alert(
                     'Unexpected ' + ex.__class__.__name__ + ' while creating source from plugin: ' + str(ex),
                     icon=plugins.AlertIcon.Error,
                     source=self.name,
@@ -147,7 +147,7 @@ class PluginSource(Source):
                 self._source.bring_online()
             except Exception as ex:
                 _log.debug('Error while bringing source {0} online', self.name, exc_info=True)
-                self._load_alert = plugins.Alert(id(self),
+                self._load_alert = plugins.Alert(
                     'Unexpected ' + ex.__class__.__name__ + ' while bringing source online: ' + str(ex),
                     icon=plugins.AlertIcon.Error,
                     source=self.name,

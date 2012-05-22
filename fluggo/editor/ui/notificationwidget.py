@@ -21,29 +21,32 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import bisect
 
+def _make_key(alert):
+    return id(alert)
+
 class NotificationModel(QAbstractTableModel):
     def __init__(self, manager):
         QAbstractTableModel.__init__(self)
         self._manager = manager
         self._list = list(self._manager.alerts)
-        self._list.sort(key=lambda n: n.key)
-        self._keys = [n.key for n in self._list]
+        self._list.sort(key=lambda n: _make_key(n))
+        self._keys = [_make_key(n) for n in self._list]
 
         self._manager.alert_added.connect(self._item_added)
         self._manager.alert_removed.connect(self._item_removed)
 
     def _item_added(self, alert):
-        index = bisect.bisect(self._keys, alert.key)
+        index = bisect.bisect(self._keys, _make_key(alert))
 
         self.beginInsertRows(QModelIndex(), index, index)
-        self._keys.insert(index, alert.key)
+        self._keys.insert(index, _make_key(alert))
         self._list.insert(index, alert)
         self.endInsertRows()
 
     def _item_removed(self, alert):
-        index = bisect.bisect_left(self._keys, alert.key)
+        index = bisect.bisect_left(self._keys, _make_key(alert))
 
-        if index != len(self._keys) and self._keys[index] == alert.key:
+        if index != len(self._keys) and self._keys[index] == _make_key(alert):
             self.beginRemoveRows(QModelIndex(), index, index)
             del self._list[index]
             del self._keys[index]

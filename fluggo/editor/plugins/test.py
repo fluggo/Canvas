@@ -7,7 +7,7 @@ class TestSourcePlugin(plugins.SourcePlugin):
 
     def __init__(self, *args, **kw):
         plugins.SourcePlugin.__init__(self, *args, **kw)
-        self.alert = plugins.Alert((self, 'test'), 'Test notification', icon=plugins.AlertIcon.Information, source=self.name)
+        self.alert = plugins.Alert('Test notification', icon=plugins.AlertIcon.Information, source=self.name)
         self.show_alert(self.alert)
 
     def activate(self):

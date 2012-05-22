@@ -8,7 +8,7 @@ class FailedSource(plugins.Source):
     '''A source that refuses to come online.'''
     def __init__(self, name):
         plugins.Source.__init__(self, name)
-        self._load_error = plugins.Alert(id(self), 'Can\'t load maaaan', source=name, icon=plugins.AlertIcon.Error)
+        self._load_error = plugins.Alert('Can\'t load maaaan', source=name, icon=plugins.AlertIcon.Error)
 
     def bring_online(self):
         self.show_alert(self._load_error)
