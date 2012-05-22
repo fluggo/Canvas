@@ -21,12 +21,11 @@ import fractions
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from fluggo.media import process, timecode
+from fluggo import signal
 
 SMALL_TICK_THRESHOLD = 2
 
 class TimeRuler(QWidget):
-    current_frame_changed = pyqtSignal(float, name='currentFrameChanged')
-
     def __init__(self, parent=None, timecode=timecode.Frames(), scale=fractions.Fraction(1), frame_rate=fractions.Fraction(30, 1)):
         QWidget.__init__(self, parent)
         self.frame_rate = fractions.Fraction(frame_rate)
@@ -34,6 +33,7 @@ class TimeRuler(QWidget):
         self.set_scale(scale)
         self.left_frame = 0.0
         self.current_frame = 0
+        self.current_frame_changed = signal.Signal()
 
     def sizeHint(self):
         return QSize(60, 30)
@@ -48,7 +48,7 @@ class TimeRuler(QWidget):
 
         if self.current_frame != frame:
             self.current_frame = frame
-            self.current_frame_changed.emit(frame)
+            self.current_frame_changed(frame)
             self.update()
 
     def mousePressEvent(self, event):
