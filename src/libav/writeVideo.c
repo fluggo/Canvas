@@ -22,6 +22,7 @@
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 #include <libavutil/avstring.h>
+#include <libavutil/mathematics.h>
 
 #define RAMP_SIZE    (1 << 16)
 
@@ -141,7 +142,13 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     AVStream *video = NULL, *audio = NULL;
 
     if( videoSource ) {
+        AVCodec *videoCodec = avcodec_find_encoder_by_name( "dvvideo" );
+
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 10, 0)
         video = av_new_stream( context, context->nb_streams );
+#else
+        video = avformat_new_stream( context, videoCodec );
+#endif
 
         if( !video )
             return PyErr_NoMemory();
@@ -149,7 +156,6 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         // Be careful of the naming here: video->codec is the codec context
         avcodec_get_context_defaults2( video->codec, AVMEDIA_TYPE_VIDEO );
 
-        AVCodec *videoCodec = avcodec_find_encoder_by_name( "dvvideo" );
         video->codec->codec_id = videoCodec->id;
 
         video->codec->flags |= CODEC_FLAG_INTERLACED_DCT;
@@ -179,14 +185,19 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
     }
 
     if( audioSource.source.funcs ) {
+        AVCodec *audioCodec = avcodec_find_encoder( CODEC_ID_PCM_S16LE );
+
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 10, 0)
         audio = av_new_stream( context, context->nb_streams );
+#else
+        audio = avformat_new_stream( context, audioCodec );
+#endif
 
         if( !audio )
             return PyErr_NoMemory();
 
         avcodec_get_context_defaults2( audio->codec, AVMEDIA_TYPE_AUDIO );
 
-        AVCodec *audioCodec = avcodec_find_encoder( CODEC_ID_PCM_S16LE );
         audio->codec->codec_id = audioCodec->id;
 
         if( format->flags & AVFMT_GLOBALHEADER ) {
