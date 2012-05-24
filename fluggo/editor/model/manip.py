@@ -19,6 +19,8 @@
 import collections, itertools
 from .items import *
 from fluggo import logging
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
 
 logger = logging.getLogger(__name__)
 
@@ -347,6 +349,65 @@ class _ClipManipulator(object):
         self.item.update(in_motion=False)
         return True
 
+class _DeleteItemsFromSequence(QUndoCommand):
+    def __init__(self, items, parent=None):
+        # Items supplied to this command need to be adjacent in the same sequence
+        # TODO: How does this kind of command, which hangs onto old clips,
+        # interact with asset name changes?
+        #   If the user does change an asset name as it is, at the very least when
+        #   they undo over this step, the graph manager will look for an asset
+        #   that's not there (or worse, a different asset with the same name!).
+        #   (1) Perhaps this can be solved with a kind of "global" command, one that
+        #       appears on all stacks and undoes the global action when traversed.
+        #   (2) Or we can reach into the undo stack and commit name changes there,
+        #       too? Certain commands will listen to the asset list and modify items
+        #       they hold?
+        #   (3) Maybe there is only one undo stack to begin with? That kind of
+        #       stack could undo name changes. -- IXNAY, users won't like that.
+        #   (4) Or, as above, accept that we can't track all asset name changes,
+        #       and leave it up to the user to do something smart. This at least
+        #       can hold until I get a better idea on what to do.
+
+        QUndoCommand.__init__(self, 'Delete item(s) from sequence', parent)
+
+        for i in range(0, len(items) - 1):
+            if items[i].index != items[i+1].index - 1:
+                raise ValueError('This operation is only supported on adjacent items.')
+
+        self.items = items
+        self.original_sequence = items[0].sequence
+
+        # Original position X in scene
+        self.original_x = items[0].x + self.original_sequence.x
+
+        self.length = items[-1].x + items[-1].length - items[0].x
+        self.original_sequence = items[0].sequence
+        self.original_sequence_index = items[0].index
+        self.original_next = items[-1].next_item()
+        self.original_next_trans_length = self.original_next and self.original_next.transition_length
+        self.orig_trans_length = items[0].transition_length
+
+    def redo(self):
+        del self.original_sequence[self.original_sequence_index:self.original_sequence_index + len(self.items)]
+
+        if self.original_sequence_index == 0:
+            self.original_sequence.update(x=self.original_sequence.x + self.length
+                - self.original_next.transition_length if self.original_next else 0)
+
+        if self.original_next:
+            self.original_next.update(transition_length=0 if self.original_sequence_index == 0 else (self.original_next_trans_length - self.length + self.orig_trans_length))
+
+    def undo(self):
+        self.original_sequence[self.original_sequence_index:self.original_sequence_index] = self.items
+        self.items[0].update(transition_length=self.orig_trans_length)
+
+        if self.original_sequence_index == 0:
+            self.original_sequence.update(x=self.original_x)
+
+        if self.original_next:
+            self.original_next.update(transition_length=self.original_next_trans_length)
+
+
 class _SequenceItemGroupManipulator(object):
     class SequenceItemGroupSequenceable(_Sequenceable):
         def __init__(self, manip):
@@ -388,42 +449,21 @@ class _SequenceItemGroupManipulator(object):
         self.space_item = None
 
         self.length = items[-1].x + items[-1].length - items[0].x
-        self.original_sequence = items[0].sequence
-        self.original_sequence_index = items[0].index
-        self.original_next = items[-1].next_item()
-        self.original_next_trans_length = self.original_next and self.original_next.transition_length
-        self.orig_trans_length = items[0].transition_length
-        self.home = True
+        self.remove_command = None
 
     def _remove_from_home(self):
-        if not self.home:
+        if self.remove_command:
             return
 
-        del self.original_sequence[self.original_sequence_index:self.original_sequence_index + len(self.items)]
-
-        if self.original_sequence_index == 0:
-            self.original_sequence.update(x=self.original_sequence.x + self.length
-                - self.original_next.transition_length if self.original_next else 0)
-
-        if self.original_next:
-            self.original_next.update(transition_length=0 if self.original_sequence_index == 0 else (self.original_next_trans_length - self.length + self.orig_trans_length))
-
-        self.home = False
+        self.remove_command = _DeleteItemsFromSequence(self.items)
+        self.remove_command.redo()
 
     def _send_home(self):
-        if self.home:
+        if not self.remove_command:
             return
 
-        self.original_sequence[self.original_sequence_index:self.original_sequence_index] = self.items
-        self.items[0].update(transition_length=self.orig_trans_length)
-
-        if self.original_sequence_index == 0:
-            self.original_sequence.update(x=self.original_x)
-
-        if self.original_next:
-            self.original_next.update(transition_length=self.original_next_trans_length)
-
-        self.home = True
+        self.remove_command.undo()
+        self.remove_command = None
 
     def can_set_space_item(self, space, x, y):
         # It's always possible
