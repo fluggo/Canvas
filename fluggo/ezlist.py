@@ -31,6 +31,9 @@ class EZList(collections.MutableSequence):
         def __index__(self):
             return self.index
 
+        def __int__(self):
+            return self.index
+
         def __add__(self, other):
             return self.index + other.__index__()
 
