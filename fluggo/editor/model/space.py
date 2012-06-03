@@ -44,8 +44,26 @@ class Space(sources.Source, ezlist.EZList):
     def audio_format(self):
         return self._audio_format
 
-    def index(self, item):
-        return item._z
+    def index(self, item, i = None, j = None):
+        if self != item._space:
+            raise ValueError
+
+        # Shortcut for common case
+        if i is None and j is None:
+            return item._z
+
+        i = 0 if i is None else i
+        i = i + len(self) if i < 0 else i
+        i = 0 if i < 0 else i
+
+        j = len(self) if j is None else j
+        j = j + len(self) if j < 0 else j
+        j = 0 if j < 0 else j
+
+        result = item._z
+
+        if result >= i and result < j:
+            return result
 
     def _replace_range(self, start, stop, items):
         old_item_set = frozenset(self._items[start:stop])
