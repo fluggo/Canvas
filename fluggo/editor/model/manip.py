@@ -157,6 +157,17 @@ class SequenceOverlapItemsMover:
             self.max_fadeout_length -= items[-1].transition_length
             self.max_fadein_length -= items[1].transition_length
 
+    @classmethod
+    def from_clip(cls, clip):
+        seq_item = SequenceItem(source=clip.source,
+            length=clip.length,
+            offset=clip.offset,
+            transition_length=0,
+            type=clip.type(),
+            in_motion=clip.in_motion)
+
+        return cls([seq_item])
+
 class NoRoomError(Exception):
     def __init__(self, message='There is no room for the item.', *args, **kw):
         Exception.__init__(self, message, *args, **kw)
@@ -718,6 +729,12 @@ class _ClipManipulator(object):
         self.offset_y = item.y - grab_y
         self.seq_item_op = None
 
+        self.seq_mover = None
+        self.seq_item = None
+        self.space_remove_op = None
+        self.seq_add_op = None
+        self.seq_move_op = None
+
     def can_set_space_item(self, space, x, y):
         return True
 
@@ -731,24 +748,126 @@ class _ClipManipulator(object):
         return self.set_sequence_item(sequence, x, operation, do_it=False)
 
     def set_sequence_item(self, sequence, x, operation, do_it=True):
+        # TODO: I've realized there's a difference in model here;
+        # the old way expected that if we failed to move the item, it would be
+        # where we last successfully put it. Here, we back out of changes we made
+        # previously. That's not really a bad thing: if we fail to place it, the
+        # user should be told it's not going to work out they way they want.
+        if self.seq_mover is None:
+            self.seq_mover = SequenceOverlapItemsMover.from_clip(self.item)
+            self.seq_item = self.seq_mover.items[0]
+
+        # TODO: Change expectations and eliminate this variable
+        backed_out_ops = []
+
         if operation == 'add':
-            if not self.seq_item_op or not isinstance(self.seq_item_op, _SequenceAddMap) or self.seq_item_op.sequence != sequence:
-                if self.seq_item_op:
-                    self.seq_item_op.reset()
+            if self.seq_item.sequence == sequence:
+                # Try moving it in place
+                offset = x - (sequence.x + self.seq_item.x) + self.offset_x
+                command = None
 
-                self.seq_item_op = _SequenceAddMap(sequence, self.ClipSequenceable(self))
+                try:
+                    command = MoveSequenceOverlapItemsInPlaceCommand(self.seq_mover, offset)
 
-            if do_it:
-                return self.seq_item_op.set(x + self.offset_x)
-            else:
-                return self.seq_item_op.can_set(x + self.offset_x)
+                    if not do_it:
+                        command.check_room()
+                        return True
+
+                    command.redo()
+
+                    if self.seq_move_op:
+                        self.seq_move_op.mergeWith(command)
+                    else:
+                        self.seq_move_op = command
+
+                    return True
+                except NoRoomError:
+                    # No room here; back out and try as a clip
+                    # TODO: Change expectations and use the following call instead:
+                    # self._undo_sequence(undo_remove=False)
+                    if self.seq_move_op:
+                        self.seq_move_op.undo()
+                        backed_out_ops.append(self.seq_move_op)
+
+                    self.seq_add_op.undo()
+                    backed_out_ops.append(self.seq_add_op)
+
+                    if not do_it:
+                        try:
+                            AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
+                            return True
+                        except NoRoomError:
+                            return False
+                        finally:
+                            for op in reversed(backed_out_ops):
+                                op.redo()
+
+            if not do_it:
+                # It's a different sequence; we can check this easily
+                try:
+                    AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
+                    return True
+                except NoRoomError:
+                    return False
+
+            if self.seq_item.sequence:
+                # Back out so we can add it again (again-- stop this)
+                # self._undo_sequence(undo_remove=False)
+                if self.seq_move_op:
+                    self.seq_move_op.undo()
+                    backed_out_ops.append(self.seq_move_op)
+
+                self.seq_add_op.undo()
+                backed_out_ops.append(self.seq_add_op)
+
+            space_remove_op = None
+
+            if self.item.space:
+                space_remove_op = RemoveItemCommand(self.item.space, self.item)
+                space_remove_op.redo()
+
+            try:
+                seq_add_op = AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
+
+                if not do_it:
+                    if space_remove_op:
+                        space_remove_op.undo()
+
+                    for op in reversed(backed_out_ops):
+                        op.redo()
+
+                    return True
+
+                self.seq_add_op = seq_add_op
+                self.seq_add_op.redo()
+                self.seq_move_op = None
+                self.space_remove_op = space_remove_op or self.space_remove_op
+                return True
+            except NoRoomError:
+                # Put it back the way we found it
+                # TODO: No!!!
+                if space_remove_op:
+                    space_remove_op.undo()
+
+                for op in reversed(backed_out_ops):
+                    op.redo()
+
+                return False
 
         return False
 
-    def _undo_sequence(self):
-        if self.seq_item_op:
-            self.seq_item_op.reset()
-            self.seq_item_op = None
+    def _undo_sequence(self, undo_remove=True):
+        if self.seq_move_op:
+            self.seq_move_op.undo()
+            self.seq_move_op = None
+
+        if self.seq_add_op:
+            self.seq_add_op.undo()
+            self.seq_add_op = None
+
+        if undo_remove and self.space_remove_op:
+            self.space_remove_op.undo()
+            self.space_remove_op = None
 
     def reset(self):
         self.set_space_item(None, self.original_x - self.offset_x, self.original_y - self.offset_y)
@@ -844,7 +963,7 @@ class RemoveItemCommand(QUndoCommand):
         del self.list[self.index]
 
     def undo(self):
-        self.list[index:index] = self.item
+        self.list.insert(self.index, self.item)
 
 class RemoveItemsFromSequenceCommand(QUndoCommand):
     '''Removes any set of items from a sequence. Note that each item needs to
@@ -1031,7 +1150,7 @@ class _SequenceManipulator(object):
     def finish(self):
         return True
 
-class ItemManipulator(object):
+class ItemManipulator:
     # TODO
     # Identify adjacent items in a sequence and manipulate them as a unit
     # Identify groups and manipulate them as a unit

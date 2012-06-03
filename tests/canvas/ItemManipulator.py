@@ -515,7 +515,7 @@ class test_ItemManipulator(unittest.TestCase):
         space = model.Space('', vidformat, audformat)
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=15, source=model.StreamSourceRef('red', 0), type='noon'),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+            model.Sequence(type='noon', x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
 
         manip = model.ItemManipulator([space[0]], 0, 0.0)
