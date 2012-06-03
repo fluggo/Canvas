@@ -24,6 +24,419 @@ from PyQt4.QtGui import *
 
 logger = logging.getLogger(__name__)
 
+_Placement = collections.namedtuple('_Placement', 'min max index')
+
+def _split_sequence_items_by_overlap(items):
+    '''Splits the *items* (which should all belong to the same sequence and be
+    sorted by index) into a list of lists of items, where items in each list overlap,
+    but do not overlap with items in the other lists (and thus each list can be
+    moved independently).'''
+    if not items:
+        return []
+
+    next_list = [items[0]]
+    result = [next_list]
+
+    for item in items[1:]:
+        if item.index != next_list[-1].index + 1 or next_list[-1].transition_length >= 0:
+            next_list = [item]
+            result.append(next_list)
+        else:
+            next_list.append(item)
+
+    return result
+
+def _split_sequence_items_by_adjacency(items):
+    '''Splits the *items* (which should all belong to the same sequence and be
+    sorted by index) into a list of lists of items, where items in each list are
+    adjacent (have indexes that differ by one)'''
+    if not items:
+        return []
+
+    next_list = [items[0]]
+    result = [next_list]
+    start_offset = items[0].x
+
+    for item in items[1:]:
+        if item.index != next_list[-1].index + 1:
+            next_list = [item]
+            result.append(next_list)
+        else:
+            next_list.append(item)
+
+    return result
+
+class SequenceItemsMover:
+    '''Class for moving any group of sequence items.
+
+    The items should either all belong to the same sequence or not belong to a
+    sequence at all. If they don't belong to a sequence, they need to already be
+    in the right order.'''
+    def __init__(self, items):
+        if items[0].sequence:
+            # Sort and set positions by index and x
+            items = sorted(items, key=lambda a: a.index)
+            base_x = items[0].x
+
+            self.overlap_movers = list(
+                SequenceOverlapItemsMover(group, group[0].x - base_x) for group in
+                _split_sequence_items_by_overlap(items))
+        else:
+            # Update _x attributes before we go into this
+            x = 0
+            index = 0
+
+            for item in items:
+                if index != 0:
+                    x -= item.transition_length
+
+                item._x = x
+                item._index = index
+
+                x += item.length
+                index += 1
+
+            self.overlap_movers = list(
+                SequenceOverlapItemsMover(group, group[0].x) for group in
+                _split_sequence_items_by_overlap(items))
+
+    def to_item(self, height=10.0):
+        '''Return a space Item for containing the items from this SequenceItemsMover.
+        If there is one item, this will be a Clip. Otherwise, it will be a Sequence.
+
+        The items should already be detached from any sequence. After this method,
+        the items will all belong to the new sequence, if any.'''
+        if self.overlap_movers[0].items[0].sequence is not None:
+            raise RuntimeError('The items in this mover already belong to a sequence.')
+
+        if len(self.overlap_movers) == 1 and len(self.overlap_movers.items) == 1:
+            # Make a clip
+            item = self.overlap_movers[0].items[0]
+
+            return Clip(
+                length=item.length,
+                height=height,
+                type=item.type(),
+                source=item.source,
+                offset=item.offset)
+
+        seq_items = []
+        last_x = 0
+
+        for group in self.overlap_movers:
+            group.items[0].update(transition_length=-(group.offset - last_x))
+            seq_items.extend(group.items)
+            last_x = group.offset + group.length
+
+        return Sequence(type=seq_items[0].type(), items=seq_items,
+            height=height)
+
+class SequenceOverlapItemsMover:
+    '''Mover for overlapping items belonging to the same sequence.'''
+    def __init__(self, items, offset=None):
+        '''Creates an overlapping items mover with the given *items*.
+        *offset* can be used to store the group's offset from other groups.'''
+        self.items = items
+        self.offset = offset
+
+        # The items may not have x values, or they may not be accurate
+        # Calculate the long way
+        self.length = sum(items[i].length - (items[i].transition_length if i > 0 else 0)
+            for i in range(len(items)))
+
+        # max_fadeout_length: The maximum value for the next item's
+        # transition_length, which is the distance from the end of our last item
+        # to max(start of item, end of item's transition); since these items are
+        # overlapping, the last item must have a positive transition_length
+        self.max_fadeout_length = items[-1].length
+
+        # Ditto, but at the beginning of the items
+        self.max_fadein_length = items[0].length
+
+        if len(items) > 1:
+            self.max_fadeout_length -= items[-1].transition_length
+            self.max_fadein_length -= items[1].transition_length
+
+class NoRoomError(Exception):
+    def __init__(self, message='There is no room for the item.', *args, **kw):
+        Exception.__init__(self, message, *args, **kw)
+
+class AddOverlapItemsToSequenceCommand(QUndoCommand):
+    def __init__(self, sequence, mover, x, parent=None):
+        '''This is where the real add work is done. To add a clip to a sequence,
+        convert it to a sequence item and add it to a SequenceOverlapItemsMover.
+        *x* is space-relative. The clips should not belong to a sequence already.
+
+        If the given mover can be placed at two indexes, it it is put at the
+        lower index.'''
+        QUndoCommand.__init__(self, 'Add overlapping items to sequence', parent)
+        self.sequence = sequence
+        self.mover = mover
+        self.x = x
+
+        if self.sequence.type() != self.mover.items[0].type():
+            raise NoRoomError('The item type is incompatible with the sequence type.')
+
+        # We do a check here, but we'll be doing it again at the actual insert
+        if self.where_can_fit(x) is None:
+            raise NoRoomError
+
+        # BJC: Note that we don't calculate the new transition_lengths or keep
+        # the next item here; this is because the nearby items are allowed to
+        # change (in certain ways) between the creation of this command and its
+        # execution
+        self.orig_transition_length = self.mover.items[0].transition_length
+
+    def redo(self):
+        index = self.where_can_fit(self.x)
+
+        if index is None:
+            raise NoRoomError
+
+        self.index = index
+
+        x = self.x - self.sequence.x
+        self.orig_sequence_x = self.sequence.x
+
+        # at_index - Item at the insertion index
+        at_index = self.sequence[index] if index < len(self.sequence) else None
+        at_start = at_index and not at_index.previous_item()
+        prev_item = at_index.previous_item() if at_index else self.sequence[-1]
+        removed_x = 0
+
+        old_x = at_index.x if at_index else self.sequence.length
+        self.orig_next_item = index < len(self.sequence) and self.sequence[index] or None
+        self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
+        logger.debug('placing at {0}, x is {1}, old_x is {2}', index, x, old_x)
+
+        # Hit the mark "x"
+        self.mover.items[0].update(transition_length=
+            0 if at_start else old_x - x + (at_index.transition_length if at_index else 0))
+        self.sequence[index:index] = self.mover.items
+
+        if self.orig_next_item:
+            logger.debug('next trans len {0} - ({1} - {2}) == {3}', self.mover.length, old_x, x, self.mover.length - (old_x - x))
+            # Retain this item's position in spite of any removals/insertions in self.item.insert
+            self.orig_next_item.update(transition_length=self.mover.length - (old_x - x) - removed_x)
+
+        if at_start:
+            # Move the sequence to compensate for insertions at the beginning
+            logger.debug('moving to {0} - ({1} - {2}) == {3}', self.sequence.x, old_x, x, self.sequence.x - (old_x - x))
+            self.sequence.update(x=self.sequence.x - (old_x - x) - removed_x)
+
+    def undo(self):
+        # Pop the items out of the sequence (they will be homeless)
+        del self.sequence[self.index:self.index + len(self.mover.items)]
+
+        if self.sequence.x != self.orig_sequence_x:
+            self.sequence.update(x=self.orig_sequence_x)
+
+        # Reset the before-and-after
+        self.mover.items[0].update(transition_length=self.orig_transition_length)
+
+        if self.orig_next_item:
+            self.orig_next_item.update(transition_length=self.orig_next_item_trans_length)
+
+        del self.index
+        del self.orig_next_item
+        del self.orig_next_item_trans_length
+
+    def determine_range(self, index):
+        '''Determine the range where a clip will fit. These are tuples of (min, max, mark).
+        *min* and *max* are offsets from the beginning of the scene. *mark* is a
+        left-gravity mark in the sequence at the index. If the
+        item can't fit at all at an index, None might be returned.'''
+        if index < 0 or index > len(self.sequence):
+            raise IndexError('index out of range')
+
+        if index < len(self.sequence):
+            seq_item = self.sequence[index]
+
+            if seq_item.transition_length > 0 and seq_item.index > 0:
+                # Previous item is locked in a transition with us and is here to stay
+                return None
+
+            # If the item before that is in motion, we have to ignore prev_item's
+            # transition_length (which would otherwise be zero or less)
+            prev_item = seq_item.previous_item()
+            prev_prev_item = prev_item and prev_item.previous_item()
+
+            # Find next_item so we can get its transition_length
+            next_item = seq_item.next_item()
+
+            _min = max(
+                # Previous item's position plus any transition_length it has
+                (prev_item.x +
+                    (max(0, prev_item.transition_length) if prev_prev_item else 0))
+                    # Or the space before the sequence if this item is first
+                    # (but really, it could go as far back as it wants)
+                    if prev_item else -self.mover.length,
+                # The beginning of this clip (or the gap before it)
+                seq_item.x + min(0, seq_item.transition_length)
+                    - (self.mover.max_fadein_length if prev_item else self.mover.length))
+
+            _max = (
+                # At the item's start
+                seq_item.x
+
+                # But back to the beginning of the mover, so they don't overlap
+                - self.mover.length
+
+                # How much they can overlap
+                + min(self.mover.max_fadeout_length,
+                    seq_item.length - (next_item.transition_length if next_item else 0)))
+
+            _min += self.sequence.x
+            _max += self.sequence.x
+
+            if not prev_item:
+                _min = None
+            elif _max < _min:
+                return None
+
+            return _Placement(_min, _max, index)
+        else:
+            # Final index
+            prev_item = self.sequence[-1]
+
+            # If the item before that is in motion, we have to ignore prev_item's
+            # transition_length (which would otherwise be zero or less)
+            prev_prev_item = prev_item and prev_item.previous_item()
+
+            _min = max(
+                # Previous item's position plus any transition_length it has
+                prev_item.x +
+                    (max(0, prev_item.transition_length) if prev_prev_item else 0),
+                # End of the sequence minus how much fadein we can give it
+                prev_item.x + prev_item.length - self.mover.max_fadein_length)
+
+            _min += self.sequence.x
+
+            return _Placement(_min, None, index)
+
+    def where_can_fit(self, x):
+        '''Returns index where the item would be inserted if it can fit, None if it won't.
+        "x" is space-relative.'''
+        # TODO: This would be faster as a binary search
+        # Or a simple optimization would be to skip indexes where X is too low
+        for _range in (self.determine_range(i) for i in range(len(self.sequence) + 1)):
+            if not _range:
+                continue
+
+            if (_range.min is None or x >= _range.min) and (_range.max is None or x <= _range.max):
+                return _range.index
+
+        return None
+
+
+class AddSequenceToSequenceCommand(QUndoCommand):
+    def __init__(self, sequence, mover, x, parent=None):
+        QUndoCommand.__init__(self, 'Add sequence to sequence', parent)
+        '''Adds a given SequenceItemsMover to a *sequence* at the given scene-relative *x*.
+        The mover's items are added directly, and therefore should not belong to
+        a sequence; if you don't want this, you should produce a copy first.
+
+        If the constructor raises a NoRoomError, the addition isn't possible.'''
+        for group in mover.overlap_groups:
+            AddOverlapItemsToSequenceCommand(sequence, group, x + group.offset)
+
+class MoveSequenceOverlapItemsInPlaceCommand(QUndoCommand):
+    def __init__(self, mover, offset, parent=None):
+        '''Moves the given SequenceOverlapItemsMover back and forth in a sequence.
+        This command does not change the index of the items, just their distance
+        to the previous and next items. As such, you'll get a NoRoomError if you
+        try to move them too far. The NoRoomError does not occur until redo(),
+        but you can call check_room() early if you want.
+
+        This command can be merged with another MoveOverlapItemsInPlaceCommand, provided
+        they refer to the same *mover*.
+        '''
+        QUndoCommand.__init__(self, 'Move overlapping sequence items in place', parent)
+        self.mover = mover
+        self.offset = offset
+        self.sequence = self.mover.items[0].sequence
+
+        if not self.sequence:
+            raise ValueError('The given items are not in a sequence.')
+
+    def id(self):
+        return id(MoveSequenceOverlapItemsInPlaceCommand)
+
+    def mergeWith(self, command):
+        if not isinstance(command, MoveSequenceOverlapItemsInPlaceCommand):
+            return False
+
+        if self.mover is not command.mover:
+            return False
+
+        # For future reference-- not that it matters here-- the order of events
+        # is *this* command followed by the command given as a parameter.
+        self.offset += command.offset
+
+    def check_room(self):
+        # TODO: We do not consider whether the items around us are in motion,
+        # leading to an inefficiency that we don't know if all the items *can*
+        # be moved until all the items are moved; this can be improved
+        next_item = self.mover.items[-1].next_item()
+        previous_item = self.mover.items[0].previous_item()
+
+        if self.offset > 0 and next_item:
+            next_next_item = next_item.next_item()
+
+            max_offset = min(
+                # How much room is left in the next item
+                next_item.length
+                    - max(next_next_item.transition_length if next_next_item else 0, 0)
+                    - next_item.transition_length,
+                # How much room is left in the max_fadeout_length
+                self.mover.max_fadeout_length - next_item.transition_length)
+
+            if self.offset > max_offset:
+                raise NoRoomError
+
+        if self.offset < 0 and previous_item:
+            min_offset = -min(
+                # How much room is left in the previous item
+                previous_item.length
+                    - self.mover.items[0].transition_length
+                    - max(previous_item.transition_length, 0),
+                # How much room is left in the max_fadein_length
+                self.mover.max_fadein_length - self.mover.items[0].transition_length)
+
+            if self.offset < min_offset:
+                raise NoRoomError
+
+    def redo(self):
+        self.check_room()
+
+        next_item = self.mover.items[-1].next_item()
+
+        if next_item:
+            next_item.update(transition_length=next_item.transition_length + self.offset)
+
+        if self.mover.items[0].index == 0:
+            # First index-- move the sequence
+            self.sequence.update(x=self.sequence.x + self.offset)
+        else:
+            # Update our own transition_length
+            self.mover.items[0].update(
+                transition_length=self.mover.items[0].transition_length - self.offset)
+
+    def undo(self):
+        next_item = self.mover.items[-1].next_item()
+
+        if next_item:
+            next_item.update(transition_length=next_item.transition_length - self.offset)
+
+        if self.mover.items[0].index == 0:
+            # First index-- move the sequence
+            self.sequence.update(x=self.sequence.x - self.offset)
+        else:
+            # Update our own transition_length
+            self.mover.items[0].update(
+                transition_length=self.mover.items[0].transition_length + self.offset)
+
+
 class _Sequenceable(object):
     def __init__(self, length):
         self.length = length
@@ -349,7 +762,13 @@ class _ClipManipulator(object):
         self.item.update(in_motion=False)
         return True
 
-class _DeleteItemsFromSequence(QUndoCommand):
+class RemoveAdjacentItemsFromSequenceCommand(QUndoCommand):
+    '''Removes adjacent (or single) items from a sequence, trying not to disturb
+    the timing in the sequence.
+
+    This command may move the sequence or adjust the transition lengths of items
+    to retain the sequence's timing.'''
+
     def __init__(self, items, parent=None):
         # Items supplied to this command need to be adjacent in the same sequence
         # TODO: How does this kind of command, which hangs onto old clips,
@@ -368,7 +787,7 @@ class _DeleteItemsFromSequence(QUndoCommand):
         #       and leave it up to the user to do something smart. This at least
         #       can hold until I get a better idea on what to do.
 
-        QUndoCommand.__init__(self, 'Delete item(s) from sequence', parent)
+        QUndoCommand.__init__(self, 'Delete adjacent item(s) from sequence', parent)
 
         for i in range(0, len(items) - 1):
             if items[i].index != items[i+1].index - 1:
@@ -407,6 +826,42 @@ class _DeleteItemsFromSequence(QUndoCommand):
         if self.original_next:
             self.original_next.update(transition_length=self.original_next_trans_length)
 
+class RemoveItemCommand(QUndoCommand):
+    '''Removes an item from its container.
+
+    This really works for any item in any mutable list, so long as the list's
+    index method can find it. But this means it can also work for spaces.
+
+    Sequences have special requirements as far as keeping items where they are.
+    Use the RemoveItemsFromSequenceCommand to handle those.'''
+    def __init__(self, list_, item, parent=None):
+        QUndoCommand.__init__(self, 'Delete item', parent)
+        self.list = list_
+        self.item = item
+
+    def redo(self):
+        self.index = self.list.index(self.item)
+        del self.list[self.index]
+
+    def undo(self):
+        self.list[index:index] = self.item
+
+class RemoveItemsFromSequenceCommand(QUndoCommand):
+    '''Removes any set of items from a sequence. Note that each item needs to
+    belong to the same sequence and must be specified only once.
+
+    If all the items of a sequence are specified, the whole sequence is removed.'''
+    def __init__(self, items, parent=None):
+        QUndoCommand.__init__(self, 'Delete item(s) from sequence', parent)
+
+        if len(items) == len(items[0].sequence):
+            # Just remove the whole sequence
+            RemoveItemCommand(items[0].sequence.space, items[0].sequence, self)
+        else:
+            items = sorted(items, key=lambda a: a.index)
+
+            for group in _split_sequence_items_by_adjacency(items):
+                RemoveAdjacentItemsFromSequenceCommand(group, parent=self)
 
 class _SequenceItemGroupManipulator(object):
     class SequenceItemGroupSequenceable(_Sequenceable):
@@ -455,7 +910,7 @@ class _SequenceItemGroupManipulator(object):
         if self.remove_command:
             return
 
-        self.remove_command = _DeleteItemsFromSequence(self.items)
+        self.remove_command = RemoveAdjacentItemsFromSequenceCommand(self.items)
         self.remove_command.redo()
 
     def _send_home(self):
