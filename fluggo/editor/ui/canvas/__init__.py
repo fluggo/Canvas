@@ -118,13 +118,19 @@ from .clip import *
 from .sequence import *
 
 class PlaceholderItem(QtGui.QGraphicsItem):
-    def __init__(self, source_name, stream_format, x, y, height):
+    def __init__(self, source_name, stream, x, y, height):
         QtGui.QGraphicsItem.__init__(self)
 
         self.source_name = source_name
-        self.stream_format = stream_format
+        self.stream = stream
         self.height = height
-        self.width = self.stream_format.adjusted_length
+
+        if self.stream.defined_range[0] is not None and self.stream.defined_range[1] is not None:
+            self.width = self.stream.defined_range[1] - self.stream.defined_range[0] + 1
+        else:
+            # TODO: Make a sensible default width for unending streams
+            self.width = 50 if self.stream.stream_type == 'video' else 100000
+
         self.setPos(x, y)
 
     def boundingRect(self):

@@ -38,14 +38,15 @@ class Scene(QtGui.QGraphicsScene):
             raise NotImplementedError
 
     class SourceDragOp(DragOp):
-        def __init__(self, scene, source_name):
-            self.source_name = source_name
+        def __init__(self, scene, source):
+            # TODO: Handle source offline, source missing
+            self.source = source
             self.scene = scene
             self.present = False
 
-            default_streams = scene.source_list.get_default_streams(source_name)
+            default_streams = source.get_default_streams()
 
-            self.drag_items = [PlaceholderItem(source_name, stream_format, 0, 0, self.scene.DEFAULT_HEIGHT) for stream_format in default_streams]
+            self.drag_items = [PlaceholderItem(source.name, stream, 0, 0, self.scene.DEFAULT_HEIGHT) for stream in default_streams]
             self.drag_key_index = 0
 
         def lay_out(self, pos):
@@ -63,13 +64,13 @@ class Scene(QtGui.QGraphicsScene):
 
                 self.present = True
 
-        def leave(self):
+        def reset(self):
             for item in self.drag_items:
                 self.scene.removeItem(item)
 
             self.present = False
 
-        def drop(self):
+        def finish(self):
             # Turn them into real boys and girls
             items = []
 
@@ -168,6 +169,11 @@ class Scene(QtGui.QGraphicsScene):
                 # Our own drag-and-drop items
                 rate = self.get_rate(obj.objects[0].type())
                 self.drag_op = model.ItemManipulator(obj.objects, int(round(obj.grab_pos.x() * float(rate))), obj.grab_pos.y())
+            elif isinstance(obj, fluggo.editor.DragDropAsset):
+                # TODO: Use the ItemManipulator to move these around
+                event.accept()
+                self.drag_op = Scene.SourceDragOp(self, obj.asset)
+                self.drag_op.lay_out(event.scenePos())
 
         if not self.drag_op:
             event.ignore()
@@ -223,17 +229,21 @@ class Scene(QtGui.QGraphicsScene):
         QtGui.QGraphicsScene.dragLeaveEvent(self, event)
 
         if self.drag_op:
-            event.accept()
-            self.drag_op.reset()
-            self.drag_op = None
+            try:
+                event.accept()
+                self.drag_op.reset()
+            finally:
+                self.drag_op = None
 
     def dropEvent(self, event):
         QtGui.QGraphicsScene.dropEvent(self, event)
 
         if self.drag_op:
-            event.accept()
-            self.drag_op.finish()
-            self.drag_op = None
+            try:
+                event.accept()
+                self.drag_op.finish()
+            finally:
+                self.drag_op = None
 
     @property
     def scene_top(self):

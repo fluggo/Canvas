@@ -203,12 +203,11 @@ class PluginSource(Source):
         # harder to maintain
         return cls(source.name, source.plugin.plugin_urn, source.get_definition())
 
-    def get_stream_formats(self):
+    def get_default_streams(self):
         if not self.offline and self._source:
-            return self._source.get_stream_formats()
+            return self._source.get_default_streams()
 
-        # Come back when we're online
-        return []
+        raise plugins.SourceOfflineError
 
     def get_stream(self, name):
         if not self.offline and self._source:

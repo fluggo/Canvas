@@ -104,7 +104,7 @@ class AssetSearchModel(QAbstractTableModel):
     def mimeData(self, indexes):
         index = indexes[0]
         data = QMimeData()
-        data.obj = fluggo.editor.DragDropSource(self.current_list[index.row()])
+        data.obj = fluggo.editor.DragDropAsset(self.asset_list[self.current_list[index.row()]])
 
         return data
 
