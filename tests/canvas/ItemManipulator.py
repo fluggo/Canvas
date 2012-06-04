@@ -29,12 +29,7 @@ class test_ItemManipulator(unittest.TestCase):
 
         manip = model.ItemManipulator([space[0]], 5, 5.0)
 
-        self.assertEqual(manip.can_set_space_item(space, 10, 10.0), True)
-
-        self.assertEqual(space[0].x, 0)
-        self.assertEqual(space[0].y, 0.0)
-
-        self.assertEqual(manip.set_space_item(space, 10, 10.0), True)
+        manip.set_space_item(space, 10, 10.0)
 
         self.assertEqual(space[0].source.source_name, 'red')
         self.assertEqual(space[0].x, 5)
@@ -74,13 +69,12 @@ class test_ItemManipulator(unittest.TestCase):
 
         manip = model.ItemManipulator([space[0]], 5, 5.0)
 
-        self.assertEqual(manip.set_space_item(space, 10, 10.0), True)
-        self.assertEqual(manip.can_set_space_item(space, -5, 7.0), True)
+        manip.set_space_item(space, 10, 10.0)
 
         self.assertEqual(space[0].x, 5)
         self.assertEqual(space[0].y, 5.0)
 
-        self.assertEqual(manip.set_space_item(space, -5, 7.0), True)
+        manip.set_space_item(space, -5, 7.0)
 
         self.assertEqual(space[0].source.source_name, 'red')
         self.assertEqual(space[0].x, -10)
@@ -124,76 +118,59 @@ class test_ItemManipulator(unittest.TestCase):
         item = space[0]
         seq = space[2]
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -6, 'add'), True, 'Before sequence')
         self.assertEqual(len(seq), 2)
         self.assertNotEqual(item.space, None)
-        self.assertEqual(manip.set_sequence_item(seq, -6, 'add'), True, 'Before sequence')
+
+        manip.set_sequence_item(seq, -6, 'add')     # Before sequence
         self.assertEqual(seq.x, -6)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, -1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -5, 'add'), True, 'Beginning of sequence, no overlap')
-        self.assertEqual(seq.x, -6)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, -1)
-        self.assertEqual(manip.set_sequence_item(seq, -5, 'add'), True, 'Beginning of sequence, no overlap')
+        manip.set_sequence_item(seq, -5, 'add')     # Beginning of sequence, no overlap
         self.assertEqual(seq.x, -5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -4, 'add'), True, 'Beginning of sequence, one frame overlap')
-        self.assertEqual(seq.x, -5)
+        manip.set_sequence_item(seq, -4, 'add')     # Beginning of sequence, one frame overlap
+        self.assertEqual(seq.x, -4)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[1].transition_length, 1)
+
+        manip.set_sequence_item(seq, 5, 'add')      # Beginning of sequence, full overlap
+        self.assertEqual(seq.x, 5)
+        self.assertEqual(len(seq), 3)
+        self.assertEqual(item.space, None)
+        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[1].transition_length, 10)
+
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 6, 'add')      # Cross two transitions
+
+        # We now expect that the clip has disappeared from both the space *and*
+        # the sequence; if we want it back, we need to reset() (to put it back
+        # in the space) or specify a valid target sequence.
+        self.assertEqual(seq.x, 10)
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(item.space, None)
+        self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(manip.set_sequence_item(seq, -4, 'add'), True, 'Beginning of sequence, one frame overlap')
-        self.assertEqual(seq.x, -4)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, full overlap')
-        self.assertEqual(seq.x, -4)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 1)
-        self.assertEqual(manip.set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, full overlap')
-        self.assertEqual(seq.x, 5)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 10)
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 9, 'add')      # Cross two transitions
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 6, 'add'), False, 'Cross two transitions')
-        self.assertEqual(seq.x, 5)
-        self.assertEqual(len(seq), 3)
+        self.assertEqual(seq.x, 10)
+        self.assertEqual(len(seq), 2)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 10)
+        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[1].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 9, 'add'), False, 'Cross two transitions')
-        self.assertEqual(seq.x, 5)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 10)
-
-        self.assertEqual(manip.can_set_sequence_item(seq, 10, 'add'), True, 'Cross transition')
-        self.assertEqual(seq.x, 5)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 10)
-        self.assertEqual(manip.set_sequence_item(seq, 10, 'add'), True, 'Cross transition')
+        manip.set_sequence_item(seq, 10, 'add')         # Cross transition
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
@@ -203,8 +180,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 10)
         self.assertEqual(seq[2].transition_length, 5)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 15, 'add'), True, 'Cross transition')
-        self.assertEqual(manip.set_sequence_item(seq, 15, 'add'), True, 'Cross transition')
+        manip.set_sequence_item(seq, 15, 'add')         # Cross transition
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'seq1')
@@ -213,11 +189,13 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[2].transition_length, 10)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 16, 'add'), False, 'Cross two transitions (end)')
-        self.assertEqual(manip.can_set_sequence_item(seq, 19, 'add'), False, 'Cross two transitions (end)')
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 16, 'add')     # Cross two transitions (end)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 20, 'add'), True, 'End, full overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 20, 'add'), True, 'End, full overlap')
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 19, 'add')     # Cross two transitions (end)
+
+        manip.set_sequence_item(seq, 20, 'add')         # End, full overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -225,8 +203,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 10)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 29, 'add'), True, 'End, one frame overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 29, 'add'), True, 'End, one frame overlap')
+        manip.set_sequence_item(seq, 29, 'add')         # End, one frame overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -234,8 +211,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 20, 'add'), True, 'End, one frame overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 20, 'add'), True, 'End, one frame overlap')
+        manip.set_sequence_item(seq, 20, 'add')         # End, one frame overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -243,8 +219,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 10)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 30, 'add'), True, 'End, no overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 30, 'add'), True, 'End, no overlap')
+        manip.set_sequence_item(seq, 30, 'add')         # End, no overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -252,8 +227,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 31, 'add'), True, 'After sequence')
-        self.assertEqual(manip.set_sequence_item(seq, 31, 'add'), True, 'After sequence')
+        manip.set_sequence_item(seq, 31, 'add')         # After sequence
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -275,11 +249,11 @@ class test_ItemManipulator(unittest.TestCase):
         item = space[0]
         seq = space[2]
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 20, 'add'), True)
         self.assertEqual(len(seq), 2)
         self.assertNotEqual(item.space, None)
         self.assertEqual(seq.x, 10)
-        self.assertEqual(manip.set_sequence_item(seq, 20, 'add'), True)
+
+        manip.set_sequence_item(seq, 20, 'add')
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
@@ -304,11 +278,11 @@ class test_ItemManipulator(unittest.TestCase):
         item = space[0]
         seq = space[2]
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 20, 'add'), True)
         self.assertEqual(len(seq), 2)
         self.assertNotEqual(item.space, None)
         self.assertEqual(seq.x, 10)
-        self.assertEqual(manip.set_sequence_item(seq, 20, 'add'), True)
+
+        manip.set_sequence_item(seq, 20, 'add')
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
@@ -335,7 +309,11 @@ class test_ItemManipulator(unittest.TestCase):
 
         # Can't set from 11 (just after clip #1 starts) to 22 (three frames before clip #2 ends)
         for x in range(11, 22):
-            self.assertEqual(manip.can_set_sequence_item(seq, x, 'add'), False, 'Test failed for x = {0}'.format(x))
+            try:
+                manip.set_sequence_item(seq, x, 'add')
+                self.fail('Did not throw exception for x = {0}'.format(x))
+            except model.NoRoomError:
+                pass
 
         self.assertEqual(manip.finish(), True)
 
@@ -354,8 +332,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(len(seq), 2)
         self.assertNotEqual(item.space, None)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 31, 'add'), True, 'After sequence')
-        self.assertEqual(manip.set_sequence_item(seq, 31, 'add'), True, 'End, no overlap')
+        manip.set_sequence_item(seq, 31, 'add')         # End, no overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -363,8 +340,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, -1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 30, 'add'), True, 'End, no overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 30, 'add'), True, 'End, no overlap')
+        manip.set_sequence_item(seq, 30, 'add')         # End, no overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -372,8 +348,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 20, 'add'), True, 'End, one frame overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 20, 'add'), True, 'End, one frame overlap')
+        manip.set_sequence_item(seq, 20, 'add')         # End, one frame overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -381,8 +356,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 10)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 29, 'add'), True, 'End, one frame overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 29, 'add'), True, 'End, one frame overlap')
+        manip.set_sequence_item(seq, 29, 'add')         # End, one frame overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -390,8 +364,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 20, 'add'), True, 'End, full overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 20, 'add'), True, 'End, full overlap')
+        manip.set_sequence_item(seq, 20, 'add')         # End, full overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -399,8 +372,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 10)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 15, 'add'), True, 'Cross transition')
-        self.assertEqual(manip.set_sequence_item(seq, 15, 'add'), True, 'Cross transition')
+        manip.set_sequence_item(seq, 15, 'add')         # Cross transition
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'seq1')
@@ -409,8 +381,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[2].transition_length, 10)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 10, 'add'), True, 'Cross transition')
-        self.assertEqual(manip.set_sequence_item(seq, 10, 'add'), True, 'Cross transition')
+        manip.set_sequence_item(seq, 10, 'add')         # Cross transition
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
@@ -420,35 +391,34 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 10)
         self.assertEqual(seq[2].transition_length, 5)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 9, 'add'), False, 'Cross two transitions')
-        self.assertEqual(manip.can_set_sequence_item(seq, 6, 'add'), False, 'Cross two transitions')
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 9, 'add')      # Cross two transitions
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, full overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, full overlap')
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 6, 'add')      # Cross two transitions
+
+        manip.set_sequence_item(seq, 5, 'add')          # Beginning of sequence, full overlap
         self.assertEqual(seq.x, 5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, 10)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -4, 'add'), True, 'Beginning of sequence, one frame overlap')
-        self.assertEqual(manip.set_sequence_item(seq, -4, 'add'), True, 'Beginning of sequence, one frame overlap')
+        manip.set_sequence_item(seq, -4, 'add')         # Beginning of sequence, one frame overlap
         self.assertEqual(seq.x, -4)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, 1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -5, 'add'), True, 'Beginning of sequence, no overlap')
-        self.assertEqual(manip.set_sequence_item(seq, -5, 'add'), True, 'Beginning of sequence, no overlap')
+        manip.set_sequence_item(seq, -5, 'add')         # Beginning of sequence, no overlap
         self.assertEqual(seq.x, -5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -6, 'add'), True, 'Before sequence')
-        self.assertEqual(manip.set_sequence_item(seq, -6, 'add'), True, 'Before sequence')
+        manip.set_sequence_item(seq, -6, 'add')         # Before sequence')
         self.assertEqual(seq.x, -6)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
@@ -469,45 +439,40 @@ class test_ItemManipulator(unittest.TestCase):
         item = space[0]
         seq = space[2]
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -6, 'add'), True, 'Before sequence')
         self.assertEqual(len(seq), 2)
         self.assertNotEqual(item.space, None)
-        self.assertEqual(manip.set_sequence_item(seq, -6, 'add'), True, 'Before sequence')
+
+        manip.set_sequence_item(seq, -6, 'add')         # Before sequence
         self.assertEqual(seq.x, -6)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, -1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -5, 'add'), True, 'Beginning of sequence, no overlap')
-        self.assertEqual(manip.set_sequence_item(seq, -5, 'add'), True, 'Beginning of sequence, no overlap')
+        manip.set_sequence_item(seq, -5, 'add')         # Beginning of sequence, no overlap
         self.assertEqual(seq.x, -5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -4, 'add'), True, 'Beginning of sequence, one frame overlap')
-        self.assertEqual(seq.x, -5)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(manip.set_sequence_item(seq, -4, 'add'), True, 'Beginning of sequence, one frame overlap')
+        manip.set_sequence_item(seq, -4, 'add')         # Beginning of sequence, one frame overlap
         self.assertEqual(seq.x, -4)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, 1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 5, 'add'), False, 'Beginning of sequence, full overlap')
-        self.assertEqual(seq.x, -4)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 1)
-        self.assertEqual(manip.set_sequence_item(seq, 5, 'add'), False, 'Beginning of sequence, full overlap')
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 5, 'add')      # Beginning of sequence, full overlap
 
+        self.assertEqual(seq.x, 10)
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(item.space, None)
+        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[1].transition_length, 5)
+
+        # TODO: This should fail someday
         self.assertEqual(manip.finish(), True)
 
     def test_one_item_add_seq_short(self):
@@ -522,10 +487,10 @@ class test_ItemManipulator(unittest.TestCase):
         item = space[0]
         seq = space[2]
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 4, 'add'), True, 'Before sequence')
         self.assertEqual(len(seq), 2)
         self.assertNotEqual(item.space, None)
-        self.assertEqual(manip.set_sequence_item(seq, 4, 'add'), True, 'Before sequence')
+
+        manip.set_sequence_item(seq, 4, 'add')          # Before sequence
         self.assertEqual(seq.x, 4)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
@@ -534,66 +499,46 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[0].offset, 15)
         self.assertEqual(seq[0].type(), 'noon')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, no overlap')
-        self.assertEqual(seq.x, 4)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, -1)
-        self.assertEqual(manip.set_sequence_item(seq, 5, 'add'), True, 'Beginning of sequence, no overlap')
+        manip.set_sequence_item(seq, 5, 'add')          # Beginning of sequence, no overlap
         self.assertEqual(seq.x, 5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 6, 'add'), True, 'Beginning of sequence, one frame overlap')
-        self.assertEqual(seq.x, 5)
+        manip.set_sequence_item(seq, 6, 'add')          # Beginning of sequence, one frame overlap
+        self.assertEqual(seq.x, 6)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[1].transition_length, 1)
+
+        manip.set_sequence_item(seq, 10, 'add')         # Beginning of sequence, full overlap
+        self.assertEqual(seq.x, 10)
+        self.assertEqual(len(seq), 3)
+        self.assertEqual(item.space, None)
+        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[1].transition_length, 5)
+
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 11, 'add')     # Middle of clip
+
+        self.assertEqual(seq.x, 10)
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(item.space, None)
+        self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(manip.set_sequence_item(seq, 6, 'add'), True, 'Beginning of sequence, one frame overlap')
-        self.assertEqual(seq.x, 6)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 10, 'add'), True, 'Beginning of sequence, full overlap')
-        self.assertEqual(seq.x, 6)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 1)
-        self.assertEqual(manip.set_sequence_item(seq, 10, 'add'), True, 'Beginning of sequence, full overlap')
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 5)
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 14, 'add')     # Middle of clip
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 11, 'add'), False, 'Middle of clip')
         self.assertEqual(seq.x, 10)
-        self.assertEqual(len(seq), 3)
+        self.assertEqual(len(seq), 2)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 5)
+        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[1].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 14, 'add'), False, 'Middle of clip')
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 5)
-
-        self.assertEqual(manip.can_set_sequence_item(seq, 15, 'add'), True, 'Cross transition')
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
-        self.assertEqual(seq[1].transition_length, 5)
-        self.assertEqual(manip.set_sequence_item(seq, 15, 'add'), True, 'Cross transition')
+        manip.set_sequence_item(seq, 15, 'add')         # Cross transition
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
@@ -603,8 +548,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[2].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 16, 'add'), True, 'Cross transition')
-        self.assertEqual(manip.set_sequence_item(seq, 16, 'add'), True, 'Cross transition')
+        manip.set_sequence_item(seq, 16, 'add')         # Cross transition
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'seq1')
@@ -613,8 +557,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 4)
         self.assertEqual(seq[2].transition_length, 1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 20, 'add'), True, 'Cross transition')
-        self.assertEqual(manip.set_sequence_item(seq, 20, 'add'), True, 'Cross transition')
+        manip.set_sequence_item(seq, 20, 'add')         # Cross transition
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
         self.assertEqual(seq[0].source.source_name, 'seq1')
@@ -623,11 +566,13 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 5)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 21, 'add'), False, 'Middle of clip')
-        self.assertEqual(manip.can_set_sequence_item(seq, 24, 'add'), False, 'Middle of clip')
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 21, 'add')     # Middle of clip
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 25, 'add'), True, 'End, full overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 25, 'add'), True, 'End, full overlap')
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 24, 'add')     # Middle of clip
+
+        manip.set_sequence_item(seq, 25, 'add')         # End, full overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -635,8 +580,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 5)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 29, 'add'), True, 'End, one frame overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 29, 'add'), True, 'End, one frame overlap')
+        manip.set_sequence_item(seq, 29, 'add')         # End, one frame overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -644,8 +588,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 1)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 30, 'add'), True, 'End, no overlap')
-        self.assertEqual(manip.set_sequence_item(seq, 30, 'add'), True, 'End, no overlap')
+        manip.set_sequence_item(seq, 30, 'add')         # End, no overlap
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -653,8 +596,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 0)
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 31, 'add'), True, 'After sequence')
-        self.assertEqual(manip.set_sequence_item(seq, 31, 'add'), True, 'After sequence')
+        manip.set_sequence_item(seq, 31, 'add')         # After sequence
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertEqual(seq[2].source.source_name, 'red')
@@ -676,7 +618,7 @@ class test_ItemManipulator(unittest.TestCase):
         item = space[0]
         seq = space[2]
 
-        self.assertEqual(manip.set_sequence_item(seq, 6, 'add'), True)
+        manip.set_sequence_item(seq, 6, 'add')
         manip.reset()
 
         self.assertEqual(len(seq), 2)
@@ -689,7 +631,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertNotEqual(item.space, None)
 
-        self.assertEqual(manip.set_sequence_item(seq, 16, 'add'), True)
+        manip.set_sequence_item(seq, 16, 'add')
         manip.reset()
 
         self.assertEqual(len(seq), 2)
@@ -702,7 +644,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].source.source_name, 'seq2')
         self.assertNotEqual(item.space, None)
 
-        self.assertEqual(manip.set_sequence_item(seq, 26, 'add'), True)
+        manip.set_sequence_item(seq, 26, 'add')
         manip.reset()
 
         self.assertEqual(len(seq), 2)
@@ -736,16 +678,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 10, 'add'), True) # Leaving it where it is should work
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 10)
-        self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_sequence_item(seq, 10, 'add'), True) # Leaving it where it is should work
+        manip.set_sequence_item(seq, 10, 'add')         # Leaving it where it is should work
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
@@ -755,16 +688,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 5, 'add'), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 10)
-        self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_sequence_item(seq, 5, 'add'), True)
+        manip.set_sequence_item(seq, 5, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 5)
         self.assertEqual(seq[0].x, 0)
@@ -774,16 +698,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, -5)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 15, 'add'), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 5)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 15)
-        self.assertEqual(seq[1].transition_length, -5)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_sequence_item(seq, 15, 'add'), True)
+        manip.set_sequence_item(seq, 15, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 15)
         self.assertEqual(seq[0].x, 0)
@@ -793,16 +708,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 25, 'add'), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 15)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 5)
-        self.assertEqual(seq[1].transition_length, 5)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_sequence_item(seq, 25, 'add'), True)
+        manip.set_sequence_item(seq, 25, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 20)
         self.assertEqual(seq[0].x, 0)
@@ -812,16 +718,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[1].source.source_name, 'seq1')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 35, 'add'), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 20)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
-        self.assertEqual(seq[1].x, 5)
-        self.assertEqual(seq[1].transition_length, 5)
-        self.assertEqual(seq[1].source.source_name, 'seq1')
-        self.assertEqual(manip.set_sequence_item(seq, 35, 'add'), True)
+        manip.set_sequence_item(seq, 35, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 20)
         self.assertEqual(seq[0].x, 0)
@@ -855,7 +752,7 @@ class test_ItemManipulator(unittest.TestCase):
 
         # Weird case I found where moving an item in the middle caused an existing gap to increase
         manip = model.ItemManipulator([item], 0, 0.0)
-        self.assertEqual(manip.set_sequence_item(seq, 35, 'add'), True)
+        manip.set_sequence_item(seq, 35, 'add')
         manip.finish()
 
         manip = model.ItemManipulator([seq[1]], 17, 0.0)
@@ -864,15 +761,15 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 3)
         self.assertEqual(seq[2].x, 25)
         self.assertEqual(seq[2].transition_length, -8)
-        self.assertEqual(manip.set_space_item(space, 0, 0.0), True)
+        manip.set_space_item(space, 0, 0.0)
         self.assertEqual(seq[1].x, 25)
-        self.assertEqual(manip.set_sequence_item(seq, 17, 'add'), True)
+        manip.set_sequence_item(seq, 17, 'add')
         self.assertEqual(seq[1].x, 7)
         self.assertEqual(seq[1].transition_length, 3)
         self.assertEqual(seq[2].x, 25)
         self.assertEqual(seq[2].transition_length, -8)
-        self.assertEqual(manip.set_space_item(space, 0, 0.0), True)
-        self.assertEqual(manip.set_sequence_item(seq, 18, 'add'), True)
+        manip.set_space_item(space, 0, 0.0)
+        manip.set_sequence_item(seq, 18, 'add')
         self.assertEqual(seq[1].x, 8)
         self.assertEqual(seq[1].transition_length, 2)
         self.assertEqual(seq[2].x, 25)
@@ -899,16 +796,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 20, 'add'), True) # Leaving it where it is should work
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 10)
-        self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_sequence_item(seq, 20, 'add'), True) # Leaving it where it is should work
+        manip.set_sequence_item(seq, 20, 'add')         # Leaving it where it is should work
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
@@ -918,16 +806,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 25, 'add'), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 10)
-        self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_sequence_item(seq, 25, 'add'), True)
+        manip.set_sequence_item(seq, 25, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
@@ -937,16 +816,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, -5)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 15, 'add'), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 15)
-        self.assertEqual(seq[1].transition_length, -5)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_sequence_item(seq, 15, 'add'), True)
+        manip.set_sequence_item(seq, 15, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
@@ -956,16 +826,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, 4, 'add'), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 5)
-        self.assertEqual(seq[1].transition_length, 5)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_sequence_item(seq, 4, 'add'), True)
+        manip.set_sequence_item(seq, 4, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 4)
         self.assertEqual(seq[0].x, 0)
@@ -975,16 +836,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 4)
         self.assertEqual(seq[1].source.source_name, 'seq1')
 
-        self.assertEqual(manip.can_set_sequence_item(seq, -5, 'add'), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(seq.x, 4)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
-        self.assertEqual(seq[1].x, 6)
-        self.assertEqual(seq[1].transition_length, 4)
-        self.assertEqual(seq[1].source.source_name, 'seq1')
-        self.assertEqual(manip.set_sequence_item(seq, -5, 'add'), True)
+        manip.set_sequence_item(seq, -5, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, -5)
         self.assertEqual(seq[0].x, 0)
@@ -1026,17 +878,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 4)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_space_item(space, 4, 19.0), True)
-        self.assertEqual(len(seq), 2)
-        self.assertEqual(len(space), 0)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 6)
-        self.assertEqual(seq[1].transition_length, 4)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(manip.set_space_item(space, 4, 19.0), True)
+        manip.set_space_item(space, 4, 19.0)
         self.assertEqual(len(seq), 1)
         self.assertEqual(seq.x, 16)
         self.assertEqual(seq[0].x, 0)
@@ -1087,20 +929,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[2].transition_length, 4)
         self.assertEqual(seq[2].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_space_item(space, 4, 19.0), True)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(len(space), 0)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 10)
-        self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq1.5')
-        self.assertEqual(seq[2].x, 16)
-        self.assertEqual(seq[2].transition_length, 4)
-        self.assertEqual(seq[2].source.source_name, 'seq2')
-        self.assertEqual(manip.set_space_item(space, 4, 19.0), True)
+        manip.set_space_item(space, 4, 19.0)
         self.assertEqual(len(seq), 1)
         self.assertEqual(seq.x, 26)
         self.assertEqual(seq[0].x, 0)
@@ -1161,20 +990,7 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[2].transition_length, 4)
         self.assertEqual(seq[2].source.source_name, 'seq2')
 
-        self.assertEqual(manip.can_set_space_item(space, 4, 19.0), True)
-        self.assertEqual(len(seq), 3)
-        self.assertEqual(len(space), 0)
-        self.assertEqual(seq.x, 10)
-        self.assertEqual(seq[0].x, 0)
-        self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].x, 10)
-        self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq1.5')
-        self.assertEqual(seq[2].x, 16)
-        self.assertEqual(seq[2].transition_length, 4)
-        self.assertEqual(seq[2].source.source_name, 'seq2')
-        self.assertEqual(manip.set_space_item(space, 4, 19.0), True)
+        manip.set_space_item(space, 4, 19.0)
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)

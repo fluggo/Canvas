@@ -735,19 +735,12 @@ class _ClipManipulator(object):
         self.seq_add_op = None
         self.seq_move_op = None
 
-    def can_set_space_item(self, space, x, y):
-        return True
-
     def set_space_item(self, space, x, y):
         self._undo_sequence()
 
         self.item.update(x=x + self.offset_x, y=y + self.offset_y, in_motion=True)
-        return True
 
-    def can_set_sequence_item(self, sequence, x, operation):
-        return self.set_sequence_item(sequence, x, operation, do_it=False)
-
-    def set_sequence_item(self, sequence, x, operation, do_it=True):
+    def set_sequence_item(self, sequence, x, operation):
         # TODO: I've realized there's a difference in model here;
         # the old way expected that if we failed to move the item, it would be
         # where we last successfully put it. Here, we back out of changes we made
@@ -757,9 +750,6 @@ class _ClipManipulator(object):
             self.seq_mover = SequenceOverlapItemsMover.from_clip(self.item)
             self.seq_item = self.seq_mover.items[0]
 
-        # TODO: Change expectations and eliminate this variable
-        backed_out_ops = []
-
         if operation == 'add':
             if self.seq_item.sequence == sequence:
                 # Try moving it in place
@@ -768,11 +758,6 @@ class _ClipManipulator(object):
 
                 try:
                     command = MoveSequenceOverlapItemsInPlaceCommand(self.seq_mover, offset)
-
-                    if not do_it:
-                        command.check_room()
-                        return True
-
                     command.redo()
 
                     if self.seq_move_op:
@@ -780,45 +765,14 @@ class _ClipManipulator(object):
                     else:
                         self.seq_move_op = command
 
-                    return True
+                    return
                 except NoRoomError:
                     # No room here; back out and try as a clip
-                    # TODO: Change expectations and use the following call instead:
-                    # self._undo_sequence(undo_remove=False)
-                    if self.seq_move_op:
-                        self.seq_move_op.undo()
-                        backed_out_ops.append(self.seq_move_op)
-
-                    self.seq_add_op.undo()
-                    backed_out_ops.append(self.seq_add_op)
-
-                    if not do_it:
-                        try:
-                            AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
-                            return True
-                        except NoRoomError:
-                            return False
-                        finally:
-                            for op in reversed(backed_out_ops):
-                                op.redo()
-
-            if not do_it:
-                # It's a different sequence; we can check this easily
-                try:
-                    AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
-                    return True
-                except NoRoomError:
-                    return False
+                    pass
 
             if self.seq_item.sequence:
-                # Back out so we can add it again (again-- stop this)
-                # self._undo_sequence(undo_remove=False)
-                if self.seq_move_op:
-                    self.seq_move_op.undo()
-                    backed_out_ops.append(self.seq_move_op)
-
-                self.seq_add_op.undo()
-                backed_out_ops.append(self.seq_add_op)
+                # Back out so we can add it again
+                self._undo_sequence(undo_remove=False)
 
             space_remove_op = None
 
@@ -826,35 +780,16 @@ class _ClipManipulator(object):
                 space_remove_op = RemoveItemCommand(self.item.space, self.item)
                 space_remove_op.redo()
 
-            try:
-                seq_add_op = AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
+            # TODO: If this next line raises a NoRoomError, meaning we haven't
+            # placed the item anywhere, finish() needs to fail loudly, and the
+            # caller needs to know it will fail
+            self.seq_add_op = AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
+            self.seq_add_op.redo()
+            self.seq_move_op = None
+            self.space_remove_op = space_remove_op or self.space_remove_op
+            return
 
-                if not do_it:
-                    if space_remove_op:
-                        space_remove_op.undo()
-
-                    for op in reversed(backed_out_ops):
-                        op.redo()
-
-                    return True
-
-                self.seq_add_op = seq_add_op
-                self.seq_add_op.redo()
-                self.seq_move_op = None
-                self.space_remove_op = space_remove_op or self.space_remove_op
-                return True
-            except NoRoomError:
-                # Put it back the way we found it
-                # TODO: No!!!
-                if space_remove_op:
-                    space_remove_op.undo()
-
-                for op in reversed(backed_out_ops):
-                    op.redo()
-
-                return False
-
-        return False
+        raise ValueError('Unsupported operation "{0}"'.format(operation))
 
     def _undo_sequence(self, undo_remove=True):
         if self.seq_move_op:
@@ -1039,17 +974,13 @@ class _SequenceItemGroupManipulator(object):
         self.remove_command.undo()
         self.remove_command = None
 
-    def can_set_space_item(self, space, x, y):
-        # It's always possible
-        return True
-
     def set_space_item(self, space, x, y):
         self._undo_sequence()
         self._remove_from_home()
 
         if self.space_item and self.space_item.space == space:
             self.space_item.update(x=x + self.offset_x, y=y + self.offset_y)
-            return True
+            return
 
         self._undo_space()
         self.items[0].update(transition_length=0)
@@ -1067,12 +998,8 @@ class _SequenceItemGroupManipulator(object):
                 type=self.items[0].type())
 
         space.insert(0, self.space_item)
-        return True
 
-    def can_set_sequence_item(self, sequence, x, operation):
-        return self.set_sequence_item(sequence, x, operation, do_it=False)
-
-    def set_sequence_item(self, sequence, x, operation, do_it=True):
+    def set_sequence_item(self, sequence, x, operation):
         self._undo_space()
 
         if not self.items[0].in_motion:
@@ -1086,13 +1013,14 @@ class _SequenceItemGroupManipulator(object):
 
                 self.seq_item_op = _SequenceAddMap(sequence, self.SequenceItemGroupSequenceable(self))
 
-            if do_it:
-                self._remove_from_home()
-                return self.seq_item_op.set(x + self.offset_x)
-            else:
-                return self.seq_item_op.can_set(x + self.offset_x)
+            self._remove_from_home()
 
-        return False
+            if not self.seq_item_op.set(x + self.offset_x):
+                raise NoRoomError
+
+            return
+
+        raise ValueError('Unknown operation "{0}"'.format(operation))
 
     def _undo_sequence(self):
         if self.seq_item_op:
@@ -1131,15 +1059,8 @@ class _SequenceManipulator(object):
         self.offset_x = item.x - grab_x
         self.offset_y = item.y - grab_y
 
-    def can_set_space_item(self, space, x, y):
-        return True
-
     def set_space_item(self, space, x, y):
         self.seq.update(x=x + self.offset_x, y=y + self.offset_y)
-        return True
-
-    def can_set_sequence_item(self, sequence, x, operation):
-        return False
 
     def set_sequence_item(self, sequence, x, operation):
         pass
@@ -1176,25 +1097,20 @@ class ItemManipulator:
         for seq, itemlist in itertools.groupby(sorted(seq_items, key=lambda a: (a.sequence, a.index)), key=lambda a: a.sequence):
             self.manips.append(_SequenceItemGroupManipulator(list(itemlist), grab_x, grab_y))
 
-    def can_set_space_item(self, space, x, y):
-        return all(manip.can_set_space_item(space, x, y) for manip in self.manips)
 
     def set_space_item(self, space, x, y):
-        if all(manip.set_space_item(space, x, y) for manip in self.manips):
-            return True
+        # None of our set_space_item manips raise exceptions
+        for manip in self.manips:
+            manip.set_space_item(space, x, y)
 
-        self.reset()
-        return False
 
-    def can_set_sequence_item(self, sequence, x, operation):
-        return all(manip.can_set_sequence_item(sequence, x, operation) for manip in self.manips)
 
     def set_sequence_item(self, sequence, x, operation):
-        if all(manip.set_sequence_item(sequence, x, operation) for manip in self.manips):
-            return True
+        # TODO: This is wrong. Only primary should attempt to go into this
+        # sequence; figure out what to do with the others
+        for manip in self.manips:
+            manip.set_sequence_item(sequence, x, operation)
 
-        self.reset()
-        return False
 
     def reset(self):
         for manip in self.manips:
