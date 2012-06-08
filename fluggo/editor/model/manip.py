@@ -100,7 +100,7 @@ class SequenceItemsMover:
                 SequenceOverlapItemsMover(group, group[0].x) for group in
                 _split_sequence_items_by_overlap(items))
 
-    def to_item(self, height=10.0):
+    def to_item(self, height=10.0, x=0, y=0):
         '''Return a space Item for containing the items from this SequenceItemsMover.
         If there is one item, this will be a Clip. Otherwise, it will be a Sequence.
 
@@ -109,16 +109,18 @@ class SequenceItemsMover:
         if self.overlap_movers[0].items[0].sequence is not None:
             raise RuntimeError('The items in this mover already belong to a sequence.')
 
-        if len(self.overlap_movers) == 1 and len(self.overlap_movers.items) == 1:
+        if len(self.overlap_movers) == 1 and len(self.overlap_movers[0].items) == 1:
             # Make a clip
             item = self.overlap_movers[0].items[0]
 
             return Clip(
+                x=x, y=y,
                 length=item.length,
                 height=height,
                 type=item.type(),
                 source=item.source,
-                offset=item.offset)
+                offset=item.offset,
+                in_motion=item.in_motion)
 
         seq_items = []
         last_x = 0
@@ -128,8 +130,8 @@ class SequenceItemsMover:
             seq_items.extend(group.items)
             last_x = group.offset + group.length
 
-        return Sequence(type=seq_items[0].type(), items=seq_items,
-            height=height)
+        return Sequence(x=x, y=y, type=seq_items[0].type(), items=seq_items,
+            height=height, in_motion=self.overlap_movers[0].items[0].in_motion)
 
 class SequenceOverlapItemsMover:
     '''Mover for overlapping items belonging to the same sequence.'''
@@ -919,9 +921,10 @@ class _SequenceItemGroupManipulator(object):
         def set_transition_length(self, length):
             self.items[0].update(transition_length=length)
 
-    '''Manipulates a set of adjacent sequence items.'''
+    '''Manipulates a set of sequence items.'''
     def __init__(self, items, grab_x, grab_y):
         self.items = items
+        self.mover = SequenceItemsMover(items)
         self.original_sequence = items[0].sequence
         self.original_x = items[0].x + self.original_sequence.x
         self.offset_x = self.original_x - grab_x
@@ -931,6 +934,9 @@ class _SequenceItemGroupManipulator(object):
 
         self.length = items[-1].x + items[-1].length - items[0].x
         self.remove_command = None
+
+        for item in self.items:
+            item.update(in_motion=True)
 
     def _remove_from_home(self):
         if self.remove_command:
@@ -955,28 +961,15 @@ class _SequenceItemGroupManipulator(object):
             return
 
         self._undo_space()
-        self.items[0].update(transition_length=0)
 
-        if len(self.items) == 1:
-            # Manifest as clip
-            self.space_item = Clip(x=x + self.offset_x, y=y + self.offset_y,
-                height=self.original_sequence.height, length=self.items[0].length,
-                source=self.items[0].source, type=self.items[0].type(),
-                offset=self.items[0].offset, in_motion=True)
-        else:
-            # Manifest as new sequence
-            self.space_item = Sequence(x=x + self.offset_x, y=y + self.offset_y,
-                height=self.original_sequence.height, items=self.items,
-                type=self.items[0].type())
+        self.space_item = self.mover.to_item(
+            x=x + self.offset_x, y=y + self.offset_y,
+            height=self.original_sequence.height)
 
         space.insert(0, self.space_item)
 
     def set_sequence_item(self, sequence, x, operation):
         self._undo_space()
-
-        if not self.items[0].in_motion:
-            for item in self.items:
-                item.update(in_motion=True)
 
         if operation == 'add':
             if not self.seq_item_op or not isinstance(self.seq_item_op, _SequenceAddMap) or self.seq_item_op.sequence != sequence:
