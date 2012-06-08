@@ -671,53 +671,8 @@ class _SequenceAddMap(object):
     def finish(self):
         self.item.finish()
 
-class _ClipManipulator(object):
+class _ClipManipulator:
     '''Manipulates a lone clip.'''
-
-    class ClipSequenceable(_Sequenceable):
-        def __init__(self, manip):
-            self.item = manip.item
-            self.length = manip.item.length
-            self.min_fadeout_point = 0
-            self.max_fadein_point = self.length
-            self.placeholder = PlaceholderItem(manip.item)
-            self.seq_item = None
-
-        def insert(self, seq, index, transition_length):
-            self.seq_item = SequenceItem(source=self.item.source,
-                length=self.item.length,
-                offset=self.item.offset,
-                transition_length=transition_length,
-                type=self.item.type(),
-                in_motion=True)
-
-            seq.insert(index, self.seq_item)
-
-            if self.item.space:
-                self.item.space[self.item.z] = self.placeholder
-
-        def reset(self):
-            if self.seq_item:
-                del self.seq_item.sequence[self.seq_item.index]
-
-            if not self.item.space:
-                logger.debug('restoring item')
-                self.placeholder.space[self.placeholder.z] = self.item
-                logger.debug('item restored at {0}', self.item.z)
-
-        def finish(self):
-            if self.seq_item:
-                self.seq_item.update(in_motion=False)
-
-            if self.placeholder.space:
-                self.placeholder.space.remove(self.placeholder)
-
-        @property
-        def transition_length(self):
-            return self.seq_item.transition_length
-
-        def set_transition_length(self, length):
-            self.seq_item.update(transition_length=length)
 
     def __init__(self, item, grab_x, grab_y):
         self.item = item
@@ -727,8 +682,10 @@ class _ClipManipulator(object):
         self.original_space = item.space
         self.offset_x = item.x - grab_x
         self.offset_y = item.y - grab_y
-        self.seq_item_op = None
 
+        self.item.update(in_motion=True)
+
+        self.space_move_op = None
         self.seq_mover = None
         self.seq_item = None
         self.space_remove_op = None
@@ -738,7 +695,13 @@ class _ClipManipulator(object):
     def set_space_item(self, space, x, y):
         self._undo_sequence()
 
-        self.item.update(x=x + self.offset_x, y=y + self.offset_y, in_motion=True)
+        space_move_op = UpdateItemPropertiesCommand(self.item, x=x + self.offset_x, y=y + self.offset_y)
+        space_move_op.redo()
+
+        if self.space_move_op:
+            self.space_move_op.mergeWith(space_move_op)
+        else:
+            self.space_move_op = space_move_op
 
     def set_sequence_item(self, sequence, x, operation):
         # TODO: I've realized there's a difference in model here;
@@ -805,15 +768,24 @@ class _ClipManipulator(object):
             self.space_remove_op = None
 
     def reset(self):
-        self.set_space_item(None, self.original_x - self.offset_x, self.original_y - self.offset_y)
+        self._undo_sequence()
+
+        if self.space_move_op:
+            self.space_move_op.undo()
+            self.space_move_op = None
+
         self.item.update(in_motion=False)
 
     def finish(self):
-        if self.seq_item_op:
-            self.seq_item_op.finish()
-            self.seq_item_op = None
+        if self.space_remove_op and not self.seq_add_op:
+            # Oops, this wasn't a complete action
+            return None
 
         self.item.update(in_motion=False)
+
+        if self.seq_item:
+            self.seq_item.update(in_motion=False)
+
         return True
 
 class RemoveAdjacentItemsFromSequenceCommand(QUndoCommand):
