@@ -104,6 +104,9 @@ class Item(object):
         self._tags = set(tags) if tags else set()
         self.in_motion = in_motion
 
+    def clone(self):
+        return self.__class__(**self._create_repr_dict())
+
     def _create_repr_dict(self):
         result = {
             'x': self._x, 'y': self._y,
@@ -459,6 +462,13 @@ class SequenceItem(object):
         self._x = 0
         self.in_motion = in_motion
 
+    def clone(self):
+        clone = self.__class__(**self._create_repr_dict())
+        clone._type = self._type
+        clone._x = self._x
+        clone._index = self._index
+        return clone
+
     def update(self, **kw):
         '''
         Update the attributes of this item.
@@ -566,18 +576,21 @@ class SequenceItem(object):
 
             return item
 
+    def _create_repr_dict(self):
+        mapping = {'source': self._source,
+            'offset': self._offset, 'length': self._length}
+
+        if self._transition_length:
+            mapping['transition_length'] = self._transition_length
+
+            if self._transition:
+                mapping['transition'] = self._transition
+
+        return mapping
+
     @classmethod
     def to_yaml(cls, dumper, data):
-        mapping = {'source': data._source,
-            'offset': data._offset, 'length': data._length}
-
-        if data._transition_length:
-            mapping['transition_length'] = data._transition_length
-
-            if data._transition:
-                mapping['transition'] = data._transition
-
-        return dumper.represent_mapping(cls.yaml_tag, mapping)
+        return dumper.represent_mapping(cls.yaml_tag, data._create_repr_dict())
 
     @classmethod
     def from_yaml(cls, loader, node):

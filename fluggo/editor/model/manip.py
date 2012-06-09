@@ -106,9 +106,6 @@ class SequenceItemsMover:
 
         The items should already be detached from any sequence. After this method,
         the items will all belong to the new sequence, if any.'''
-        if self.overlap_movers[0].items[0].sequence is not None:
-            raise RuntimeError('The items in this mover already belong to a sequence.')
-
         if len(self.overlap_movers) == 1 and len(self.overlap_movers[0].items) == 1:
             # Make a clip
             item = self.overlap_movers[0].items[0]
@@ -126,8 +123,9 @@ class SequenceItemsMover:
         last_x = 0
 
         for group in self.overlap_movers:
-            group.items[0].update(transition_length=-(group.offset - last_x))
-            seq_items.extend(group.items)
+            items = group.clone_items()
+            items[0].update(transition_length=-(group.offset - last_x))
+            seq_items.extend(items)
             last_x = group.offset + group.length
 
         return Sequence(x=x, y=y, type=seq_items[0].type(), items=seq_items,
@@ -158,6 +156,14 @@ class SequenceOverlapItemsMover:
         if len(items) > 1:
             self.max_fadeout_length -= items[-1].transition_length
             self.max_fadein_length -= items[1].transition_length
+
+    def clone_items(self):
+        '''Clones all of this mover's items. The cloned items will be homeless.'''
+        return [item.clone() for item in self.items]
+
+    def clone(self):
+        '''Clones this mover and all of its items. The cloned items will be homeless.'''
+        return SequenceOverlapItemsMover(self.clone_items(), offset=self.offset)
 
     @classmethod
     def from_clip(cls, clip):
