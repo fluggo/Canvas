@@ -455,6 +455,86 @@ class MoveSequenceOverlapItemsInPlaceCommand(QUndoCommand):
             self.mover.items[0].update(
                 transition_length=self.mover.items[0].transition_length + self.offset)
 
+class MoveSequenceItemsInPlaceCommand(QUndoCommand):
+    def __init__(self, mover, offset, parent=None):
+        '''Moves the given SequenceItemsMover back and forth in a sequence.
+        This command does not change the index of the items, just their distance
+        to the previous and next items. As such, you'll get a NoRoomError if you
+        try to move them too far. The NoRoomError does not occur until redo(),
+        but you can call check_room() early if you want.
+
+        This command can be merged with another MoveSequenceItemsInPlaceCommand, provided
+        they refer to the same *mover*.
+        '''
+        # This can be seen as just a series of MoveOverlapSequenceItemsInPlaceCommand,
+        # and that's just what we do, but there's a catch: without our original
+        # in_motion checker algorithm (which I'd rather not go back to), these
+        # commands must happen in the right order, and pretty much need to be
+        # executed to see if they'll work. Someone in the future can work out a
+        # shortcut algorithm to check the moves before we attempt them.
+        QUndoCommand.__init__(self, 'Move sequence items in place', parent)
+        self.mover = mover
+        self.offset = offset
+        self.sequence = self.mover.overlap_movers[0].items[0].sequence
+
+        if not self.sequence:
+            raise ValueError('The given items are not in a sequence.')
+
+        if offset < 0:
+            self.commands = [MoveSequenceOverlapItemsInPlaceCommand(overlap_mover, offset)
+                for overlap_mover in mover.overlap_movers]
+        else:
+            self.commands = [MoveSequenceOverlapItemsInPlaceCommand(overlap_mover, offset)
+                for overlap_mover in reversed(mover.overlap_movers)]
+
+    def id(self):
+        return id(MoveSequenceItemsInPlaceCommand)
+
+    def mergeWith(self, command):
+        if not isinstance(command, MoveSequenceItemsInPlaceCommand):
+            return False
+
+        if self.mover is not command.mover:
+            return False
+
+        # Combine commands
+        if (self.offset < 0) != (command.offset < 0):
+            for c1, c2 in zip(reversed(self.commands), command.commands):
+                c1.mergeWith(c2)
+        else:
+            for c1, c2 in zip(self.commands, command.commands):
+                c1.mergeWith(c2)
+
+        # Reverse our commands if we're now going the other way
+        if (self.offset < 0) != (self.offset + command.offset < 0):
+            self.commands.reverse()
+
+        self.offset += command.offset
+
+    def check_room(self):
+        # If redo() fails, redo() will roll itself back and raise an exception.
+        # If redo() succeeds, we undo() to roll it back, and there is no exception.
+        # TODO: Really, there's probably an algorithm we can use here to avoid
+        # moving anything.
+        self.redo()
+        self.undo()
+
+    def redo(self):
+        cmd_index = -1
+
+        try:
+            for i in range(len(self.commands)):
+                self.commands[i].redo()
+                cmd_index = i
+        except:
+            for i in range(cmd_index, -1, -1):
+                self.commands[i].undo()
+
+            raise
+
+    def undo(self):
+        for command in reversed(self.commands):
+            command.undo()
 
 class _Sequenceable(object):
     def __init__(self, length):

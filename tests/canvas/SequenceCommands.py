@@ -669,5 +669,41 @@ class test_SequenceItemsMover(unittest.TestCase):
         self.assertEqual(seq[1].length, 19)
         self.assertEqual(seq[2].length, 10)
 
+class test_MoveSequenceItemsInPlaceCommand(unittest.TestCase):
+    def test_slide_two_around(self):
+        self.slide_two_around([0, -1, -2, -6, 15])
+        self.slide_two_around([0, -1, -2, -6, 15, 30], die_on=5)
+
+    def slide_two_around(self, offsets=[], seq2b_trans=0, seq3_trans=0, die_on=None):
+        sequence = model.Sequence(x=10, y=10.0, items=[
+            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('seq2a', 0), offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('seq2b', 0), transition_length=seq2b_trans, offset=1, length=10),
+            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10),
+            ])
+
+        mover = model.SequenceItemsMover([sequence[1], sequence[2]])
+        current_offset = 0
+
+        for i, offset in enumerate(offsets):
+            try:
+                command = model.MoveSequenceItemsInPlaceCommand(mover, offset)
+
+                if die_on == i:
+                    with self.assertRaises(model.NoRoomError):
+                        command.redo()
+                else:
+                    command.redo()
+                    current_offset += offset
+            finally:
+                self.assertEqual(len(sequence), 4)
+                self.assertEqual(sequence[0].source.source_name, 'seq1')
+                self.assertEqual(sequence[1].source.source_name, 'seq2a')
+                self.assertEqual(sequence[2].source.source_name, 'seq2b')
+                self.assertEqual(sequence[3].source.source_name, 'seq3')
+                self.assertEqual(sequence[0].x, 0)
+                self.assertEqual(sequence[1].x, 10 + current_offset)
+                self.assertEqual(sequence[2].x, 20 - seq2b_trans + current_offset)
+                self.assertEqual(sequence[3].x, 30 - seq2b_trans - seq3_trans)
 
 
