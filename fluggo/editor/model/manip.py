@@ -666,7 +666,7 @@ class ClipManipulator:
     def finish(self):
         if self.space_remove_op and not self.seq_add_op:
             # Oops, this wasn't a complete action
-            return None
+            raise RuntimeError('Not in a valid state to finish operation.')
 
         self.item.update(in_motion=False)
 
@@ -1000,7 +1000,7 @@ class SequenceManipulator:
     def finish(self):
         if self.space_remove_op and not self.seq_add_op:
             # Oops, this wasn't a complete action
-            return None
+            raise RuntimeError('Not in a valid state to finish operation.')
 
         self.item.update(in_motion=False)
 

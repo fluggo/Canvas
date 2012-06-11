@@ -472,8 +472,8 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[0].source.source_name, 'seq1')
         self.assertEqual(seq[1].transition_length, 5)
 
-        # TODO: This should fail bigger someday
-        self.assertEqual(manip.finish(), False)
+        with self.assertRaises(RuntimeError):
+            manip.finish()
 
     def test_one_item_add_seq_short(self):
         '''Drag one item into a sequence, but the item is short'''
