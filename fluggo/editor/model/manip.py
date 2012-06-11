@@ -558,7 +558,7 @@ class MoveSequenceItemsInPlaceCommand(QUndoCommand):
         for command in reversed(self.commands):
             command.undo()
 
-class _ClipManipulator:
+class ClipManipulator:
     '''Manipulates a lone clip.'''
 
     def __init__(self, item, grab_x, grab_y):
@@ -796,7 +796,7 @@ class RemoveItemsFromSequenceCommand(QUndoCommand):
             for group in _split_sequence_items_by_adjacency(items):
                 RemoveAdjacentItemsFromSequenceCommand(group, parent=self)
 
-class _SequenceItemGroupManipulator(object):
+class SequenceItemGroupManipulator:
     '''Manipulates a set of sequence items.'''
     def __init__(self, items, grab_x, grab_y):
         self.items = items
@@ -834,9 +834,9 @@ class _SequenceItemGroupManipulator(object):
             self.space_insert_command.redo()
 
             if isinstance(self.space_item, Clip):
-                self.seq_manip = _ClipManipulator(self.space_item, x - self.offset_x, y - self.offset_y)
+                self.seq_manip = ClipManipulator(self.space_item, x - self.offset_x, y - self.offset_y)
             else:
-                self.seq_manip = _SequenceManipulator(self.space_item, x - self.offset_x, y - self.offset_y)
+                self.seq_manip = SequenceManipulator(self.space_item, x - self.offset_x, y - self.offset_y)
 
         self.seq_manip.set_space_item(space, x, y)
 
@@ -897,7 +897,7 @@ class _SequenceItemGroupManipulator(object):
 
         return True
 
-class _SequenceManipulator(object):
+class SequenceManipulator:
     '''Manipulates an entire existing sequence.'''
 
     def __init__(self, item, grab_x, grab_y):

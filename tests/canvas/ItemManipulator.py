@@ -27,7 +27,7 @@ class test_ItemManipulator(unittest.TestCase):
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0))]
 
-        manip = model.ItemManipulator([space[0]], 5, 5.0)
+        manip = model.ClipManipulator(space[0], 5, 5.0)
 
         manip.set_space_item(space, 10, 10.0)
 
@@ -67,7 +67,7 @@ class test_ItemManipulator(unittest.TestCase):
         space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.StreamSourceRef('red', 0)),
             model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0))]
 
-        manip = model.ItemManipulator([space[0]], 5, 5.0)
+        manip = model.ClipManipulator(space[0], 5, 5.0)
 
         manip.set_space_item(space, 10, 10.0)
 
@@ -114,7 +114,7 @@ class test_ItemManipulator(unittest.TestCase):
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
 
-        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
         seq = space[2]
 
@@ -245,7 +245,7 @@ class test_ItemManipulator(unittest.TestCase):
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
 
-        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
         seq = space[2]
 
@@ -274,7 +274,7 @@ class test_ItemManipulator(unittest.TestCase):
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
 
-        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
         seq = space[2]
 
@@ -303,7 +303,7 @@ class test_ItemManipulator(unittest.TestCase):
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=5)])]
 
-        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
         seq = space[2]
 
@@ -325,7 +325,7 @@ class test_ItemManipulator(unittest.TestCase):
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
 
-        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
         seq = space[2]
 
@@ -435,7 +435,7 @@ class test_ItemManipulator(unittest.TestCase):
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=5)])]
 
-        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
         seq = space[2]
 
@@ -483,7 +483,7 @@ class test_ItemManipulator(unittest.TestCase):
             model.Sequence(type='noon', x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
 
-        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
         seq = space[2]
 
@@ -614,7 +614,7 @@ class test_ItemManipulator(unittest.TestCase):
             model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
 
-        manip = model.ItemManipulator([space[0]], 0, 0.0)
+        manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
         seq = space[2]
 
@@ -667,7 +667,7 @@ class test_ItemManipulator(unittest.TestCase):
         seq = space[0]
         item = seq[0]
 
-        manip = model.ItemManipulator([item], 10, 10.0)
+        manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
 
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
@@ -751,7 +751,7 @@ class test_ItemManipulator(unittest.TestCase):
         item = space[0]
 
         # Weird case I found where moving an item in the middle caused an existing gap to increase
-        manip = model.ItemManipulator([item], 0, 0.0)
+        manip = model.ClipManipulator(item, 0, 0.0)
         manip.set_sequence_item(seq, 35, 'add')
         manip.finish()
 
@@ -785,7 +785,7 @@ class test_ItemManipulator(unittest.TestCase):
         seq = space[0]
         item = seq[1]
 
-        manip = model.ItemManipulator([item], 20, 10.0)
+        manip = model.SequenceItemGroupManipulator([item], 20, 10.0)
 
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
@@ -866,7 +866,7 @@ class test_ItemManipulator(unittest.TestCase):
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[0]
 
-        manip = model.ItemManipulator([item], 10, 10.0)
+        manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
 
         self.assertEqual(len(seq), 2)
         self.assertEqual(len(space), 0)
@@ -914,7 +914,7 @@ class test_ItemManipulator(unittest.TestCase):
                 model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=13, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
 
-        manip = model.ItemManipulator(seq[0:2], 10, 10.0)
+        manip = model.SequenceItemGroupManipulator(seq[0:2], 10, 10.0)
 
         self.assertEqual(len(seq), 3)
         self.assertEqual(len(space), 0)
@@ -975,7 +975,7 @@ class test_ItemManipulator(unittest.TestCase):
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[1]
 
-        manip = model.ItemManipulator([item], 20, 10.0)
+        manip = model.SequenceItemGroupManipulator([item], 20, 10.0)
 
         self.assertEqual(len(seq), 3)
         self.assertEqual(len(space), 0)
