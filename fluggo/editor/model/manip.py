@@ -351,7 +351,9 @@ class UpdateItemPropertiesCommand(QUndoCommand):
     '''Updates the given properties of an item. This can be used to move the item
     around.'''
 
-    def __init__(self, item, **properties):
+    def __init__(self, item, parent=None, **properties):
+        QUndoCommand.__init__(self, 'Update item properties', parent)
+
         self.item = item
         self.orig_values = {name: getattr(item, name) for name in properties}
         self.new_values = properties
@@ -369,6 +371,31 @@ class UpdateItemPropertiesCommand(QUndoCommand):
 
     def undo(self):
         self.item.update(**self.orig_values)
+
+class MoveItemCommand(QUndoCommand):
+    # In recognition that moving an item is likely to get more complicated.
+
+    def __init__(self, item, x, y, parent=None):
+        QUndoCommand.__init__(self, 'Move item', parent)
+        self.item = item
+        self.command = UpdateItemPropertiesCommand(item, x=x, y=y, parent=self)
+
+    def mergeWith(self, next):
+        '''This command *can* be merged, but only manually.'''
+        if not isinstance(next, MoveItemCommand):
+            return False
+
+        self.command.mergeWith(next.command)
+        return True
+
+    def redo(self):
+        if self.item.space is None:
+            raise RuntimeError('Item must belong to a space to use MoveItemCommand.')
+
+        self.command.redo()
+
+    def undo(self):
+        self.command.undo()
 
 class AddSequenceToSequenceCommand(QUndoCommand):
     def __init__(self, sequence, mover, x, parent=None):
@@ -582,7 +609,7 @@ class ClipManipulator:
     def set_space_item(self, space, x, y):
         self._undo_sequence()
 
-        space_move_op = UpdateItemPropertiesCommand(self.item, x=x + self.offset_x, y=y + self.offset_y)
+        space_move_op = MoveItemCommand(self.item, x=x + self.offset_x, y=y + self.offset_y)
         space_move_op.redo()
 
         if self.space_move_op:
@@ -921,7 +948,7 @@ class SequenceManipulator:
     def set_space_item(self, space, x, y):
         self._undo_sequence()
 
-        space_move_op = UpdateItemPropertiesCommand(self.item, x=x + self.offset_x, y=y + self.offset_y)
+        space_move_op = MoveItemCommand(self.item, x=x + self.offset_x, y=y + self.offset_y)
         space_move_op.redo()
 
         if self.space_move_op:
