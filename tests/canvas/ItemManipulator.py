@@ -315,7 +315,8 @@ class test_ItemManipulator(unittest.TestCase):
             except model.NoRoomError:
                 pass
 
-        self.assertEqual(manip.finish(), True)
+        with self.assertRaises(RuntimeError):
+            manip.finish()
 
     def test_one_item_add_seq_backwards(self):
         '''Like test_one_item_add_seq, but in reverse order'''
@@ -755,7 +756,7 @@ class test_ItemManipulator(unittest.TestCase):
         manip.set_sequence_item(seq, 35, 'add')
         manip.finish()
 
-        manip = model.ItemManipulator([seq[1]], 17, 0.0)
+        manip = model.SequenceItemGroupManipulator([seq[1]], 17, 0.0)
 
         self.assertEqual(seq[1].x, 7)
         self.assertEqual(seq[1].transition_length, 3)
@@ -774,6 +775,27 @@ class test_ItemManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 2)
         self.assertEqual(seq[2].x, 25)
         self.assertEqual(seq[2].transition_length, -7)
+
+    def test_seq_item_simple_move_fail_moveback(self):
+        '''Test that we can move an item back after failing to place it'''
+        space = model.Space('', vidformat, audformat)
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.StreamSourceRef('red', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=3, length=10, transition_length=3)])]
+
+        seq = space[1]
+        item = space[0]
+
+        manip = model.ClipManipulator(item, 0, 0.0)
+
+        with self.assertRaises(model.NoRoomError):
+            manip.set_sequence_item(seq, 11, 'add')
+
+        manip.set_space_item(space, 0, 0.0)
+
+        self.assertEqual(item.x, 0)
+        self.assertEqual(item.y, 0.0)
+        self.assertEqual(item.space, space)
 
     def test_seq_item_simple_move_backwards(self):
         '''Test moving a single sequence item around within the same sequence'''

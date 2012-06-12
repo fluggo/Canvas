@@ -651,11 +651,10 @@ class ClipManipulator:
                 # Back out so we can add it again
                 self._undo_sequence(undo_remove=False)
 
-            space_remove_op = None
-
             if self.item.space:
                 space_remove_op = RemoveItemCommand(self.item.space, self.item)
                 space_remove_op.redo()
+                self.space_remove_op = space_remove_op
 
             # TODO: If this next line raises a NoRoomError, meaning we haven't
             # placed the item anywhere, finish() needs to fail loudly, and the
@@ -663,7 +662,6 @@ class ClipManipulator:
             self.seq_add_op = AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
             self.seq_add_op.redo()
             self.seq_move_op = None
-            self.space_remove_op = space_remove_op or self.space_remove_op
             return
 
         raise ValueError('Unsupported operation "{0}"'.format(operation))
