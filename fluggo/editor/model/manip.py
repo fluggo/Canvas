@@ -16,6 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+'''
+For all of the manipulators in this module, X is floating-point and refers to
+video frames.
+
+For all of the commands, X is integer and in the item (or sequence's) native rate.
+'''
+
 import collections, itertools
 from .items import *
 from fluggo import logging
@@ -594,7 +601,7 @@ class ClipManipulator:
         self.original_x = item.x
         self.original_y = item.y
         self.original_space = item.space
-        self.offset_x = item.x - grab_x
+        self.offset_x = float(item.x) - float(grab_x)
         self.offset_y = item.y - grab_y
 
         self.item.update(in_motion=True)
@@ -609,7 +616,9 @@ class ClipManipulator:
     def set_space_item(self, space, x, y):
         self._undo_sequence()
 
-        space_move_op = MoveItemCommand(self.item, x=x + self.offset_x, y=y + self.offset_y)
+        target_x = int(round(float(x) + self.offset_x))
+
+        space_move_op = MoveItemCommand(self.item, x=target_x, y=y + self.offset_y)
         space_move_op.redo()
 
         if self.space_move_op:
@@ -627,10 +636,12 @@ class ClipManipulator:
             self.seq_mover = SequenceOverlapItemsMover.from_clip(self.item)
             self.seq_item = self.seq_mover.items[0]
 
+        target_x = int(round(float(x) + self.offset_x))
+
         if operation == 'add':
             if self.seq_item.sequence == sequence:
                 # Try moving it in place
-                offset = x - (sequence.x + self.seq_item.x) + self.offset_x
+                offset = target_x - (sequence.x + self.seq_item.x)
                 command = None
 
                 try:
@@ -659,7 +670,7 @@ class ClipManipulator:
             # TODO: If this next line raises a NoRoomError, meaning we haven't
             # placed the item anywhere, finish() needs to fail loudly, and the
             # caller needs to know it will fail
-            self.seq_add_op = AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
+            self.seq_add_op = AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, target_x)
             self.seq_add_op.redo()
             self.seq_move_op = None
             return
@@ -828,7 +839,7 @@ class SequenceItemGroupManipulator:
         self.mover = SequenceItemsMover(items)
         self.original_sequence = items[0].sequence
         self.original_x = items[0].x + self.original_sequence.x
-        self.offset_x = self.original_x - grab_x
+        self.offset_x = float(self.original_x) - float(grab_x)
         self.offset_y = self.original_sequence.y - grab_y
         self.seq_item_op = None
         self.space_item = None
@@ -843,6 +854,8 @@ class SequenceItemGroupManipulator:
             item.update(in_motion=True)
 
     def set_space_item(self, space, x, y):
+        target_x = int(round(float(x) + self.offset_x))
+
         if self.seq_move_op:
             self.seq_move_op.undo()
             self.seq_move_op = None
@@ -852,16 +865,16 @@ class SequenceItemGroupManipulator:
             self.remove_command.redo()
 
             self.space_item = self.mover.to_item(
-                x=x + self.offset_x, y=y + self.offset_y,
+                x=target_x, y=y + self.offset_y,
                 height=self.original_sequence.height)
 
             self.space_insert_command = InsertItemCommand(space, self.space_item, 0)
             self.space_insert_command.redo()
 
             if isinstance(self.space_item, Clip):
-                self.seq_manip = ClipManipulator(self.space_item, x - self.offset_x, y - self.offset_y)
+                self.seq_manip = ClipManipulator(self.space_item, float(x) - self.offset_x, y - self.offset_y)
             else:
-                self.seq_manip = SequenceManipulator(self.space_item, x - self.offset_x, y - self.offset_y)
+                self.seq_manip = SequenceManipulator(self.space_item, float(x) - self.offset_x, y - self.offset_y)
 
         self.seq_manip.set_space_item(space, x, y)
 
@@ -870,10 +883,12 @@ class SequenceItemGroupManipulator:
             self.seq_manip.set_sequence_item(sequence, x, operation)
             return
 
+        target_x = int(round(float(x) + self.offset_x))
+
         if operation == 'add':
             if self.items[0].sequence == sequence:
                 # Try moving it in place
-                offset = x - (sequence.x + self.items[0].x) + self.offset_x
+                offset = target_x - (sequence.x + self.items[0].x)
                 command = None
 
                 try:
@@ -946,7 +961,9 @@ class SequenceManipulator:
     def set_space_item(self, space, x, y):
         self._undo_sequence()
 
-        space_move_op = MoveItemCommand(self.item, x=x + self.offset_x, y=y + self.offset_y)
+        target_x = int(round(float(x) + self.offset_x))
+
+        space_move_op = MoveItemCommand(self.item, x=target_x, y=y + self.offset_y)
         space_move_op.redo()
 
         if self.space_move_op:
@@ -959,10 +976,12 @@ class SequenceManipulator:
             self.seq_mover = SequenceItemsMover(self.item)
             self.seq_item = self.seq_mover.overlap_movers[0].items[0]
 
+        target_x = int(round(float(x) + self.offset_x))
+
         if operation == 'add':
             if self.seq_item.sequence == sequence:
                 # Try moving it in place
-                offset = x - (sequence.x + self.seq_item.x) + self.offset_x
+                offset = target_x - (sequence.x + self.seq_item.x)
                 command = None
 
                 try:
@@ -992,7 +1011,7 @@ class SequenceManipulator:
             # TODO: If this next line raises a NoRoomError, meaning we haven't
             # placed the item anywhere, finish() needs to fail loudly, and the
             # caller needs to know it will fail
-            self.seq_add_op = AddSequenceToSequenceCommand(sequence, self.seq_mover, x + self.offset_x)
+            self.seq_add_op = AddSequenceToSequenceCommand(sequence, self.seq_mover, target_x)
             self.seq_add_op.redo()
             self.seq_move_op = None
             self.space_remove_op = space_remove_op or self.space_remove_op
