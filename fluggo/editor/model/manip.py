@@ -1062,49 +1062,129 @@ class ItemManipulator:
     # Find good algorithm for turning loose items into sequences
     #  ^    Scratch: Only the item/sequence directly grabbed (listed first in self.items)
     #       is placed in a sequence, and the rest arranged around it accordingly
-    '''Moves clips, sequence items, and sequences'''
+    '''Moves clips, sequence items, and sequences.'''
 
     def __init__(self, items, grab_x, grab_y):
-        self.items = items
-        self.manips = []
-        seq_items = []
+        if False:
+            self.items = items
+            self.manips = []
+            seq_items = []
 
-        for item in items:
-            if isinstance(item, Clip):
-                self.manips.append(_ClipManipulator(item, grab_x, grab_y))
-            elif isinstance(item, Sequence):
-                self.manips.append(_SequenceManipulator(item, grab_x, grab_y))
-            elif isinstance(item, SequenceItem):
-                seq_items.append(item)
+            for item in items:
+                if isinstance(item, Clip):
+                    self.manips.append(_ClipManipulator(item, grab_x, grab_y))
+                elif isinstance(item, Sequence):
+                    self.manips.append(_SequenceManipulator(item, grab_x, grab_y))
+                elif isinstance(item, SequenceItem):
+                    seq_items.append(item)
+
+            # Sort and combine the sequence items
+            for seq, itemlist in itertools.groupby(sorted(seq_items, key=lambda a: (a.sequence, a.index)), key=lambda a: a.sequence):
+                self.manips.append(_SequenceItemGroupManipulator(list(itemlist), grab_x, grab_y))
+
+        # The new ItemManipulator: No longer a one-size-fits-all solution.
+        # We take into account what kinds of items are selected, primary and secondary.
+        # Two main types appear here: a SequenceItemsMover or an Item
+
+        primary = items[0]
+
+        # Grab up the sequence items
+        seq_items = [item for item in items if isinstance(item, SequenceItem)]
+        items = [item for item in items[1:] if isinstance(item, Item)]
+
+        sequences = []
 
         # Sort and combine the sequence items
         for seq, itemlist in itertools.groupby(sorted(seq_items, key=lambda a: (a.sequence, a.index)), key=lambda a: a.sequence):
-            self.manips.append(_SequenceItemGroupManipulator(list(itemlist), grab_x, grab_y))
+            list_ = list(itemlist)
 
+            if len(seq) == len(list_):
+                # We've really got the whole thing, add it to items instead
+                if isinstance(primary, SequenceItem) and primary.sequence == seq:
+                    primary = SequenceManipulator(seq, grab_x, grab_y)
+                else:
+                    items.append(seq)
+            else:
+                mover = SequenceItemGroupManipulator(list_, grab_x, grab_y)
+
+                if isinstance(primary, SequenceItem) and primary.sequence == seq:
+                    primary = mover
+                else:
+                    sequences.append(mover)
+
+        if isinstance(primary, Clip):
+            primary = ClipManipulator(primary, grab_x, grab_y)
+        elif isinstance(primary, Sequence):
+            primary = SequenceManipulator(primary, grab_x, grab_y)
+
+        self.primary = primary
+        self.sequences = sequences
+
+        self.items = []
+
+        for item in items:
+            if isinstance(item, Clip):
+                self.items.append(ClipManipulator(item, grab_x, grab_y))
+            else:
+                self.items.append(SequenceManipulator(item, grab_x, grab_y))
 
     def set_space_item(self, space, x, y):
-        # None of our set_space_item manips raise exceptions
-        for manip in self.manips:
-            manip.set_space_item(space, x, y)
+        if False:
+            # Old way
+            for manip in self.manips:
+                manip.set_space_item(space, x, y)
 
+        # New rules:
+        if isinstance(self.primary, ClipManipulator) or isinstance(self.primary, SequenceManipulator):
+            self.primary.set_space_item(space, x, y)
 
+            for seq in self.sequences:
+                try:
+                    seq.set_sequence_item(seq.original_sequence, x, 'add')
+                except NoRoomError:
+                    seq.set_space_item(space, x, y)
 
-    def set_sequence_item(self, sequence, x, operation):
-        # TODO: This is wrong. Only primary should attempt to go into this
-        # sequence; figure out what to do with the others
-        for manip in self.manips:
-            manip.set_sequence_item(sequence, x, operation)
+            for item in self.items:
+                seq.set_space_item(space, x, y)
+        elif isinstance(self.primary, SequenceItemGroupManipulator):
+            self.primary.set_space_item(space, x, y)
 
+            for seq in self.sequences:
+                seq.set_space_item(space, x, y)
+
+            for item in self.items:
+                seq.set_space_item(space, x, y)
+
+    def set_sequence_item(self, sequence, x, y, operation):
+        try:
+            self.primary.set_sequence_item(sequence, x, operation)
+
+            for seq in self.sequences:
+                seq.set_space_item(space, x, y)
+
+            for item in self.items:
+                seq.set_space_item(space, x, y)
+        except NoRoomError:
+            self.set_space_item(sequence.space, x, y)
 
     def reset(self):
-        for manip in self.manips:
-            manip.reset()
+        self.primary.reset()
+
+        for seq in self.sequences:
+            seq.reset()
+
+        for item in self.items:
+            item.reset()
 
     def finish(self):
-        if all(manip.finish() for manip in self.manips):
-            return True
+        self.primary.finish()
 
-        self.reset()
-        return False
+        for seq in self.sequences:
+            seq.finish()
+
+        for item in self.items:
+            item.finish()
+
+        return True
 
 

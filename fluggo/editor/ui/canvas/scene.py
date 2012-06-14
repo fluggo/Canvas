@@ -167,8 +167,7 @@ class Scene(QtGui.QGraphicsScene):
 
             if isinstance(obj, DragDropSelection) and obj.space == self.space:
                 # Our own drag-and-drop items
-                rate = self.get_rate(obj.objects[0].type())
-                self.drag_op = model.ItemManipulator(obj.objects, int(round(obj.grab_pos.x() * float(rate))), obj.grab_pos.y())
+                self.drag_op = model.ItemManipulator(obj.objects, event.scenePos().x() * float(self.frame_rate), obj.grab_pos.y())
             elif isinstance(obj, fluggo.editor.DragDropAsset):
                 # TODO: Use the ItemManipulator to move these around
                 event.accept()
@@ -183,22 +182,17 @@ class Scene(QtGui.QGraphicsScene):
         cursor_items = [item for item in cursor_items if isinstance(item, SceneItem) and item.drop_opaque and not item.item.in_motion]
         top_item = cursor_items and cursor_items[0]
 
-        main_item = self.drag_op.items[0]
-        rate = self.get_rate(main_item.type())
-
-        x = int(round(event.scenePos().x() * float(rate)))
+        x = event.scenePos().x() * float(self.frame_rate)
         y = event.scenePos().y()
 
-        if top_item and isinstance(top_item, VideoSequence) and main_item.type() == 'video' and self.drag_op.can_set_sequence_item(top_item.item, x, 'add'):
-            if self.drag_op.set_sequence_item(top_item.item, x, 'add'):
-                event.accept()
-                return
+        if top_item and isinstance(top_item, VideoSequence):
+            self.drag_op.set_sequence_item(top_item.item, x, y, 'add')
+            event.accept()
+            return
         else:
-            if self.drag_op.set_space_item(self.space, x, y):
-                event.accept()
-                return
-
-        event.ignore()
+            self.drag_op.set_space_item(self.space, x, y)
+            event.accept()
+            return
 
 
 
@@ -242,6 +236,8 @@ class Scene(QtGui.QGraphicsScene):
             try:
                 event.accept()
                 self.drag_op.finish()
+            except:
+                self.drag_op.reset()
             finally:
                 self.drag_op = None
 
