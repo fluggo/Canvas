@@ -405,6 +405,9 @@ class MainWindow(QMainWindow):
         self.quit_action = QAction('&Quit', self, shortcut=QKeySequence.Quit,
             statusTip='Quit the application', triggered=self.close, menuRole=QAction.QuitRole)
 
+        self.undo_action = self.undo_group.createUndoAction(self)
+        self.redo_action = self.undo_group.createRedoAction(self)
+
         self.render_dv_action = QAction('&Render DV...', self,
             statusTip='Render the entire canvas to a DV video', triggered=self.render_dv)
 
@@ -447,6 +450,10 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(self.render_dv_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.quit_action)
+
+        self.edit_menu = self.menuBar().addMenu('&Edit')
+        self.edit_menu.addAction(self.undo_action)
+        self.edit_menu.addAction(self.redo_action)
 
         self.view_menu = self.menuBar().addMenu('&View')
         self.view_menu.addAction(self.view_asset_list)
