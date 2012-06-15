@@ -95,12 +95,12 @@ class View(QtGui.QGraphicsView):
 
         self._update_clock_frame(time)
 
-    def set_space(self, space, source_list):
+    def set_space(self, space, source_list, undo_stack):
         if not space:
             self.setScene(None)
             return
 
-        self.setScene(Scene(space, source_list))
+        self.setScene(Scene(space, source_list, undo_stack))
 
         self._reset_ruler_scroll()
         self.set_current_frame(0)

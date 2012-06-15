@@ -85,13 +85,14 @@ class Scene(QtGui.QGraphicsScene):
 
             self.scene.space[0:0] = items
 
-    def __init__(self, space, source_list):
+    def __init__(self, space, source_list, undo_stack):
         QtGui.QGraphicsScene.__init__(self)
         self.source_list = source_list
         self.space = space
         self.space.item_added.connect(self.handle_item_added)
         self.space.item_removed.connect(self.handle_item_removed)
         self.drag_op = None
+        self.undo_stack = undo_stack
         self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z, index_attr='z_order')
         self.marker_added = signal.Signal()
         self.marker_removed = signal.Signal()
@@ -235,7 +236,10 @@ class Scene(QtGui.QGraphicsScene):
         if self.drag_op:
             try:
                 event.accept()
-                self.drag_op.finish()
+                command = self.drag_op.finish()
+
+                if command:
+                    self.undo_stack.push(command)
             except:
                 self.drag_op.reset()
             finally:

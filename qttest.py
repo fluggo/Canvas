@@ -257,6 +257,18 @@ class AssetSearchWidget(QDockWidget):
         self._dropAssets = None
         return
 
+class UndoDockWidget(QDockWidget):
+    def __init__(self, undo_group):
+        QDockWidget.__init__(self, 'Undo')
+        self._undo_group = undo_group
+        self._undo_widget = QUndoView(self._undo_group, self)
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.addWidget(self._undo_widget)
+
+        self.setWidget(widget)
+
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
@@ -297,6 +309,10 @@ class MainWindow(QMainWindow):
 
         self.notify_dock = notificationwidget.NotificationWidget(self.alert_publisher)
         self.tabifyDockWidget(self.search_dock, self.notify_dock)
+
+        self.undo_group = QUndoGroup(self)
+        self.undo_dock = UndoDockWidget(self.undo_group)
+        self.tabifyDockWidget(self.search_dock, self.undo_dock)
 
         # Set up UI
         self.create_actions()
@@ -354,8 +370,14 @@ class MainWindow(QMainWindow):
         if not self.space:
             self.audio_player.set_audio_source(None)
             self.video_widget.setVideoSource(None)
-            self.view.set_space(None, self.asset_list)
+            self.view.set_space(None, self.asset_list, None)
             return
+
+        # TODO: What we're doing here with the undo stack will be wrong for
+        # multiple compositions; we need to keep the stack associated with a
+        # QGraphicsScene
+        undo_stack = QUndoStack(self.undo_group)
+        self.undo_group.setActiveStack(undo_stack)
 
         if self.video_graph_manager:
             self.alert_publisher.unfollow_alerts(self.video_graph_manager)
@@ -371,7 +393,7 @@ class MainWindow(QMainWindow):
 
         self.alert_publisher.follow_alerts(self.video_graph_manager)
 
-        self.view.set_space(self.space, self.asset_list)
+        self.view.set_space(self.space, self.asset_list, undo_stack)
 
         self.clock.seek(0)
 
