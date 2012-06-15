@@ -907,9 +907,11 @@ class SequenceItemGroupManipulator:
             self.space_insert_command.redo()
 
             if isinstance(self.space_item, Clip):
-                self.seq_manip = ClipManipulator(self.space_item, float(x) - self.offset_x, y - self.offset_y)
+                self.seq_manip = ClipManipulator(self.space_item,
+                    float(target_x) - self.offset_x, y)
             else:
-                self.seq_manip = SequenceManipulator(self.space_item, float(x) - self.offset_x, y - self.offset_y)
+                self.seq_manip = SequenceManipulator(self.space_item,
+                    float(target_x) - self.offset_x, y)
 
         self.seq_manip.set_space_item(space, x, y)
 
