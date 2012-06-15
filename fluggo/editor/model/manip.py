@@ -233,7 +233,6 @@ class AddOverlapItemsToSequenceCommand(QUndoCommand):
         old_x = at_index.x if at_index else self.sequence.length
         self.orig_next_item = index < len(self.sequence) and self.sequence[index] or None
         self.orig_next_item_trans_length = self.orig_next_item and self.orig_next_item.transition_length
-        logger.debug('placing at {0}, x is {1}, old_x is {2}', index, x, old_x)
 
         # Hit the mark "x"
         self.mover.items[0].update(transition_length=
@@ -241,13 +240,11 @@ class AddOverlapItemsToSequenceCommand(QUndoCommand):
         self.sequence[index:index] = self.mover.items
 
         if self.orig_next_item:
-            logger.debug('next trans len {0} - ({1} - {2}) == {3}', self.mover.length, old_x, x, self.mover.length - (old_x - x))
             # Retain this item's position in spite of any removals/insertions in self.item.insert
             self.orig_next_item.update(transition_length=self.mover.length - (old_x - x) - removed_x)
 
         if at_start:
             # Move the sequence to compensate for insertions at the beginning
-            logger.debug('moving to {0} - ({1} - {2}) == {3}', self.sequence.x, old_x, x, self.sequence.x - (old_x - x))
             self.sequence.update(x=self.sequence.x - (old_x - x) - removed_x)
 
     def undo(self):
@@ -353,6 +350,29 @@ class AddOverlapItemsToSequenceCommand(QUndoCommand):
                 return _range.index
 
         return None
+
+class CompoundCommand(QUndoCommand):
+    '''A command consisting of other commands. This lets us create a compound
+    command (which QUndoCommand already supports) after its constituent commands
+    have already been created and done.'''
+    def __init__(self, text, commands, done=False, parent=None):
+        QUndoCommand.__init__(self, text, parent)
+        self._commands = commands
+        self._done = done
+
+    def redo(self):
+        if not self._done:
+            for command in self._commands:
+                command.redo()
+
+            self._done = True
+
+    def undo(self):
+        if self._done:
+            for command in reversed(self._commands):
+                command.undo()
+
+            self._done = False
 
 class UpdateItemPropertiesCommand(QUndoCommand):
     '''Updates the given properties of an item. This can be used to move the item
@@ -709,7 +729,22 @@ class ClipManipulator:
         if self.seq_item:
             self.seq_item.update(in_motion=False)
 
-        return True
+        # Now return the command that will undo it
+        if self.space_move_op and not self.space_remove_op:
+            return CompoundCommand(self.space_move_op.text(), [self.space_move_op], done=True)
+
+        commands = []
+
+        if self.space_move_op:
+            commands.append(self.space_move_op)
+
+        commands.append(self.space_remove_op)
+        commands.append(self.seq_add_op)
+
+        if self.seq_move_op:
+            commands.append(self.seq_move_op)
+
+        return CompoundCommand(self.seq_add_op.text(), commands, done=True)
 
 class RemoveAdjacentItemsFromSequenceCommand(QUndoCommand):
     '''Removes adjacent (or single) items from a sequence, trying not to disturb
@@ -932,10 +967,21 @@ class SequenceItemGroupManipulator:
         for item in self.items:
             item.update(in_motion=False)
 
-        if self.space_item:
-            self.space_item.update(in_motion=False)
+        if not self.seq_manip and not self.seq_move_op:
+            return None
 
-        return True
+        if self.seq_move_op and not self.seq_manip:
+            return CompoundCommand(self.seq_move_op.text(), [self.seq_move_op], done=True)
+
+        commands = []
+
+        if self.seq_move_op:
+            commands.append(self.seq_move_op)
+
+        seq_command = self.seq_manip.finish()
+        commands.extend([self.remove_command, self.space_insert_command, seq_command])
+
+        return CompoundCommand(seq_command.text(), commands, done=True)
 
 class SequenceManipulator:
     '''Manipulates an entire existing sequence.'''
@@ -1053,7 +1099,22 @@ class SequenceManipulator:
                 for item in mover.items:
                     item.update(in_motion=False)
 
-        return True
+        # Now return the command that will undo it
+        if self.space_move_op and not self.space_remove_op:
+            return CompoundCommand(self.space_move_op.text(), [self.space_move_op], done=True)
+
+        commands = []
+
+        if self.space_move_op:
+            commands.append(self.space_move_op)
+
+        commands.append(self.space_remove_op)
+        commands.append(self.seq_add_op)
+
+        if self.seq_move_op:
+            commands.append(self.seq_move_op)
+
+        return CompoundCommand(self.seq_move_op.text(), commands, done=True)
 
 class ItemManipulator:
     # TODO
@@ -1177,14 +1238,21 @@ class ItemManipulator:
             item.reset()
 
     def finish(self):
-        self.primary.finish()
+        commands = []
+        text = 'Move item'
 
-        for seq in self.sequences:
-            seq.finish()
+        primary_command = self.primary.finish()
 
-        for item in self.items:
-            item.finish()
+        if primary_command:
+            commands.append(self.primary.finish())
+            text = commands[0].text()
 
-        return True
+        commands.extend([cmd for cmd in (seq.finish() for seq in self.sequences) if cmd])
+        commands.extend([cmd for cmd in (item.finish() for item in self.items) if cmd])
+
+        if not commands:
+            return None
+
+        return CompoundCommand(text, commands, done=True)
 
 

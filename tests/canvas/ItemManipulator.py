@@ -2,6 +2,7 @@ import unittest
 from fluggo.media import process, formats
 from fluggo.media.basetypes import *
 from fluggo.editor import model, plugins
+from PyQt4.QtGui import *
 
 vidformat = plugins.VideoFormat(
     pixel_aspect_ratio = fractions.Fraction(40, 33),
@@ -45,7 +46,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(space[1].length, 35)
         self.assertEqual(space[1].offset, 10)
 
-        self.assertEqual(manip.finish(), True)
+        self.assertIsInstance(manip.finish(), QUndoCommand)
 
         self.assertEqual(space[0].source.source_name, 'red')
         self.assertEqual(space[0].x, 5)
@@ -90,7 +91,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(space[1].length, 35)
         self.assertEqual(space[1].offset, 10)
 
-        self.assertEqual(manip.finish(), True)
+        self.assertIsInstance(manip.finish(), QUndoCommand)
 
         self.assertEqual(space[0].source.source_name, 'red')
         self.assertEqual(space[0].x, -10)
@@ -235,7 +236,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, -1)
 
-        self.assertEqual(manip.finish(), True)
+        self.assertIsInstance(manip.finish(), QUndoCommand)
 
     def test_one_item_add_seq_gap(self):
         '''Drag one item into a sequence in the middle of a gap'''
@@ -264,7 +265,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq[2].transition_length, 9)
         self.assertEqual(seq[2].x, 16)
 
-        self.assertEqual(manip.finish(), True)
+        self.assertIsInstance(manip.finish(), QUndoCommand)
 
     def test_one_item_add_seq_gap_short(self):
         '''Drag one short item into a sequence at the beginning of a gap'''
@@ -293,7 +294,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq[2].transition_length, -3)
         self.assertEqual(seq[2].x, 16)
 
-        self.assertEqual(manip.finish(), True)
+        self.assertIsInstance(manip.finish(), QUndoCommand)
 
     def test_one_item_add_seq_cross_transition(self):
         '''Drag one short item into a sequence where it should fail to insert across a transition'''
@@ -426,7 +427,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq[0].source.source_name, 'red')
         self.assertEqual(seq[1].transition_length, -1)
 
-        self.assertEqual(manip.finish(), True)
+        self.assertIsInstance(manip.finish(), QUndoCommand)
 
     def test_one_item_add_seq_overlap(self):
         '''Drag one item into a sequence'''
@@ -605,7 +606,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, -1)
 
-        self.assertEqual(manip.finish(), True)
+        self.assertIsInstance(manip.finish(), QUndoCommand)
 
     def test_one_item_add_seq_reset(self):
         '''Test resets from various spots'''
@@ -761,7 +762,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        manip.finish()
+        self.assertEquals(manip.finish(), None)
 
     def test_seq_item_simple_move_middle(self):
         '''Test moving a single sequence item starting in the middle'''
@@ -879,7 +880,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        manip.finish()
+        self.assertEquals(manip.finish(), None)
 
     def test_seq_item_single_move_space(self):
         '''Move a single sequence item into a space, where it should manifest as a clip'''
@@ -927,7 +928,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq[1].transition_length, 4)
         self.assertEqual(seq[1].source.source_name, 'seq2')
 
-        manip.finish()
+        self.assertEquals(manip.finish(), None)
 
     def test_seq_item_multiple_move_space(self):
         '''Move a multiple sequences item into a space, where they should manifest as a sequence'''
@@ -987,7 +988,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq[2].transition_length, 4)
         self.assertEqual(seq[2].source.source_name, 'seq2')
 
-        manip.finish()
+        self.assertEquals(manip.finish(), None)
 
     def test_seq_item_single_move_space_from_middle(self):
         '''Move a single sequence item from the middle of a sequence into a space, where it should manifest as a clip and leave a gap behind'''
@@ -1045,5 +1046,5 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq[2].transition_length, 4)
         self.assertEqual(seq[2].source.source_name, 'seq2')
 
-        manip.finish()
+        self.assertEquals(manip.finish(), None)
 
