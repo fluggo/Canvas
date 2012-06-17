@@ -31,21 +31,21 @@ class Controller1D(object):
     def move(self, x):
         pass
 
-    def finalize(self):
-        pass
+    def finish(self):
+        raise NotImplementedError
 
-    def cancel(self):
-        pass
+    def reset(self):
+        raise NotImplementedError
 
 class Controller2D(object):
     def move(self, x, y):
         pass
 
-    def finalize(self):
-        pass
+    def finish(self):
+        raise NotImplementedError
 
-    def cancel(self):
-        pass
+    def reset(self):
+        raise NotImplementedError
 
 class DragDropSelection(object):
     def __init__(self, space, objects, grab_pos):

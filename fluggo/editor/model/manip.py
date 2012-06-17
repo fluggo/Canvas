@@ -384,6 +384,7 @@ class UpdateItemPropertiesCommand(QUndoCommand):
         self.item = item
         self.orig_values = {name: getattr(item, name) for name in properties}
         self.new_values = properties
+        self.done = False
 
     def mergeWith(self, next):
         '''This command *can* be merged, but only manually.'''
@@ -394,10 +395,14 @@ class UpdateItemPropertiesCommand(QUndoCommand):
         return True
 
     def redo(self):
-        self.item.update(**self.new_values)
+        if not self.done:
+            self.item.update(**self.new_values)
+            self.done = True
 
     def undo(self):
-        self.item.update(**self.orig_values)
+        if self.done:
+            self.item.update(**self.orig_values)
+            self.done = False
 
 class MoveItemCommand(QUndoCommand):
     # In recognition that moving an item is likely to get more complicated.
@@ -866,6 +871,93 @@ class RemoveItemsFromSequenceCommand(QUndoCommand):
 
             for group in _split_sequence_items_by_adjacency(items):
                 RemoveAdjacentItemsFromSequenceCommand(group, parent=self)
+
+class _AdjustClipHandleCommand(QUndoCommand):
+    def __init__(self, text, item, offset, command, parent=None):
+        QUndoCommand.__init__(self, text, parent)
+        self.item = item
+        self.offset = offset
+        self.command = command
+
+    def id(self):
+        return id(self.__class__)
+
+    def mergeWith(self, next):
+        '''This command *can* be merged, but only manually.'''
+        if not isinstance(next, self.__class__):
+            return False
+
+        self.command.mergeWith(next.command)
+        self.offset += next.offset
+        return True
+
+    def redo(self):
+        if self.item.space is None:
+            raise RuntimeError('Item must belong to a space to use ' + str(self.__class__) + '.')
+
+        self.command.redo()
+
+    def undo(self):
+        self.command.undo()
+
+class AdjustClipLengthCommand(_AdjustClipHandleCommand):
+    '''Adjusts the length of a clip.'''
+
+    def __init__(self, item, offset):
+        if item.length + offset <= 0:
+            raise NoRoomError
+
+        _AdjustClipHandleCommand.__init__(self,
+            'Adjust clip length', item, offset,
+            UpdateItemPropertiesCommand(item, length=item.length + offset))
+
+class AdjustClipStartCommand(_AdjustClipHandleCommand):
+    '''Adjusts the start of a clip.'''
+
+    def __init__(self, item, offset):
+        if item.length - offset <= 0:
+            raise NoRoomError
+
+        _AdjustClipHandleCommand.__init__(self,
+            'Adjust clip start', item, offset,
+            UpdateItemPropertiesCommand(item,
+                x=item.x + offset,
+                offset=item.offset + offset,
+                length=item.length - offset))
+
+class SlipBehindCommand(_AdjustClipHandleCommand):
+    '''Adjusts the offset of a clip.'''
+
+    def __init__(self, item, offset):
+        _AdjustClipHandleCommand.__init__(self,
+            'Slip behind clip', item, offset,
+            UpdateItemPropertiesCommand(item,
+                offset=item.offset + offset))
+
+class AdjustClipTopCommand(_AdjustClipHandleCommand):
+    '''Adjusts the top of a clip.'''
+
+    def __init__(self, item, offset):
+        if item.height - offset <= 0.0:
+            raise NoRoomError
+
+        _AdjustClipHandleCommand.__init__(self,
+            'Adjust clip top', item, offset,
+            UpdateItemPropertiesCommand(item,
+                y=item.y + offset,
+                height=item.height - offset))
+
+class AdjustClipHeightCommand(_AdjustClipHandleCommand):
+    '''Adjusts the height of a clip.'''
+
+    def __init__(self, item, offset):
+        if item.height + offset <= 0.0:
+            raise NoRoomError
+
+        _AdjustClipHandleCommand.__init__(self,
+            'Adjust clip height', item, offset,
+            UpdateItemPropertiesCommand(item,
+                height=item.height + offset))
 
 class SequenceItemGroupManipulator:
     '''Manipulates a set of sequence items.'''

@@ -55,8 +55,11 @@ class Handle(QtGui.QGraphicsRectItem, Draggable):
         self.controller.move(int(round(rel_pos.x() * self.parentItem().units_per_second)), rel_pos.y())
 
     def drag_end(self, view, abs_pos, rel_pos):
-        self.controller.finalize()
+        command = self.controller.finish()
         self.controller = None
+
+        if command:
+            self.scene().undo_stack.push(command)
 
 class HorizontalHandle(Handle):
     def __init__(self, parent, ctrlcls, item=None):
@@ -228,57 +231,110 @@ class ClipItem(SceneItem):
         def __init__(self, item, view):
             self.item = item.item
             self.original_x = self.item.x
-            self.original_length = self.item.length
-            self.original_offset = self.item.offset
             self.min_frame = item.min_frame
+            self.command = None
 
         def move(self, x):
-            if self.min_frame is not None and self.original_offset + x < self.min_frame:
-                self.item.update(x=self.original_x + self.min_frame - self.original_offset, length=self.original_length + self.original_offset,
-                    offset=self.min_frame)
-            elif self.original_length > x:
-                self.item.update(x=self.original_x + x, length=self.original_length - x,
-                    offset=self.original_offset + x)
+            offset = min(x + self.original_x - self.item.x, self.item.length - 1)
+
+            if self.min_frame is not None:
+                offset = max(offset, self.min_frame - self.item.offset)
+
+            command = model.AdjustClipStartCommand(self.item, offset)
+            command.redo()
+
+            if self.command:
+                self.command.mergeWith(command)
             else:
-                self.item.update(x=self.original_x + self.original_length - 1, length=1,
-                    offset=self.original_offset + self.original_length - 1)
+                self.command = command
+
+        def finish(self):
+            return self.command
+
+        def reset(self):
+            if self.command:
+                self.command.undo()
+                self.command = None
 
     class RightController(Controller1D):
         def __init__(self, item, view):
             self.item = item.item
             self.original_length = self.item.length
             self.max_frame = item.max_frame
+            self.command = None
 
         def move(self, x):
-            if self.max_frame is not None and self.original_length + self.item.offset + x > self.max_frame:
-                self.item.update(length=self.max_frame - self.item.offset)
-            elif self.original_length > -x:
-                self.item.update(length=self.original_length + x)
+            offset = max(x + self.original_length - self.item.length, 1 - self.item.length)
+
+            if self.max_frame is not None:
+                offset = min(offset, self.max_frame - (self.item.offset + self.item.length) + 1)
+
+            command = model.AdjustClipLengthCommand(self.item, offset)
+            command.redo()
+
+            if self.command:
+                self.command.mergeWith(command)
             else:
-                self.item.update(length=1)
+                self.command = command
+
+        def finish(self):
+            return self.command
+
+        def reset(self):
+            if self.command:
+                self.command.undo()
+                self.command = None
 
     class TopController(Controller1D):
         def __init__(self, item, view):
             self.item = item.item
             self.original_y = self.item.y
             self.original_height = self.item.height
+            self.command = None
 
         def move(self, y):
-            if self.original_height > y:
-                self.item.update(y=self.original_y + y, height=self.original_height - y)
+            offset = min(y + self.original_y - self.item.y, self.item.height - 20.0)
+
+            command = model.AdjustClipTopCommand(self.item, offset)
+            command.redo()
+
+            if self.command:
+                self.command.mergeWith(command)
             else:
-                self.item.update(y=self.original_y + self.original_height - 1, height=1)
+                self.command = command
+
+        def finish(self):
+            return self.command
+
+        def reset(self):
+            if self.command:
+                self.command.undo()
+                self.command = None
 
     class BottomController(Controller1D):
         def __init__(self, item, view):
             self.item = item.item
             self.original_height = self.item.height
+            self.command = None
 
         def move(self, y):
-            if self.original_height > -y:
-                self.item.update(height=self.original_height + y)
+            offset = max(y + self.original_height - self.item.height, 20.0 - self.item.height)
+
+            command = model.AdjustClipHeightCommand(self.item, offset)
+            command.redo()
+
+            if self.command:
+                self.command.mergeWith(command)
             else:
-                self.item.update(height=1)
+                self.command = command
+
+        def finish(self):
+            return self.command
+
+        def reset(self):
+            if self.command:
+                self.command.undo()
+                self.command = None
 
     def __init__(self, item, name):
         painter = None
