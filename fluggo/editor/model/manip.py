@@ -1026,6 +1026,66 @@ class AdjustSequenceItemStartCommand(QUndoCommand):
 
         self.item_command.undo()
 
+class AdjustSequenceItemLengthCommand(QUndoCommand):
+    '''Adjusts the length of a sequence item without affecting the timing of its
+    neighbors.'''
+
+    def __init__(self, item, offset):
+        if not item.sequence:
+            raise RuntimeError('Item needs to belong to a sequence.')
+
+        next_item = item.next_item()
+        next_next_item = next_item and next_item.next_item()
+
+        if item.length + offset < 1:
+            raise NoRoomError('Cannot set length to zero or less.')
+
+        if next_item:
+            next_room = (next_item.length
+                # Room taken up by its own transition
+                - (next_item.transition_length + offset)
+                # Room taken up by the next
+                - max(next_next_item.transition_length if next_next_item else 0, 0))
+
+            if next_room < 0:
+                raise NoRoomError
+
+        QUndoCommand.__init__(self, 'Adjust sequence clip length')
+
+        self.item = item
+        self.offset = offset
+        self.item_command = UpdateItemPropertiesCommand(item,
+            length = item.length + offset)
+        self.next_command = next_item and UpdateItemPropertiesCommand(next_item,
+            transition_length=next_item.transition_length + offset)
+
+    def id(self):
+        return id(self.__class__)
+
+    def mergeWith(self, next):
+        if not isinstance(next, self.__class__) or self.item != next.item:
+            return False
+
+        self.item_command.mergeWith(next.item_command)
+        self.offset += next.offset
+
+        if self.next_command:
+            self.next_command.mergeWith(next.next_command)
+
+        return True
+
+    def redo(self):
+        self.item_command.redo()
+
+        if self.next_command:
+            self.next_command.redo()
+
+    def undo(self):
+        if self.next_command:
+            self.next_command.undo()
+
+        self.item_command.undo()
+
 
 class SequenceItemGroupManipulator:
     '''Manipulates a set of sequence items.'''

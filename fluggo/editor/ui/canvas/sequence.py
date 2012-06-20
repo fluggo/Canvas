@@ -77,35 +77,47 @@ class _ItemLeftController(Controller1D):
 class _ItemRightController(Controller1D):
     def __init__(self, handler, view):
         self.item = handler.item
-        self.sequence = self.item.sequence
-        self.prev_item = self.sequence[self.item.index - 1] if self.item.index > 0 else None
-        self.next_item = self.sequence[self.item.index + 1] if self.item.index < len(self.sequence) - 1 else None
-
         self.original_length = self.item.length
         self.max_frame = handler.stream.defined_range[1]
-        self.original_trans_length = self.next_item.transition_length if self.next_item else 0
 
-    def move(self, delta):
-        # Don't move past the end of the clip
-        if self.max_frame is not None and self.original_length + self.item.offset + delta > self.max_frame:
-            delta = self.max_frame - self.original_length - self.item.offset
+        self.command = None
 
-        # Don't make the clip shorter than one frame
-        if self.original_length + delta < 1:
-            delta = 1 - self.original_length
+    def move(self, x):
+        next_item = self.item.next_item()
+        next_next_item = next_item and next_item.next_item()
 
-        # Also don't make it shorter than the transition_length
-        if self.original_length + delta < self.item.transition_length:
-            delta = self.item.transition_length - self.original_length
+        offset = max(x + self.original_length - self.item.length, 1 - self.item.length)
 
-        if self.next_item:
-            if self.original_trans_length + delta > self.next_item.length:
-                delta = self.next_item.length - self.original_trans_length
+        # Don't move past the end of the video
+        if self.max_frame is not None:
+            offset = min(offset, self.max_frame - (self.item.offset + self.item.length) + 1)
 
-        self.item.update(length=self.original_length + delta)
+        if next_item:
+            # Don't run over any transitions in the next item
+            max_offset = (next_item.length
+                # Room taken up by its own transition
+                - next_item.transition_length
+                # Room taken up by the next
+                - max(next_next_item.transition_length if next_next_item else 0, 0))
 
-        if self.next_item:
-            self.next_item.update(transition_length=self.original_trans_length + delta)
+            offset = min(offset, max_offset)
+
+        command = model.AdjustSequenceItemLengthCommand(self.item, offset)
+        command.redo()
+
+        if self.command:
+            self.command.mergeWith(command)
+        else:
+            self.command = command
+
+    def finish(self):
+        return self.command
+
+    def reset(self):
+        if self.command:
+            self.command.undo()
+            self.command = None
+
 
 class _SequenceItemHandler(SceneItem):
     drop_opaque = False
