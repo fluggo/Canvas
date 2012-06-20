@@ -30,45 +30,49 @@ from .thumbnails import ThumbnailPainter
 class _ItemLeftController(Controller1D):
     def __init__(self, handler, view):
         self.item = handler.item
-        self.prev_item = self.item.sequence[self.item.index - 1] if self.item.index > 0 else None
-        self.next_item = self.item.sequence[self.item.index + 1] if self.item.index < len(self.item.sequence) - 1 else None
         self.sequence = self.item.sequence
 
-        self.original_x = self.item.x
-        self.original_length = self.item.length
-        self.original_offset = self.item.offset
-        self.original_trans_length = self.item.transition_length
-        self.original_seq_x = self.sequence.x
+        self.original_x = self.item.x + self.sequence.x
 
         self.min_frame = handler.stream.defined_range[0]
+        self.command = None
 
-    def move(self, delta):
-        # Don't move past the beginning of the clip
-        if self.min_frame is not None and self.original_offset + delta < self.min_frame:
-            delta = self.min_frame - self.original_offset
+    def move(self, x):
+        prev_item = self.item.previous_item()
+        next_item = self.item.next_item()
 
-        # Don't make the clip shorter than one frame
-        if delta >= self.original_length:
-            delta = self.original_length - 1
+        offset = min(x + self.original_x - self.item.x - self.sequence.x, self.item.length - 1)
 
-        if self.next_item:
-            # Don't let it get shorter than next_item.transition_length
-            if self.original_length - delta < self.next_item.transition_length:
-                delta = self.original_length - self.next_item.transition_length
+        if self.min_frame is not None:
+            offset = max(offset, self.min_frame - self.item.offset)
 
-        if self.prev_item:
-            # transition_length > prev_item.length - prev_item.transition_length: Don't overrun previous item
-            if self.original_trans_length - delta > self.prev_item.length - self.prev_item.transition_length:
-                delta = self.original_trans_length - (self.prev_item.length - self.prev_item.transition_length)
+        if next_item:
+            # Don't let it run past the next item's start point
+            offset = min(offset, self.item.length - next_item.transition_length)
 
-        self.item.update(
-            length=self.original_length - delta,
-            offset=self.original_offset + delta,
-            transition_length=self.original_trans_length - delta if self.prev_item else 0)
+        if prev_item:
+            offset = max(offset,
+                # How far back we could go
+                self.item.transition_length - prev_item.length
 
-        if not self.prev_item:
-            # Adjust the sequence's beginning
-            self.sequence.update(x=self.original_seq_x + delta)
+                # If it weren't for their transition
+                + max(prev_item.transition_length, 0))
+
+        command = model.AdjustSequenceItemStartCommand(self.item, offset)
+        command.redo()
+
+        if self.command:
+            self.command.mergeWith(command)
+        else:
+            self.command = command
+
+    def finish(self):
+        return self.command
+
+    def reset(self):
+        if self.command:
+            self.command.undo()
+            self.command = None
 
 class _ItemRightController(Controller1D):
     def __init__(self, handler, view):

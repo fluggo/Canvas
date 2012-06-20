@@ -884,7 +884,7 @@ class _AdjustClipHandleCommand(QUndoCommand):
 
     def mergeWith(self, next):
         '''This command *can* be merged, but only manually.'''
-        if not isinstance(next, self.__class__):
+        if not isinstance(next, self.__class__) or self.item != next.item:
             return False
 
         self.command.mergeWith(next.command)
@@ -958,6 +958,74 @@ class AdjustClipHeightCommand(_AdjustClipHandleCommand):
             'Adjust clip height', item, offset,
             UpdateItemPropertiesCommand(item,
                 height=item.height + offset))
+
+class AdjustSequenceItemStartCommand(QUndoCommand):
+    '''Adjusts the start of a sequence item without affecting the timing of its
+    neighbors.'''
+
+    def __init__(self, item, offset):
+        if not item.sequence:
+            raise RuntimeError('Item needs to belong to a sequence.')
+
+        prev_item = item.previous_item()
+        next_item = item.next_item()
+
+        if item.length - offset < 1:
+            raise NoRoomError('Cannot set length to zero or less.')
+
+        if prev_item:
+            prev_room = (prev_item.length
+                # Room taken up by its own transition
+                - max(prev_item.transition_length, 0)
+                # Room taken up by ours
+                - max(item.transition_length - offset, 0))
+
+            if prev_room < 0:
+                raise NoRoomError
+
+        if next_item:
+            # Don't run past the start of the next item
+            if item.length - offset < next_item.transition_length:
+                raise NoRoomError('Cannot move point past start of next item.')
+
+        QUndoCommand.__init__(self, 'Adjust sequence clip start')
+
+        self.item = item
+        self.offset = offset
+        self.item_command = UpdateItemPropertiesCommand(item,
+                transition_length=item.transition_length - offset if prev_item else 0,
+                offset=item.offset + offset,
+                length=item.length - offset)
+        self.seq_command = not prev_item and UpdateItemPropertiesCommand(item.sequence,
+                x=item.sequence.x + offset)
+
+    def id(self):
+        return id(self.__class__)
+
+    def mergeWith(self, next):
+        if not isinstance(next, self.__class__) or self.item != next.item:
+            return False
+
+        self.item_command.mergeWith(next.item_command)
+        self.offset += next.offset
+
+        if self.seq_command:
+            self.seq_command.mergeWith(next.seq_command)
+
+        return True
+
+    def redo(self):
+        self.item_command.redo()
+
+        if self.seq_command:
+            self.seq_command.redo()
+
+    def undo(self):
+        if self.seq_command:
+            self.seq_command.undo()
+
+        self.item_command.undo()
+
 
 class SequenceItemGroupManipulator:
     '''Manipulates a set of sequence items.'''
