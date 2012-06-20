@@ -182,9 +182,6 @@ class _SequenceItemHandler(SceneItem):
             self.reset_view_decorations()
             self.prepareGeometryChange()
 
-        if 'offset' in kw and self._stream:
-            self._stream.offset = self.item.offset
-
         # Changes requiring a reset of the thumbnails
         # TODO: This resets thumbnails *way* more than is necessary
         if self.painter and 'length' in kw:
