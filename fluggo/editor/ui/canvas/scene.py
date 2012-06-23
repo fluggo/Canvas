@@ -24,6 +24,10 @@ from fluggo import sortlist, signal
 from fluggo.editor import model
 import fluggo.editor
 
+from fluggo import logging
+
+_log = logging.getLogger(__name__)
+
 class Scene(QtGui.QGraphicsScene):
     DEFAULT_HEIGHT = 40
 
@@ -89,8 +93,8 @@ class Scene(QtGui.QGraphicsScene):
         QtGui.QGraphicsScene.__init__(self)
         self.source_list = source_list
         self.space = space
-        self.space.item_added.connect(self.handle_item_added)
-        self.space.item_removed.connect(self.handle_item_removed)
+        self.space.item_added.connect(self._handle_item_added)
+        self.space.item_removed.connect(self._handle_item_removed)
         self.drag_op = None
         self.undo_stack = undo_stack
         self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z, index_attr='z_order')
@@ -102,7 +106,7 @@ class Scene(QtGui.QGraphicsScene):
         self.sample_rate = fractions.Fraction(48000, 1)
 
         for item in self.space:
-            self.handle_item_added(item)
+            self._handle_item_added(item)
 
     def get_rate(self, type_):
         if type_ == 'video':
@@ -110,7 +114,7 @@ class Scene(QtGui.QGraphicsScene):
         elif type_ == 'audio':
             return self.sample_rate
 
-    def handle_item_added(self, item):
+    def _handle_item_added(self, item):
         ui_item = None
 
         if isinstance(item, model.Clip):
@@ -128,16 +132,37 @@ class Scene(QtGui.QGraphicsScene):
         '''Model items that are selected.'''
         return [item.model_item for item in self.selectedItems() if hasattr(item, 'model_item') and item.model_item is not None]
 
-    def handle_item_removed(self, item):
+    def _scene_item_for_model_item(self, item):
+        # TODO: Might find a more efficient way to do this
         for ui_item in self.sort_list:
             if ui_item.item is not item:
                 continue
 
+            return ui_item
+
+        return None
+
+    def load_selection(self, saved_selection):
+        '''Clear the selection and select the given objects in the scene.'''
+        self.clearSelection()
+
+        for item in saved_selection:
+            ui_item = self._scene_item_for_model_item(item)
+
+            if ui_item:
+                ui_item.setSelected(True)
+
+    def _handle_item_removed(self, item):
+        ui_item = self._scene_item_for_model_item(item)
+
+        if ui_item:
             self.removeItem(ui_item)
             self.sort_list.remove(ui_item)
-            return
+        else:
+            _log.warning('Got removed signal for item not in scene.')
 
     def resort_item(self, item):
+        '''Update an item's position in the z-order.'''
         self.sort_list.move(item.z_order)
 
     def add_marker(self, marker):

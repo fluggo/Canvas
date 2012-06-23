@@ -114,6 +114,9 @@ class View(QtGui.QGraphicsView):
     def selected_model_items(self):
         return self.scene().selected_model_items()
 
+    def load_selection(self, items):
+        return self.scene().load_selection(items)
+
     def scale(self, sx, sy):
         self.scale_x = fractions.Fraction(sx)
         self.scale_y = fractions.Fraction(sy)

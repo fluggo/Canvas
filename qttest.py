@@ -576,11 +576,14 @@ class MainWindow(QMainWindow):
             # Gosh I hope the active stack is the right one
             command = model.BringItemForwardCommand(items[0])
             self.undo_group.activeStack().push(command)
+            self.view.load_selection(items)
             return
 
         command = CompoundCommand('Bring items forward',
             [model.BringItemForwardCommand(item) for item in items])
         self.undo_group.activeStack().push(command)
+
+        self.view.load_selection(items)
 
     def canvas_send_backward(self):
         items = list(self.view.selected_model_items())
@@ -593,12 +596,14 @@ class MainWindow(QMainWindow):
             # Gosh I hope the active stack is the right one
             command = model.SendItemBackCommand(items[0])
             self.undo_group.activeStack().push(command)
+            self.view.load_selection(items)
             return
 
         command = CompoundCommand('Send items back',
             [model.SendItemBackCommand(item) for item in items])
         self.undo_group.activeStack().push(command)
 
+        self.view.load_selection(items)
 
     @_log.warnonerror('Error executing plugin editor dialog')
     def edit_plugins(self, event):
