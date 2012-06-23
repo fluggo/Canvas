@@ -80,8 +80,10 @@ class VerticalHandle(Handle):
 class SceneItem(QtGui.QGraphicsItem):
     drop_opaque = True
 
-    def __init__(self, model_item, painter, name):
+    def __init__(self, model_item, painter, name, units_per_second):
         QtGui.QGraphicsItem.__init__(self)
+
+        self.units_per_second = units_per_second
 
         self.model_item = model_item
         self.name = name
@@ -127,14 +129,6 @@ class SceneItem(QtGui.QGraphicsItem):
 
     def removed_from_scene(self):
         pass
-
-    @property
-    def units_per_second(self):
-        '''
-        A float giving the number of units per second in the X axis.
-        This will typically be float(scene().frame_rate) or float(scene().sample_rate).
-        '''
-        return self.scene().get_rate(self.stream_type)
 
     @property
     def source_ref(self):
@@ -336,13 +330,13 @@ class ClipItem(SceneItem):
                 self.command.undo()
                 self.command = None
 
-    def __init__(self, item, name):
+    def __init__(self, item, name, units_per_second):
         painter = None
 
         if item.type() == 'video':
             painter = ThumbnailPainter()
 
-        SceneItem.__init__(self, item, painter, name)
+        SceneItem.__init__(self, item, painter, name, units_per_second)
 
         self.item = item
         self.item.updated.connect(self._update)

@@ -114,10 +114,10 @@ class Scene(QtGui.QGraphicsScene):
         ui_item = None
 
         if isinstance(item, model.Clip):
-            ui_item = ClipItem(item, 'Clip')
+            ui_item = ClipItem(item, 'Clip', self.get_rate(item.type()))
         elif isinstance(item, model.Sequence):
             if item.type() == 'video':
-                ui_item = VideoSequence(item)
+                ui_item = VideoSequence(item, self.get_rate(item.type()))
         else:
             return
 

@@ -122,8 +122,8 @@ class _ItemRightController(Controller1D):
 class _SequenceItemHandler(SceneItem):
     drop_opaque = False
 
-    def __init__(self, item, owner):
-        SceneItem.__init__(self, item, ThumbnailPainter(), None)
+    def __init__(self, item, owner, units_per_second):
+        SceneItem.__init__(self, item, ThumbnailPainter(), None, units_per_second)
 
         self.owner = owner
         self.item = item
@@ -136,10 +136,6 @@ class _SequenceItemHandler(SceneItem):
     @property
     def length(self):
         return self.item.length
-
-    @property
-    def units_per_second(self):
-        return self.owner.units_per_second
 
     @property
     def height(self):
@@ -210,8 +206,8 @@ class _SequenceItemHandler(SceneItem):
         self.owner.scene().removeItem(self.right_handle)
 
 class VideoSequence(ClipItem):
-    def __init__(self, sequence):
-        ClipItem.__init__(self, sequence, None)
+    def __init__(self, sequence, units_per_second):
+        ClipItem.__init__(self, sequence, None, units_per_second)
         self.manager = None
 
         self.item.item_added.connect(self._handle_item_added)
@@ -223,7 +219,7 @@ class VideoSequence(ClipItem):
         self.top_handle.setZValue(LEVEL_HEIGHT_HANDLES)
         self.bottom_handle.setZValue(LEVEL_HEIGHT_HANDLES)
 
-        self.seq_items = [_SequenceItemHandler(item, self) for item in sequence]
+        self.seq_items = [_SequenceItemHandler(item, self, units_per_second) for item in sequence]
 
         for seq_item in self.seq_items:
             seq_item.setParentItem(self)
