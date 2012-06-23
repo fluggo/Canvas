@@ -1086,6 +1086,71 @@ class AdjustSequenceItemLengthCommand(QUndoCommand):
 
         self.item_command.undo()
 
+class BringItemForwardCommand(QUndoCommand):
+    def __init__(self, item):
+        QUndoCommand.__init__(self, 'Bring item forward')
+
+        self.item = item
+        self.remove_command = None
+        self.insert_command = None
+
+    def redo(self):
+        item = self.item
+        key = item.z
+        overlaps = item.overlap_items()
+        above_items = [x.z for x in overlaps if x.z < key]
+
+        if not above_items:
+            return
+
+        bottom_z = max(above_items)
+
+        self.remove_command = RemoveItemCommand(item.space, item)
+        self.insert_command = InsertItemCommand(item.space, item, bottom_z)
+
+        self.remove_command.redo()
+        self.insert_command.redo()
+
+    def undo(self):
+        if self.insert_command:
+            self.insert_command.undo()
+            self.insert_command = None
+
+            self.remove_command.undo()
+            self.remove_command = None
+
+class SendItemBackCommand(QUndoCommand):
+    def __init__(self, item):
+        QUndoCommand.__init__(self, 'Send item back')
+
+        self.item = item
+        self.remove_command = None
+        self.insert_command = None
+
+    def redo(self):
+        item = self.item
+        key = item.z
+        overlaps = item.overlap_items()
+        below_items = [x.z for x in overlaps if x.z > key]
+
+        if not below_items:
+            return
+
+        top_z = min(below_items)
+
+        self.remove_command = RemoveItemCommand(item.space, item)
+        self.insert_command = InsertItemCommand(item.space, item, top_z)
+
+        self.remove_command.redo()
+        self.insert_command.redo()
+
+    def undo(self):
+        if self.insert_command:
+            self.insert_command.undo()
+            self.insert_command = None
+
+            self.remove_command.undo()
+            self.remove_command = None
 
 class SequenceItemGroupManipulator:
     '''Manipulates a set of sequence items.'''

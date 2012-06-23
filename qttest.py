@@ -566,42 +566,39 @@ class MainWindow(QMainWindow):
         self.transport_rewind_action.setChecked(True)
 
     def canvas_bring_forward(self):
-        for item in self.view.selected_model_items():
-            key = item.z
-            overlaps = item.overlap_items()
-            above_items = [x.z for x in overlaps if x.z < key]
+        items = list(self.view.selected_model_items())
+        command = None
 
-            if not above_items:
-                continue
+        if len(items) == 0:
+            return
 
-            bottom_z = max(above_items)
+        if len(items) == 1:
+            # Gosh I hope the active stack is the right one
+            command = model.BringItemForwardCommand(items[0])
+            self.undo_group.activeStack().push(command)
+            return
 
-            z1 = bottom_z
-            z2 = item.z
-
-            temp_items = self.space[z1:z2 + 1]
-            temp_items.insert(0, temp_items.pop())
-
-            self.space[z1:z2 + 1] = temp_items
+        command = CompoundCommand('Bring items forward',
+            [model.BringItemForwardCommand(item) for item in items])
+        self.undo_group.activeStack().push(command)
 
     def canvas_send_backward(self):
-        for item in self.view.selected_model_items():
-            key = item.z
-            overlaps = item.overlap_items()
-            below_items = [x.z for x in overlaps if x.z > key]
+        items = list(self.view.selected_model_items())
+        command = None
 
-            if not below_items:
-                continue
+        if len(items) == 0:
+            return
 
-            top_z = min(below_items)
+        if len(items) == 1:
+            # Gosh I hope the active stack is the right one
+            command = model.SendItemBackCommand(items[0])
+            self.undo_group.activeStack().push(command)
+            return
 
-            z1 = item.z
-            z2 = top_z
+        command = CompoundCommand('Send items back',
+            [model.SendItemBackCommand(item) for item in items])
+        self.undo_group.activeStack().push(command)
 
-            temp_items = self.space[z1:z2 + 1]
-            temp_items.append(temp_items.pop(0))
-
-            self.space[z1:z2 + 1] = temp_items
 
     @_log.warnonerror('Error executing plugin editor dialog')
     def edit_plugins(self, event):
