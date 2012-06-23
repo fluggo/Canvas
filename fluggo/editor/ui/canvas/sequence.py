@@ -160,12 +160,6 @@ class _SequenceItemHandler(SceneItem):
         self.left_handle.setPos(float(self.item.x / self.owner.units_per_second), self.y())
         self.right_handle.setPos(float((self.item.x + self.item.length) / self.owner.units_per_second), self.y())
 
-    def removed_from_scene(self):
-        SceneItem.removed_from_scene(self)
-
-        for a in (self.left_handle, self.right_handle):
-            a.scene().removeItem(a)
-
     def update_view_decorations(self, view):
         hx = view.handle_width / float(view.scale_x)
 
@@ -274,6 +268,12 @@ class VideoSequence(ClipItem):
 
         for item in self.seq_items:
             item.added_to_scene()
+
+    def removed_from_scene(self):
+        ClipItem.removed_from_scene(self)
+
+        for item in self.seq_items:
+            item.removed_from_scene()
 
     def _handle_item_added(self, item):
         seq_item = _SequenceItemHandler(item, self)

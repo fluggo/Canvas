@@ -103,7 +103,8 @@ class SceneItem(QtGui.QGraphicsItem):
         self.view_reset_needed = True
 
     def _update_from_painter(self):
-        self.update()
+        if self.scene():
+            self.update()
 
     def itemChange(self, change, value):
         if change == QtGui.QGraphicsItem.ItemSceneHasChanged:
@@ -128,7 +129,8 @@ class SceneItem(QtGui.QGraphicsItem):
             self.painter.set_offset(self.offset)
 
     def removed_from_scene(self):
-        pass
+        if self.painter:
+            self.painter.clear()
 
     @property
     def source_ref(self):
@@ -193,6 +195,9 @@ class SceneItem(QtGui.QGraphicsItem):
             view = widget.parentWidget()
             self.update_view_decorations(view)
             self.view_reset_needed = False
+
+        if not self.scene():
+            return
 
         rect = painter.transform().mapRect(self.boundingRect())
         clip_rect = painter.transform().mapRect(option.exposedRect)

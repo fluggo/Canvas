@@ -135,6 +135,7 @@ class Scene(QtGui.QGraphicsScene):
 
             self.removeItem(ui_item)
             self.sort_list.remove(ui_item)
+            return
 
     def resort_item(self, item):
         self.sort_list.move(item.z_order)
