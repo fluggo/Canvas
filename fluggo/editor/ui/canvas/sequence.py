@@ -276,7 +276,7 @@ class VideoSequence(ClipItem):
             item.removed_from_scene()
 
     def _handle_item_added(self, item):
-        seq_item = _SequenceItemHandler(item, self)
+        seq_item = _SequenceItemHandler(item, self, self.units_per_second)
         self.seq_items.insert(item.index, seq_item)
 
         seq_item.setParentItem(self)
