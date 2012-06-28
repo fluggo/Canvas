@@ -223,10 +223,10 @@ class _LibavSource(plugins.Source):
                         video_length = int(video_length)
 
                     # Find codec
-                    # TODO: I don't know if this is the best way to store
-                    # the stream ID's; we do need to accomodate the names, though
+                    # We use the stream index because some formats don't have a
+                    # proper stream ID (such as the dv format)
                     stream = self._find_codec(plugins.VideoDecoderConnector, stream_desc, 0, video_length)
-                    stream.name = str(stream_desc.id)
+                    stream.name = str(stream_desc.index)
                     stream.id = stream_desc.id
                     self.follow_alerts(stream)
                     self._streams.append(stream)
@@ -244,7 +244,7 @@ class _LibavSource(plugins.Source):
 
                     # Find codec
                     stream = self._find_codec(plugins.AudioDecoderConnector, stream_desc, 0, audio_length)
-                    stream.name = str(stream_desc.id)
+                    stream.name = str(stream_desc.index)
                     stream.id = stream_desc.id
                     self.follow_alerts(stream)
                     self._streams.append(stream)
