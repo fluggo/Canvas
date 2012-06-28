@@ -382,7 +382,7 @@ class MainWindow(QMainWindow):
         if self.video_graph_manager:
             self.alert_publisher.unfollow_alerts(self.video_graph_manager)
 
-        self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.asset_list)
+        self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.asset_list, self.space.audio_format)
         self.audio_player.set_audio_source(self.audio_graph_manager)
 
         self.video_graph_manager = graph.SpaceVideoManager(self.space, self.asset_list, self.space.video_format)
@@ -392,6 +392,7 @@ class MainWindow(QMainWindow):
         self.video_widget.setVideoSource(self.video_graph_manager)
 
         self.alert_publisher.follow_alerts(self.video_graph_manager)
+        self.alert_publisher.follow_alerts(self.audio_graph_manager)
 
         self.view.set_space(self.space, self.asset_list, undo_stack)
 

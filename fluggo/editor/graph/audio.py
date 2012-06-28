@@ -16,24 +16,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from fluggo import signal
-from fluggo.editor import model
+from fluggo import sortlist, signal
+from fluggo.editor import model, plugins
 from fluggo.media import process
 
-class SpaceAudioManager(process.AudioPassThroughFilter):
+class SpaceAudioManager(plugins.AudioStream):
     class ItemWatcher(object):
-        def __init__(self, owner, canvas_item, workspace_item):
+        def __init__(self, owner, canvas_item, workspace_item, stream):
             self.owner = owner
             self.canvas_item = canvas_item
             self.workspace_item = workspace_item
             self.canvas_item.updated.connect(self.handle_updated)
+            self.stream = stream
 
         def handle_updated(self, **kw):
             # Raise the frames_updated signal if the content of frames changed
             if 'x' in kw or 'length' in kw or 'offset' in kw:
                 old_x, old_length, old_offset = self.workspace_item.x, self.workspace_item.length, self.workspace_item.offset
                 new_x, new_length, new_offset = kw.get('x', old_x), kw.get('length', old_length), kw.get('offset', old_offset)
-                old_right, new_right = old_x + old_width, new_x + new_width
+                old_right, new_right = old_x + old_length, new_x + new_length
 
                 self.workspace_item.update(
                     x=kw.get('x', old_x),
@@ -54,15 +55,14 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
         def unwatch(self):
             self.canvas_item.updated.disconnect(self.handle_updated)
 
-    def __init__(self, canvas_space, source_list):
+    def __init__(self, canvas_space, source_list, format):
         self.workspace = process.AudioWorkspace()
-        process.AudioPassThroughFilter.__init__(self, self.workspace)
+        plugins.AudioStream.__init__(self, self.workspace, format)
 
         self.canvas_space = canvas_space
         self.canvas_space.item_added.connect(self.handle_item_added)
         self.canvas_space.item_removed.connect(self.handle_item_removed)
         self.source_list = source_list
-        self.frames_updated = signal.Signal()
         self.watchers = {}
 
         for item in canvas_space:
@@ -70,20 +70,25 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
                 self.handle_item_added(item)
 
     def handle_item_added(self, item):
-        if not isinstance(item, model.Clip):
+        if not isinstance(item, model.Item):
             return
 
         if item.type() != 'audio':
             return
 
-        source = None
+        stream = None
+        offset = 0
 
-        if isinstance(item.source, model.StreamSourceRef):
-            source = self.source_list[item.source.source_name].get_stream(item.source.stream)
+        if isinstance(item, model.Sequence):
+            raise NotImplementedError('Need a SequenceAudioManager here')
+        elif hasattr(item, 'source'):
+            stream = model.AudioSourceRefConnector(self.source_list, item.source, model_obj=item)
+            offset = item.offset
 
-        workspace_item = self.workspace.add(x=item.x, length=item.length, offset=item.offset, source=source)
+        self.follow_alerts(stream)
+        workspace_item = self.workspace.add(x=item.x, length=item.length, offset=offset, source=stream)
 
-        watcher = self.ItemWatcher(self, item, workspace_item)
+        watcher = self.ItemWatcher(self, item, workspace_item, stream)
         self.watchers[id(item)] = watcher
 
     def handle_item_removed(self, item):
@@ -92,5 +97,6 @@ class SpaceAudioManager(process.AudioPassThroughFilter):
 
         watcher = self.watchers.pop(id(item))
         watcher.unwatch()
+        self.unfollow_alerts(watcher.stream)
         self.workspace.remove(watcher.workspace_item)
 

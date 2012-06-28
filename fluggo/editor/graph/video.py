@@ -31,12 +31,12 @@ from fluggo.media import process
 
 class SpaceVideoManager(plugins.VideoStream):
     class ItemWatcher(object):
-        def __init__(self, owner, canvas_item, workspace_item, connector):
+        def __init__(self, owner, canvas_item, workspace_item, stream):
             self.owner = owner
             self.canvas_item = canvas_item
             self.workspace_item = workspace_item
             self.canvas_item.updated.connect(self.handle_updated)
-            self.connector = connector
+            self.stream = stream
             self._z_order = 0
 
         def handle_updated(self, **kw):
@@ -104,23 +104,19 @@ class SpaceVideoManager(plugins.VideoStream):
 
         stream = None
         offset = 0
-        connector = None
 
         if isinstance(item, model.Sequence):
             stream = SequenceVideoManager(item, self.source_list, self.format)
         elif hasattr(item, 'source'):
-            connector = model.VideoSourceRefConnector(self.source_list, item.source, model_obj=item)
-            self.follow_alerts(connector)
-            stream = connector
+            stream = model.VideoSourceRefConnector(self.source_list, item.source, model_obj=item)
             offset = item.offset
 
+        self.follow_alerts(stream)
         workspace_item = self.workspace.add(x=item.x, length=item.length, z=item.z, offset=offset, source=stream)
 
-        watcher = self.ItemWatcher(self, item, workspace_item, connector)
+        watcher = self.ItemWatcher(self, item, workspace_item, stream)
         self.watchers[id(item)] = watcher
         self.watchers_sorted.add(watcher)
-
-        # TODO: Follow alerts
 
     def handle_item_removed(self, item):
         if item.type() != 'video':
@@ -128,10 +124,9 @@ class SpaceVideoManager(plugins.VideoStream):
 
         watcher = self.watchers.pop(id(item))
         watcher.unwatch()
+        self.unfollow_alerts(watcher.stream)
         self.watchers_sorted.remove(watcher)
         self.workspace.remove(watcher.workspace_item)
-
-        # TODO: Unfollow alerts
 
 class SequenceVideoManager(plugins.VideoStream):
     class ItemWatcher(plugins.VideoStream):
