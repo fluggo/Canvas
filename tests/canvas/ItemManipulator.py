@@ -1048,3 +1048,78 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
 
         self.assertEquals(manip.finish(), None)
 
+class test_ItemManipulator(unittest.TestCase):
+    def test_move_anchored_videos(self):
+        space = model.Space('', vidformat, audformat)
+
+        item0 = model.Clip(source=model.StreamSourceRef('red', 0), x=5, y=4.5,
+            offset=13, length=10, type='video')
+        item1 = model.Clip(source=model.StreamSourceRef('blue', 0), x=2, y=17.3,
+            offset=13, length=10, type='video', anchor=model.Anchor(target=item0))
+
+        space[:] = [item0, item1]
+
+        manip = model.ItemManipulator([item0], 7.0, 4.5)
+
+        manip.set_space_item(space, 8.0, 4.5)
+        self.assertEqual(item0.x, 6)
+        self.assertEqual(item0.y, 4.5)
+        self.assertEqual(item1.x, 3)
+        self.assertEqual(item1.y, 17.3)
+
+        manip.set_space_item(space, 9.3, 5.0)
+        self.assertEqual(item0.x, 7)
+        self.assertEqual(item0.y, 5.0)
+        self.assertEqual(item1.x, 4)
+        self.assertEqual(item1.y, 17.3 + 0.5)
+
+        self.assertIsInstance(manip.finish(), QUndoCommand)
+
+    def test_move_seqanditems(self):
+        space = model.Space('', vidformat, audformat)
+
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=18, length=10, transition_length=0),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
+        item = seq[1]
+
+        space[:] = [seq]
+
+        manip = model.ItemManipulator([seq[1], seq], 10.0, 10.0)
+
+        manip.set_space_item(space, 12.0, 10.0)
+        self.assertEqual(seq.x, 12)
+        self.assertEqual(seq[0].x, 0)
+        self.assertEqual(seq[1].x, 10)
+
+        manip.set_space_item(space, 8.0, 10.0)
+        self.assertEqual(seq.x, 8)
+        self.assertEqual(seq[0].x, 0)
+        self.assertEqual(seq[1].x, 10)
+
+        self.assertIsInstance(manip.finish(), QUndoCommand)
+
+    def test_move_seqanditems2(self):
+        space = model.Space('', vidformat, audformat)
+
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=18, length=10, transition_length=0),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
+        item = seq[1]
+
+        space[:] = [seq]
+
+        manip = model.ItemManipulator([seq, seq[1]], 10.0, 10.0)
+
+        manip.set_space_item(space, 12.0, 10.0)
+        self.assertEqual(seq.x, 12)
+        self.assertEqual(seq[0].x, 0)
+        self.assertEqual(seq[1].x, 10)
+
+        manip.set_space_item(space, 8.0, 10.0)
+        self.assertEqual(seq.x, 8)
+        self.assertEqual(seq[0].x, 0)
+        self.assertEqual(seq[1].x, 10)
+
+        self.assertIsInstance(manip.finish(), QUndoCommand)
+

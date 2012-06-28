@@ -13,8 +13,10 @@
         sample_rate: 48000
         channel_assignment: [FrontLeft, FrontRight]
       items:
-      - !CanvasClip {height: 40.0, offset: 1000, source: !StreamSourceRef {source_name: 79b, stream: "0"},
+      - &A !CanvasClip {height: 40.0, offset: 1000, source: !StreamSourceRef {source_name: 79b, stream: "0"},
         type: video, length: 100, x: 60, y: 30.0}
+      - !CanvasClip {height: 40.0, offset: 1000, source: !StreamSourceRef {source_name: 79b, stream: "1"},
+        type: audio, length: 100000, x: 96096, y: 70.0, anchor: !CanvasAnchor {target: *A}}
       - !CanvasSequence
         x: 0
         y: 50.0

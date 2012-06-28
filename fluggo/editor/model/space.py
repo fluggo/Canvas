@@ -19,6 +19,7 @@
 import yaml, collections, itertools
 from fluggo import ezlist, sortlist, signal
 from fluggo.editor.model import sources
+from .items import *
 
 class Space(sources.Source, ezlist.EZList):
     def __init__(self, name, video_format, audio_format):
@@ -142,6 +143,35 @@ class Space(sources.Source, ezlist.EZList):
             down_items = current_overlaps
 
         return result
+
+    def find_anchored_items(self, target):
+        '''Return a list of items that should move when this item does.'''
+        # This is, of course, the stupid version of this algorithm
+        results = []
+
+        for item in self._items:
+            if not item.anchor:
+                continue
+
+            # If this is a sequence and it's got this item as its target,
+            # we don't actually want any of its sequence items.
+            #
+            # This works here, but the ItemManipulator has to worry about the
+            # same happening through multiple selections.
+            if item.anchor.target is target:
+                results.append(item)
+                continue
+
+            if isinstance(item, SequenceItem):
+                for seqitem in item:
+                    if not seqitem.anchor:
+                        continue
+
+                    if seqitem.anchor.target is target or (target.anchor and (seqitem is target.anchor.target) and target.anchor.two_way):
+                        results.append(seqitem)
+                        continue
+
+        return results
 
 def _space_represent(dumper, data):
     return dumper.represent_mapping('!CanvasSpace', {'items': data._items})

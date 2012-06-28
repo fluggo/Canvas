@@ -53,13 +53,8 @@ class _ZSortKey():
         return 'key(y={0.y}, z={0.z})'.format(self)
 
 
-class Item(object):
+class Anchor:
     '''
-    Class for all items that can appear in the canvas.
-
-    All of the arguments for the constructor are the YAML properties that can appear
-    for this class.
-
     An anchor on one clip says that its position should be fixed in relation
     to another. In the Y direction, all we need is the :attr:`target` clip; each item's
     current position is enough to establish the offset.
@@ -76,14 +71,58 @@ class Item(object):
     nearest position in those cases.
 
     The attribute :attr:`visible` determines whether the anchor deserves displaying
-    an explicit link between the clips. If ``False``, then the anchor acts more
-    like groups found in other editors.
+    an explicit link between the clips. If two_way is True, then the anchor acts more
+    like groups found in other editors-- both clips are moved if either one is.
+    '''
+    yaml_tag = '!CanvasAnchor'
+
+    def __init__(self, target=None, target_offset=0, source_offset=0,
+            visible=False, two_way=False):
+        self._target = target
+        self._target_offset = target_offset
+        self._source_offset = source_offset
+        self._visible = visible
+        self._two_way = two_way
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        return dumper.represent_mapping(cls.yaml_tag, data._create_repr_dict())
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        return cls(**loader.construct_mapping(node))
+
+    @property
+    def target(self):
+        return self._target
+
+    @property
+    def target_offset(self):
+        return self._target_offset
+
+    @property
+    def source_offset(self):
+        return self._source_offset
+
+    @property
+    def visible(self):
+        return self._visible
+
+    @property
+    def two_way(self):
+        return self._two_way
+
+class Item(object):
+    '''
+    Class for all items that can appear in the canvas.
+
+    All of the arguments for the constructor are the YAML properties that can appear
+    for this class.
     '''
 
     yaml_tag = '!CanvasItem'
 
-    def __init__(self, x=0, y=0.0, length=1, height=1.0, type=None, anchor=None,
-            anchor_target_offset=None, anchor_source_offset=None, anchor_visible=False, tags=None,
+    def __init__(self, x=0, y=0.0, length=1, height=1.0, type=None, anchor=None, tags=None,
             ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None, in_motion=False):
         self._space = None
         self._x = x
@@ -98,9 +137,6 @@ class Item(object):
         self._ease_out = ease_out
         self.updated = signal.Signal()
         self._anchor = anchor
-        self._anchor_target_offset = anchor_target_offset
-        self._anchor_source_offset = anchor_source_offset
-        self._anchor_visible = anchor_visible
         self._tags = set(tags) if tags else set()
         self.in_motion = in_motion
 
@@ -116,15 +152,6 @@ class Item(object):
 
         if self._anchor:
             result['anchor'] = self._anchor
-
-            if self._anchor_target_offset:
-                result['anchor_target_offset'] = self._anchor_target_offset
-
-            if self._anchor_source_offset:
-                result['anchor_source_offset'] = self._anchor_source_offset
-
-            if self._anchor_visible:
-                result['anchor_visible'] = self._anchor_visible
 
         if self._ease_in:
             result['ease_in'] = self._ease_in
@@ -158,6 +185,10 @@ class Item(object):
     @property
     def x(self):
         return self._x
+
+    @property
+    def anchor(self):
+        return self._anchor
 
     @property
     def y(self):
@@ -447,7 +478,8 @@ class Sequence(Item, ezlist.EZList):
 class SequenceItem(object):
     yaml_tag = '!CanvasSequenceItem'
 
-    def __init__(self, source=None, offset=0, length=1, transition=None, transition_length=0, type=None, in_motion=False):
+    def __init__(self, source=None, offset=0, length=1, transition=None,
+            transition_length=0, type=None, in_motion=False, anchor=None):
         if length < 1:
             raise ValueError('length cannot be less than 1 ({0} was given)'.format(length))
 
@@ -460,6 +492,7 @@ class SequenceItem(object):
         self._index = None
         self._type = type
         self._x = 0
+        self._anchor = anchor
         self.in_motion = in_motion
 
     def clone(self):
@@ -494,6 +527,9 @@ class SequenceItem(object):
         if 'in_motion' in kw:
             self.in_motion = bool(kw['in_motion'])
 
+        if 'anchor' in kw:
+            self._anchor = kw['anchor']
+
         if 'transition' in kw:
             self._transition = kw['transition']
 
@@ -524,6 +560,10 @@ class SequenceItem(object):
     @property
     def transition(self):
         return self._transition
+
+    @property
+    def anchor(self):
+        return self._anchor
 
     @property
     def transition_length(self):
@@ -608,6 +648,7 @@ def _yamlreg(cls):
     yaml.add_representer(cls, cls.to_yaml)
     yaml.add_constructor(cls.yaml_tag, cls.from_yaml)
 
+_yamlreg(Anchor)
 _yamlreg(Item)
 _yamlreg(Clip)
 _yamlreg(Sequence)

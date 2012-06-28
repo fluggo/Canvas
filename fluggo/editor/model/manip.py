@@ -1341,7 +1341,7 @@ class SequenceManipulator:
                 space_remove_op = RemoveItemCommand(self.item.space, self.item)
                 space_remove_op.redo()
 
-            # TODO: If this next line raises a NoRoomError, meaning we haven't
+            # If this next line raises a NoRoomError, meaning we haven't
             # placed the item anywhere, finish() needs to fail loudly, and the
             # caller needs to know it will fail
             self.seq_add_op = AddSequenceToSequenceCommand(sequence, self.seq_mover, target_x)
@@ -1413,32 +1413,31 @@ class ItemManipulator:
     '''Moves clips, sequence items, and sequences.'''
 
     def __init__(self, items, grab_x, grab_y):
-        if False:
-            self.items = items
-            self.manips = []
-            seq_items = []
-
-            for item in items:
-                if isinstance(item, Clip):
-                    self.manips.append(_ClipManipulator(item, grab_x, grab_y))
-                elif isinstance(item, Sequence):
-                    self.manips.append(_SequenceManipulator(item, grab_x, grab_y))
-                elif isinstance(item, SequenceItem):
-                    seq_items.append(item)
-
-            # Sort and combine the sequence items
-            for seq, itemlist in itertools.groupby(sorted(seq_items, key=lambda a: (a.sequence, a.index)), key=lambda a: a.sequence):
-                self.manips.append(_SequenceItemGroupManipulator(list(itemlist), grab_x, grab_y))
-
         # The new ItemManipulator: No longer a one-size-fits-all solution.
         # We take into account what kinds of items are selected, primary and secondary.
-        # Two main types appear here: a SequenceItemsMover or an Item
 
         primary = items[0]
+        space = primary.sequence.space if isinstance(primary, SequenceItem) else primary.space
+
+        items = set(items)
+
+        # Get all the anchored items
+        anchored_items = set(itertools.chain.from_iterable(space.find_anchored_items(target) for target in items))
+        items.update(anchored_items)
+
+        # If a sequence is selected, we don't want to try to move the sequence items too
+        items.difference_update(frozenset(
+            itertools.chain.from_iterable(seq for seq in items if isinstance(seq, Sequence))))
+
+        if isinstance(primary, SequenceItem) and primary not in items:
+            # Sequence item was the primary and the sequence got picked up too
+            primary = primary.sequence
+
+        items.remove(primary)
 
         # Grab up the sequence items
-        seq_items = [item for item in items if isinstance(item, SequenceItem)]
-        items = [item for item in items[1:] if isinstance(item, Item)]
+        seq_items = set(item for item in items if isinstance(item, SequenceItem))
+        items = set(item for item in items if isinstance(item, Item))
 
         sequences = []
 
@@ -1451,7 +1450,7 @@ class ItemManipulator:
                 if isinstance(primary, SequenceItem) and primary.sequence == seq:
                     primary = SequenceManipulator(seq, grab_x, grab_y)
                 else:
-                    items.append(seq)
+                    items.add(seq)
             else:
                 mover = SequenceItemGroupManipulator(list_, grab_x, grab_y)
 
@@ -1464,6 +1463,8 @@ class ItemManipulator:
             primary = ClipManipulator(primary, grab_x, grab_y)
         elif isinstance(primary, Sequence):
             primary = SequenceManipulator(primary, grab_x, grab_y)
+        elif isinstance(primary, SequenceItem):
+            primary = SequenceItemGroupManipulator([primary], grab_x, grab_y)
 
         self.primary = primary
         self.sequences = sequences
@@ -1477,11 +1478,6 @@ class ItemManipulator:
                 self.items.append(SequenceManipulator(item, grab_x, grab_y))
 
     def set_space_item(self, space, x, y):
-        if False:
-            # Old way
-            for manip in self.manips:
-                manip.set_space_item(space, x, y)
-
         # New rules:
         if isinstance(self.primary, ClipManipulator) or isinstance(self.primary, SequenceManipulator):
             self.primary.set_space_item(space, x, y)
