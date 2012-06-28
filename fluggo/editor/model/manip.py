@@ -1493,7 +1493,7 @@ class ItemManipulator:
                     seq.set_space_item(space, x, y)
 
             for item in self.items:
-                seq.set_space_item(space, x, y)
+                item.set_space_item(space, x, y)
         elif isinstance(self.primary, SequenceItemGroupManipulator):
             self.primary.set_space_item(space, x, y)
 
@@ -1501,7 +1501,7 @@ class ItemManipulator:
                 seq.set_space_item(space, x, y)
 
             for item in self.items:
-                seq.set_space_item(space, x, y)
+                item.set_space_item(space, x, y)
 
     def set_sequence_item(self, sequence, x, y, operation):
         try:
