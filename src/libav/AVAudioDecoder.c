@@ -262,7 +262,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
         self->last_packet_start = packet_start;
         self->last_packet_duration = packet_duration;
 
-        //printf( "We'll take that (%d, %d)\n", packetStart, packetDuration );
+        //printf( "We'll take that (%d, %d)\n", packet_start, packet_duration );
         int start_sample = max(packet_start, frame->full_min_sample);
         int duration = min(packet_start + packet_duration, frame->full_max_sample + 1) - start_sample;
         float *out = audio_get_sample( frame, start_sample, 0 );

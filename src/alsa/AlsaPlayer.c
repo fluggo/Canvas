@@ -70,9 +70,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         if( snd_pcm_state( self->pcmDevice ) == SND_PCM_STATE_SETUP )
             snd_pcm_prepare( self->pcmDevice );
 
-        //printf( "%s\n", snd_pcm_state_name( snd_pcm_state( self->pcmDevice ) ) );
-
-        if( self->quit ) {
+        if( G_UNLIKELY(self->quit) ) {
             g_mutex_unlock( self->mutex );
             break;
         }
@@ -93,7 +91,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         frame.channels = self->channelCount;
         frame.data = self->inBuffer;
 
-        if( speed.n > 0 ) {
+        if( G_LIKELY(speed.n > 0) ) {
             frame.full_min_sample = nextSample;
             frame.full_max_sample = nextSample + swCount - 1;
             self->nextSample += swCount;
@@ -113,11 +111,39 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         self->audioSource.source.funcs->getFrame( self->audioSource.source.obj, &frame );
         g_static_rw_lock_reader_unlock( &self->frame_read_rwlock );
 
+
         // Zero out anything that wasn't provided
+        //printf( "current min %d, max %d\n", frame.current_min_sample, frame.current_max_sample );
+        //printf( "full min %d, max %d\n", frame.full_min_sample, frame.full_max_sample );
+
         if( frame.current_min_sample > frame.current_max_sample ) {
             memset( frame.data, 0, sizeof(float) * (frame.full_max_sample - frame.full_min_sample + 1) * frame.channels );
         }
         else {
+            // Provide some sanity if the audio source gives us bad values
+            if( G_UNLIKELY(frame.current_min_sample < frame.full_min_sample || frame.current_min_sample > frame.full_max_sample) ) {
+                g_warning( "AlsaPlayer Audio source gave min sample (%d) outside valid range [%d, %d]",
+                    frame.current_min_sample, frame.full_min_sample, frame.full_max_sample );
+
+                if( frame.current_min_sample < frame.full_min_sample )
+                    frame.current_min_sample = frame.full_min_sample;
+
+                if( frame.current_min_sample > frame.full_max_sample )
+                    frame.current_min_sample = frame.full_max_sample;
+            }
+
+            if( G_UNLIKELY(frame.current_max_sample < frame.full_min_sample || frame.current_max_sample > frame.full_max_sample) ) {
+                g_warning( "AlsaPlayer Audio source gave max sample (%d) past full max sample [%d, %d]",
+                    frame.current_max_sample, frame.full_min_sample, frame.full_max_sample );
+
+                if( frame.current_max_sample < frame.full_min_sample )
+                    frame.current_max_sample = frame.full_min_sample;
+
+                if( frame.current_max_sample > frame.full_max_sample )
+                    frame.current_max_sample = frame.full_max_sample;
+            }
+
+            // Now zero
             if( frame.full_min_sample < frame.current_min_sample )
                 memset( frame.data, 0, sizeof(float) * (frame.current_min_sample - frame.full_min_sample) * frame.channels );
 
@@ -127,7 +153,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         }
 
         // Convert speed differences
-        if( speed.n == 1 && speed.d == 1 ) {
+        if( G_LIKELY(speed.n == 1 && speed.d == 1) ) {
             // As long as the output is float, we can use the original buffer
             outptr = inptr;
         }
@@ -152,7 +178,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         // Python thread may want to stop the device/change the config
         g_mutex_lock( self->configMutex );
 
-        if( self->stop ) {
+        if( G_UNLIKELY(self->stop) ) {
             g_mutex_unlock( self->configMutex );
             continue;
         }
@@ -167,12 +193,22 @@ playbackThread( py_obj_AlsaPlayer *self ) {
             if( error == -EAGAIN )
                 continue;
 
-            if( error == -EPIPE ) {
+            if( G_UNLIKELY(error == -EPIPE) ) {
                 // Underrun!
                 printf("ALSA playback underrun\n" );
                 snd_pcm_recover( self->pcmDevice, error, 1 );
                 self->nextSample = get_time_frame( &rate, _getPresentationTime( self ) );
                 break;
+            }
+
+            if( G_UNLIKELY(error < 0) ) {
+                // Other error; check snd_pcm_state()
+                snd_pcm_state_t state = snd_pcm_state( self->pcmDevice );
+
+                switch( state ) {
+                    default:
+                        g_error( "PCM device returned error %d; aborting", state );
+                }
             }
 
             outptr += error * frame.channels * sizeof(float);

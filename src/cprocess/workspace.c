@@ -19,6 +19,7 @@
 */
 
 #include "framework.h"
+#include <stdio.h>
 
 struct workspace_t_tag {
     // leftsort and rightsort both contain all items in the workspace. leftsort is sorted
@@ -561,8 +562,8 @@ workspace_audio_get_frame( workspace_t *self, audio_frame *frame ) {
     workspace_move_it( self, frame->full_min_sample, frame->full_max_sample );
 
     // Now composite everything in it
-    frame->current_min_sample = 0;
-    frame->current_max_sample = -1;
+    frame->current_min_sample = frame->full_max_sample;
+    frame->current_max_sample = frame->full_min_sample;
 
     if( g_sequence_get_length( self->composite_list ) == 0 ) {
         g_static_mutex_unlock( &self->mutex );
@@ -585,11 +586,30 @@ workspace_audio_get_frame( workspace_t *self, audio_frame *frame ) {
 
         in_frame.data = frame->data + (in_frame.full_min_sample - frame->full_min_sample) * in_frame.channels;
 
+        /*printf( "in_frame (full, before) [%d, %d]\n",
+            in_frame.full_min_sample,
+            in_frame.full_max_sample );
+        printf( "in_frame (before) [%d, %d]",
+            in_frame.current_min_sample,
+            in_frame.current_max_sample );*/
+
         // TODO: Workspace items need some sort of opacity/attenuation setting
         audio_mix_add_pull( &in_frame, (audio_source *) item->source, 1.0f, -(item->x + item->offset) );
 
-        frame->current_min_sample = min(frame->current_min_sample, in_frame.current_min_sample);
-        frame->current_max_sample = max(frame->current_max_sample, in_frame.current_max_sample);
+        /*printf( "in_frame [%d, %d], outer (before) [%d, %d]",
+            in_frame.current_min_sample,
+            in_frame.current_max_sample,
+            frame->current_min_sample,
+            frame->current_max_sample );*/
+
+        if( in_frame.current_max_sample >= in_frame.current_min_sample ) {
+            frame->current_min_sample = min(frame->current_min_sample, in_frame.current_min_sample);
+            frame->current_max_sample = max(frame->current_max_sample, in_frame.current_max_sample);
+        }
+
+        /*printf( ", outer (after) [%d, %d]\n",
+            frame->current_min_sample,
+            frame->current_max_sample );*/
 
         iter = g_sequence_iter_next( iter );
     }
