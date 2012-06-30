@@ -251,6 +251,21 @@ class Item(object):
         if 'in_motion' in kw:
             self.in_motion = bool(kw['in_motion'])
 
+        if 'anchor' in kw:
+            if self._anchor:
+                self._space.remove_anchor_map(self, self._anchor.target)
+
+                if self._anchor.two_way:
+                    self._space.remove_anchor_map(self._anchor.target, self)
+
+            self._anchor = kw['anchor']
+
+            if self._anchor:
+                self._space.add_anchor_map(self, self._anchor.target)
+
+                if self._anchor.two_way:
+                    self._space.add_anchor_map(self._anchor.target, self)
+
         self.updated(**kw)
 
     def overlap_items(self):
@@ -260,13 +275,23 @@ class Item(object):
         return self._space.find_overlaps_recursive(self)
 
     def kill(self):
+        if self._anchor:
+            self._space.remove_anchor_map(self, self._anchor.target)
+
+            if self._anchor.two_way:
+                self._space.remove_anchor_map(self._anchor.target, self)
+
         self._space = None
 
     def fixup(self):
         '''
         Perform initialization that has to wait until deserialization is finished.
         '''
-        pass
+        if self._anchor:
+            self._space.add_anchor_map(self, self._anchor.target)
+
+            if self._anchor.two_way:
+                self._space.add_anchor_map(self._anchor.target, self)
 
     def type(self):
         '''
@@ -431,6 +456,7 @@ class Sequence(Item, ezlist.EZList):
             item._sequence = self
             item._x = x - item.transition_length
             x += item.length - item.transition_length
+            item.fixup()
 
         # Send item_added notifications
         for item in (new_item_set - old_item_set):
@@ -472,6 +498,7 @@ class Sequence(Item, ezlist.EZList):
             item._type = self._type
             item._x = total_length - item.transition_length
             total_length += item.length - item.transition_length
+            item.fixup()
 
         Item.update(self, length=total_length)
 
@@ -528,7 +555,19 @@ class SequenceItem(object):
             self.in_motion = bool(kw['in_motion'])
 
         if 'anchor' in kw:
+            if self._anchor and self._sequence and self._sequence._space:
+                self._sequence._space.remove_anchor_map(self, self._anchor.target)
+
+                if self._anchor.two_way:
+                    self._sequence._space.remove_anchor_map(self._anchor.target, self)
+
             self._anchor = kw['anchor']
+
+            if self._anchor and self._sequence and self._sequence._space:
+                self._sequence._space.add_anchor_map(self, self._anchor.target)
+
+                if self._anchor.two_way:
+                    self._sequence._space.add_anchor_map(self._anchor.target, self)
 
         if 'transition' in kw:
             self._transition = kw['transition']
@@ -637,8 +676,21 @@ class SequenceItem(object):
         return cls(**loader.construct_mapping(node))
 
     def kill(self):
+        if self._anchor and self._sequence._space:
+            self._sequence._space.remove_anchor_map(self, self._anchor.target)
+
+            if self._anchor.two_way:
+                self._sequence._space.remove_anchor_map(self._anchor.target, self)
+
         self._sequence = None
         self._index = None
+
+    def fixup(self):
+        if self._anchor and self._sequence_space:
+            self._sequence._space.add_anchor_map(self, self._anchor.target)
+
+            if self._anchor.two_way:
+                self._sequence._space.add_anchor_map(self._anchor.target, self)
 
     def __str__(self):
         return yaml.dump(self)

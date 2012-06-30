@@ -17,9 +17,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import yaml, collections, itertools
-from fluggo import ezlist, sortlist, signal
+from fluggo import ezlist, sortlist, signal, logging
 from fluggo.editor.model import sources
 from .items import *
+
+_log = logging.getLogger(__name__)
 
 class Space(sources.Source, ezlist.EZList):
     def __init__(self, name, video_format, audio_format):
@@ -30,6 +32,7 @@ class Space(sources.Source, ezlist.EZList):
         self._items = []
         self._video_format = video_format
         self._audio_format = audio_format
+        self._anchor_map = {}
 
     def __len__(self):
         return len(self._items)
@@ -79,7 +82,6 @@ class Space(sources.Source, ezlist.EZList):
 
         for i, item in enumerate(self._items[start:], start):
             item._space = self
-            item._z = i
 
         if len(old_item_set) > len(new_item_set):
             # We can renumber going forwards
@@ -95,6 +97,7 @@ class Space(sources.Source, ezlist.EZList):
                 item.update(z=i)
 
         for item in (new_item_set - old_item_set):
+            item.fixup()
             self.item_added(item)
 
     def fixup(self):
@@ -107,6 +110,31 @@ class Space(sources.Source, ezlist.EZList):
             item._space = self
             item._z = i
             item.fixup()
+
+    def add_anchor_map(self, source, target):
+        '''Mentions that the source item is anchored to the given target.'''
+        myset = self._anchor_map.get(target, None)
+
+        if myset is None:
+            myset = set()
+            self._anchor_map[target] = myset
+
+        if source not in myset:
+            myset.add(source)
+        else:
+            _log.debug('WARNING: Adding anchor map that already exists!!!')
+
+    def remove_anchor_map(self, source, target):
+        myset = self._anchor_map.get(target, None)
+
+        if not myset or source not in myset:
+            _log.debug("WARNING: Removing anchor map that doesn't exist!!!")
+            return
+
+        myset.remove(source)
+
+        if not myset:
+            self._anchor_map.remove(target)
 
     def find_overlaps(self, item):
         '''Find all items that directly overlap the given item (but not including the given item).'''
@@ -144,32 +172,28 @@ class Space(sources.Source, ezlist.EZList):
 
         return result
 
+    def find_immediate_anchored_items(self, target):
+        '''Return a set of items that have a direct anchor to *target*.'''
+        return self._anchor_map.get(target, frozenset())
+
     def find_anchored_items(self, target):
-        '''Return a list of items that should move when this item does.'''
-        # This is, of course, the stupid version of this algorithm
-        results = []
+        '''Return a set of items that should move when *target* does.'''
+        results = self.find_immediate_anchored_items(target)
 
-        for item in self._items:
-            if not item.anchor:
-                continue
+        if not results:
+            return results
 
-            # If this is a sequence and it's got this item as its target,
-            # we don't actually want any of its sequence items.
-            #
-            # This works here, but the ItemManipulator has to worry about the
-            # same happening through multiple selections.
-            if item.anchor.target is target:
-                results.append(item)
-                continue
+        last_count = 0
 
-            if isinstance(item, SequenceItem):
-                for seqitem in item:
-                    if not seqitem.anchor:
-                        continue
+        while len(results) != last_count:
+            last_count = len(results)
 
-                    if seqitem.anchor.target is target or (target.anchor and (seqitem is target.anchor.target) and target.anchor.two_way):
-                        results.append(seqitem)
-                        continue
+            new_results = set()
+
+            for item in results:
+                new_results.update(self.find_immediate_anchored_items(item))
+
+            results.update(new_results)
 
         return results
 
