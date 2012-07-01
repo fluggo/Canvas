@@ -9,6 +9,8 @@ vidformat = plugins.VideoFormat(
     frame_rate = fractions.Fraction(24000, 1001),
     full_frame = box2i((0, -1), (719, 478)))
 
+frame_rate = float(vidformat.frame_rate)
+
 audformat = plugins.AudioFormat(
     sample_rate = 48000, channel_assignment=['FL', 'FR'])
 
@@ -1059,15 +1061,15 @@ class test_ItemManipulator(unittest.TestCase):
 
         space[:] = [item0, item1]
 
-        manip = model.ItemManipulator([item0], 7.0, 4.5)
+        manip = model.ItemManipulator([item0], 7.0 / frame_rate, 4.5)
 
-        manip.set_space_item(space, 8.0, 4.5)
+        manip.set_space_item(space, 8.0 / frame_rate, 4.5)
         self.assertEqual(item0.x, 6)
         self.assertEqual(item0.y, 4.5)
         self.assertEqual(item1.x, 3)
         self.assertEqual(item1.y, 17.3)
 
-        manip.set_space_item(space, 9.3, 5.0)
+        manip.set_space_item(space, 9.3 / frame_rate, 5.0)
         self.assertEqual(item0.x, 7)
         self.assertEqual(item0.y, 5.0)
         self.assertEqual(item1.x, 4)
@@ -1085,14 +1087,14 @@ class test_ItemManipulator(unittest.TestCase):
 
         space[:] = [seq]
 
-        manip = model.ItemManipulator([seq[1], seq], 10.0, 10.0)
+        manip = model.ItemManipulator([seq[1], seq], 10.0 / frame_rate, 10.0)
 
-        manip.set_space_item(space, 12.0, 10.0)
+        manip.set_space_item(space, 12.0 / frame_rate, 10.0)
         self.assertEqual(seq.x, 12)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[1].x, 10)
 
-        manip.set_space_item(space, 8.0, 10.0)
+        manip.set_space_item(space, 8.0 / frame_rate, 10.0)
         self.assertEqual(seq.x, 8)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[1].x, 10)
@@ -1109,14 +1111,14 @@ class test_ItemManipulator(unittest.TestCase):
 
         space[:] = [seq]
 
-        manip = model.ItemManipulator([seq, seq[1]], 10.0, 10.0)
+        manip = model.ItemManipulator([seq, seq[1]], 10.0 / frame_rate, 10.0)
 
-        manip.set_space_item(space, 12.0, 10.0)
+        manip.set_space_item(space, 12.0 / frame_rate, 10.0)
         self.assertEqual(seq.x, 12)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[1].x, 10)
 
-        manip.set_space_item(space, 8.0, 10.0)
+        manip.set_space_item(space, 8.0 / frame_rate, 10.0)
         self.assertEqual(seq.x, 8)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[1].x, 10)

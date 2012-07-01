@@ -34,6 +34,16 @@ class Space(sources.Source, ezlist.EZList):
         self._audio_format = audio_format
         self._anchor_map = {}
 
+    def rate(self, item_type):
+        '''Return the rate, as a Fraction in units per second, for the X axis
+        for items of type *item_type*.'''
+        if item_type == 'video':
+            return self._video_format.frame_rate
+        elif item_type == 'audio':
+            return self._audio_format.sample_rate
+
+        raise KeyError
+
     def __len__(self):
         return len(self._items)
 

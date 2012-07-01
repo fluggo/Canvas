@@ -194,7 +194,7 @@ class Scene(QtGui.QGraphicsScene):
 
             if isinstance(obj, DragDropSelection) and obj.space == self.space:
                 # Our own drag-and-drop items
-                self.drag_op = model.ItemManipulator(obj.objects, event.scenePos().x() * float(self.frame_rate), obj.grab_pos.y())
+                self.drag_op = model.ItemManipulator(obj.objects, event.scenePos().x(), obj.grab_pos.y())
             elif isinstance(obj, fluggo.editor.DragDropAsset):
                 # TODO: Use the ItemManipulator to move these around
                 event.accept()
@@ -209,7 +209,7 @@ class Scene(QtGui.QGraphicsScene):
         cursor_items = [item for item in cursor_items if isinstance(item, SceneItem) and item.drop_opaque and not item.item.in_motion]
         top_item = cursor_items and cursor_items[0]
 
-        x = event.scenePos().x() * float(self.frame_rate)
+        x = event.scenePos().x()
         y = event.scenePos().y()
 
         if top_item and isinstance(top_item, VideoSequence):

@@ -638,6 +638,9 @@ class ClipManipulator:
         self.seq_add_op = None
         self.seq_move_op = None
 
+    def type(self):
+        return self.item.type()
+
     def set_space_item(self, space, x, y):
         self._undo_sequence()
 
@@ -650,6 +653,8 @@ class ClipManipulator:
             self.space_move_op.mergeWith(space_move_op)
         else:
             self.space_move_op = space_move_op
+
+        return float(target_x) - self.offset_x
 
     def set_sequence_item(self, sequence, x, operation):
         # TODO: I've realized there's a difference in model here;
@@ -678,7 +683,7 @@ class ClipManipulator:
                     else:
                         self.seq_move_op = command
 
-                    return
+                    return float(target_x) - self.offset_x
                 except NoRoomError:
                     # No room here; back out and try as a clip
                     pass
@@ -698,7 +703,7 @@ class ClipManipulator:
             self.seq_add_op = AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, target_x)
             self.seq_add_op.redo()
             self.seq_move_op = None
-            return
+            return float(target_x) - self.offset_x
 
         raise ValueError('Unsupported operation "{0}"'.format(operation))
 
@@ -1173,6 +1178,9 @@ class SequenceItemGroupManipulator:
         for item in self.items:
             item.update(in_motion=True)
 
+    def type(self):
+        return self.original_sequence.type()
+
     def set_space_item(self, space, x, y):
         target_x = int(round(float(x) + self.offset_x))
 
@@ -1198,12 +1206,11 @@ class SequenceItemGroupManipulator:
                 self.seq_manip = SequenceManipulator(self.space_item,
                     float(target_x) - self.offset_x, y)
 
-        self.seq_manip.set_space_item(space, x, y)
+        return self.seq_manip.set_space_item(space, x, y)
 
     def set_sequence_item(self, sequence, x, operation):
         if self.seq_manip:
-            self.seq_manip.set_sequence_item(sequence, x, operation)
-            return
+            return self.seq_manip.set_sequence_item(sequence, x, operation)
 
         target_x = int(round(float(x) + self.offset_x))
 
@@ -1222,13 +1229,13 @@ class SequenceItemGroupManipulator:
                     else:
                         self.seq_move_op = command
 
-                    return
+                    return float(target_x) - self.offset_x
                 except NoRoomError:
                     # No room here; back out and try new insert
                     pass
 
         self.set_space_item(sequence.space, 0, 0)
-        self.seq_manip.set_sequence_item(sequence, x, operation)
+        return self.seq_manip.set_sequence_item(sequence, x, operation)
 
     def reset(self):
         if self.seq_manip:
@@ -1291,6 +1298,9 @@ class SequenceManipulator:
         self.seq_add_op = None
         self.seq_move_op = None
 
+    def type(self):
+        return self.item.type()
+
     def set_space_item(self, space, x, y):
         self._undo_sequence()
 
@@ -1303,6 +1313,8 @@ class SequenceManipulator:
             self.space_move_op.mergeWith(space_move_op)
         else:
             self.space_move_op = space_move_op
+
+        return float(target_x) - self.offset_x
 
     def set_sequence_item(self, sequence, x, operation):
         if self.seq_mover is None:
@@ -1326,7 +1338,7 @@ class SequenceManipulator:
                     else:
                         self.seq_move_op = command
 
-                    return
+                    return float(target_x) - self.offset_x
                 except NoRoomError:
                     # No room here; back out and try as a clip
                     pass
@@ -1348,7 +1360,7 @@ class SequenceManipulator:
             self.seq_add_op.redo()
             self.seq_move_op = None
             self.space_remove_op = space_remove_op or self.space_remove_op
-            return
+            return float(target_x) - self.offset_x
 
         raise ValueError('Unsupported operation "{0}"'.format(operation))
 
@@ -1413,11 +1425,23 @@ class ItemManipulator:
     '''Moves clips, sequence items, and sequences.'''
 
     def __init__(self, items, grab_x, grab_y):
+        '''
+        Create an ItemManipulator for the given *items*.
+
+        The first item in *items* is considered the primary item (the item under
+        the mouse cursor); it is placed first, and then all of the other items
+        are placed around it.
+
+        *grab_x* and *grab_y* are the position of the mouse cursor at the
+        beginning of the operation. *grab_x* is a float, and in units of seconds.
+        '''
+
         # The new ItemManipulator: No longer a one-size-fits-all solution.
         # We take into account what kinds of items are selected, primary and secondary.
 
         primary = items[0]
         space = primary.sequence.space if isinstance(primary, SequenceItem) else primary.space
+        self.space = space
 
         items = set(items)
 
@@ -1448,11 +1472,11 @@ class ItemManipulator:
             if len(seq) == len(list_):
                 # We've really got the whole thing, add it to items instead
                 if isinstance(primary, SequenceItem) and primary.sequence == seq:
-                    primary = SequenceManipulator(seq, grab_x, grab_y)
+                    primary = SequenceManipulator(seq, grab_x * float(space.rate(seq.type())), grab_y)
                 else:
                     items.add(seq)
             else:
-                mover = SequenceItemGroupManipulator(list_, grab_x, grab_y)
+                mover = SequenceItemGroupManipulator(list_, grab_x * float(space.rate(seq.type())), grab_y)
 
                 if isinstance(primary, SequenceItem) and primary.sequence == seq:
                     primary = mover
@@ -1460,11 +1484,11 @@ class ItemManipulator:
                     sequences.append(mover)
 
         if isinstance(primary, Clip):
-            primary = ClipManipulator(primary, grab_x, grab_y)
+            primary = ClipManipulator(primary, grab_x * float(space.rate(primary.type())), grab_y)
         elif isinstance(primary, Sequence):
-            primary = SequenceManipulator(primary, grab_x, grab_y)
+            primary = SequenceManipulator(primary, grab_x * float(space.rate(primary.type())), grab_y)
         elif isinstance(primary, SequenceItem):
-            primary = SequenceItemGroupManipulator([primary], grab_x, grab_y)
+            primary = SequenceItemGroupManipulator([primary], grab_x * float(space.rate(primary.type())), grab_y)
 
         self.primary = primary
         self.sequences = sequences
@@ -1473,41 +1497,62 @@ class ItemManipulator:
 
         for item in items:
             if isinstance(item, Clip):
-                self.items.append(ClipManipulator(item, grab_x, grab_y))
+                self.items.append(ClipManipulator(item, grab_x * float(space.rate(item.type())), grab_y))
             else:
-                self.items.append(SequenceManipulator(item, grab_x, grab_y))
+                self.items.append(SequenceManipulator(item, grab_x * float(space.rate(item.type())), grab_y))
 
     def set_space_item(self, space, x, y):
+        x = float(x)
+
         # New rules:
         if isinstance(self.primary, ClipManipulator) or isinstance(self.primary, SequenceManipulator):
-            self.primary.set_space_item(space, x, y)
+            # Place the primary item
+            target_x = self.primary.set_space_item(space,
+                x * float(space.rate(self.primary.type())), y)
+            #print('x: {0}, target_x: {1}, rate: {2}'.format(x, target_x, float(space.rate(self.primary.type()))))
+
+            # Translate its new position back so we can place the other objects in relation
+            x = float(target_x) / float(space.rate(self.primary.type()))
+            #print('new_x: {0}'.format(x))
 
             for seq in self.sequences:
                 try:
-                    seq.set_sequence_item(seq.original_sequence, x, 'add')
+                    seq.set_sequence_item(seq.original_sequence, x * float(self.space.rate(seq.type())), 'add')
                 except NoRoomError:
-                    seq.set_space_item(space, x, y)
+                    seq.set_space_item(space, x * float(space.rate(seq.type())), y)
 
             for item in self.items:
-                item.set_space_item(space, x, y)
+                item.set_space_item(space, x * float(space.rate(item.type())), y)
         elif isinstance(self.primary, SequenceItemGroupManipulator):
-            self.primary.set_space_item(space, x, y)
+            # Place the primary item
+            target_x = self.primary.set_space_item(space,
+                x * float(space.rate(self.primary.type())), y)
+
+            # Translate its new position back so we can place the other objects in relation
+            x = float(target_x) / float(space.rate(self.primary.type()))
 
             for seq in self.sequences:
-                seq.set_space_item(space, x, y)
+                seq.set_space_item(space, x * float(space.rate(seq.type())), y)
 
             for item in self.items:
-                item.set_space_item(space, x, y)
+                item.set_space_item(space, x * float(space.rate(item.type())), y)
 
     def set_sequence_item(self, sequence, x, y, operation):
+        x = float(x)
+
         try:
-            self.primary.set_sequence_item(sequence, x, operation)
+            # Place the primary item
+            target_x = self.primary.set_sequence_item(sequence,
+                x * float(sequence.space.rate(self.primary.type())), operation)
+
+            # Translate its new position back so we can place the other objects in relation
+            new_x = float(target_x) / float(sequence.space.rate(self.primary.type()))
 
             for seq in self.sequences:
-                seq.set_space_item(space, x, y)
+                seq.set_space_item(sequence.space, new_x * float(sequence.space.rate(seq.type())), y)
 
             for item in self.items:
-                seq.set_space_item(space, x, y)
+                item.set_space_item(sequence.space, new_x * float(sequence.space.rate(item.type())), y)
         except NoRoomError:
             self.set_space_item(sequence.space, x, y)
 
