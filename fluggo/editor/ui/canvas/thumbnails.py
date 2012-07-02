@@ -16,16 +16,89 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import Qt
-from fluggo import signal
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+from fluggo import signal, sortlist
 from fluggo.media import process
 from fluggo.media.basetypes import *
+from datetime import datetime
 
 from fluggo import logging
 
 _log = logging.getLogger(__name__)
 _queue = process.VideoPullQueue()
+
+_cache_by_time = sortlist.SortedList(keyfunc=lambda i: i.last_accessed, index_attr='time_index')
+_cache_by_frame = {}
+
+# Default 32M
+_max_cache_size = 32 * 1024 * 1024
+_current_cache_size = 0
+
+class _CacheEntry:
+    def __init__(self, stream_key, frame, image):
+        self.frame_key = (stream_key, frame)
+        self._image = None
+        self.image = image
+        self.time_index = None
+        self.frame_index = None
+        self.touch()
+
+    def touch(self):
+        self.last_accessed = datetime.utcnow()
+
+    @property
+    def image(self):
+        return self._image
+
+    @image.setter
+    def image(self, value):
+        global _current_cache_size
+
+        if isinstance(self._image, QImage):
+            _current_cache_size -= self._image.byteCount()
+
+        self._image = value
+
+        if isinstance(self._image, QImage):
+            _current_cache_size += self._image.byteCount()
+
+        trim_thumbnail_cache()
+
+def trim_thumbnail_cache():
+    while _current_cache_size > _max_cache_size:
+        entry = _cache_by_time[0]
+        del _cache_by_frame[entry.frame_key]
+        del _cache_by_time[0]
+
+        if isinstance(entry.image, QImage):
+            current_cache_size -= entry.image.byteCount()
+
+def _get_cached(stream_key, frame):
+    entry = _cache_by_frame.get((stream_key, frame))
+
+    if entry:
+        entry.touch()
+        _cache_by_time.move(entry.time_index)
+
+    return entry
+
+def _cache_frame(stream_key, frame, image):
+    global _current_cache_size
+    entry = _get_cached(stream_key, frame)
+
+    if not entry:
+        entry = _CacheEntry(stream_key, frame, image)
+        _cache_by_frame[entry.frame_key] = entry
+        _cache_by_time.add(entry)
+    else:
+        # Replace the image
+        entry.image = image
+
+    # Fix the size of the cache
+    trim_thumbnail_cache()
+
+    return entry
 
 class ThumbnailPainter(object):
     def __init__(self):
@@ -34,76 +107,76 @@ class ThumbnailPainter(object):
         self._thumbnail_width = 1.0
         self._thumbnail_count = 0
         self._stream = None
+        self._stream_key = None
         self.updated = signal.Signal()
+        self._rect = None
         self._length = 1
         self._offset = 0
 
-    def set_stream(self, stream):
+    def set_stream(self, stream_key, stream):
         self.clear()
         self._stream = stream
-        self.updated(QtCore.QRectF())
+        self._stream_key = stream_key
+        self.updated(QRectF())
 
     def set_length(self, length):
         # TODO: Really, we should work to preserve as many
         # thumbnails as we can
         self.clear()
         self._length = length
-        self.updated(QtCore.QRectF())
+        self.updated(QRectF())
 
     def set_offset(self, offset):
         # TODO: Really, we should work to preserve as many
         # thumbnails as we can
         self.clear()
         self._offset = offset
-        self.updated(QtCore.QRectF())
+        self.updated(QRectF())
 
     def set_rect(self, rect):
-        self._rect = rect
+        if self._rect != rect or self._thumbnail_count == 0:
+            self._rect = rect
 
-        box = self._stream.format.thumbnail_box
-        aspect = self._stream.format.pixel_aspect_ratio
-        frame_count = self._length
+            if self._stream:
+                box = self._stream.format.thumbnail_box
+                aspect = self._stream.format.pixel_aspect_ratio
+                frame_count = self._length
 
-        self._thumbnail_width = (rect.height() * float(box.width) * float(aspect)) / float(box.height)
-        self._thumbnail_count = min(max(int(rect.width() / self._thumbnail_width), 1), frame_count)
+                self._thumbnail_width = (rect.height() * float(box.width) * float(aspect)) / float(box.height)
+                self._thumbnail_count = min(max(int(rect.width() / self._thumbnail_width), 1), frame_count)
 
-        self._create_thumbnails()
+                self.clear()
+            else:
+                self._thumbnail_count = 0
+                self.clear()
 
     def clear(self):
-        for frame in self._thumbnails:
-            if hasattr(frame, 'cancel'):
-                frame.cancel()
+        self._thumbnail_indexes = []
 
-        self._thumbnails = []
+        # Calculate how many thumbnails fit
+        frame_count = self._length
+        count = self._thumbnail_count
+
+        if len(self._thumbnail_indexes) == count:
+            return
+
+        if count == 1:
+            self._thumbnail_indexes = [self._offset]
+        else:
+            self._thumbnail_indexes = [self._offset + int(float(a) * (frame_count - 1) / (count - 1)) for a in range(count)]
 
     def get_thumbnail_rect(self, index):
         # "index" is relative to the start of the clip (not the stream)
         rect = self._rect
 
         if self._thumbnail_count == 1:
-            return QtCore.QRect(rect.x() + (index * (rect.width() - self._thumbnail_width)),
-                                rect.y(),
-                                self._thumbnail_width, rect.height())
+            return QRect(rect.x() + (index * (rect.width() - self._thumbnail_width)),
+                         rect.y(),
+                         self._thumbnail_width, rect.height())
         else:
-            return QtCore.QRect(rect.x() + (index * (rect.width() - self._thumbnail_width) / (self._thumbnail_count - 1)),
-                                rect.y(),
-                                self._thumbnail_width, rect.height())
-
-    def _create_thumbnails(self):
-        # Calculate how many thumbnails fit
-        frame_count = self._length
-        count = self._thumbnail_count
-
-        if len(self._thumbnails) == count:
-            return
-
-        self.clear()
-        self._thumbnails = [None for a in range(count)]
-
-        if count == 1:
-            self._thumbnail_indexes = [self._offset]
-        else:
-            self._thumbnail_indexes = [self._offset + int(float(a) * (frame_count - 1) / (count - 1)) for a in range(count)]
+            return QRect(rect.x() + (index * (rect.width() - self._thumbnail_width) / (self._thumbnail_count - 1)),
+                         rect.y(),
+                         self._thumbnail_width, rect.height())
 
     def paint(self, painter, rect, clip_rect, transform):
         # Figure out which thumbnails belong here and paint them
@@ -121,11 +194,11 @@ class ThumbnailPainter(object):
             inverted_transform = transform.inverted()[0]
 
             left_nail = int((clip_rect.x() - self._thumbnail_width - rect.x()) *
-                (len(self._thumbnails) - 1) / (rect.width() - self._thumbnail_width))
+                (self._thumbnail_count - 1) / (rect.width() - self._thumbnail_width))
             right_nail = int((clip_rect.x() + clip_rect.width() - rect.x()) *
-                (len(self._thumbnails) - 1) / (rect.width() - self._thumbnail_width)) + 1
+                (self._thumbnail_count - 1) / (rect.width() - self._thumbnail_width)) + 1
             left_nail = max(0, left_nail)
-            right_nail = min(len(self._thumbnails), right_nail)
+            right_nail = min(self._thumbnail_count, right_nail)
 
             scale = process.VideoScaler(stream,
                 target_point=v2f(0, 0), source_point=box.min,
@@ -135,27 +208,35 @@ class ThumbnailPainter(object):
 
             def callback(frame_index, frame, user_data):
                 try:
-                    (thumbnails, i) = user_data
+                    (entry, i) = user_data
 
                     size = frame.current_window.size()
                     img_str = frame.to_argb32_bytes()
 
-                    thumbnails[i] = QtGui.QImage(img_str, size.x, size.y, QtGui.QImage.Format_ARGB32_Premultiplied).copy()
+                    entry.image = QImage(img_str, size.x, size.y, QImage.Format_ARGB32_Premultiplied).copy()
 
-                    self.updated(inverted_transform.mapRect(QtCore.QRectF(self.get_thumbnail_rect(i))))
+                    self.updated(inverted_transform.mapRect(QRectF(self.get_thumbnail_rect(i))))
                 except:
                     _log.warning('Error in thumbnail callback', exc_info=True)
 
             for i in range(left_nail, right_nail):
-                if not self._thumbnails[i]:
-                    self._thumbnails[i] = _queue.enqueue(source=scale, frame_index=self._thumbnail_indexes[i],
+                # TODO: If two people go after the same thumbnail, it might not
+                # paint right (one will get notification the thumbnail has arrived,
+                # the other won't)
+                frame_index = self._thumbnail_indexes[i]
+                entry = _get_cached(self._stream_key, frame_index)
+
+                if not entry:
+                    entry = _cache_frame(self._stream_key, frame_index, None)
+
+                    entry.image = _queue.enqueue(source=scale, frame_index=frame_index,
                         window=stream.format.thumbnail_box,
-                        callback=callback, user_data=(self._thumbnails, i))
+                        callback=callback, user_data=(entry, i))
 
                 # TODO: Scale existing thumbnails to fit
-                if isinstance(self._thumbnails[i], QtGui.QImage):
+                if isinstance(entry.image, QImage):
                     thumbnail_rect = self.get_thumbnail_rect(i)
-                    painter.drawImage(thumbnail_rect, self._thumbnails[i])
+                    painter.drawImage(thumbnail_rect, entry.image)
         else:
             _log.debug('Thumbnail painter has no stream')
             # TODO: Show a slug or something?

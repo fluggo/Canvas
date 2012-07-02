@@ -153,6 +153,14 @@ class _SequenceItemHandler(SceneItem):
     def offset(self):
         return self.item.offset
 
+    @property
+    def stream_key(self):
+        # Provide a more intelligent key
+        if isinstance(self.source_ref, model.StreamSourceRef):
+            return (self.source_ref.source_name, self.source_ref.stream)
+
+        return SceneItem.stream_key(self)
+
     def added_to_scene(self):
         SceneItem.added_to_scene(self)
 
@@ -254,6 +262,10 @@ class VideoSequence(ClipItem):
             self.manager = graph.SequenceVideoManager(self.item, self.scene().source_list, self.scene().space.video_format)
 
         return self.manager
+
+    @property
+    def stream_key(self):
+        return ('seq', id(self.item))
 
     @property
     def format(self):

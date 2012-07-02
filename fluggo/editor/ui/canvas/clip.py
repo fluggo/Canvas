@@ -118,13 +118,23 @@ class SceneItem(QtGui.QGraphicsItem):
     def reset_view_decorations(self):
         self.view_reset_needed = True
 
+    @property
+    def stream_key(self):
+        '''Return a key that uniquely identifies the stream represented here,
+        for the purposes of caching thumbnails.
+
+        The base implementation returns id(self), but then the cache has to be
+        repopulated if this clip is destroyed and re-created in another form.
+        Specify a better implementation in a subclass to improve on this.'''
+        return ('SceneItem', id(self))
+
     def added_to_scene(self):
         '''
         Called when the item has been added to the scene, which is a fine time
         to update any properties that require the scene, including the frame rate.
         '''
         if self.painter:
-            self.painter.set_stream(self.stream)
+            self.painter.set_stream(self.stream_key, self.stream)
             self.painter.set_length(self.length)
             self.painter.set_offset(self.offset)
 
@@ -380,6 +390,14 @@ class ClipItem(SceneItem):
         self.setPos(self.item.x / self.units_per_second, self.item.y)
         self.bottom_handle.setPos(0.0, self.height)
         self.right_handle.setPos(self.length / self.units_per_second, 0.0)
+
+    @property
+    def stream_key(self):
+        # Provide a more intelligent key
+        if isinstance(self.source_ref, model.StreamSourceRef):
+            return (self.source_ref.source_name, self.source_ref.stream)
+
+        return SceneItem.stream_key(self)
 
     def _update(self, **kw):
         try:

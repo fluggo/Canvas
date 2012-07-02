@@ -242,7 +242,6 @@ class StreamSourceRef(object):
     References a stream from a video or audio file.
     '''
     yaml_tag = '!StreamSourceRef'
-    __slots__ = ('_source_name', '_stream')
 
     def __init__(self, source_name=None, stream=None, **kw):
         self._source_name = source_name
