@@ -102,9 +102,9 @@ class SceneItem(QtGui.QGraphicsItem):
 
         self.view_reset_needed = True
 
-    def _update_from_painter(self):
+    def _update_from_painter(self, rect):
         if self.scene():
-            self.update()
+            self.update(rect)
 
     def itemChange(self, change, value):
         if change == QtGui.QGraphicsItem.ItemSceneHasChanged:
@@ -199,8 +199,10 @@ class SceneItem(QtGui.QGraphicsItem):
         if not self.scene():
             return
 
-        rect = painter.transform().mapRect(self.boundingRect())
-        clip_rect = painter.transform().mapRect(option.exposedRect)
+        transform = painter.transform()
+
+        rect = transform.mapRect(self.boundingRect())
+        clip_rect = transform.mapRect(option.exposedRect)
 
         painter.save()
         painter.resetTransform()
@@ -208,7 +210,7 @@ class SceneItem(QtGui.QGraphicsItem):
         painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0) if self.isSelected() else QtGui.QColor.fromRgbF(0.9, 0.9, 0.8))
 
         if self.painter:
-            self.painter.paint(painter, rect, clip_rect)
+            self.painter.paint(painter, rect, clip_rect, transform)
 
         if self.isSelected():
             painter.fillRect(rect, QtGui.QColor.fromRgbF(1.0, 0, 0, 0.5))

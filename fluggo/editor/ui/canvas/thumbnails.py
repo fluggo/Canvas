@@ -32,6 +32,7 @@ class ThumbnailPainter(object):
         self._thumbnails = []
         self._thumbnail_indexes = []
         self._thumbnail_width = 1.0
+        self._thumbnail_count = 0
         self._stream = None
         self.updated = signal.Signal()
         self._length = 1
@@ -40,21 +41,33 @@ class ThumbnailPainter(object):
     def set_stream(self, stream):
         self.clear()
         self._stream = stream
-        self.updated()
+        self.updated(QtCore.QRectF())
 
     def set_length(self, length):
         # TODO: Really, we should work to preserve as many
         # thumbnails as we can
         self.clear()
         self._length = length
-        self.updated()
+        self.updated(QtCore.QRectF())
 
     def set_offset(self, offset):
         # TODO: Really, we should work to preserve as many
         # thumbnails as we can
         self.clear()
         self._offset = offset
-        self.updated()
+        self.updated(QtCore.QRectF())
+
+    def set_rect(self, rect):
+        self._rect = rect
+
+        box = self._stream.format.thumbnail_box
+        aspect = self._stream.format.pixel_aspect_ratio
+        frame_count = self._length
+
+        self._thumbnail_width = (rect.height() * float(box.width) * float(aspect)) / float(box.height)
+        self._thumbnail_count = min(max(int(rect.width() / self._thumbnail_width), 1), frame_count)
+
+        self._create_thumbnails()
 
     def clear(self):
         for frame in self._thumbnails:
@@ -63,14 +76,23 @@ class ThumbnailPainter(object):
 
         self._thumbnails = []
 
-    def _create_thumbnails(self, total_width, height):
-        # Calculate how many thumbnails fit
-        box = self._stream.format.thumbnail_box
-        aspect = self._stream.format.pixel_aspect_ratio
-        frame_count = self._length
+    def get_thumbnail_rect(self, index):
+        # "index" is relative to the start of the clip (not the stream)
+        rect = self._rect
 
-        self._thumbnail_width = (height * float(box.width) * float(aspect)) / float(box.height)
-        count = min(max(int(total_width / self._thumbnail_width), 1), frame_count)
+        if self._thumbnail_count == 1:
+            return QtCore.QRect(rect.x() + (index * (rect.width() - self._thumbnail_width)),
+                                rect.y(),
+                                self._thumbnail_width, rect.height())
+        else:
+            return QtCore.QRect(rect.x() + (index * (rect.width() - self._thumbnail_width) / (self._thumbnail_count - 1)),
+                                rect.y(),
+                                self._thumbnail_width, rect.height())
+
+    def _create_thumbnails(self):
+        # Calculate how many thumbnails fit
+        frame_count = self._length
+        count = self._thumbnail_count
 
         if len(self._thumbnails) == count:
             return
@@ -83,10 +105,11 @@ class ThumbnailPainter(object):
         else:
             self._thumbnail_indexes = [self._offset + int(float(a) * (frame_count - 1) / (count - 1)) for a in range(count)]
 
-    def paint(self, painter, rect, clip_rect):
+    def paint(self, painter, rect, clip_rect, transform):
         # Figure out which thumbnails belong here and paint them
         # The thumbnail lefts are at (i * (rect.width - thumbnail_width) / (len(thumbnails) - 1)) + rect.x()
         # Rights are at left + thumbnail_width
+        self.set_rect(rect)
         stream = self._stream
 
         if stream:
@@ -94,8 +117,8 @@ class ThumbnailPainter(object):
                 _log.warning('Encountered stream with no format')
                 return
 
-            self._create_thumbnails(rect.width(), rect.height())
             box = stream.format.thumbnail_box
+            inverted_transform = transform.inverted()[0]
 
             left_nail = int((clip_rect.x() - self._thumbnail_width - rect.x()) *
                 (len(self._thumbnails) - 1) / (rect.width() - self._thumbnail_width))
@@ -119,8 +142,7 @@ class ThumbnailPainter(object):
 
                     thumbnails[i] = QtGui.QImage(img_str, size.x, size.y, QtGui.QImage.Format_ARGB32_Premultiplied).copy()
 
-                    # TODO: limit to thumbnail's area
-                    self.updated()
+                    self.updated(inverted_transform.mapRect(QtCore.QRectF(self.get_thumbnail_rect(i))))
                 except:
                     _log.warning('Error in thumbnail callback', exc_info=True)
 
@@ -132,12 +154,8 @@ class ThumbnailPainter(object):
 
                 # TODO: Scale existing thumbnails to fit
                 if isinstance(self._thumbnails[i], QtGui.QImage):
-                    if len(self._thumbnails) == 1:
-                        painter.drawImage(rect.x() + (i * (rect.width() - self._thumbnail_width)),
-                            rect.y(), self._thumbnails[i])
-                    else:
-                        painter.drawImage(rect.x() + (i * (rect.width() - self._thumbnail_width) / (len(self._thumbnails) - 1)),
-                            rect.y(), self._thumbnails[i])
+                    thumbnail_rect = self.get_thumbnail_rect(i)
+                    painter.drawImage(thumbnail_rect, self._thumbnails[i])
         else:
             _log.debug('Thumbnail painter has no stream')
             # TODO: Show a slug or something?
