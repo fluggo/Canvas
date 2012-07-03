@@ -144,7 +144,7 @@ class Space(sources.Source, ezlist.EZList):
         myset.remove(source)
 
         if not myset:
-            self._anchor_map.remove(target)
+            del self._anchor_map[target]
 
     def find_overlaps(self, item):
         '''Find all items that directly overlap the given item (but not including the given item).'''
