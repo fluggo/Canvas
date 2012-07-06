@@ -212,7 +212,8 @@ class SequenceItemGroupManipulator:
                 x=target_x, y=y + self.offset_y,
                 height=self.original_sequence.height)
 
-            self.space_insert_command = InsertItemCommand(space, self.space_item, 0)
+            self.space_insert_command = InsertItemCommand(space, self.space_item,
+                                                          self.original_sequence.z)
             self.space_insert_command.redo()
 
             if isinstance(self.space_item, Clip):
