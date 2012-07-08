@@ -104,8 +104,7 @@ class SequenceItemsMover:
         '''Return a space Item for containing the items from this SequenceItemsMover.
         If there is one item, this will be a Clip. Otherwise, it will be a Sequence.
 
-        The items should already be detached from any sequence. After this method,
-        the items will all belong to the new sequence, if any.'''
+        The items will be cloned for moving to the new sequence.'''
         if len(self.overlap_movers) == 1 and len(self.overlap_movers[0].items) == 1:
             # Make a clip
             item = self.overlap_movers[0].items[0]
@@ -117,7 +116,8 @@ class SequenceItemsMover:
                 type=item.type(),
                 source=item.source,
                 offset=item.offset,
-                in_motion=item.in_motion)
+                in_motion=item.in_motion,
+                anchor=item.anchor)
 
         seq_items = []
         last_x = 0

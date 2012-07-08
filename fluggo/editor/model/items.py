@@ -18,6 +18,7 @@
 
 import yaml, collections, itertools, functools
 from fluggo import ezlist, sortlist, signal
+from fluggo.media import process
 
 @functools.total_ordering
 class _ZSortKey():
@@ -56,18 +57,16 @@ class _ZSortKey():
 class Anchor:
     '''
     An anchor on one clip says that its position should be fixed in relation
-    to another. In the Y direction, all we need is the :attr:`target` clip; each item's
-    current position is enough to establish the offset.
+    to another. In the Y direction, the Y offset is kept in memory, but not saved;
+    each item's position is enough to establish the offset.
 
     In the X (time) direction, if each clip is using a different time scale, the
     time offset can be different depending on where each item appears in the
-    canvas. Therefore we establish a fixed offset here based on :attr:`target_offset`,
+    canvas. Therefore we establish a fixed offset here based on :attr:`offset_ns`,
     the offset from the beginning of the target clip (not the beginning of the
-    target's source) in target frames, and :attr:`source_offset`, the offset in source
-    frames from the position defined by :attr:`target_offset` to the beginning of the
-    source clip.
+    target's source) to the beginning of the source (anchored) clip.
 
-    This won't work out exactly in many situations; the scene will round to the
+    This won't work out exactly most of the time; the scene will round to the
     nearest position in those cases.
 
     The attribute :attr:`visible` determines whether the anchor deserves displaying
@@ -76,13 +75,29 @@ class Anchor:
     '''
     yaml_tag = '!CanvasAnchor'
 
-    def __init__(self, target=None, target_offset=0, source_offset=0,
+    def __init__(self, target=None, offset_ns=0,
             visible=False, two_way=False):
         self._target = target
-        self._target_offset = target_offset
-        self._source_offset = source_offset
+        self._offset_ns = offset_ns
+        self.y_offset = 0.0
         self._visible = visible
         self._two_way = two_way
+
+    def _create_repr_dict(self):
+        result = {
+            'target': self._target
+        }
+
+        if self._offset_ns:
+            result['offset_ns'] = self._offset_ns
+
+        if self._visible:
+            result['visible'] = self._visible
+
+        if self._two_way:
+            result['two_way'] = self._two_way
+
+        return result
 
     @classmethod
     def to_yaml(cls, dumper, data):
@@ -92,17 +107,48 @@ class Anchor:
     def from_yaml(cls, loader, node):
         return cls(**loader.construct_mapping(node))
 
+    @classmethod
+    def get_y_position(cls, item):
+        '''Return the Y position of the item.'''
+        if isinstance(item, SequenceItem):
+            return item.sequence.y
+        else:
+            return item.y
+
+    def get_y_offset(self, source):
+        '''Return the current offset from *target* to *source*.'''
+        return Anchor.get_y_position(source) - Anchor.get_y_position(self.target)
+
+    def get_desired_x(self, source):
+        '''Return the desired position for the *source*. The returned position
+        will be absolute time in source frames.'''
+        target_rate = target.space.get_rate(target.type())
+        source_rate = source.space.get_rate(source.type())
+
+        # Target time for the item
+        target_x = process.get_frame_time(target_rate, self.target.abs_x) + self._offset_ns
+
+        # get_time_frame floors the result; since we want rounding behavior, we
+        # add half a frame
+        target_x += process.get_frame_time(source_rate / 2, 1)
+        return process.get_time_frame(target_x, source_rate)
+
+    def clone(self, target=None):
+        result = self.__class__(**self._create_repr_dict())
+        result.y_offset = self.y_offset
+
+        if target:
+            result._target = target
+
+        return result
+
     @property
     def target(self):
         return self._target
 
     @property
-    def target_offset(self):
-        return self._target_offset
-
-    @property
-    def source_offset(self):
-        return self._source_offset
+    def offset_ns(self):
+        return self._offset_ns
 
     @property
     def visible(self):
@@ -184,6 +230,10 @@ class Item(object):
 
     @property
     def x(self):
+        return self._x
+
+    @property
+    def abs_x(self):
         return self._x
 
     @property
@@ -292,6 +342,8 @@ class Item(object):
 
             if self._anchor.two_way:
                 self._space.add_anchor_map(self._anchor.target, self)
+
+            self._anchor.y_offset = self._anchor.get_y_offset(self)
 
     def type(self):
         '''
@@ -624,6 +676,10 @@ class SequenceItem(object):
     def x(self):
         return self._x
 
+    @property
+    def abs_x(self):
+        return self._x + self._sequence.x
+
     def type(self):
         return self._type
 
@@ -686,11 +742,13 @@ class SequenceItem(object):
         self._index = None
 
     def fixup(self):
-        if self._anchor and self._sequence_space:
+        if self._anchor and self._sequence._space:
             self._sequence._space.add_anchor_map(self, self._anchor.target)
 
             if self._anchor.two_way:
                 self._sequence._space.add_anchor_map(self._anchor.target, self)
+
+            self._anchor.y_offset = self._anchor.get_y_offset(self)
 
     def __str__(self):
         return yaml.dump(self)

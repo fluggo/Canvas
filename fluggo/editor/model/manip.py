@@ -48,6 +48,7 @@ class ClipManipulator:
         self.item.update(in_motion=True)
 
         self.space_move_op = None
+        self.swap_anchor_op = None
         self.seq_mover = None
         self.seq_item = None
         self.space_remove_op = None
@@ -109,9 +110,23 @@ class ClipManipulator:
                 self._undo_sequence(undo_remove=False)
 
             if self.item.space:
+                anchored = frozenset(self.item.space.find_immediate_anchored_items(self.item))
+
                 space_remove_op = RemoveItemCommand(self.item.space, self.item)
                 space_remove_op.redo()
                 self.space_remove_op = space_remove_op
+
+                if anchored:
+                    anchor_commands = []
+
+                    for item in anchored:
+                        new_anchor = item.anchor.clone(target=self.seq_item)
+                        command = UpdateItemPropertiesCommand(item, anchor=new_anchor)
+                        command.redo()
+
+                        anchor_commands.append(command)
+
+                    self.swap_anchor_op = CompoundCommand('Swap anchors', anchor_commands, done=True)
 
             # TODO: If this next line raises a NoRoomError, meaning we haven't
             # placed the item anywhere, finish() needs to fail loudly, and the
@@ -131,6 +146,10 @@ class ClipManipulator:
         if self.seq_add_op:
             self.seq_add_op.undo()
             self.seq_add_op = None
+
+        if self.swap_anchor_op:
+            self.swap_anchor_op.undo()
+            self.swap_anchor_op = None
 
         if undo_remove and self.space_remove_op:
             self.space_remove_op.undo()
@@ -188,6 +207,7 @@ class SequenceItemGroupManipulator:
         self.length = items[-1].x + items[-1].length - items[0].x
         self.remove_command = None
         self.space_insert_command = None
+        self.swap_anchor_op = None
         self.seq_move_op = None
         self.seq_manip = None
 
@@ -205,13 +225,35 @@ class SequenceItemGroupManipulator:
             self.seq_move_op = None
 
         if not self.seq_manip:
-            self.remove_command = RemoveAdjacentItemsFromSequenceCommand(self.items)
-            self.remove_command.redo()
-
+            # Create the new space item
             self.space_item = self.mover.to_item(
                 x=target_x, y=y + self.offset_y,
                 height=self.original_sequence.height)
 
+            # If it's now a clip, we need to retarget anything anything anchored
+            # to the old item
+            if isinstance(self.space_item, Clip):
+                anchored = frozenset(self.original_sequence.space.find_immediate_anchored_items(self.items[0]))
+
+                if anchored:
+                    anchor_commands = []
+
+                    for item in anchored:
+                        new_anchor = item.anchor.clone(target=self.space_item)
+                        command = UpdateItemPropertiesCommand(item, anchor=new_anchor)
+                        anchor_commands.append(command)
+
+                    self.swap_anchor_op = CompoundCommand('Swap anchors', anchor_commands, done=False)
+
+            # Remove the items before reanchoring
+            self.remove_command = RemoveAdjacentItemsFromSequenceCommand(self.items)
+            self.remove_command.redo()
+
+            # Reanchor if necessary
+            if self.swap_anchor_op:
+                self.swap_anchor_op.redo()
+
+            # Add the new space item just above where the sequence is (or was)
             self.space_insert_command = InsertItemCommand(space, self.space_item,
                                                           self.original_sequence.z)
             self.space_insert_command.redo()
@@ -262,6 +304,10 @@ class SequenceItemGroupManipulator:
         if self.space_insert_command:
             self.space_insert_command.undo()
             self.space_insert_command = None
+
+        if self.swap_anchor_op:
+            self.swap_anchor_op.undo()
+            self.swap_anchor_op = None
 
         if self.remove_command:
             self.remove_command.undo()

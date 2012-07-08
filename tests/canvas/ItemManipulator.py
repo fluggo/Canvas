@@ -298,6 +298,33 @@ class test_ClipManipulator(unittest.TestCase):
 
         self.assertIsInstance(manip.finish(), QUndoCommand)
 
+    def test_one_item_anchor_preserved(self):
+        '''Move the target of an anchor into a sequence and make sure the anchor
+        points to the new item.'''
+        space = model.Space('', vidformat, audformat)
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.StreamSourceRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
+
+        manip = model.ClipManipulator(space[0], 0, 0.0)
+        item = space[0]
+        seq = space[2]
+
+        space[1].update(anchor=model.Anchor(target=item))
+
+        self.assertEqual(len(seq), 2)
+        self.assertNotEqual(item.space, None)
+        self.assertEqual(seq.x, 10)
+
+        manip.set_sequence_item(seq, 20, 'add')
+        self.assertEqual(space[0].anchor.target, seq[1])
+        #self.assertEqual(space[0].x, 40)  <-- Only the ItemManipulator enforces anchor positions
+
+        manip.reset()
+
+        self.assertEqual(space[1].anchor.target, item)
+
     def test_one_item_add_seq_cross_transition(self):
         '''Drag one short item into a sequence where it should fail to insert across a transition'''
         space = model.Space('', vidformat, audformat)
@@ -891,11 +918,12 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[0]
+        space.append(seq)
 
         manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
 
         self.assertEqual(len(seq), 2)
-        self.assertEqual(len(space), 0)
+        self.assertEqual(len(space), 1)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
@@ -910,7 +938,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[0].source.source_name, 'seq2')
-        self.assertEqual(len(space), 1)
+        self.assertEqual(len(space), 2)
         self.assertEqual(space[0].x, 4)
         self.assertEqual(space[0].y, 19.0)
         self.assertEqual(space[0].length, 10)
@@ -921,7 +949,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
 
         manip.reset()
         self.assertEqual(len(seq), 2)
-        self.assertEqual(len(space), 0)
+        self.assertEqual(len(space), 1)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
@@ -929,6 +957,58 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq[1].x, 6)
         self.assertEqual(seq[1].transition_length, 4)
         self.assertEqual(seq[1].source.source_name, 'seq2')
+
+        self.assertEquals(manip.finish(), None)
+
+    def test_seq_item_single_move_space_preserve_anchor(self):
+        '''Move a single sequence item into a space, and make sure it still has
+        an anchor when it gets there.'''
+        space = model.Space('', vidformat, audformat)
+
+        seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
+                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+        item = seq[0]
+
+        space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
+                                source=model.StreamSourceRef('red', 0),
+                                anchor=model.Anchor(target=item)))
+        space.append(seq)
+        item.update(anchor=model.Anchor(target=space[0]))
+
+        manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
+
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(len(space), 2)
+
+        manip.set_space_item(space, 4, 19.0)
+        self.assertEqual(len(seq), 1)
+        self.assertEqual(seq.x, 16)
+        self.assertEqual(seq[0].x, 0)
+        self.assertEqual(seq[0].transition_length, 0)
+        self.assertEqual(seq[0].source.source_name, 'seq2')
+
+        self.assertEqual(len(space), 3)
+
+        # The new clip should be right on top of the sequence
+        self.assertIsInstance(space[1], model.Clip)
+        self.assertEqual(space[1].x, 4)
+        self.assertEqual(space[1].y, 19.0)
+        self.assertEqual(space[1].source.source_name, 'seq1')
+        self.assertEqual(space[1].type(), 'video')
+        self.assertEqual(space[1].offset, 12)
+        self.assertEqual(space[1].anchor.target, space[0])
+
+        self.assertIsInstance(space[0], model.Clip)
+        self.assertEqual(space[0].anchor.target, space[1])
+
+        self.assertIsInstance(space[2], model.Sequence)
+
+        manip.reset()
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(len(space), 2)
+        self.assertEqual(space[0].anchor.target, seq[0])
+        self.assertEqual(seq[0].anchor.target, space[0])
 
         self.assertEquals(manip.finish(), None)
 
@@ -1000,11 +1080,12 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
                 model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=18, length=10, transition_length=0),
                 model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[1]
+        space.append(seq)
 
         manip = model.SequenceItemGroupManipulator([item], 20, 10.0)
 
         self.assertEqual(len(seq), 3)
-        self.assertEqual(len(space), 0)
+        self.assertEqual(len(space), 1)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
@@ -1025,7 +1106,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq[1].x, 16)
         self.assertEqual(seq[1].transition_length, -6)
         self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(len(space), 1)
+        self.assertEqual(len(space), 2)
         self.assertEqual(space[0].x, 4)
         self.assertEqual(space[0].y, 19.0)
         self.assertEqual(space[0].length, 10)
@@ -1036,7 +1117,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
 
         manip.reset()
         self.assertEqual(len(seq), 3)
-        self.assertEqual(len(space), 0)
+        self.assertEqual(len(space), 1)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
