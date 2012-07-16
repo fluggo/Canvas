@@ -27,7 +27,7 @@ class RulerView(QtGui.QWidget):
     a bug in whatever version of Qt is running on Ubuntu 10.04. Qt ignores the
     viewport margins for determining where a drag operation has hit the scene;
     it works just fine for normal mouse ops.'''
-    def __init__(self, clock):
+    def __init__(self, uimgr):
         QtGui.QWidget.__init__(self)
         self.vbox = QtGui.QVBoxLayout(self)
         self.vbox.setStretch(1, 1)
@@ -37,7 +37,7 @@ class RulerView(QtGui.QWidget):
         self.vbox.setContentsMargins(width, 0, width, 0)
 
         self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
-        self.view = View(clock, ruler=self.ruler)
+        self.view = View(uimgr, ruler=self.ruler)
         self.view.setFrameShape(QtGui.QFrame.NoFrame)
 
         self.vbox.addWidget(self.ruler)
@@ -58,7 +58,7 @@ class View(QtGui.QGraphicsView):
     max_zoom_x = 100000.0
     min_zoom_x = 0.01
 
-    def __init__(self, clock, ruler=None):
+    def __init__(self, uimgr, ruler=None):
         QtGui.QGraphicsView.__init__(self)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.setViewportUpdateMode(self.FullViewportUpdate)
@@ -72,12 +72,9 @@ class View(QtGui.QGraphicsView):
             self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
             self.ruler.move(self.frameWidth(), self.frameWidth())
 
-        # A warning: clock and clock_callback_handle will create a pointer cycle here,
-        # which probably won't be freed unless the callback handle is explicitly
-        # destroyed with self.clock_callback_handle.unregister() and self.clock = None
         self.playback_timer = None
-        self.clock = clock
-        self.clock_callback_handle = self.clock.register_callback(self._clock_changed, None)
+        self.uimgr = uimgr
+        self.uimgr.clock_state_changed.connect(self._clock_changed)
         self.clock_frame = 0
 
         self.white = False
@@ -138,11 +135,11 @@ class View(QtGui.QGraphicsView):
         self._invalidate_marker(frame)
 
         self.ruler.set_current_frame(frame)
-        self.clock.seek(process.get_frame_time(self.scene().frame_rate, int(frame)))
+        self.uimgr.seek(process.get_frame_time(self.scene().frame_rate, int(frame)))
 
     def _update_clock_frame(self, time=None):
         if not time:
-            time = self.clock.get_presentation_time()
+            time = self.uimgr.get_presentation_time()
 
         frame = process.get_time_frame(self.scene().frame_rate, time)
         self._set_clock_frame(frame)

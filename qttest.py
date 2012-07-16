@@ -269,6 +269,49 @@ class UndoDockWidget(QDockWidget):
 
         self.setWidget(widget)
 
+class UIManager:
+    def __init__(self):
+        self._clock = None
+        self.clock_state_changed = signal.Signal()
+        self._clock_callback_handle = None
+        self.set_clock(None)
+
+    def set_clock(self, clock):
+        # A warning: clock and clock_callback_handle will create a pointer cycle here,
+        # which probably won't be freed unless someone calls UIManager.set_clock(None)
+        if self._clock:
+            self._clock.stop()
+
+        if self._clock_callback_handle:
+            self._clock_callback_handle.unregister()
+            self._clock_callback_handle = None
+
+        #if not clock:
+        #    clock = process.SystemPresentationClock()
+
+        self._clock = clock
+
+        if self._clock:
+            self._clock_callback_handle = self._clock.register_callback(self.clock_state_changed, None)
+
+        # TODO: To be thorough, call clock_changed with the new speed and time
+        # (or seek the new clock to the old clock's time)
+
+    def seek(self, time_ns):
+        return self._clock.seek(time_ns)
+
+    def get_presentation_time(self):
+        return self._clock.get_presentation_time()
+
+    def get_playback_speed(self):
+        return self._clock.get_speed()
+
+    def play(self, speed):
+        return self._clock.play(speed)
+
+    def stop(self):
+        return self._clock.stop()
+
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
@@ -285,11 +328,12 @@ class MainWindow(QMainWindow):
 
         # Set up canvas
         #self.clock = process.SystemPresentationClock()
-        self.clock = self.audio_player
+        self.uimgr = UIManager()
+        self.uimgr.set_clock(self.audio_player)
 
         # Workaround for Qt bug (see RulerView)
         #self.view = ui.canvas.View(self.clock)
-        self.view = ui.canvas.RulerView(self.clock)
+        self.view = ui.canvas.RulerView(self.uimgr)
 
         #self.view.setViewport(QGLWidget())
         self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
@@ -300,7 +344,7 @@ class MainWindow(QMainWindow):
         self.video_dock.setWidget(self.video_widget)
 
         self.video_widget.setRenderingIntent(1.5)
-        self.video_widget.setPresentationClock(self.clock)
+        self.video_widget.setPresentationClock(self.audio_player)
 
         self.addDockWidget(Qt.BottomDockWidgetArea, self.video_dock)
 
@@ -396,7 +440,7 @@ class MainWindow(QMainWindow):
 
         self.view.set_space(self.space, self.asset_list, undo_stack)
 
-        self.clock.seek(0)
+        self.uimgr.seek(0)
 
     def create_actions(self):
         self.open_space_action = QAction('&Open...', self,
@@ -469,16 +513,16 @@ class MainWindow(QMainWindow):
             return
 
         # If the current frame was in this set, re-seek to it
-        speed = self.clock.get_speed()
+        speed = self.uimgr.get_playback_speed()
 
         if speed.numerator:
             return
 
-        time = self.clock.get_presentation_time()
+        time = self.uimgr.get_presentation_time()
         frame = process.get_time_frame(self.space.video_format.frame_rate, time)
 
         if frame >= min_frame and frame <= max_frame:
-            self.clock.seek(process.get_frame_time(self.space.video_format.frame_rate, int(frame)))
+            self.uimgr.seek(process.get_frame_time(self.space.video_format.frame_rate, int(frame)))
 
     def open_space(self):
         path = QFileDialog.getOpenFileName(self, "Open File", filter='YAML Files (*.yaml)')
@@ -551,19 +595,19 @@ class MainWindow(QMainWindow):
             dialog.exec_()
 
     def transport_play(self):
-        self.clock.play(1)
+        self.uimgr.play(1)
         self.transport_play_action.setChecked(True)
 
     def transport_pause(self):
-        self.clock.stop()
+        self.uimgr.stop()
         self.transport_pause_action.setChecked(True)
 
     def transport_fastforward(self):
-        self.clock.play(2)
+        self.uimgr.play(2)
         self.transport_fastforward_action.setChecked(True)
 
     def transport_rewind(self):
-        self.clock.play(-2)
+        self.uimgr.play(-2)
         self.transport_rewind_action.setChecked(True)
 
     def canvas_bring_forward(self):
