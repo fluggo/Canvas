@@ -78,10 +78,10 @@ class Anchor:
     def __init__(self, target=None, offset_ns=0,
             visible=False, two_way=False):
         self._target = target
-        self._offset_ns = offset_ns
+        self._offset_ns = int(offset_ns)
         self.y_offset = 0.0
-        self._visible = visible
-        self._two_way = two_way
+        self._visible = bool(visible)
+        self._two_way = bool(two_way)
 
     def _create_repr_dict(self):
         result = {
@@ -122,16 +122,19 @@ class Anchor:
     def get_desired_x(self, source):
         '''Return the desired position for the *source*. The returned position
         will be absolute time in source frames.'''
-        target_rate = target.space.get_rate(target.type())
-        source_rate = source.space.get_rate(source.type())
+        target_rate = self.target.space.rate(self.target.type())
+        source_rate = source.space.rate(source.type())
 
         # Target time for the item
         target_x = process.get_frame_time(target_rate, self.target.abs_x) + self._offset_ns
 
         # get_time_frame floors the result; since we want rounding behavior, we
         # add half a frame
-        target_x += process.get_frame_time(source_rate / 2, 1)
-        return process.get_time_frame(target_x, source_rate)
+        target_x += process.get_frame_time(source_rate * 2, 1)
+        return process.get_time_frame(source_rate, target_x)
+
+    def get_desired_y(self):
+        return Anchor.get_y_position(self.target) + self.y_offset
 
     def clone(self, target=None):
         result = self.__class__(**self._create_repr_dict())

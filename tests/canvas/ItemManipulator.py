@@ -960,7 +960,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
 
         self.assertEquals(manip.finish(), None)
 
-    def test_seq_item_single_move_space_preserve_anchor(self):
+    def test_seq_item_single_move_space_preserve_anchor1(self):
         '''Move a single sequence item into a space, and make sure it still has
         an anchor when it gets there.'''
         space = model.Space('', vidformat, audformat)
@@ -974,7 +974,169 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
                                 source=model.StreamSourceRef('red', 0),
                                 anchor=model.Anchor(target=item)))
         space.append(seq)
-        item.update(anchor=model.Anchor(target=space[0]))
+
+        manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
+
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(len(space), 2)
+
+        manip.set_space_item(space, 4, 19.0)
+        self.assertEqual(len(seq), 1)
+        self.assertEqual(seq.x, 16)
+        self.assertEqual(seq[0].x, 0)
+        self.assertEqual(seq[0].transition_length, 0)
+        self.assertEqual(seq[0].source.source_name, 'seq2')
+
+        self.assertEqual(len(space), 3)
+
+        # The new clip should be right on top of the sequence
+        self.assertIsInstance(space[1], model.Clip)
+        self.assertEqual(space[1].x, 4)
+        self.assertEqual(space[1].y, 19.0)
+        self.assertEqual(space[1].source.source_name, 'seq1')
+        self.assertEqual(space[1].type(), 'video')
+        self.assertEqual(space[1].offset, 12)
+        self.assertEqual(space[1].anchor, None)
+
+        self.assertIsInstance(space[0], model.Clip)
+        self.assertEqual(space[0].anchor.target, space[1])
+
+        self.assertIsInstance(space[2], model.Sequence)
+
+        manip.reset()
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(len(space), 2)
+        self.assertEqual(space[0].anchor.target, seq[0])
+        self.assertEqual(seq[0].anchor, None)
+
+        self.assertEquals(manip.finish(), None)
+
+    def test_seq_item_single_move_space_preserve_anchor1_undo(self):
+        '''Move a single sequence item into a space, and make sure it still has
+        an anchor when it gets there.'''
+        # Same as the one above, but with an undo command instead
+        space = model.Space('', vidformat, audformat)
+
+        seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
+                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+        item = seq[0]
+
+        space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
+                                source=model.StreamSourceRef('red', 0),
+                                anchor=model.Anchor(target=item)))
+        space.append(seq)
+
+        manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
+        manip.set_space_item(space, 4, 19.0)
+
+        self.assertEqual(space[0].anchor.target, space[1])
+
+        command = manip.finish()
+        command.undo()
+
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(len(space), 2)
+        self.assertEqual(space[0].anchor.target, seq[0])
+        self.assertEqual(seq[0].anchor, None)
+
+    def test_seq_item_single_move_space_preserve_anchor2(self):
+        '''Move a single sequence item into a space, and make sure it still has
+        an anchor when it gets there.'''
+        space = model.Space('', vidformat, audformat)
+
+        seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
+                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+        item = seq[0]
+
+        space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
+                                source=model.StreamSourceRef('red', 0)))
+        space.append(seq)
+        item.update(anchor=model.Anchor(target=space[0], offset_ns=1000000000 * 1001 * 4 // 24000))
+
+        manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
+
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(len(space), 2)
+
+        manip.set_space_item(space, 4, 19.0)
+        self.assertEqual(len(seq), 1)
+        self.assertEqual(seq.x, 16)
+        self.assertEqual(seq[0].x, 0)
+        self.assertEqual(seq[0].transition_length, 0)
+        self.assertEqual(seq[0].source.source_name, 'seq2')
+
+        self.assertEqual(len(space), 3)
+
+        # The new clip should be right on top of the sequence
+        self.assertIsInstance(space[1], model.Clip)
+        self.assertEqual(space[1].x, 4)
+        self.assertEqual(space[1].y, 19.0)
+        self.assertEqual(space[1].source.source_name, 'seq1')
+        self.assertEqual(space[1].type(), 'video')
+        self.assertEqual(space[1].offset, 12)
+        self.assertEqual(space[1].anchor.target, space[0])
+
+        self.assertIsInstance(space[0], model.Clip)
+        self.assertEqual(space[0].anchor, None)
+
+        self.assertIsInstance(space[2], model.Sequence)
+
+        manip.reset()
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(len(space), 2)
+        self.assertEqual(space[0].anchor, None)
+        self.assertEqual(seq[0].anchor.target, space[0])
+
+        self.assertEquals(manip.finish(), None)
+
+    def test_seq_item_single_move_space_preserve_anchor2_undo(self):
+        '''Move a single sequence item into a space, and make sure it still has
+        an anchor when it gets there.'''
+        # Same as the one above, but with an undo command
+        space = model.Space('', vidformat, audformat)
+
+        seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
+                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+        item = seq[0]
+
+        space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
+                                source=model.StreamSourceRef('red', 0)))
+        space.append(seq)
+        item.update(anchor=model.Anchor(target=space[0], offset_ns=1000000000 * 1001 * 4 // 24000))
+
+        manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
+        manip.set_space_item(space, 4, 19.0)
+
+        # The new clip should be right on top of the sequence
+        self.assertEqual(space[1].anchor.target, space[0])
+        self.assertEqual(space[0].anchor, None)
+
+        command = manip.finish()
+        command.undo()
+
+        self.assertEqual(len(seq), 2)
+        self.assertEqual(len(space), 2)
+        self.assertEqual(space[0].anchor, None)
+        self.assertEqual(seq[0].anchor.target, space[0])
+
+    def test_seq_item_single_move_space_preserve_anchor_double(self):
+        '''Move a single sequence item into a space, and make sure it still has
+        an anchor when it gets there.'''
+        space = model.Space('', vidformat, audformat)
+
+        seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
+                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+        item = seq[0]
+
+        space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
+                                source=model.StreamSourceRef('red', 0),
+                                anchor=model.Anchor(target=item)))
+        space.append(seq)
+        item.update(anchor=model.Anchor(target=space[0], offset_ns=1000000000 * 1001 * 4 // 24000))
 
         manip = model.SequenceItemGroupManipulator([item], 10, 10.0)
 
@@ -1131,6 +1293,11 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
 
         self.assertEquals(manip.finish(), None)
 
+    def test_anchor_positioning(self):
+        # TODO: I skipped implementing this feature for sequence items at this
+        # time to do more exciting things, but I do need to come back and do it
+        raise NotImplementedError
+
 class test_ItemManipulator(unittest.TestCase):
     def test_move_anchored_videos(self):
         space = model.Space('', vidformat, audformat)
@@ -1147,13 +1314,13 @@ class test_ItemManipulator(unittest.TestCase):
         manip.set_space_item(space, 8.0 / frame_rate, 4.5)
         self.assertEqual(item0.x, 6)
         self.assertEqual(item0.y, 4.5)
-        self.assertEqual(item1.x, 3)
+        self.assertEqual(item1.x, 6)
         self.assertEqual(item1.y, 17.3)
 
         manip.set_space_item(space, 9.3 / frame_rate, 5.0)
         self.assertEqual(item0.x, 7)
         self.assertEqual(item0.y, 5.0)
-        self.assertEqual(item1.x, 4)
+        self.assertEqual(item1.x, 7)
         self.assertEqual(item1.y, 17.3 + 0.5)
 
         self.assertIsInstance(manip.finish(), QUndoCommand)

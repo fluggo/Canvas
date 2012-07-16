@@ -706,4 +706,6 @@ class test_MoveSequenceItemsInPlaceCommand(unittest.TestCase):
                 self.assertEqual(sequence[2].x, 20 - seq2b_trans + current_offset)
                 self.assertEqual(sequence[3].x, 30 - seq2b_trans - seq3_trans)
 
+    def test_anchors_preserved_to_seqitem_and_back(self):
+        raise NotImplementedError
 

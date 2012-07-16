@@ -62,8 +62,13 @@ class ClipManipulator:
         self._undo_sequence()
 
         target_x = int(round(float(x) + self.offset_x))
+        target_y = y + self.offset_y
 
-        space_move_op = MoveItemCommand(self.item, x=target_x, y=y + self.offset_y)
+        if self.item.anchor:
+            target_x = self.item.anchor.get_desired_x(self.item)
+            target_y = self.item.anchor.get_desired_y()
+
+        space_move_op = MoveItemCommand(self.item, x=target_x, y=target_y)
         space_move_op.redo()
 
         if self.space_move_op:
@@ -184,6 +189,10 @@ class ClipManipulator:
             commands.append(self.space_move_op)
 
         commands.append(self.space_remove_op)
+
+        if self.swap_anchor_op:
+            commands.append(self.swap_anchor_op)
+
         commands.append(self.seq_add_op)
 
         if self.seq_move_op:
@@ -336,7 +345,14 @@ class SequenceItemGroupManipulator:
             commands.append(self.seq_move_op)
 
         seq_command = self.seq_manip.finish()
-        commands.extend([self.remove_command, self.space_insert_command, seq_command])
+
+        commands.append(self.remove_command)
+
+        if self.swap_anchor_op:
+            commands.append(self.swap_anchor_op)
+
+        commands.append(self.space_insert_command)
+        commands.append(seq_command)
 
         return CompoundCommand(seq_command.text(), commands, done=True)
 
@@ -355,6 +371,7 @@ class SequenceManipulator:
         self.item.update(in_motion=True)
 
         self.space_move_op = None
+        self.swap_anchor_op = None
         self.seq_mover = None
         self.seq_item = None
         self.space_remove_op = None
@@ -368,8 +385,13 @@ class SequenceManipulator:
         self._undo_sequence()
 
         target_x = int(round(float(x) + self.offset_x))
+        target_y = y + self.offset_y
 
-        space_move_op = MoveItemCommand(self.item, x=target_x, y=y + self.offset_y)
+        if self.item.anchor:
+            target_x = self.item.anchor.get_desired_x(self.item)
+            target_y = self.item.anchor.get_desired_y()
+
+        space_move_op = MoveItemCommand(self.item, x=target_x, y=target_y)
         space_move_op.redo()
 
         if self.space_move_op:
@@ -410,11 +432,24 @@ class SequenceManipulator:
                 # Back out so we can add it again
                 self._undo_sequence(undo_remove=False)
 
-            space_remove_op = None
-
             if self.item.space:
+                anchored = frozenset(self.item.space.find_immediate_anchored_items(self.item))
+
                 space_remove_op = RemoveItemCommand(self.item.space, self.item)
                 space_remove_op.redo()
+                self.space_remove_op = space_remove_op
+
+                if anchored:
+                    anchor_commands = []
+
+                    for item in anchored:
+                        new_anchor = item.anchor.clone(target=self.seq_item)
+                        command = UpdateItemPropertiesCommand(item, anchor=new_anchor)
+                        command.redo()
+
+                        anchor_commands.append(command)
+
+                    self.swap_anchor_op = CompoundCommand('Swap anchors', anchor_commands, done=True)
 
             # If this next line raises a NoRoomError, meaning we haven't
             # placed the item anywhere, finish() needs to fail loudly, and the
@@ -435,6 +470,10 @@ class SequenceManipulator:
         if self.seq_add_op:
             self.seq_add_op.undo()
             self.seq_add_op = None
+
+        if self.swap_anchor_op:
+            self.swap_anchor_op.undo()
+            self.swap_anchor_op = None
 
         if undo_remove and self.space_remove_op:
             self.space_remove_op.undo()
@@ -471,6 +510,10 @@ class SequenceManipulator:
             commands.append(self.space_move_op)
 
         commands.append(self.space_remove_op)
+
+        if self.swap_anchor_op:
+            commands.append(self.swap_anchor_op)
+
         commands.append(self.seq_add_op)
 
         if self.seq_move_op:
@@ -555,6 +598,19 @@ class ItemManipulator:
 
         self.primary = primary
         self.sequences = sequences
+
+        # Sort the items so that anchored items appear after their anchor
+        seen = {primary}
+        itemset = frozenset(items)
+        new_list = []
+
+        while len(new_list) != len(items):
+            for item in items:
+                if not item.anchor or item.anchor.target not in itemset or item.anchor.target in seen:
+                    seen.add(item)
+                    new_list.append(item)
+
+        items = new_list
 
         self.items = []
 
