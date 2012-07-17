@@ -286,8 +286,8 @@ class UIManager:
             self._clock_callback_handle.unregister()
             self._clock_callback_handle = None
 
-        #if not clock:
-        #    clock = process.SystemPresentationClock()
+        if not clock:
+            clock = process.SystemPresentationClock()
 
         self._clock = clock
 
