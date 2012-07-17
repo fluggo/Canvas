@@ -243,6 +243,8 @@ PyInit_process() {
     init_VideoPullQueue( m );
     init_AnimationFunc( m );
 
+    PyModule_AddObject( m, "NS_PER_SEC", PyLong_FromLongLong( NS_PER_SEC ) );
+
     if( !g_thread_supported() )
         g_thread_init( NULL );
 
