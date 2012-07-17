@@ -149,6 +149,7 @@ PresentationClock_register_callback( PyObject *self, PyObject *args, PyObject *k
 
     Py_INCREF(callback);
     Py_INCREF(data);
+    Py_INCREF(handle);
 
     handle->callable = callback;
     handle->data = data;
