@@ -2,12 +2,12 @@
 .. default-domain:: py
 .. currentmodule:: fluggo.editor.model
 
-:class:`StreamSourceRef` --- Reference for sources
+:class:`AssetStreamRef` --- Reference for sources
 ==================================================
 
 This class holds a source name and stream index. 
 
-.. class:: StreamSourceRef([source_name=None, stream_index=None])
+.. class:: AssetStreamRef([source_name=None, stream_index=None])
 
 	Serializable.
 	

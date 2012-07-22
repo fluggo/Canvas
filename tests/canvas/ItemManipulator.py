@@ -18,30 +18,30 @@ class test_ClipManipulator(unittest.TestCase):
     def test_sample(self):
         '''Sample'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0))]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0))]
 
-        self.assertEqual(space[0].source.source_name, 'red')
-        self.assertEqual(space[1].source.source_name, 'green')
+        self.assertEqual(space[0].source.asset_path, 'red')
+        self.assertEqual(space[1].source.asset_path, 'green')
 
     def test_1_grab_move_once(self):
         '''Grab and do a single move'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0))]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0))]
 
         manip = model.ClipManipulator(space[0], 5, 5.0)
 
         manip.set_space_item(space, 10, 10.0)
 
-        self.assertEqual(space[0].source.source_name, 'red')
+        self.assertEqual(space[0].source.asset_path, 'red')
         self.assertEqual(space[0].x, 5)
         self.assertEqual(space[0].y, 5.0)
         self.assertEqual(space[0].height, 20.0)
         self.assertEqual(space[0].length, 30)
         self.assertEqual(space[0].offset, 0)
 
-        self.assertEqual(space[1].source.source_name, 'green')
+        self.assertEqual(space[1].source.asset_path, 'green')
         self.assertEqual(space[1].x, 20)
         self.assertEqual(space[1].y, 10.0)
         self.assertEqual(space[1].height, 15.0)
@@ -50,14 +50,14 @@ class test_ClipManipulator(unittest.TestCase):
 
         self.assertIsInstance(manip.finish(), QUndoCommand)
 
-        self.assertEqual(space[0].source.source_name, 'red')
+        self.assertEqual(space[0].source.asset_path, 'red')
         self.assertEqual(space[0].x, 5)
         self.assertEqual(space[0].y, 5.0)
         self.assertEqual(space[0].height, 20.0)
         self.assertEqual(space[0].length, 30)
         self.assertEqual(space[0].offset, 0)
 
-        self.assertEqual(space[1].source.source_name, 'green')
+        self.assertEqual(space[1].source.asset_path, 'green')
         self.assertEqual(space[1].x, 20)
         self.assertEqual(space[1].y, 10.0)
         self.assertEqual(space[1].height, 15.0)
@@ -67,8 +67,8 @@ class test_ClipManipulator(unittest.TestCase):
     def test_1_grab_move_twice(self):
         '''Grab and do two moves'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0))]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=30, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0))]
 
         manip = model.ClipManipulator(space[0], 5, 5.0)
 
@@ -79,14 +79,14 @@ class test_ClipManipulator(unittest.TestCase):
 
         manip.set_space_item(space, -5, 7.0)
 
-        self.assertEqual(space[0].source.source_name, 'red')
+        self.assertEqual(space[0].source.asset_path, 'red')
         self.assertEqual(space[0].x, -10)
         self.assertEqual(space[0].y, 2.0)
         self.assertEqual(space[0].height, 20.0)
         self.assertEqual(space[0].length, 30)
         self.assertEqual(space[0].offset, 0)
 
-        self.assertEqual(space[1].source.source_name, 'green')
+        self.assertEqual(space[1].source.asset_path, 'green')
         self.assertEqual(space[1].x, 20)
         self.assertEqual(space[1].y, 10.0)
         self.assertEqual(space[1].height, 15.0)
@@ -95,14 +95,14 @@ class test_ClipManipulator(unittest.TestCase):
 
         self.assertIsInstance(manip.finish(), QUndoCommand)
 
-        self.assertEqual(space[0].source.source_name, 'red')
+        self.assertEqual(space[0].source.asset_path, 'red')
         self.assertEqual(space[0].x, -10)
         self.assertEqual(space[0].y, 2.0)
         self.assertEqual(space[0].height, 20.0)
         self.assertEqual(space[0].length, 30)
         self.assertEqual(space[0].offset, 0)
 
-        self.assertEqual(space[1].source.source_name, 'green')
+        self.assertEqual(space[1].source.asset_path, 'green')
         self.assertEqual(space[1].x, 20)
         self.assertEqual(space[1].y, 10.0)
         self.assertEqual(space[1].height, 15.0)
@@ -112,10 +112,10 @@ class test_ClipManipulator(unittest.TestCase):
     def test_one_item_add_seq(self):
         '''Drag one item into a sequence'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -128,28 +128,28 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, -6)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, -1)
 
         manip.set_sequence_item(seq, -5, 'add')     # Beginning of sequence, no overlap
         self.assertEqual(seq.x, -5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 0)
 
         manip.set_sequence_item(seq, -4, 'add')     # Beginning of sequence, one frame overlap
         self.assertEqual(seq.x, -4)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 1)
 
         manip.set_sequence_item(seq, 5, 'add')      # Beginning of sequence, full overlap
         self.assertEqual(seq.x, 5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 10)
 
         with self.assertRaises(model.NoRoomError):
@@ -161,7 +161,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 2)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].transition_length, 0)
 
         with self.assertRaises(model.NoRoomError):
@@ -170,25 +170,25 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 2)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].transition_length, 0)
 
         manip.set_sequence_item(seq, 10, 'add')         # Cross transition
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'red')
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'red')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[1].transition_length, 10)
         self.assertEqual(seq[2].transition_length, 5)
 
         manip.set_sequence_item(seq, 15, 'add')         # Cross transition
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'red')
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'red')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[2].transition_length, 10)
 
@@ -199,41 +199,41 @@ class test_ClipManipulator(unittest.TestCase):
             manip.set_sequence_item(seq, 19, 'add')     # Cross two transitions (end)
 
         manip.set_sequence_item(seq, 20, 'add')         # End, full overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 10)
 
         manip.set_sequence_item(seq, 29, 'add')         # End, one frame overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 1)
 
         manip.set_sequence_item(seq, 20, 'add')         # End, one frame overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 10)
 
         manip.set_sequence_item(seq, 30, 'add')         # End, no overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 0)
 
         manip.set_sequence_item(seq, 31, 'add')         # After sequence
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, -1)
@@ -243,10 +243,10 @@ class test_ClipManipulator(unittest.TestCase):
     def test_one_item_add_seq_gap(self):
         '''Drag one item into a sequence in the middle of a gap'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -260,10 +260,10 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[1].source.source_name, 'red')
+        self.assertEqual(seq[1].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[1].x, 10)
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[2].transition_length, 9)
         self.assertEqual(seq[2].x, 16)
 
@@ -272,10 +272,10 @@ class test_ClipManipulator(unittest.TestCase):
     def test_one_item_add_seq_gap_short(self):
         '''Drag one short item into a sequence at the beginning of a gap'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -289,10 +289,10 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[1].source.source_name, 'red')
+        self.assertEqual(seq[1].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[1].x, 10)
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[2].transition_length, -3)
         self.assertEqual(seq[2].x, 16)
 
@@ -302,10 +302,10 @@ class test_ClipManipulator(unittest.TestCase):
         '''Move the target of an anchor into a sequence and make sure the anchor
         points to the new item.'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10, transition_length=-6)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -328,10 +328,10 @@ class test_ClipManipulator(unittest.TestCase):
     def test_one_item_add_seq_cross_transition(self):
         '''Drag one short item into a sequence where it should fail to insert across a transition'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=5)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=3, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10, transition_length=5)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -351,10 +351,10 @@ class test_ClipManipulator(unittest.TestCase):
     def test_one_item_add_seq_backwards(self):
         '''Like test_one_item_add_seq, but in reverse order'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -364,41 +364,41 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertNotEqual(item.space, None)
 
         manip.set_sequence_item(seq, 31, 'add')         # End, no overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, -1)
 
         manip.set_sequence_item(seq, 30, 'add')         # End, no overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 0)
 
         manip.set_sequence_item(seq, 20, 'add')         # End, one frame overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 10)
 
         manip.set_sequence_item(seq, 29, 'add')         # End, one frame overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 1)
 
         manip.set_sequence_item(seq, 20, 'add')         # End, full overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 10)
@@ -406,9 +406,9 @@ class test_ClipManipulator(unittest.TestCase):
         manip.set_sequence_item(seq, 15, 'add')         # Cross transition
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'red')
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'red')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[2].transition_length, 10)
 
@@ -416,9 +416,9 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'red')
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'red')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[1].transition_length, 10)
         self.assertEqual(seq[2].transition_length, 5)
 
@@ -432,28 +432,28 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 10)
 
         manip.set_sequence_item(seq, -4, 'add')         # Beginning of sequence, one frame overlap
         self.assertEqual(seq.x, -4)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 1)
 
         manip.set_sequence_item(seq, -5, 'add')         # Beginning of sequence, no overlap
         self.assertEqual(seq.x, -5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 0)
 
         manip.set_sequence_item(seq, -6, 'add')         # Before sequence')
         self.assertEqual(seq.x, -6)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, -1)
 
         self.assertIsInstance(manip.finish(), QUndoCommand)
@@ -461,10 +461,10 @@ class test_ClipManipulator(unittest.TestCase):
     def test_one_item_add_seq_overlap(self):
         '''Drag one item into a sequence'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10, transition_length=5)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=15, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10, transition_length=5)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -477,21 +477,21 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, -6)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, -1)
 
         manip.set_sequence_item(seq, -5, 'add')         # Beginning of sequence, no overlap
         self.assertEqual(seq.x, -5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 0)
 
         manip.set_sequence_item(seq, -4, 'add')         # Beginning of sequence, one frame overlap
         self.assertEqual(seq.x, -4)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 1)
 
         with self.assertRaises(model.NoRoomError):
@@ -500,7 +500,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 2)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].transition_length, 5)
 
         with self.assertRaises(RuntimeError):
@@ -509,10 +509,10 @@ class test_ClipManipulator(unittest.TestCase):
     def test_one_item_add_seq_short(self):
         '''Drag one item into a sequence, but the item is short'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=15, source=model.StreamSourceRef('red', 0), type='noon'),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(type='noon', x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=15, source=model.AssetStreamRef('red', 0), type='noon'),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(type='noon', x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -525,7 +525,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 4)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, -1)
         self.assertEqual(seq[0].offset, 15)
         self.assertEqual(seq[0].type(), 'noon')
@@ -534,21 +534,21 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 5)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 0)
 
         manip.set_sequence_item(seq, 6, 'add')          # Beginning of sequence, one frame overlap
         self.assertEqual(seq.x, 6)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 1)
 
         manip.set_sequence_item(seq, 10, 'add')         # Beginning of sequence, full overlap
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'red')
         self.assertEqual(seq[1].transition_length, 5)
 
         with self.assertRaises(model.NoRoomError):
@@ -557,7 +557,7 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 2)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].transition_length, 0)
 
         with self.assertRaises(model.NoRoomError):
@@ -566,34 +566,34 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 2)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].transition_length, 0)
 
         manip.set_sequence_item(seq, 15, 'add')         # Cross transition
         self.assertEqual(seq.x, 10)
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'red')
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'red')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[1].transition_length, 5)
         self.assertEqual(seq[2].transition_length, 0)
 
         manip.set_sequence_item(seq, 16, 'add')         # Cross transition
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'red')
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'red')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[1].transition_length, 4)
         self.assertEqual(seq[2].transition_length, 1)
 
         manip.set_sequence_item(seq, 20, 'add')         # Cross transition
         self.assertEqual(len(seq), 3)
         self.assertEqual(item.space, None)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'red')
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'red')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 5)
 
@@ -604,33 +604,33 @@ class test_ClipManipulator(unittest.TestCase):
             manip.set_sequence_item(seq, 24, 'add')     # Middle of clip
 
         manip.set_sequence_item(seq, 25, 'add')         # End, full overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 5)
 
         manip.set_sequence_item(seq, 29, 'add')         # End, one frame overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 1)
 
         manip.set_sequence_item(seq, 30, 'add')         # End, no overlap
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, 0)
 
         manip.set_sequence_item(seq, 31, 'add')         # After sequence
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'red')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'red')
         self.assertEqual(seq[0].transition_length, 0)
         self.assertEqual(seq[1].transition_length, 0)
         self.assertEqual(seq[2].transition_length, -1)
@@ -640,10 +640,10 @@ class test_ClipManipulator(unittest.TestCase):
     def test_one_item_add_seq_reset(self):
         '''Test resets from various spots'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.StreamSourceRef('green', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Clip(x=20, y=10.0, height=15.0, length=35, offset=10, source=model.AssetStreamRef('green', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10)])]
 
         manip = model.ClipManipulator(space[0], 0, 0.0)
         item = space[0]
@@ -656,10 +656,10 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
         self.assertNotEqual(item.space, None)
 
         manip.set_sequence_item(seq, 16, 'add')
@@ -669,10 +669,10 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
         self.assertNotEqual(item.space, None)
 
         manip.set_sequence_item(seq, 26, 'add')
@@ -682,18 +682,18 @@ class test_ClipManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
         self.assertNotEqual(item.space, None)
 
     def test_seq_item_simple_move_fail_moveback(self):
         '''Test that we can move an item back after failing to place it'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=3, length=10, transition_length=3)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=3, length=10, transition_length=3)])]
 
         seq = space[1]
         item = space[0]
@@ -714,8 +714,8 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         '''Test moving a single sequence item around within the same sequence'''
         space = model.Space('', vidformat, audformat)
         space[:] = [
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10)])]
 
         seq = space[0]
         item = seq[0]
@@ -726,79 +726,79 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_sequence_item(seq, 10, 'add')         # Leaving it where it is should work
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_sequence_item(seq, 5, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 5)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 15)
         self.assertEqual(seq[1].transition_length, -5)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_sequence_item(seq, 15, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 15)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 5)
         self.assertEqual(seq[1].transition_length, 5)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_sequence_item(seq, 25, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 20)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
         self.assertEqual(seq[1].x, 5)
         self.assertEqual(seq[1].transition_length, 5)
-        self.assertEqual(seq[1].source.source_name, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq1')
 
         manip.set_sequence_item(seq, 35, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 20)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
         self.assertEqual(seq[1].x, 15)
         self.assertEqual(seq[1].transition_length, -5)
-        self.assertEqual(seq[1].source.source_name, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq1')
 
         manip.reset()
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         self.assertEquals(manip.finish(), None)
 
     def test_seq_item_simple_move_middle(self):
         '''Test moving a single sequence item starting in the middle'''
         space = model.Space('', vidformat, audformat)
-        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.StreamSourceRef('red', 0)),
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=3, length=10, transition_length=3)])]
+        space[:] = [model.Clip(x=0, y=0.0, height=20.0, length=5, offset=0, source=model.AssetStreamRef('red', 0)),
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=3, length=10, transition_length=3)])]
 
         seq = space[1]
         item = space[0]
@@ -832,8 +832,8 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         '''Test moving a single sequence item around within the same sequence'''
         space = model.Space('', vidformat, audformat)
         space[:] = [
-            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)])]
+            model.Sequence(x=10, y=10.0, items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10)])]
 
         seq = space[0]
         item = seq[1]
@@ -844,70 +844,70 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_sequence_item(seq, 20, 'add')         # Leaving it where it is should work
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_sequence_item(seq, 25, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 15)
         self.assertEqual(seq[1].transition_length, -5)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_sequence_item(seq, 15, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 5)
         self.assertEqual(seq[1].transition_length, 5)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_sequence_item(seq, 4, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 4)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
         self.assertEqual(seq[1].x, 6)
         self.assertEqual(seq[1].transition_length, 4)
-        self.assertEqual(seq[1].source.source_name, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq1')
 
         manip.set_sequence_item(seq, -5, 'add')
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, -5)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
         self.assertEqual(seq[1].x, 15)
         self.assertEqual(seq[1].transition_length, -5)
-        self.assertEqual(seq[1].source.source_name, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq1')
 
         manip.reset()
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         self.assertEquals(manip.finish(), None)
 
@@ -915,8 +915,8 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         '''Move a single sequence item into a space, where it should manifest as a clip'''
         space = model.Space('', vidformat, audformat)
 
-        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[0]
         space.append(seq)
 
@@ -927,23 +927,23 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 6)
         self.assertEqual(seq[1].transition_length, 4)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         manip.set_space_item(space, 4, 19.0)
         self.assertEqual(len(seq), 1)
         self.assertEqual(seq.x, 16)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
         self.assertEqual(len(space), 2)
         self.assertEqual(space[0].x, 4)
         self.assertEqual(space[0].y, 19.0)
         self.assertEqual(space[0].length, 10)
         self.assertEqual(space[0].height, 3.0)
-        self.assertEqual(space[0].source.source_name, 'seq1')
+        self.assertEqual(space[0].source.asset_path, 'seq1')
         self.assertEqual(space[0].type(), 'video')
         self.assertEqual(space[0].offset, 12)
 
@@ -953,10 +953,10 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 6)
         self.assertEqual(seq[1].transition_length, 4)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
 
         self.assertEquals(manip.finish(), None)
 
@@ -966,12 +966,12 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         space = model.Space('', vidformat, audformat)
 
         seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
-                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+                items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)])
         item = seq[0]
 
         space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
-                                source=model.StreamSourceRef('red', 0),
+                                source=model.AssetStreamRef('red', 0),
                                 anchor=model.Anchor(target=item)))
         space.append(seq)
 
@@ -985,7 +985,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 16)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
 
         self.assertEqual(len(space), 3)
 
@@ -993,7 +993,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertIsInstance(space[1], model.Clip)
         self.assertEqual(space[1].x, 4)
         self.assertEqual(space[1].y, 19.0)
-        self.assertEqual(space[1].source.source_name, 'seq1')
+        self.assertEqual(space[1].source.asset_path, 'seq1')
         self.assertEqual(space[1].type(), 'video')
         self.assertEqual(space[1].offset, 12)
         self.assertEqual(space[1].anchor, None)
@@ -1018,12 +1018,12 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         space = model.Space('', vidformat, audformat)
 
         seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
-                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+                items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)])
         item = seq[0]
 
         space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
-                                source=model.StreamSourceRef('red', 0),
+                                source=model.AssetStreamRef('red', 0),
                                 anchor=model.Anchor(target=item)))
         space.append(seq)
 
@@ -1046,12 +1046,12 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         space = model.Space('', vidformat, audformat)
 
         seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
-                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+                items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)])
         item = seq[0]
 
         space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
-                                source=model.StreamSourceRef('red', 0)))
+                                source=model.AssetStreamRef('red', 0)))
         space.append(seq)
         item.update(anchor=model.Anchor(target=space[0], offset_ns=1000000000 * 1001 * 4 // 24000))
 
@@ -1065,7 +1065,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 16)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
 
         self.assertEqual(len(space), 3)
 
@@ -1073,7 +1073,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertIsInstance(space[1], model.Clip)
         self.assertEqual(space[1].x, 4)
         self.assertEqual(space[1].y, 19.0)
-        self.assertEqual(space[1].source.source_name, 'seq1')
+        self.assertEqual(space[1].source.asset_path, 'seq1')
         self.assertEqual(space[1].type(), 'video')
         self.assertEqual(space[1].offset, 12)
         self.assertEqual(space[1].anchor.target, space[0])
@@ -1098,12 +1098,12 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         space = model.Space('', vidformat, audformat)
 
         seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
-                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+                items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)])
         item = seq[0]
 
         space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
-                                source=model.StreamSourceRef('red', 0)))
+                                source=model.AssetStreamRef('red', 0)))
         space.append(seq)
         item.update(anchor=model.Anchor(target=space[0], offset_ns=1000000000 * 1001 * 4 // 24000))
 
@@ -1128,12 +1128,12 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         space = model.Space('', vidformat, audformat)
 
         seq = model.Sequence(x=10, y=10.0, type='video', height=3.0,
-                items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                       model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)])
+                items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                       model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)])
         item = seq[0]
 
         space.append(model.Clip(x=0, y=20.0, type='video', length=10, height=10.0,
-                                source=model.StreamSourceRef('red', 0),
+                                source=model.AssetStreamRef('red', 0),
                                 anchor=model.Anchor(target=item)))
         space.append(seq)
         item.update(anchor=model.Anchor(target=space[0], offset_ns=1000000000 * 1001 * 4 // 24000))
@@ -1148,7 +1148,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 16)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
 
         self.assertEqual(len(space), 3)
 
@@ -1156,7 +1156,7 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertIsInstance(space[1], model.Clip)
         self.assertEqual(space[1].x, 4)
         self.assertEqual(space[1].y, 19.0)
-        self.assertEqual(space[1].source.source_name, 'seq1')
+        self.assertEqual(space[1].source.asset_path, 'seq1')
         self.assertEqual(space[1].type(), 'video')
         self.assertEqual(space[1].offset, 12)
         self.assertEqual(space[1].anchor.target, space[0])
@@ -1178,9 +1178,9 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         '''Move a multiple sequences item into a space, where they should manifest as a sequence'''
         space = model.Space('', vidformat, audformat)
 
-        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=6, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=13, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=6, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq1.5', 0), offset=13, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
 
         manip = model.SequenceItemGroupManipulator(seq[0:2], 10, 10.0)
 
@@ -1189,20 +1189,20 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq1.5')
+        self.assertEqual(seq[1].source.asset_path, 'seq1.5')
         self.assertEqual(seq[2].x, 16)
         self.assertEqual(seq[2].transition_length, 4)
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
 
         manip.set_space_item(space, 4, 19.0)
         self.assertEqual(len(seq), 1)
         self.assertEqual(seq.x, 26)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq2')
+        self.assertEqual(seq[0].source.asset_path, 'seq2')
         self.assertEqual(len(space), 1)
         self.assertEqual(len(space[0]), 2)
         self.assertEqual(space[0].x, 4)
@@ -1210,11 +1210,11 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(space[0].height, 3.0)
         self.assertEqual(space[0].type(), 'video')
         self.assertEqual(space[0][0].x, 0)
-        self.assertEqual(space[0][0].source.source_name, 'seq1')
+        self.assertEqual(space[0][0].source.asset_path, 'seq1')
         self.assertEqual(space[0][0].type(), 'video')
         self.assertEqual(space[0][0].offset, 6)
         self.assertEqual(space[0][1].x, 10)
-        self.assertEqual(space[0][1].source.source_name, 'seq1.5')
+        self.assertEqual(space[0][1].source.asset_path, 'seq1.5')
         self.assertEqual(space[0][1].type(), 'video')
         self.assertEqual(space[0][1].offset, 13)
 
@@ -1224,13 +1224,13 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq1.5')
+        self.assertEqual(seq[1].source.asset_path, 'seq1.5')
         self.assertEqual(seq[2].x, 16)
         self.assertEqual(seq[2].transition_length, 4)
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
 
         self.assertEquals(manip.finish(), None)
 
@@ -1238,9 +1238,9 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         '''Move a single sequence item from the middle of a sequence into a space, where it should manifest as a clip and leave a gap behind'''
         space = model.Space('', vidformat, audformat)
 
-        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=18, length=10, transition_length=0),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq1.5', 0), offset=18, length=10, transition_length=0),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[1]
         space.append(seq)
 
@@ -1251,29 +1251,29 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq1.5')
+        self.assertEqual(seq[1].source.asset_path, 'seq1.5')
         self.assertEqual(seq[2].x, 16)
         self.assertEqual(seq[2].transition_length, 4)
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
 
         manip.set_space_item(space, 4, 19.0)
         self.assertEqual(len(seq), 2)
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 16)
         self.assertEqual(seq[1].transition_length, -6)
-        self.assertEqual(seq[1].source.source_name, 'seq2')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
         self.assertEqual(len(space), 2)
         self.assertEqual(space[0].x, 4)
         self.assertEqual(space[0].y, 19.0)
         self.assertEqual(space[0].length, 10)
         self.assertEqual(space[0].height, 3.0)
-        self.assertEqual(space[0].source.source_name, 'seq1.5')
+        self.assertEqual(space[0].source.asset_path, 'seq1.5')
         self.assertEqual(space[0].type(), 'video')
         self.assertEqual(space[0].offset, 18)
 
@@ -1283,13 +1283,13 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         self.assertEqual(seq.x, 10)
         self.assertEqual(seq[0].x, 0)
         self.assertEqual(seq[0].transition_length, 0)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
         self.assertEqual(seq[1].x, 10)
         self.assertEqual(seq[1].transition_length, 0)
-        self.assertEqual(seq[1].source.source_name, 'seq1.5')
+        self.assertEqual(seq[1].source.asset_path, 'seq1.5')
         self.assertEqual(seq[2].x, 16)
         self.assertEqual(seq[2].transition_length, 4)
-        self.assertEqual(seq[2].source.source_name, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'seq2')
 
         self.assertEquals(manip.finish(), None)
 
@@ -1302,9 +1302,9 @@ class test_ItemManipulator(unittest.TestCase):
     def test_move_anchored_videos(self):
         space = model.Space('', vidformat, audformat)
 
-        item0 = model.Clip(source=model.StreamSourceRef('red', 0), x=5, y=4.5,
+        item0 = model.Clip(source=model.AssetStreamRef('red', 0), x=5, y=4.5,
             offset=13, length=10, type='video')
-        item1 = model.Clip(source=model.StreamSourceRef('blue', 0), x=2, y=17.3,
+        item1 = model.Clip(source=model.AssetStreamRef('blue', 0), x=2, y=17.3,
             offset=13, length=10, type='video', anchor=model.Anchor(target=item0))
 
         space[:] = [item0, item1]
@@ -1328,9 +1328,9 @@ class test_ItemManipulator(unittest.TestCase):
     def test_move_seqanditems(self):
         space = model.Space('', vidformat, audformat)
 
-        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=18, length=10, transition_length=0),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq1.5', 0), offset=18, length=10, transition_length=0),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[1]
 
         space[:] = [seq]
@@ -1352,9 +1352,9 @@ class test_ItemManipulator(unittest.TestCase):
     def test_move_seqanditems2(self):
         space = model.Space('', vidformat, audformat)
 
-        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=12, length=10),
-                model.SequenceItem(source=model.StreamSourceRef('seq1.5', 0), offset=18, length=10, transition_length=0),
-                model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
+        seq = model.Sequence(x=10, y=10.0, type='video', items=[model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=12, length=10),
+                model.SequenceItem(source=model.AssetStreamRef('seq1.5', 0), offset=18, length=10, transition_length=0),
+                model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=21, length=10, transition_length=4)], height=3.0)
         item = seq[1]
 
         space[:] = [seq]

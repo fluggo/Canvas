@@ -31,27 +31,27 @@ green_format = plugins.VideoFormat(active_area=box2i(12, -6, 100, 210))
 blue_format = plugins.VideoFormat(active_area=box2i(0, 0, 14, 19))
 
 slist = model.AssetList()
-slist['red'] = model.RuntimeSource('red', {'video': 
+slist['red'] = model.RuntimeSourceAsset(model.RuntimeSource('red', {'video': 
     plugins.VideoStream(
         process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (100, 0, 0, 1), 100)),
         red_format,
         (4, 50))
-    })
-slist['green'] = model.RuntimeSource('green', {'video':
+    }))
+slist['green'] = model.RuntimeSourceAsset(model.RuntimeSource('green', {'video':
     plugins.VideoStream(
         process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 100, 0, 1), 100)),
         green_format,
         (1, 12))
-    })
-slist['blue'] = model.RuntimeSource('blue', {'video':
+    }))
+slist['blue'] = model.RuntimeSourceAsset(model.RuntimeSource('blue', {'video':
     plugins.VideoStream(
         process.SolidColorVideoSource(process.LerpFunc((0, 0, 0, 1), (0, 0, 100, 1), 100)),
         blue_format,
         (-10, 17))
-    })
-slist['noload'] = FailedSource('noload')
-slist['noload_silent'] = SilentFailedSource('noload_silent')
-slist['nostreams'] = model.RuntimeSource('nostreams', {})
+    }))
+slist['noload'] = model.RuntimeSourceAsset(FailedSource('noload'))
+slist['noload_silent'] = model.RuntimeSourceAsset(SilentFailedSource('noload_silent'))
+slist['nostreams'] = model.RuntimeSourceAsset(model.RuntimeSource('nostreams', {}))
 
 def getcolor(source, frame):
     return source.get_frame_f32(frame, box2i(0, 0, 0, 0)).pixel(0, 0)
@@ -82,7 +82,7 @@ class test_VideoSourceRefConnector(unittest.TestCase):
             self.assertAlmostEqual(1.0, colors[i].a, 6, msg)
 
     def test_connect(self):
-        ref = model.StreamSourceRef('red', 'video')
+        ref = model.AssetStreamRef('red', 'video')
         conn = model.VideoSourceRefConnector(slist, ref, model_obj='blimog')
 
         self.check_no_alerts(conn)
@@ -90,7 +90,7 @@ class test_VideoSourceRefConnector(unittest.TestCase):
         self.assertEqual(conn.format, red_format)
         self.assertEqual(conn.defined_range, (4, 50))
 
-        ref = model.StreamSourceRef('green', 'video')
+        ref = model.AssetStreamRef('green', 'video')
         conn.set_ref(ref)
 
         self.check_no_alerts(conn)
@@ -107,30 +107,30 @@ class test_VideoSourceRefConnector(unittest.TestCase):
             self.assertEqual(None, colors[i], msg)
 
     def test_alert_missing_source(self):
-        ref = model.StreamSourceRef('red', 'video')
+        ref = model.AssetStreamRef('red', 'video')
         conn = model.VideoSourceRefConnector(slist, ref, model_obj='blimog')
 
         self.check_no_alerts(conn)
 
-        ref = model.StreamSourceRef('badsource', 'video')
+        ref = model.AssetStreamRef('badsource', 'video')
         conn.set_ref(ref)
 
         self.assertEqual(1, len(conn.alerts))
         alert = conn.alerts[0]
 
         self.assertEqual(plugins.AlertIcon.Error, alert.icon)
-        self.assertEqual('Reference refers to source "badsource" which doesn\'t exist.', str(alert))
+        self.assertEqual('Reference refers to asset "badsource", which doesn\'t exist.', str(alert))
         self.check_empty(conn)
         self.assertEqual((None, None), conn.defined_range)
         self.assertEqual(None, conn.format)
 
     def test_alert_offline_silent_source(self):
-        ref = model.StreamSourceRef('red', 'video')
+        ref = model.AssetStreamRef('red', 'video')
         conn = model.VideoSourceRefConnector(slist, ref, model_obj='blimog')
 
         self.check_no_alerts(conn)
 
-        ref = model.StreamSourceRef('noload_silent', 'video')
+        ref = model.AssetStreamRef('noload_silent', 'video')
         conn.set_ref(ref)
 
         self.assertEqual(1, len(conn.alerts))
@@ -144,12 +144,12 @@ class test_VideoSourceRefConnector(unittest.TestCase):
         self.assertEqual(None, conn.format)
 
     def test_alert_offline_source(self):
-        ref = model.StreamSourceRef('red', 'video')
+        ref = model.AssetStreamRef('red', 'video')
         conn = model.VideoSourceRefConnector(slist, ref, model_obj='blimog')
 
         self.check_no_alerts(conn)
 
-        ref = model.StreamSourceRef('noload', 'video')
+        ref = model.AssetStreamRef('noload', 'video')
         conn.set_ref(ref)
 
         self.assertEqual(1, len(conn.alerts))
@@ -157,18 +157,18 @@ class test_VideoSourceRefConnector(unittest.TestCase):
 
         self.assertEqual(plugins.AlertIcon.Error, alert.icon)
         self.assertEqual("noload: Can't load maaaan", str(alert))
-        self.assertEqual(slist['noload'], alert.model_object)
+        self.assertEqual(slist['noload'].get_source(), alert.model_object)
         self.check_empty(conn)
         self.assertEqual((None, None), conn.defined_range)
         self.assertEqual(None, conn.format)
 
     def test_alert_missing_stream(self):
-        ref = model.StreamSourceRef('red', 'video')
+        ref = model.AssetStreamRef('red', 'video')
         conn = model.VideoSourceRefConnector(slist, ref, model_obj='blimog')
 
         self.check_no_alerts(conn)
 
-        ref = model.StreamSourceRef('nostreams', 'video')
+        ref = model.AssetStreamRef('nostreams', 'video')
         conn.set_ref(ref)
 
         self.assertEqual(1, len(conn.alerts))

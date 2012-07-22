@@ -19,14 +19,15 @@
 import yaml, collections, itertools
 from fluggo import ezlist, sortlist, signal, logging
 from fluggo.editor.model import sources
+from fluggo.editor import plugins
 from .items import *
 
 _log = logging.getLogger(__name__)
 
-class Space(sources.Source, ezlist.EZList):
+class Space(ezlist.EZList):
     def __init__(self, name, video_format, audio_format):
-        sources.Source.__init__(self, name)
         ezlist.EZList.__init__(self)
+        self.name = name
         self.item_added = signal.Signal()
         self.item_removed = signal.Signal()
         self._items = []

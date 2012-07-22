@@ -118,10 +118,10 @@ from .clip import *
 from .sequence import *
 
 class PlaceholderItem(QtGui.QGraphicsItem):
-    def __init__(self, source_name, stream, x, y, height):
+    def __init__(self, asset_path, stream, x, y, height):
         QtGui.QGraphicsItem.__init__(self)
 
-        self.source_name = source_name
+        self.asset_path = asset_path
         self.stream = stream
         self.height = height
 

@@ -82,7 +82,7 @@ class Scene(QtGui.QGraphicsScene):
                 rate = self.scene.get_rate(item.stream_format.type)
 
                 items.append(model.Clip(type=item.stream_format.type,
-                    source=model.StreamSourceRef(source_name=item.source_name, stream=item.stream_format.index),
+                    source=model.AssetStreamRef(asset_path=item.asset_path, stream=item.stream_format.index),
                     x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), length=item.width, height=item.height))
 
                 self.scene.removeItem(item)
@@ -236,7 +236,7 @@ class Scene(QtGui.QGraphicsScene):
 #
 #            if isinstance(obj, fluggo.editor.DragDropSource):
 #                event.accept()
-#                self.drag_op = Scene.SourceDragOp(self, obj.source_name)
+#                self.drag_op = Scene.SourceDragOp(self, obj.asset_path)
 #                self.drag_op.lay_out(event.scenePos())
 #            elif isinstance(obj, DragDropSelection) and obj.space == self.space:
 #                # Our own drag-and-drop items

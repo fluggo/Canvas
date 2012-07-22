@@ -28,12 +28,13 @@ class VideoSourceRefConnector(plugins.VideoStream):
     This class publishes alerts for any error that happens when finding the
     stream.'''
 
-    def __init__(self, source_list, ref, model_obj=None):
+    def __init__(self, asset_list, ref, model_obj=None):
         plugins.VideoStream.__init__(self)
 
-        self.source_list = source_list
+        self.asset_list = asset_list
         self.ref = ref
         self.model_obj = model_obj
+        self.asset = None
         self.source = None
         self.stream = None
         self._error = None
@@ -53,6 +54,9 @@ class VideoSourceRefConnector(plugins.VideoStream):
 
     def connect(self):
         try:
+            if self.asset:
+                self.asset = None
+
             if self.source:
                 self.unfollow_alerts(self.source)
                 self.source = None
@@ -70,16 +74,31 @@ class VideoSourceRefConnector(plugins.VideoStream):
                 return
 
             # TODO: Handle ad-hoc sources
-            if not isinstance(self.ref, sources.StreamSourceRef):
+            if not isinstance(self.ref, sources.AssetStreamRef):
                 self._clear()
                 return
 
             # Handle missing sources, failure to bring online, and missing streams
             try:
-                self.source = self.source_list[self.ref.source_name]
+                self.asset = self.asset_list[self.ref.asset_path]
             except KeyError:
                 self._clear()
-                self._error = plugins.Alert('Reference refers to source "' + self.ref.source_name + '" which doesn\'t exist.',
+                self._error = plugins.Alert('Reference refers to asset "' + self.ref.asset_path + '", which doesn\'t exist.',
+                    model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
+                self.show_alert(self._error)
+                return
+
+            if not self.asset.is_source:
+                self._clear()
+                self._error = plugins.Alert('Reference refers to asset "' + self.ref.asset_path + '" which is not a video source.',
+                    model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
+                self.show_alert(self._error)
+
+            try:
+                self.source = self.asset.get_source()
+            except:
+                self._clear()
+                self._error = plugins.Alert('Error while getting source from asset',
                     model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                 self.show_alert(self._error)
                 return
@@ -100,7 +119,7 @@ class VideoSourceRefConnector(plugins.VideoStream):
                 self._clear()
 
                 if not len(self.source.alerts):
-                    self._error = plugins.Alert('Unable to bring source "' + self.ref.source_name + '" online.',
+                    self._error = plugins.Alert('Unable to bring source "' + self.ref.asset_path + '" online.',
                         model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                     self.show_alert(self._error)
 
@@ -110,7 +129,7 @@ class VideoSourceRefConnector(plugins.VideoStream):
                 self.stream = self.source.get_stream(self.ref.stream)
             except KeyError:
                 self._clear()
-                self._error = plugins.Alert('Can\'t find stream "' + self.ref.stream + '" in source "' + self.ref.source_name + '".',
+                self._error = plugins.Alert('Can\'t find stream "' + self.ref.stream + '" in source "' + self.ref.asset_path + '".',
                     model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                 self.show_alert(self._error)
                 return
@@ -135,13 +154,13 @@ class AudioSourceRefConnector(plugins.AudioStream):
     This class publishes alerts for any error that happens when finding the
     stream.'''
 
-    def __init__(self, source_list, ref, model_obj=None):
+    def __init__(self, asset_list, ref, model_obj=None):
         plugins.AudioStream.__init__(self)
 
-        self.source_list = source_list
+        self.asset_list = asset_list
         self.ref = ref
         self.model_obj = model_obj
-        self.source = None
+        self.asset = None
         self.stream = None
         self._error = None
 
@@ -160,6 +179,9 @@ class AudioSourceRefConnector(plugins.AudioStream):
 
     def connect(self):
         try:
+            if self.asset:
+                self.asset = None
+
             if self.source:
                 self.unfollow_alerts(self.source)
                 self.source = None
@@ -177,16 +199,31 @@ class AudioSourceRefConnector(plugins.AudioStream):
                 return
 
             # TODO: Handle ad-hoc sources
-            if not isinstance(self.ref, sources.StreamSourceRef):
+            if not isinstance(self.ref, sources.AssetStreamRef):
                 self._clear()
                 return
 
             # Handle missing sources, failure to bring online, and missing streams
             try:
-                self.source = self.source_list[self.ref.source_name]
+                self.asset = self.asset_list[self.ref.asset_path]
             except KeyError:
                 self._clear()
-                self._error = plugins.Alert('Reference refers to source "' + self.ref.source_name + '" which doesn\'t exist.',
+                self._error = plugins.Alert('Reference refers to asset "' + self.ref.asset_path + '", which doesn\'t exist.',
+                    model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
+                self.show_alert(self._error)
+                return
+
+            if not self.asset.is_source:
+                self._clear()
+                self._error = plugins.Alert('Reference refers to asset "' + self.ref.asset_path + '" which is not an audio source.',
+                    model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
+                self.show_alert(self._error)
+
+            try:
+                self.source = self.asset.get_source()
+            except:
+                self._clear()
+                self._error = plugins.Alert('Error while getting source from asset',
                     model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                 self.show_alert(self._error)
                 return
@@ -207,7 +244,7 @@ class AudioSourceRefConnector(plugins.AudioStream):
                 self._clear()
 
                 if not len(self.source.alerts):
-                    self._error = plugins.Alert('Unable to bring source "' + self.ref.source_name + '" online.',
+                    self._error = plugins.Alert('Unable to bring source "' + self.ref.asset_path + '" online.',
                         model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                     self.show_alert(self._error)
 
@@ -217,7 +254,7 @@ class AudioSourceRefConnector(plugins.AudioStream):
                 self.stream = self.source.get_stream(self.ref.stream)
             except KeyError:
                 self._clear()
-                self._error = plugins.Alert('Can\'t find stream "' + self.ref.stream + '" in source "' + self.ref.source_name + '".',
+                self._error = plugins.Alert('Can\'t find stream "' + self.ref.stream + '" in source "' + self.ref.asset_path + '".',
                     model_obj=self.model_obj, icon=plugins.AlertIcon.Error)
                 self.show_alert(self._error)
                 return

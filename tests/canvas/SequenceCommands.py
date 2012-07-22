@@ -6,9 +6,9 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
     def test_1_remove_single_from_start(self):
         '''Delete a single item from the start of a sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), offset=1, length=10)])
 
         command = model.RemoveAdjacentItemsFromSequenceCommand([sequence[0]])
         command.redo()
@@ -16,8 +16,8 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(len(sequence), 2)
         self.assertEqual(sequence.x, 20)
         self.assertEqual(sequence[0].x, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq2')
-        self.assertEqual(sequence[1].source.source_name, 'seq3')
+        self.assertEqual(sequence[0].source.asset_path, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -25,20 +25,20 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10)
         self.assertEqual(sequence[1].transition_length, 0)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
         self.assertEqual(sequence[2].x, 20)
         self.assertEqual(sequence[2].transition_length, 0)
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
     def test_1_remove_single_from_start_transition(self):
         '''Delete a single item from the start of a sequence when the next item has a transition.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=3, offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=3, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), offset=1, length=10)])
 
         command = model.RemoveAdjacentItemsFromSequenceCommand([sequence[0]])
         command.redo()
@@ -48,8 +48,8 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.length, 20)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq2')
-        self.assertEqual(sequence[1].source.source_name, 'seq3')
+        self.assertEqual(sequence[0].source.asset_path, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -57,19 +57,19 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 7)
         self.assertEqual(sequence[1].transition_length, 3)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
         self.assertEqual(sequence[2].transition_length, 0)
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
     def test_1_remove_single_from_start_gap(self):
         '''Delete a single item from the start of a sequence when the next item has a gap.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=-4, offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=-4, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), offset=1, length=10)])
 
         command = model.RemoveAdjacentItemsFromSequenceCommand([sequence[0]])
         command.redo()
@@ -79,8 +79,8 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.length, 20)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq2')
-        self.assertEqual(sequence[1].source.source_name, 'seq3')
+        self.assertEqual(sequence[0].source.asset_path, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -88,12 +88,12 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 14)
         self.assertEqual(sequence[1].transition_length, -4)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
         self.assertEqual(sequence[2].transition_length, 0)
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
     def test_1_remove_single_from_middle(self):
         self.remove_single_from_middle(0, 0)
@@ -104,9 +104,9 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         '''Delete a single item from the middle of a sequence.'''
         # TODO: Delete when next item has (positive|negative) transition_length
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
 
         command = model.RemoveAdjacentItemsFromSequenceCommand([sequence[1]])
         command.redo()
@@ -114,10 +114,10 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(len(sequence), 2)
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 20 - seq2_trans - seq3_trans)
         self.assertEqual(sequence[1].transition_length, -10 + seq2_trans + seq3_trans)
-        self.assertEqual(sequence[1].source.source_name, 'seq3')
+        self.assertEqual(sequence[1].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -125,19 +125,19 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10 - seq2_trans)
         self.assertEqual(sequence[1].transition_length, seq2_trans)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
         self.assertEqual(sequence[2].transition_length, seq3_trans)
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
     def test_1_remove_single_from_end(self):
         '''Delete a single item from the end of a sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), offset=1, length=10)])
 
         command = model.RemoveAdjacentItemsFromSequenceCommand([sequence[2]])
         command.redo()
@@ -146,10 +146,10 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence.length, 20)
         self.assertEqual(sequence[0].x, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10)
         self.assertEqual(sequence[1].transition_length, 0)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
 
         command.undo()
 
@@ -157,19 +157,19 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10)
         self.assertEqual(sequence[1].transition_length, 0)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
         self.assertEqual(sequence[2].transition_length, 0)
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
     def test_1_remove_single_from_end_gap(self):
         '''Delete a single item with a gap from the end of a sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=-4, offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=-4, offset=1, length=10)])
 
         command = model.RemoveAdjacentItemsFromSequenceCommand([sequence[2]])
         command.redo()
@@ -178,10 +178,10 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence.length, 20)
         self.assertEqual(sequence[0].x, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10)
         self.assertEqual(sequence[1].transition_length, 0)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
 
         command.undo()
 
@@ -189,19 +189,19 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10)
         self.assertEqual(sequence[1].transition_length, 0)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
         self.assertEqual(sequence[2].transition_length, -4)
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
     def test_1_remove_single_from_end_transition(self):
         '''Delete a single item with a transition from the end of a sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=4, offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=4, offset=1, length=10)])
 
         command = model.RemoveAdjacentItemsFromSequenceCommand([sequence[2]])
         command.redo()
@@ -210,10 +210,10 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence.length, 20)
         self.assertEqual(sequence[0].x, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10)
         self.assertEqual(sequence[1].transition_length, 0)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
 
         command.undo()
 
@@ -221,12 +221,12 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10)
         self.assertEqual(sequence[1].transition_length, 0)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
         self.assertEqual(sequence[2].transition_length, 4)
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
     def test_1_remove_double_from_start_transition(self):
         self.remove_double_from_start(0, 0)
@@ -238,9 +238,9 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
     def remove_double_from_start(self, seq2_trans, seq3_trans):
         '''Delete two items from the start of a sequence when the next item has a transition.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
 
         command = model.RemoveAdjacentItemsFromSequenceCommand([sequence[0], sequence[1]])
         command.redo()
@@ -250,7 +250,7 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.length, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq3')
+        self.assertEqual(sequence[0].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -258,13 +258,13 @@ class test_RemoveAdjacentItemsFromSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10 - seq2_trans)
         self.assertEqual(sequence[1].transition_length, seq2_trans)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
         self.assertEqual(sequence[2].x, 20 - seq2_trans - seq3_trans)
         self.assertEqual(sequence[2].transition_length, seq3_trans)
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
 class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
     def test_add_single_to_middle(self):
@@ -283,10 +283,10 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
     def add_single_to_middle(self, offset=0, seq3_trans=-10):
         '''Straight-up add an item to the middle of a sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
 
-        items = [model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10)]
+        items = [model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10)]
         mover = model.SequenceOverlapItemsMover(items)
 
         command = model.AddOverlapItemsToSequenceCommand(sequence, mover, 20 + offset)
@@ -298,9 +298,9 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence[2].x, 10 - seq3_trans)
         self.assertEqual(sequence[1].transition_length, -offset)
         self.assertEqual(sequence[2].transition_length, 10 + offset + seq3_trans)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -308,10 +308,10 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10 - seq3_trans)
         self.assertEqual(sequence[1].transition_length, seq3_trans)
-        self.assertEqual(sequence[1].source.source_name, 'seq3')
+        self.assertEqual(sequence[1].source.asset_path, 'seq3')
 
     def test_add_single_to_start(self):
         self.add_single_to_start(0)
@@ -331,10 +331,10 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
     def add_single_to_start(self, offset=0, seq3_trans=0):
         '''Add an item to the start of a sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
 
-        items = [model.SequenceItem(source=model.StreamSourceRef('seq1', 1), offset=1, length=10)]
+        items = [model.SequenceItem(source=model.AssetStreamRef('seq1', 1), offset=1, length=10)]
         mover = model.SequenceOverlapItemsMover(items)
 
         command = model.AddOverlapItemsToSequenceCommand(sequence, mover, 10 + offset)
@@ -347,9 +347,9 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence[2].x, 10 - offset - seq3_trans)
         self.assertEqual(sequence[1].transition_length, 10 + offset)
         self.assertEqual(sequence[2].transition_length, seq3_trans)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -357,10 +357,10 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq2')
+        self.assertEqual(sequence[0].source.asset_path, 'seq2')
         self.assertEqual(sequence[1].x, 10 - seq3_trans)
         self.assertEqual(sequence[1].transition_length, seq3_trans)
-        self.assertEqual(sequence[1].source.source_name, 'seq3')
+        self.assertEqual(sequence[1].source.asset_path, 'seq3')
 
     def test_add_single_to_end(self):
         self.add_single_to_end(0)
@@ -379,10 +379,10 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
     def add_single_to_end(self, offset=0, seq2_trans=0):
         '''Add an item to the end of a sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10)])
 
-        items = [model.SequenceItem(source=model.StreamSourceRef('seq3', 1), offset=1, length=10)]
+        items = [model.SequenceItem(source=model.AssetStreamRef('seq3', 1), offset=1, length=10)]
         mover = model.SequenceOverlapItemsMover(items)
 
         command = model.AddOverlapItemsToSequenceCommand(sequence, mover, 30 + offset)
@@ -396,9 +396,9 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence[2].x, 20 + offset)
         self.assertEqual(sequence[1].transition_length, seq2_trans)
         self.assertEqual(sequence[2].transition_length, 0 - seq2_trans - offset)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
-        self.assertEqual(sequence[2].source.source_name, 'seq3')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
+        self.assertEqual(sequence[2].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -406,10 +406,10 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10 - seq2_trans)
         self.assertEqual(sequence[1].transition_length, seq2_trans)
-        self.assertEqual(sequence[1].source.source_name, 'seq2')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2')
 
     def test_add_double_to_middle(self):
         self.add_double_to_middle(0)
@@ -426,14 +426,14 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
     def add_double_to_middle(self, offset=0, seq3_trans=-10):
         '''Add overlapping item to the middle of a sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10)])
 
         seq2a_length = 10
         seq2b_trans = 5
 
-        items = [model.SequenceItem(source=model.StreamSourceRef('seq2a', 0), offset=1, length=seq2a_length),
-            model.SequenceItem(source=model.StreamSourceRef('seq2b', 0), transition_length=seq2b_trans, offset=1, length=10)]
+        items = [model.SequenceItem(source=model.AssetStreamRef('seq2a', 0), offset=1, length=seq2a_length),
+            model.SequenceItem(source=model.AssetStreamRef('seq2b', 0), transition_length=seq2b_trans, offset=1, length=10)]
         mover = model.SequenceOverlapItemsMover(items)
 
         command = model.AddOverlapItemsToSequenceCommand(sequence, mover, 20 + offset)
@@ -447,10 +447,10 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence[2].x, 10 + offset + (seq2a_length - seq2b_trans))
         self.assertEqual(sequence[3].transition_length, 15 + offset + seq3_trans)
         self.assertEqual(sequence[3].x, 10 - seq3_trans)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
-        self.assertEqual(sequence[1].source.source_name, 'seq2a')
-        self.assertEqual(sequence[2].source.source_name, 'seq2b')
-        self.assertEqual(sequence[3].source.source_name, 'seq3')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
+        self.assertEqual(sequence[1].source.asset_path, 'seq2a')
+        self.assertEqual(sequence[2].source.asset_path, 'seq2b')
+        self.assertEqual(sequence[3].source.asset_path, 'seq3')
 
         command.undo()
 
@@ -458,10 +458,10 @@ class test_AddOverlapItemsToSequenceCommand(unittest.TestCase):
         self.assertEqual(sequence.x, 10)
         self.assertEqual(sequence[0].x, 0)
         self.assertEqual(sequence[0].transition_length, 0)
-        self.assertEqual(sequence[0].source.source_name, 'seq1')
+        self.assertEqual(sequence[0].source.asset_path, 'seq1')
         self.assertEqual(sequence[1].x, 10 - seq3_trans)
         self.assertEqual(sequence[1].transition_length, seq3_trans)
-        self.assertEqual(sequence[1].source.source_name, 'seq3')
+        self.assertEqual(sequence[1].source.asset_path, 'seq3')
 
 class test_MoveSequenceOverlapItemsInPlaceCommand(unittest.TestCase):
     def test_move_single_at_middle(self):
@@ -493,11 +493,11 @@ class test_MoveSequenceOverlapItemsInPlaceCommand(unittest.TestCase):
     def move_single_at_middle(self, offset, seq2_trans=0, seq5_trans=0):
         '''Move a single item at the middle of the sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq4', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq5', 0), transition_length=seq5_trans, offset=1, length=10)
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq4', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq5', 0), transition_length=seq5_trans, offset=1, length=10)
             ])
 
         items = [sequence[2]]
@@ -553,9 +553,9 @@ class test_MoveSequenceOverlapItemsInPlaceCommand(unittest.TestCase):
     def move_single_at_start(self, offset, seq2_trans=0, seq3_trans=0):
         '''Move a single item at the start of the sequence.'''
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10),
             ])
 
         items = [sequence[0]]
@@ -586,9 +586,9 @@ class test_MoveSequenceOverlapItemsInPlaceCommand(unittest.TestCase):
         seq2_trans, seq3_trans = 0, 0
 
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=seq2_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10),
             ])
 
         items = [sequence[0]]
@@ -646,9 +646,9 @@ class test_SequenceItemsMover(unittest.TestCase):
 
     def to_item1(self, seq2_trans=0, seq3_trans=0):
         items = [
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=6),
-            model.SequenceItem(source=model.StreamSourceRef('seq2', 0), transition_length=seq2_trans, offset=2, length=19),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=5, length=10)
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=6),
+            model.SequenceItem(source=model.AssetStreamRef('seq2', 0), transition_length=seq2_trans, offset=2, length=19),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=5, length=10)
         ]
 
         mover = model.SequenceItemsMover(items)
@@ -656,9 +656,9 @@ class test_SequenceItemsMover(unittest.TestCase):
         seq = mover.to_item(height=4.5)
         self.assertEqual(seq.height, 4.5)
         self.assertEqual(len(seq), 3)
-        self.assertEqual(seq[0].source.source_name, 'seq1')
-        self.assertEqual(seq[1].source.source_name, 'seq2')
-        self.assertEqual(seq[2].source.source_name, 'seq3')
+        self.assertEqual(seq[0].source.asset_path, 'seq1')
+        self.assertEqual(seq[1].source.asset_path, 'seq2')
+        self.assertEqual(seq[2].source.asset_path, 'seq3')
         self.assertEqual(seq[0].offset, 1)
         self.assertEqual(seq[1].offset, 2)
         self.assertEqual(seq[2].offset, 5)
@@ -676,10 +676,10 @@ class test_MoveSequenceItemsInPlaceCommand(unittest.TestCase):
 
     def slide_two_around(self, offsets=[], seq2b_trans=0, seq3_trans=0, die_on=None):
         sequence = model.Sequence(x=10, y=10.0, items=[
-            model.SequenceItem(source=model.StreamSourceRef('seq1', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2a', 0), offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq2b', 0), transition_length=seq2b_trans, offset=1, length=10),
-            model.SequenceItem(source=model.StreamSourceRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq1', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2a', 0), offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq2b', 0), transition_length=seq2b_trans, offset=1, length=10),
+            model.SequenceItem(source=model.AssetStreamRef('seq3', 0), transition_length=seq3_trans, offset=1, length=10),
             ])
 
         mover = model.SequenceItemsMover([sequence[1], sequence[2]])
@@ -697,10 +697,10 @@ class test_MoveSequenceItemsInPlaceCommand(unittest.TestCase):
                     current_offset += offset
             finally:
                 self.assertEqual(len(sequence), 4)
-                self.assertEqual(sequence[0].source.source_name, 'seq1')
-                self.assertEqual(sequence[1].source.source_name, 'seq2a')
-                self.assertEqual(sequence[2].source.source_name, 'seq2b')
-                self.assertEqual(sequence[3].source.source_name, 'seq3')
+                self.assertEqual(sequence[0].source.asset_path, 'seq1')
+                self.assertEqual(sequence[1].source.asset_path, 'seq2a')
+                self.assertEqual(sequence[2].source.asset_path, 'seq2b')
+                self.assertEqual(sequence[3].source.asset_path, 'seq3')
                 self.assertEqual(sequence[0].x, 0)
                 self.assertEqual(sequence[1].x, 10 + current_offset)
                 self.assertEqual(sequence[2].x, 20 - seq2b_trans + current_offset)

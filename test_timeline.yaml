@@ -1,30 +1,31 @@
 !Project
   assets:
-    79b: !PluginSource
+    79b: !PluginSourceAsset
       plugin_urn: urn:fluggo.com/canvas/plugins:libav-dv
-      definition: {path: "/home/james/Videos/Okra - 79b,100.avi"}
-    test: !CanvasSpace
-      video_format: !VideoFormat
-        frame_rate: !rational [24000, 1001]
-        full_frame: !box2i [!v2i '(-8, -1)', !v2i '(711, 478)']
-        active_area: !box2i [!v2i '(0, -1)', !v2i '(703, 478)']
-        pixel_aspect_ratio: !rational [40, 33]
-      audio_format: !AudioFormat
-        sample_rate: 48000
-        channel_assignment: [FrontLeft, FrontRight]
-      items:
-      - &A !CanvasClip {height: 40.0, offset: 1000, source: !StreamSourceRef {source_name: 79b, stream: "0"},
-        type: video, length: 100, x: 60, y: 30.0}
-      - !CanvasClip {height: 40.0, offset: 1000, source: !StreamSourceRef {source_name: 79b, stream: "1"},
-        type: audio, length: 100000, x: 96096, y: 70.0, anchor: !CanvasAnchor {target: *A}}
-      - !CanvasSequence
-        x: 0
-        y: 50.0
-        height: 70.0
-        type: video
-        expanded: true
+      definition: {path: "/home/james/Videos/tape-2003-christmas-in-colorado.dv"}
+    test: !SpaceAsset
+      space: !CanvasSpace
+        video_format: !VideoFormat
+          frame_rate: !rational [24000, 1001]
+          full_frame: !box2i [!v2i '(-8, -1)', !v2i '(711, 478)']
+          active_area: !box2i [!v2i '(0, -1)', !v2i '(703, 478)']
+          pixel_aspect_ratio: !rational [40, 33]
+        audio_format: !AudioFormat
+          sample_rate: 48000
+          channel_assignment: [FrontLeft, FrontRight]
         items:
-        - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream: "0"}, offset: 0, length: 300}
-        - !CanvasSequenceItem {source: !StreamSourceRef {source_name: 79b, stream: "0"}, offset: 1050, length: 300,
-          transition_length: 48}
+        - &A !CanvasClip {height: 40.0, offset: 1000, source: !AssetStreamRef {asset_path: 79b, stream: "0"},
+          type: video, length: 100, x: 60, y: 30.0}
+        - !CanvasClip {height: 40.0, offset: 1000, source: !AssetStreamRef {asset_path: 79b, stream: "1"},
+          type: audio, length: 100000, x: 96096, y: 70.0, anchor: !CanvasAnchor {target: *A, two_way: true}}
+        - !CanvasSequence
+          x: 0
+          y: 50.0
+          height: 70.0
+          type: video
+          expanded: true
+          items:
+          - !CanvasSequenceItem {source: !AssetStreamRef {asset_path: 79b, stream: "0"}, offset: 0, length: 300}
+          - !CanvasSequenceItem {source: !AssetStreamRef {asset_path: 79b, stream: "0"}, offset: 1050, length: 300,
+            transition_length: 48}
 

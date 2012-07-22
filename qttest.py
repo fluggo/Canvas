@@ -397,21 +397,21 @@ class MainWindow(QMainWindow):
         audformat = plugins.AudioFormat(sample_rate=48000,
             channel_assignment=('FrontLeft', 'FrontRight'))
 
-        self.space = model.Space('', vidformat, audformat)
+        self.space_asset = model.Space('', vidformat, audformat)
         self.setup_space()
 
         # FOR TESTING
         self.open_file('test_timeline.yaml')
 
     def setup_asset_list(self):
-        self.space = None
+        self.space_asset = None
         self.setup_space()
 
         self.search_dock.set_asset_list(self.asset_list)
 
     def setup_space(self):
-        '''Set up the work environment for the new value of self.space.'''
-        if not self.space:
+        '''Set up the work environment for the new value of self.space_asset.'''
+        if not self.space_asset:
             self.audio_player.set_audio_source(None)
             self.video_widget.setVideoSource(None)
             self.view.set_space(None, self.asset_list, None)
@@ -426,19 +426,20 @@ class MainWindow(QMainWindow):
         if self.video_graph_manager:
             self.alert_publisher.unfollow_alerts(self.video_graph_manager)
 
-        self.audio_graph_manager = graph.SpaceAudioManager(self.space, self.asset_list, self.space.audio_format)
+        # TODO: Let the UIManager figure this out from the asset's source property
+        self.audio_graph_manager = graph.SpaceAudioManager(self.space_asset.space, self.asset_list, self.space_asset.space.audio_format)
         self.audio_player.set_audio_source(self.audio_graph_manager)
 
-        self.video_graph_manager = graph.SpaceVideoManager(self.space, self.asset_list, self.space.video_format)
+        self.video_graph_manager = graph.SpaceVideoManager(self.space_asset.space, self.asset_list, self.space_asset.space.video_format)
         self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
-        self.video_widget.setDisplayWindow(self.space.video_format.active_area)
-        self.video_widget.setPixelAspectRatio(self.space.video_format.pixel_aspect_ratio)
+        self.video_widget.setDisplayWindow(self.space_asset.space.video_format.active_area)
+        self.video_widget.setPixelAspectRatio(self.space_asset.space.video_format.pixel_aspect_ratio)
         self.video_widget.setVideoSource(self.video_graph_manager)
 
         self.alert_publisher.follow_alerts(self.video_graph_manager)
         self.alert_publisher.follow_alerts(self.audio_graph_manager)
 
-        self.view.set_space(self.space, self.asset_list, undo_stack)
+        self.view.set_space(self.space_asset.space, self.asset_list, undo_stack)
 
         self.uimgr.seek(0)
 
@@ -509,7 +510,7 @@ class MainWindow(QMainWindow):
         self.tools_menu.addAction(self.tools_edit_decoders)
 
     def handle_update_frames(self, min_frame, max_frame):
-        if not self.space:
+        if not self.space_asset:
             return
 
         # If the current frame was in this set, re-seek to it
@@ -519,10 +520,10 @@ class MainWindow(QMainWindow):
             return
 
         time = self.uimgr.get_presentation_time()
-        frame = process.get_time_frame(self.space.video_format.frame_rate, time)
+        frame = process.get_time_frame(self.space_asset.space.video_format.frame_rate, time)
 
         if frame >= min_frame and frame <= max_frame:
-            self.uimgr.seek(process.get_frame_time(self.space.video_format.frame_rate, int(frame)))
+            self.uimgr.seek(process.get_frame_time(self.space_asset.space.video_format.frame_rate, int(frame)))
 
     def open_space(self):
         path = QFileDialog.getOpenFileName(self, "Open File", filter='YAML Files (*.yaml)')
@@ -550,7 +551,7 @@ class MainWindow(QMainWindow):
         self.asset_list = project.assets
         self.setup_asset_list()
 
-        self.space = self.asset_list['test']
+        self.space_asset = self.asset_list['test']
         self.setup_space()
 
     def save_file(self, path):
@@ -558,7 +559,8 @@ class MainWindow(QMainWindow):
             yaml.dump_all(self.asset_list.get_asset_list(), stream)
 
     def render_dv(self):
-        if not len(self.space):
+        # FIXME: This code path has LONG since been outdated
+        if not len(self.space_asset.space):
             return
 
         path = QFileDialog.getSaveFileName(self, "Render DV", filter='AVI Files (*.avi)')
@@ -571,7 +573,7 @@ class MainWindow(QMainWindow):
             items = sorted(self.space, key=lambda a: a.z_sort_key())
 
             for i, item in enumerate(items):
-                source = self.asset_list.get_stream(item.source_name, item.source_stream_id)
+                source = self.asset_list.get_stream(item.asset_path, item.stream)
                 workspace.add(x=item.x, width=item.width, z=i, offset=item.offset, source=source)
 
             from fluggo.media import libav

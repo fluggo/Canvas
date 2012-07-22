@@ -156,8 +156,8 @@ class _SequenceItemHandler(SceneItem):
     @property
     def stream_key(self):
         # Provide a more intelligent key
-        if isinstance(self.source_ref, model.StreamSourceRef):
-            return (self.source_ref.source_name, self.source_ref.stream)
+        if isinstance(self.source_ref, model.AssetStreamRef):
+            return (self.source_ref.asset_path, self.source_ref.stream)
 
         return SceneItem.stream_key(self)
 

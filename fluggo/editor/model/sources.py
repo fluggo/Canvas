@@ -28,32 +28,39 @@ from PyQt4 import QtGui
 
 _log = logging.getLogger(__name__)
 
-class Source(plugins.Source):
-    # Base source class:
-    #   Keywords
-    #   Authorship metadata
-    #   Proxies
+class Asset:
+    yaml_tag = '!Asset'
 
-    # Notes: This extends the plugin Source class with more attributes that
-    # the editor itself keeps track of, such as proxy and keyword info.
-    # There may be *some* more convergence of these types in the future,
-    # but the nice thing about this class living here is that we can safely
-    # add features to it, and it can be our way of looking up true plugin
-    # sources.
+    '''is_source: True if the asset can be used as a source.'''
+    is_source = False
+
+    '''is_composition: True if the editor can create a composition editor for this asset.'''
+    is_composition = False
+
+    '''contains_assets: True if this asset can contain other assets.'''
+    contains_assets = False
 
     def __init__(self, name, keywords=[]):
-        plugins.Source.__init__(self, name)
-        self._keywords = set(keywords)
-        self.updated = signal.Signal()
+        self.name = name
+        self._keywords = frozenset(keywords)
         self.keywords_updated = signal.Signal()
-        self._source_list = None
+        self._asset_list = None
+
+    def get_source(self):
+        '''Return the plugins.Source that the asset represents, if any. May return
+        None if the asset doesn't represent a source.'''
+        return None
+
+    def create_composition_editor(self):
+        '''Return a new composition editor for this composition.'''
+        raise NotImplementedError
 
     def get_definition(self):
-        return {'keywords': list(self.keywords)}
+        return {'keywords': list(self._keywords)}
 
     @property
-    def source_list(self):
-        return self._source_list
+    def asset_list(self):
+        return self._asset_list
 
     @property
     def keywords(self):
@@ -65,9 +72,6 @@ class Source(plugins.Source):
         # than once
         pass
 
-    def visit(self, visitfunc):
-        pass
-
     @classmethod
     def to_yaml(cls, dumper, data):
         return dumper.represent_mapping(cls.yaml_tag, data.get_definition())
@@ -76,14 +80,132 @@ class Source(plugins.Source):
     def from_yaml(cls, loader, node):
         return cls(name='', **loader.construct_mapping(node))
 
-class PluginSource(Source):
-    yaml_tag = '!PluginSource'
+class _SpaceSource(plugins.Source):
+    def __init__(self, space, asset_list):
+        plugins.Source.__init__(self, space.name)
+        self._space = space
+        self._asset_list = asset_list
+        self._video = None
+        self._audio = None
 
+    def bring_online(self):
+        try:
+            self._video = graph.SpaceVideoManager(self, self._asset_list, self.space.video_format)
+            self._video.name = 'Video'
+            self.follow_alerts(self._video)
+
+            self._audio = graph.SpaceAudioManager(self, self._asset_list, self.space.audio_format)
+            self._video.name = 'Audio'
+            self.follow_alerts(self._audio)
+
+            plugins.Source.bring_online(self)
+        except:
+            self.take_offline()
+
+    def take_offline(self):
+        if self._video:
+            self.unfollow_alerts(self._video)
+            self._video = None
+
+        if self._audio:
+            self.unfollow_alerts(self._audio)
+            self._audio = None
+
+        plugins.Source.take_offline(self)
+
+    def get_streams(self):
+        if self.offline:
+            raise plugins.SourceOfflineError
+
+        return [self._video, self._audio]
+
+
+
+class SpaceAsset(Asset):
+    yaml_tag = '!SpaceAsset'
+    is_source = True
+    is_composition = True
+
+    def __init__(self, space, **kw):
+        Asset.__init__(self, **kw)
+        self._space = space
+        self._source = None
+
+    @property
+    def space(self):
+        return self._space
+
+    def get_definition(self):
+        d = Asset.get_definition(self)
+        d['space'] = self._space
+
+        return d
+
+    def get_source(self):
+        if not self._asset_list:
+            raise RuntimeError('Asset list not set on asset')
+
+        self._source = _SpaceSource(self._space, self._asset_list)
+
+    def fixup(self):
+        Asset.fixup(self)
+        self._space.fixup()
+
+if False:
+    class Source(plugins.Source):
+        # Base source class:
+        #   Keywords
+        #   Authorship metadata
+        #   Proxies
+
+        # Notes: This extends the plugin Source class with more attributes that
+        # the editor itself keeps track of, such as proxy and keyword info.
+        # There may be *some* more convergence of these types in the future,
+        # but the nice thing about this class living here is that we can safely
+        # add features to it, and it can be our way of looking up true plugin
+        # sources.
+
+        def __init__(self, name, keywords=[]):
+            plugins.Source.__init__(self, name)
+            self._keywords = set(keywords)
+            self.updated = signal.Signal()
+            self.keywords_updated = signal.Signal()
+            self._source_list = None
+
+        def get_definition(self):
+            return {'keywords': list(self.keywords)}
+
+        @property
+        def source_list(self):
+            return self._source_list
+
+        @property
+        def keywords(self):
+            return self._keywords
+
+        def fixup(self):
+            # Prepares temporary data, such as checking up on
+            # source and proxy files; sources should expect this can run more
+            # than once
+            pass
+
+        def visit(self, visitfunc):
+            pass
+
+        @classmethod
+        def to_yaml(cls, dumper, data):
+            return dumper.represent_mapping(cls.yaml_tag, data.get_definition())
+
+        @classmethod
+        def from_yaml(cls, loader, node):
+            return cls(name='', **loader.construct_mapping(node))
+
+class PluginSource(plugins.Source):
     def _handle_offline_changed(self, source):
         self.offline = self._source.offline
 
     def __init__(self, name, plugin_urn, definition, **kw):
-        Source.__init__(self, name, **kw)
+        plugins.Source.__init__(self, name, **kw)
         self.definition = definition
         self.plugin_urn = plugin_urn
         self._plugin = None
@@ -118,7 +240,7 @@ class PluginSource(Source):
                 return
 
         if not self._source:
-            # TODO: Try to create source from plugin
+            # Try to create source from plugin
             try:
                 self._source = self._plugin.create_source(self.name, self.definition)
                 self._source.offline_changed.connect(self._handle_offline_changed)
@@ -215,14 +337,33 @@ class PluginSource(Source):
 
         raise plugins.SourceOfflineError
 
-class RuntimeSource(Source):
+class PluginSourceAsset(Asset):
+    yaml_tag = '!PluginSourceAsset'
+    is_source = True
+    is_composition = False
+
+    def __init__(self, name, plugin_urn, definition, **kw):
+        Asset.__init__(self, name=name, **kw)
+        self._source = PluginSource(name, plugin_urn, definition)
+
+    def get_definition(self):
+        d = Asset.get_definition(self)
+        d['plugin_urn'] = self._source.plugin_urn
+        d['definition'] = self._source.get_definition()
+
+        return d
+
+    def get_source(self):
+        return self._source
+
+class RuntimeSource(plugins.Source):
     '''
     A runtime source is a source with a list of already-generated and ready-to-go
     streams. It can't be saved in a file-- its main purpose is to support testing.
     '''
-    def __init__(self, name, streams, keywords=[]):
+    def __init__(self, name, streams):
         '''Create a runtime source. *streams* is a dictionary of streams.'''
-        Source.__init__(self, name, keywords)
+        plugins.Source.__init__(self, name)
         self._streams = streams
 
     def get_stream_formats(self):
@@ -237,19 +378,29 @@ class RuntimeSource(Source):
     def get_definition(self):
         raise RuntimeError("Runtime sources can't be written to a file.")
 
-class StreamSourceRef(object):
+class RuntimeSourceAsset(Asset):
+    is_source = True
+
+    def __init__(self, source):
+        Asset.__init__(self, source.name)
+        self._source = source
+
+    def get_source(self):
+        return self._source
+
+class AssetStreamRef:
     '''
     References a stream from a video or audio file.
     '''
-    yaml_tag = '!StreamSourceRef'
+    yaml_tag = '!AssetStreamRef'
 
-    def __init__(self, source_name=None, stream=None, **kw):
-        self._source_name = source_name
+    def __init__(self, asset_path=None, stream=None, **kw):
+        self._asset_path = asset_path
         self._stream = stream
 
     @property
-    def source_name(self):
-        return self._source_name
+    def asset_path(self):
+        return self._asset_path
 
     @property
     def stream(self):
@@ -257,7 +408,7 @@ class StreamSourceRef(object):
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        result = {'source_name': data._source_name,
+        result = {'asset_path': data._asset_path,
             'stream': data._stream}
 
         return dumper.represent_mapping(cls.yaml_tag, result)
@@ -267,8 +418,8 @@ class StreamSourceRef(object):
         return cls(**loader.construct_mapping(node))
 
     def __eq__(self, other):
-        return (isinstance(other, StreamSourceRef) and
-            other._source_name == self._source_name and
+        return (isinstance(other, AssetStreamRef) and
+            other._asset_path == self._asset_path and
             other._stream == self._stream)
 
 class AssetList(collections.MutableMapping):
@@ -365,8 +516,9 @@ def _yamlreg(cls):
     yaml.add_representer(cls, cls.to_yaml)
     yaml.add_constructor(cls.yaml_tag, cls.from_yaml)
 
-_yamlreg(StreamSourceRef)
-_yamlreg(PluginSource)
+_yamlreg(AssetStreamRef)
+_yamlreg(SpaceAsset)
+_yamlreg(PluginSourceAsset)
 _yamlreg(Project)
 
 
