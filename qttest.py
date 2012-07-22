@@ -124,15 +124,13 @@ class AssetSearchModel(QAbstractTableModel):
         return 1
 
 class AssetSearchWidget(QDockWidget):
-    def __init__(self, asset_list):
+    def __init__(self, uimgr):
         QDockWidget.__init__(self, 'Assets')
-        self.asset_list = asset_list
-        self.model = AssetSearchModel(asset_list)
-
         widget = QWidget()
 
+        self.uimgr = uimgr
+
         self.view = QListView(self)
-        self.view.setModel(self.model)
         self.view.setDragEnabled(True)
 
         layout = QVBoxLayout(widget)
@@ -142,9 +140,12 @@ class AssetSearchWidget(QDockWidget):
         self.setAcceptDrops(True)
         self._dropAssets = None
 
-    def set_asset_list(self, asset_list):
-        self.asset_list = asset_list
-        self.model = AssetSearchModel(asset_list)
+        self.update_asset_list()
+        uimgr.asset_list_changed.connect(self.update_asset_list)
+
+    def update_asset_list(self):
+        self.asset_list = self.uimgr.asset_list
+        self.model = AssetSearchModel(self.uimgr.asset_list)
         self.view.setModel(self.model)
 
     def dragEnterEvent(self, event):
@@ -270,11 +271,30 @@ class UndoDockWidget(QDockWidget):
         self.setWidget(widget)
 
 class UIManager:
+    '''
+    Provides top-level services to the rest of the UI.
+
+    What this means will probably expand in the future, but for now it means
+    providing access to the clock (which includes controlling playback), the
+    project and asset list, the current composition, and the top-level undo stack.
+    '''
+
     def __init__(self):
         self._clock = None
         self.clock_state_changed = signal.Signal()
         self._clock_callback_handle = None
         self.set_clock(None)
+
+        self._asset_list = None
+        self.asset_list_changed = signal.Signal()
+
+    @property
+    def asset_list(self):
+        return self._asset_list
+
+    def set_asset_list(self, asset_list):
+        self._asset_list = asset_list
+        self.asset_list_changed()
 
     def set_clock(self, clock):
         # A warning: clock and clock_callback_handle will create a pointer cycle here,
@@ -317,8 +337,6 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.setMinimumHeight(600)
 
-        self.asset_list = model.AssetList()
-
         self.audio_player = alsa.AlsaPlayer(48000, 2, None)
 
         self.alert_publisher = plugins.AlertPublisher()
@@ -330,6 +348,7 @@ class MainWindow(QMainWindow):
         #self.clock = process.SystemPresentationClock()
         self.uimgr = UIManager()
         self.uimgr.set_clock(self.audio_player)
+        self.uimgr.set_asset_list(model.AssetList())
 
         # Workaround for Qt bug (see RulerView)
         #self.view = ui.canvas.View(self.clock)
@@ -348,7 +367,7 @@ class MainWindow(QMainWindow):
 
         self.addDockWidget(Qt.BottomDockWidgetArea, self.video_dock)
 
-        self.search_dock = AssetSearchWidget(self.asset_list)
+        self.search_dock = AssetSearchWidget(self.uimgr)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.search_dock)
 
         self.notify_dock = notificationwidget.NotificationWidget(self.alert_publisher)
@@ -403,18 +422,12 @@ class MainWindow(QMainWindow):
         # FOR TESTING
         self.open_file('test_timeline.yaml')
 
-    def setup_asset_list(self):
-        self.space_asset = None
-        self.setup_space()
-
-        self.search_dock.set_asset_list(self.asset_list)
-
     def setup_space(self):
         '''Set up the work environment for the new value of self.space_asset.'''
         if not self.space_asset:
             self.audio_player.set_audio_source(None)
             self.video_widget.setVideoSource(None)
-            self.view.set_space(None, self.asset_list, None)
+            self.view.set_space(None, self.uimgr.asset_list, None)
             return
 
         # TODO: What we're doing here with the undo stack will be wrong for
@@ -427,10 +440,10 @@ class MainWindow(QMainWindow):
             self.alert_publisher.unfollow_alerts(self.video_graph_manager)
 
         # TODO: Let the UIManager figure this out from the asset's source property
-        self.audio_graph_manager = graph.SpaceAudioManager(self.space_asset.space, self.asset_list, self.space_asset.space.audio_format)
+        self.audio_graph_manager = graph.SpaceAudioManager(self.space_asset.space, self.uimgr.asset_list, self.space_asset.space.audio_format)
         self.audio_player.set_audio_source(self.audio_graph_manager)
 
-        self.video_graph_manager = graph.SpaceVideoManager(self.space_asset.space, self.asset_list, self.space_asset.space.video_format)
+        self.video_graph_manager = graph.SpaceVideoManager(self.space_asset.space, self.uimgr.asset_list, self.space_asset.space.video_format)
         self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
         self.video_widget.setDisplayWindow(self.space_asset.space.video_format.active_area)
         self.video_widget.setPixelAspectRatio(self.space_asset.space.video_format.pixel_aspect_ratio)
@@ -439,7 +452,7 @@ class MainWindow(QMainWindow):
         self.alert_publisher.follow_alerts(self.video_graph_manager)
         self.alert_publisher.follow_alerts(self.audio_graph_manager)
 
-        self.view.set_space(self.space_asset.space, self.asset_list, undo_stack)
+        self.view.set_space(self.space_asset.space, self.uimgr.asset_list, undo_stack)
 
         self.uimgr.seek(0)
 
@@ -548,15 +561,13 @@ class MainWindow(QMainWindow):
             project = yaml.load(stream)
             project.fixup()
 
-        self.asset_list = project.assets
-        self.setup_asset_list()
-
-        self.space_asset = self.asset_list['test']
+        self.uimgr.set_asset_list(project.assets)
+        self.space_asset = self.uimgr.asset_list['test']
         self.setup_space()
 
     def save_file(self, path):
         with open(path, 'w') as stream:
-            yaml.dump_all(self.asset_list.get_asset_list(), stream)
+            yaml.dump_all(self.uimgr.asset_list.get_asset_list(), stream)
 
     def render_dv(self):
         # FIXME: This code path has LONG since been outdated
