@@ -253,7 +253,11 @@ class Source(AlertPublisher):
         stream is blank, and set an alert for the user to resolve any issues.
         The stream should be updated if the user resolves the issue.
         '''
-        raise NotImplementedError
+        for stream in self.get_streams():
+            if stream.name == name:
+                return stream
+
+        raise KeyError
 
     def get_source_metadata(self):
         '''Return the set of user metadata defined in the source itself, if any.
@@ -428,12 +432,13 @@ class VideoStream(process.VideoPassThroughFilter, AlertPublisher):
 
     stream_type = 'video'
 
-    def __init__(self, base_filter=None, format=None, range=(None, None)):
+    def __init__(self, base_filter=None, format=None, range=(None, None), name=None):
         self._format = format or VideoFormat()
         self._defined_range = range
         self.format_changed = signal.Signal()
         self.frames_updated = signal.Signal()
         self.range_changed = signal.Signal()
+        self.name = name
 
         AlertPublisher.__init__(self)
         process.VideoPassThroughFilter.__init__(self, base_filter)
@@ -513,12 +518,13 @@ class AudioStream(process.AudioPassThroughFilter, AlertPublisher):
 
     stream_type = 'audio'
 
-    def __init__(self, base_filter=None, format=None, range=(None, None)):
+    def __init__(self, base_filter=None, format=None, range=(None, None), name=None):
         self._format = format or VideoFormat()
         self._defined_range = range
         self.format_changed = signal.Signal()
         self.frames_updated = signal.Signal()
         self.range_changed = signal.Signal()
+        self.name = name
 
         AlertPublisher.__init__(self)
         process.AudioPassThroughFilter.__init__(self, base_filter)

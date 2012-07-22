@@ -324,10 +324,3 @@ class _LibavSource(plugins.Source):
 
         return self._streams
 
-    def get_stream(self, name):
-        for stream in self.get_streams():
-            if stream.name == name:
-                return stream
-
-        raise KeyError
-
