@@ -380,28 +380,20 @@ class MainWindow(QMainWindow):
         self.create_actions()
         self.create_menus()
 
-        center_widget = QWidget(self)
-        layout = QVBoxLayout(center_widget)
-
         top_toolbar = QToolBar(self)
 
         for action in self.canvas_group.actions():
             top_toolbar.addAction(action)
-
-        layout.addWidget(top_toolbar)
-        layout.addWidget(self.document_tabs)
 
         transport_toolbar = QToolBar(self)
 
         for action in self.transport_group.actions():
             transport_toolbar.addAction(action)
 
-        layout.addWidget(transport_toolbar)
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
-        center_widget.setLayout(layout)
+        self.addToolBar(Qt.TopToolBarArea, transport_toolbar)
+        self.addToolBar(Qt.TopToolBarArea, top_toolbar)
 
-        self.setCentralWidget(center_widget)
+        self.setCentralWidget(self.document_tabs)
 
         # Set up the defaults
         # Only one space for now, we'll do multiple later
