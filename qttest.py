@@ -350,12 +350,8 @@ class MainWindow(QMainWindow):
         self.uimgr.set_clock(self.audio_player)
         self.uimgr.set_asset_list(model.AssetList())
 
-        # Workaround for Qt bug (see RulerView)
-        #self.view = ui.canvas.View(self.clock)
-        self.view = ui.canvas.RulerView(self.uimgr)
-
-        #self.view.setViewport(QGLWidget())
-        self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
+        # TODO: Go away when multiple compositions arrive
+        self.view = None
 
         format = QGLFormat()
         self.video_dock = QDockWidget('Video Preview', self)
@@ -378,6 +374,9 @@ class MainWindow(QMainWindow):
         self.tabifyDockWidget(self.search_dock, self.undo_dock)
 
         # Set up UI
+        self.document_tabs = QTabWidget(self,
+            tabsClosable=True, documentMode=True, elideMode=Qt.ElideRight)
+
         self.create_actions()
         self.create_menus()
 
@@ -390,7 +389,7 @@ class MainWindow(QMainWindow):
             top_toolbar.addAction(action)
 
         layout.addWidget(top_toolbar)
-        layout.addWidget(self.view)
+        layout.addWidget(self.document_tabs)
 
         transport_toolbar = QToolBar(self)
 
@@ -424,10 +423,13 @@ class MainWindow(QMainWindow):
 
     def setup_space(self):
         '''Set up the work environment for the new value of self.space_asset.'''
+        if self.view:
+            self.document_tabs.removeTab(0)
+            self.view = None
+
         if not self.space_asset:
             self.audio_player.set_audio_source(None)
             self.video_widget.setVideoSource(None)
-            self.view.set_space(None, self.uimgr.asset_list, None)
             return
 
         # TODO: What we're doing here with the undo stack will be wrong for
@@ -436,10 +438,17 @@ class MainWindow(QMainWindow):
         undo_stack = QUndoStack(self.undo_group)
         self.undo_group.setActiveStack(undo_stack)
 
+        # Workaround for Qt bug (see RulerView)
+        #self.view = ui.canvas.View(self.clock)
+        self.view = ui.canvas.RulerView(self.uimgr, self.space_asset.space, undo_stack)
+
+        #self.view.setViewport(QGLWidget())
+        self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
+
         if self.video_graph_manager:
             self.alert_publisher.unfollow_alerts(self.video_graph_manager)
 
-        # TODO: Let the UIManager figure this out from the asset's source property
+        # TODO: Let the UIManager figure this out from the asset's source
         self.audio_graph_manager = graph.SpaceAudioManager(self.space_asset.space, self.uimgr.asset_list, self.space_asset.space.audio_format)
         self.audio_player.set_audio_source(self.audio_graph_manager)
 
@@ -452,7 +461,7 @@ class MainWindow(QMainWindow):
         self.alert_publisher.follow_alerts(self.video_graph_manager)
         self.alert_publisher.follow_alerts(self.audio_graph_manager)
 
-        self.view.set_space(self.space_asset.space, self.uimgr.asset_list, undo_stack)
+        self.document_tabs.addTab(self.view, self.space_asset.name)
 
         self.uimgr.seek(0)
 

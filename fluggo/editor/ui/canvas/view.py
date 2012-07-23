@@ -27,7 +27,7 @@ class RulerView(QtGui.QWidget):
     a bug in whatever version of Qt is running on Ubuntu 10.04. Qt ignores the
     viewport margins for determining where a drag operation has hit the scene;
     it works just fine for normal mouse ops.'''
-    def __init__(self, uimgr):
+    def __init__(self, uimgr, space, undo_stack):
         QtGui.QWidget.__init__(self)
         self.vbox = QtGui.QVBoxLayout(self)
         self.vbox.setStretch(1, 1)
@@ -37,7 +37,7 @@ class RulerView(QtGui.QWidget):
         self.vbox.setContentsMargins(width, 0, width, 0)
 
         self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
-        self.view = View(uimgr, ruler=self.ruler)
+        self.view = View(uimgr, space, undo_stack, ruler=self.ruler)
         self.view.setFrameShape(QtGui.QFrame.NoFrame)
 
         self.vbox.addWidget(self.ruler)
@@ -58,7 +58,7 @@ class View(QtGui.QGraphicsView):
     max_zoom_x = 100000.0
     min_zoom_x = 0.01
 
-    def __init__(self, uimgr, ruler=None):
+    def __init__(self, uimgr, space, undo_stack, ruler=None):
         QtGui.QGraphicsView.__init__(self)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.setViewportUpdateMode(self.FullViewportUpdate)
@@ -83,21 +83,7 @@ class View(QtGui.QGraphicsView):
 
         self.ruler.current_frame_changed.connect(self.handle_ruler_current_frame_changed)
 
-    def _clock_changed(self, speed, time, data):
-        if speed.numerator and self.playback_timer is None:
-            self.playback_timer = self.startTimer(20)
-        elif not speed.numerator and self.playback_timer is not None:
-            self.killTimer(self.playback_timer)
-            self.playback_timer = None
-
-        self._update_clock_frame(time)
-
-    def set_space(self, space, source_list, undo_stack):
-        if not space:
-            self.setScene(None)
-            return
-
-        self.setScene(Scene(space, source_list, undo_stack))
+        self.setScene(Scene(space, uimgr.asset_list, undo_stack))
 
         self._reset_ruler_scroll()
         self.set_current_frame(0)
@@ -107,6 +93,15 @@ class View(QtGui.QGraphicsView):
         self.scene().marker_removed.connect(self._handle_marker_changed)
 
         self.scale(4 * 24, 1)
+
+    def _clock_changed(self, speed, time, data):
+        if speed.numerator and self.playback_timer is None:
+            self.playback_timer = self.startTimer(20)
+        elif not speed.numerator and self.playback_timer is not None:
+            self.killTimer(self.playback_timer)
+            self.playback_timer = None
+
+        self._update_clock_frame(time)
 
     def selected_model_items(self):
         return self.scene().selected_model_items()
