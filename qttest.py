@@ -259,9 +259,9 @@ class AssetSearchWidget(QDockWidget):
         return
 
 class UndoDockWidget(QDockWidget):
-    def __init__(self, undo_group):
+    def __init__(self, uimgr):
         QDockWidget.__init__(self, 'Undo')
-        self._undo_group = undo_group
+        self._undo_group = uimgr.undo_group
         self._undo_widget = QUndoView(self._undo_group, self)
 
         widget = QWidget()
@@ -288,6 +288,16 @@ class UIManager:
         self._asset_list = None
         self.asset_list_changed = signal.Signal()
 
+        self._undo_group = QUndoGroup()
+        self._project_undo_stack = QUndoStack(self._undo_group)
+
+        self._editors = []
+        self.editor_added = signal.Signal()
+        self.editor_removed = signal.Signal()
+
+        self._current_editor = None
+        self.current_editor_changed = signal.Signal()
+
     @property
     def asset_list(self):
         return self._asset_list
@@ -295,6 +305,59 @@ class UIManager:
     def set_asset_list(self, asset_list):
         self._asset_list = asset_list
         self.asset_list_changed()
+
+    def add_editor(self, editor):
+        if editor in self._editors:
+            _log.warning('Trying to add editor already in UIManager')
+            return
+
+        undo_stack = editor.get_undo_stack()
+        self.undo_group.addStack(undo_stack)
+        self._editors.append(editor)
+        self.editor_added(editor)
+
+    def remove_editor(self, editor):
+        if editor not in self._editors:
+            _log.warning('Trying to remove editor not in UIManager')
+            return
+
+        if editor == self._current_editor:
+            self.set_current_editor(None)
+
+        undo_stack = editor.get_undo_stack()
+        self.undo_group.removeStack(undo_stack)
+        self._editors.remove(editor)
+        self.editor_removed(editor)
+
+    @property
+    def current_editor(self):
+        return self._current_editor
+
+    def set_current_editor(self, editor):
+        # TODO: Add this comp to the undo group somehow
+        # For now, we cheat here by adding only one other item to the undo group
+        # TODO: Really in the near future we should have the UIManager aware of
+        # all
+        if editor == self._current_editor:
+            return
+
+        if editor not in self._editors:
+            _log.warning('Trying to set a current editor not in UIManager')
+            return
+
+        undo_stack = editor.get_undo_stack()
+        self.undo_group.setActiveStack(undo_stack)
+
+        self._current_editor = editor
+        self.current_editor_changed()
+
+    @property
+    def undo_group(self):
+        return self._undo_group
+
+    @property
+    def project_undo_stack(self):
+        return self._project_undo_stack
 
     def set_clock(self, clock):
         # A warning: clock and clock_callback_handle will create a pointer cycle here,
@@ -332,6 +395,64 @@ class UIManager:
     def stop(self):
         return self._clock.stop()
 
+class CompositionEditor:
+    @property
+    def name(self):
+        '''Return the name of the composition.'''
+        raise NotImplementedError
+
+    @property
+    def asset(self):
+        '''Returns the asset being edited.'''
+        return None
+
+    def get_source(self):
+        '''Return the source being edited, if any. This is used to provide the
+        video and audio previews.'''
+        raise NotImplementedError
+
+    def get_undo_stack(self):
+        '''Return the QUndoStack for this editor, or None if it doesn't have one.'''
+        return None
+
+    def get_widget(self):
+        '''Return the widget to display in the main area of the editor.'''
+        raise NotImplementedError
+
+class SpaceEditor(CompositionEditor):
+    def __init__(self, uimgr, space_asset):
+        self.uimgr = uimgr
+        self._asset = space_asset
+        self.view = None
+
+    @property
+    def name(self):
+        return self.asset.name
+
+    @property
+    def asset(self):
+        return self._asset
+
+    def get_source(self):
+        return self.asset.get_source()
+
+    def _create_widget(self):
+        if not self.view:
+            # Workaround for Qt bug (see RulerView)
+            #self.view = ui.canvas.View(self.clock)
+            self.view = ui.canvas.RulerView(self.uimgr, self.asset.space)
+
+            #self.view.setViewport(QGLWidget())
+            self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
+
+    def get_widget(self):
+        self._create_widget()
+        return self.view
+
+    def get_undo_stack(self):
+        self._create_widget()
+        return self.view.undo_stack
+
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
@@ -342,16 +463,21 @@ class MainWindow(QMainWindow):
         self.alert_publisher = plugins.AlertPublisher()
         self.alert_publisher.follow_alerts(plugins.PluginManager.alert_manager)
 
-        self.video_graph_manager = None
-
         # Set up canvas
         #self.clock = process.SystemPresentationClock()
         self.uimgr = UIManager()
         self.uimgr.set_clock(self.audio_player)
         self.uimgr.set_asset_list(model.AssetList())
+        self.uimgr.editor_added.connect(self.handle_editor_added)
+        self.uimgr.current_editor_changed.connect(self.handle_editor_changed)
+        self.uimgr.editor_removed.connect(self.handle_editor_removed)
 
         # TODO: Go away when multiple compositions arrive
         self.view = None
+
+        self.video_stream = None
+        self.audio_stream = None
+        self.current_source = None
 
         format = QGLFormat()
         self.video_dock = QDockWidget('Video Preview', self)
@@ -369,13 +495,13 @@ class MainWindow(QMainWindow):
         self.notify_dock = notificationwidget.NotificationWidget(self.alert_publisher)
         self.tabifyDockWidget(self.search_dock, self.notify_dock)
 
-        self.undo_group = QUndoGroup(self)
-        self.undo_dock = UndoDockWidget(self.undo_group)
+        self.undo_dock = UndoDockWidget(self.uimgr)
         self.tabifyDockWidget(self.search_dock, self.undo_dock)
 
         # Set up UI
         self.document_tabs = QTabWidget(self,
             tabsClosable=True, documentMode=True, elideMode=Qt.ElideRight)
+        self.document_tabs.currentChanged.connect(self.handle_current_tab_changed)
 
         self.create_actions()
         self.create_menus()
@@ -395,67 +521,25 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self.document_tabs)
 
-        # Set up the defaults
-        # Only one space for now, we'll do multiple later
-        vidformat = plugins.VideoFormat(interlaced=True,
-            full_frame=box2i(-8, -1, -8 + 720 - 1, -1 + 480 - 1),
-            active_area=box2i(0, -1, 704 - 1, -1 + 480 - 1),
-            pixel_aspect_ratio=fractions.Fraction(40, 33),
-            white_point='D65',
-            frame_rate=fractions.Fraction(24000, 1001))
+        if False:
+            # Set up the defaults
+            # Only one space for now, we'll do multiple later
+            vidformat = plugins.VideoFormat(interlaced=True,
+                full_frame=box2i(-8, -1, -8 + 720 - 1, -1 + 480 - 1),
+                active_area=box2i(0, -1, 704 - 1, -1 + 480 - 1),
+                pixel_aspect_ratio=fractions.Fraction(40, 33),
+                white_point='D65',
+                frame_rate=fractions.Fraction(24000, 1001))
 
-        audformat = plugins.AudioFormat(sample_rate=48000,
-            channel_assignment=('FrontLeft', 'FrontRight'))
+            audformat = plugins.AudioFormat(sample_rate=48000,
+                channel_assignment=('FrontLeft', 'FrontRight'))
 
-        self.space_asset = model.Space('', vidformat, audformat)
-        self.setup_space()
+            self.space_asset = model.Space('', vidformat, audformat)
+
+        self.source_alert = None
 
         # FOR TESTING
         self.open_file('test_timeline.yaml')
-
-    def setup_space(self):
-        '''Set up the work environment for the new value of self.space_asset.'''
-        if self.view:
-            self.document_tabs.removeTab(0)
-            self.view = None
-
-        if not self.space_asset:
-            self.audio_player.set_audio_source(None)
-            self.video_widget.setVideoSource(None)
-            return
-
-        # TODO: What we're doing here with the undo stack will be wrong for
-        # multiple compositions; we need to keep the stack associated with a
-        # QGraphicsScene
-        undo_stack = QUndoStack(self.undo_group)
-        self.undo_group.setActiveStack(undo_stack)
-
-        # Workaround for Qt bug (see RulerView)
-        #self.view = ui.canvas.View(self.clock)
-        self.view = ui.canvas.RulerView(self.uimgr, self.space_asset.space, undo_stack)
-
-        #self.view.setViewport(QGLWidget())
-        self.view.setBackgroundBrush(QBrush(QColor.fromRgbF(0.5, 0.5, 0.5)))
-
-        if self.video_graph_manager:
-            self.alert_publisher.unfollow_alerts(self.video_graph_manager)
-
-        # TODO: Let the UIManager figure this out from the asset's source
-        self.audio_graph_manager = graph.SpaceAudioManager(self.space_asset.space, self.uimgr.asset_list, self.space_asset.space.audio_format)
-        self.audio_player.set_audio_source(self.audio_graph_manager)
-
-        self.video_graph_manager = graph.SpaceVideoManager(self.space_asset.space, self.uimgr.asset_list, self.space_asset.space.video_format)
-        self.video_graph_manager.frames_updated.connect(self.handle_update_frames)
-        self.video_widget.setDisplayWindow(self.space_asset.space.video_format.active_area)
-        self.video_widget.setPixelAspectRatio(self.space_asset.space.video_format.pixel_aspect_ratio)
-        self.video_widget.setVideoSource(self.video_graph_manager)
-
-        self.alert_publisher.follow_alerts(self.video_graph_manager)
-        self.alert_publisher.follow_alerts(self.audio_graph_manager)
-
-        self.document_tabs.addTab(self.view, self.space_asset.name)
-
-        self.uimgr.seek(0)
 
     def create_actions(self):
         self.open_space_action = QAction('&Open...', self,
@@ -465,8 +549,8 @@ class MainWindow(QMainWindow):
         self.quit_action = QAction('&Quit', self, shortcut=QKeySequence.Quit,
             statusTip='Quit the application', triggered=self.close, menuRole=QAction.QuitRole)
 
-        self.undo_action = self.undo_group.createUndoAction(self)
-        self.redo_action = self.undo_group.createRedoAction(self)
+        self.undo_action = self.uimgr.undo_group.createUndoAction(self)
+        self.redo_action = self.uimgr.undo_group.createRedoAction(self)
 
         self.render_dv_action = QAction('&Render DV...', self,
             statusTip='Render the entire canvas to a DV video', triggered=self.render_dv)
@@ -484,16 +568,20 @@ class MainWindow(QMainWindow):
         self.transport_group = QActionGroup(self)
         self.transport_rewind_action = QAction('Rewind', self.transport_group,
             statusTip='Play the current timeline backwards', triggered=self.transport_rewind,
-            icon=self.style().standardIcon(QStyle.SP_MediaSeekBackward), checkable=True)
+            icon=self.style().standardIcon(QStyle.SP_MediaSeekBackward), checkable=True,
+            shortcutContext=Qt.ApplicationShortcut)
         self.transport_play_action = QAction('Play', self.transport_group,
             statusTip='Play the current timeline', triggered=self.transport_play,
-            icon=self.style().standardIcon(QStyle.SP_MediaPlay), checkable=True)
+            icon=self.style().standardIcon(QStyle.SP_MediaPlay), checkable=True,
+            shortcutContext=Qt.ApplicationShortcut)
         self.transport_pause_action = QAction('Pause', self.transport_group,
             statusTip='Pause the current timeline', triggered=self.transport_pause,
-            icon=self.style().standardIcon(QStyle.SP_MediaPause), checked=True, checkable=True)
+            icon=self.style().standardIcon(QStyle.SP_MediaPause), checked=True, checkable=True,
+            shortcutContext=Qt.ApplicationShortcut)
         self.transport_fastforward_action = QAction('Rewind', self.transport_group,
             statusTip='Play the current timeline at double speed', triggered=self.transport_fastforward,
-            icon=self.style().standardIcon(QStyle.SP_MediaSeekForward), checkable=True)
+            icon=self.style().standardIcon(QStyle.SP_MediaSeekForward), checkable=True,
+            shortcutContext=Qt.ApplicationShortcut)
 
         self.canvas_group = QActionGroup(self)
         self.canvas_bring_forward_action = QAction('Bring Forward', self.canvas_group,
@@ -522,6 +610,111 @@ class MainWindow(QMainWindow):
         self.tools_menu = self.menuBar().addMenu('&Tools')
         self.tools_menu.addAction(self.tools_edit_plugins)
         self.tools_menu.addAction(self.tools_edit_decoders)
+
+    def handle_editor_added(self, editor):
+        widget = editor.get_widget()
+        self.document_tabs.addTab(widget, editor.name)
+
+    def handle_editor_removed(self, editor):
+        i = self.document_tabs.indexOf(editor.get_widget())
+
+        if i != -1:
+            self.document_tabs.removeTab(i)
+
+    def handle_current_tab_changed(self, index):
+        # GAK
+        pass
+
+    def handle_editor_changed(self):
+        if self.source_alert:
+            self.alert_publisher.hide_alert(self.source_alert)
+            self.source_alert = None
+
+        # TODO: Maybe save off which items we were looking at in
+        # the video preview before
+        if self.video_stream:
+            self.video_stream.frames_updated.disconnect(self.handle_update_frames)
+            self.alert_publisher.unfollow_alerts(self.video_stream)
+            self.video_widget.setVideoSource(None)
+            self.video_stream = None
+
+        if self.audio_stream:
+            self.alert_publisher.unfollow_alerts(self.audio_stream)
+            self.audio_player.set_audio_source(None)
+            self.audio_stream = None
+
+        if self.current_source:
+            self.alert_publisher.unfollow_alerts(self.current_source)
+            self.current_source = None
+
+        if not self.uimgr.current_editor:
+            return
+
+        if self.document_tabs.currentWidget() != self.uimgr.current_editor.get_widget():
+            self.document_tabs.setCurrentWidget(self.uimgr.current_editor.get_widget())
+
+        source = self.uimgr.current_editor.get_source()
+
+        if not source:
+            _log.warning("Current editor doesn't have a source")
+            return
+
+        self.current_source = source
+        self.alert_publisher.follow_alerts(source)
+
+        if source.offline:
+            try:
+                source.bring_online()
+
+                if source.offline:
+                    # TODO: Make retry action
+                    self.source_alert = plugins.Alert(
+                        'Unable to bring composition source online',
+                        icon=plugins.AlertIcon.Warning,
+                        source=self.uimgr.current_editor.name,
+                        model_obj=self.uimgr.current_editor.asset,
+                        actions=[])
+
+                    self.alert_publisher.show_alert(self.source_alert)
+                    return
+            except Exception as ex:
+                # TODO: Make retry action
+                self.source_alert = plugins.Alert(
+                    'Unexpected ' + ex.__class__.__name__ + ' while bringing source online: ' + str(ex),
+                    icon=plugins.AlertIcon.Error,
+                    source='',
+                    model_obj=self.uimgr.current_editor.name,
+                    actions=[],
+                    exc_info=True)
+
+                self.alert_publisher.show_alert(self.source_alert)
+                return
+
+        def first_or_default(items, cond):
+            for item in items:
+                if cond(item):
+                    return item
+
+            return None
+
+        streams = source.get_streams()
+
+        video = first_or_default(streams, lambda a: a.stream_type == 'video')
+        audio = first_or_default(streams, lambda a: a.stream_type == 'audio')
+
+        # TODO: Set channels, sample rate, current time
+        self.audio_stream = audio
+        self.alert_publisher.follow_alerts(audio)
+        self.audio_player.set_audio_source(audio)
+
+        # TODO: Set frame rate, progressive/interlaced, etc.
+        self.video_stream = video
+        video.frames_updated.connect(self.handle_update_frames)
+        self.alert_publisher.follow_alerts(video)
+
+        self.video_widget.setDisplayWindow(video.format.active_area)
+        self.video_widget.setPixelAspectRatio(video.format.pixel_aspect_ratio)
+        self.video_widget.setVideoSource(video)
 
     def handle_update_frames(self, min_frame, max_frame):
         if not self.space_asset:
@@ -564,7 +757,10 @@ class MainWindow(QMainWindow):
 
         self.uimgr.set_asset_list(project.assets)
         self.space_asset = self.uimgr.asset_list['test']
-        self.setup_space()
+
+        editor = SpaceEditor(self.uimgr, self.space_asset)
+        self.uimgr.add_editor(editor)
+        self.uimgr.set_current_editor(editor)
 
     def save_file(self, path):
         with open(path, 'w') as stream:

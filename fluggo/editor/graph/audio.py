@@ -55,8 +55,9 @@ class SpaceAudioManager(plugins.AudioStream):
         def unwatch(self):
             self.canvas_item.updated.disconnect(self.handle_updated)
 
-    def __init__(self, canvas_space, source_list, format):
+    def __init__(self, canvas_space, source_list):
         self.workspace = process.AudioWorkspace()
+        format = canvas_space.audio_format
         plugins.AudioStream.__init__(self, self.workspace, format)
 
         self.canvas_space = canvas_space

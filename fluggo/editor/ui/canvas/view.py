@@ -18,27 +18,27 @@
 
 from .scene import *
 from ..ruler import TimeRuler
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import Qt
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
 from fluggo.media import timecode, process
 
-class RulerView(QtGui.QWidget):
+class RulerView(QWidget):
     '''This is a view combined with a ruler separately. It's a workaround for
     a bug in whatever version of Qt is running on Ubuntu 10.04. Qt ignores the
     viewport margins for determining where a drag operation has hit the scene;
     it works just fine for normal mouse ops.'''
-    def __init__(self, uimgr, space, undo_stack):
-        QtGui.QWidget.__init__(self)
-        self.vbox = QtGui.QVBoxLayout(self)
+    def __init__(self, uimgr, space):
+        QWidget.__init__(self)
+        self.vbox = QVBoxLayout(self)
         self.vbox.setStretch(1, 1)
         self.vbox.setSpacing(0)
 
-        width = self.style().pixelMetric(QtGui.QStyle.PM_DefaultFrameWidth)
+        width = self.style().pixelMetric(QStyle.PM_DefaultFrameWidth)
         self.vbox.setContentsMargins(width, 0, width, 0)
 
         self.ruler = TimeRuler(self, timecode=timecode.NtscDropFrame())
-        self.view = View(uimgr, space, undo_stack, ruler=self.ruler)
-        self.view.setFrameShape(QtGui.QFrame.NoFrame)
+        self.view = View(uimgr, space, ruler=self.ruler)
+        self.view.setFrameShape(QFrame.NoFrame)
 
         self.vbox.addWidget(self.ruler)
         self.vbox.addWidget(self.view)
@@ -48,18 +48,18 @@ class RulerView(QtGui.QWidget):
         # Pass on to the view
         return getattr(self.view, name)
 
-class View(QtGui.QGraphicsView):
-    black_pen = QtGui.QPen(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0))
-    white_pen = QtGui.QPen(QtGui.QColor.fromRgbF(1.0, 1.0, 1.0))
+class View(QGraphicsView):
+    black_pen = QPen(QColor.fromRgbF(0.0, 0.0, 0.0))
+    white_pen = QPen(QColor.fromRgbF(1.0, 1.0, 1.0))
     handle_width = 10.0
-    snap_marker_color = QtGui.QColor.fromRgbF(0.0, 1.0, 0.0)
+    snap_marker_color = QColor.fromRgbF(0.0, 1.0, 0.0)
     snap_marker_width = 5.0
     snap_distance = 8.0
     max_zoom_x = 100000.0
     min_zoom_x = 0.01
 
-    def __init__(self, uimgr, space, undo_stack, ruler=None):
-        QtGui.QGraphicsView.__init__(self)
+    def __init__(self, uimgr, space, ruler=None):
+        QGraphicsView.__init__(self)
         self.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.setViewportUpdateMode(self.FullViewportUpdate)
         self.setResizeAnchor(self.AnchorUnderMouse)
@@ -76,6 +76,7 @@ class View(QtGui.QGraphicsView):
         self.uimgr = uimgr
         self.uimgr.clock_state_changed.connect(self._clock_changed)
         self.clock_frame = 0
+        self.undo_stack = QUndoStack(self)
 
         self.white = False
         self.frame = 0
@@ -83,7 +84,7 @@ class View(QtGui.QGraphicsView):
 
         self.ruler.current_frame_changed.connect(self.handle_ruler_current_frame_changed)
 
-        self.setScene(Scene(space, uimgr.asset_list, undo_stack))
+        self.setScene(Scene(space, uimgr.asset_list, self.undo_stack))
 
         self._reset_ruler_scroll()
         self.set_current_frame(0)
@@ -115,7 +116,7 @@ class View(QtGui.QGraphicsView):
 
         self.ruler.set_scale(sx / self.scene().frame_rate)
 
-        self.setTransform(QtGui.QTransform.fromScale(float(sx), float(sy)))
+        self.setTransform(QTransform.fromScale(float(sx), float(sy)))
         self._reset_ruler_scroll()
         self.scene().update_view_decorations(self)
 
@@ -179,7 +180,7 @@ class View(QtGui.QGraphicsView):
         self._reset_ruler_scroll()
 
     def scrollContentsBy(self, dx, dy):
-        QtGui.QGraphicsView.scrollContentsBy(self, dx, dy)
+        QGraphicsView.scrollContentsBy(self, dx, dy)
 
         if dx and self.scene():
             self._reset_ruler_scroll()
@@ -196,7 +197,7 @@ class View(QtGui.QGraphicsView):
         top = self.mapToScene(top.x() - 1, top.y())
         bottom = self.mapToScene(bottom.x() + 1, bottom.y())
 
-        self.updateScene([QtCore.QRectF(top, bottom)])
+        self.updateScene([QRectF(top, bottom)])
 
     def timerEvent(self, event):
         if event.timerId() == self.blink_timer:
@@ -209,17 +210,17 @@ class View(QtGui.QGraphicsView):
         '''
         Draws the marker in the foreground.
         '''
-        QtGui.QGraphicsView.drawForeground(self, painter, rect)
+        QGraphicsView.drawForeground(self, painter, rect)
 
         # Clock frame line
         x = self.clock_frame / float(self.scene().frame_rate)
         painter.setPen(self.black_pen)
-        painter.drawLine(QtCore.QPointF(x, rect.y()), QtCore.QPointF(x, rect.y() + rect.height()))
+        painter.drawLine(QPointF(x, rect.y()), QPointF(x, rect.y() + rect.height()))
 
         # Current frame line, which blinks
         x = self.frame / float(self.scene().frame_rate)
         painter.setPen(self.white_pen if self.white else self.black_pen)
-        painter.drawLine(QtCore.QPointF(x, rect.y()), QtCore.QPointF(x, rect.y() + rect.height()))
+        painter.drawLine(QPointF(x, rect.y()), QPointF(x, rect.y() + rect.height()))
 
         for marker in self.scene().markers:
             marker.paint(self, painter, rect)
@@ -236,13 +237,13 @@ class View(QtGui.QGraphicsView):
         top = self.mapFromScene(time, self.scene().scene_top)
         bottom = self.mapFromScene(time, self.scene().scene_bottom)
 
-        items = self.items(QtCore.QRect(top.x() - self.snap_distance, top.y(), self.snap_distance * 2, bottom.y() - top.y()), Qt.IntersectsItemBoundingRect)
+        items = self.items(QRect(top.x() - self.snap_distance, top.y(), self.snap_distance * 2, bottom.y() - top.y()), Qt.IntersectsItemBoundingRect)
 
         # TODO: Find something more generic than video items
         items = [a for a in items if isinstance(a, ClipItem) and a is not item]
 
         # Transform the snap_distance into time units
-        distance = self.viewportTransform().inverted()[0].mapRect(QtCore.QRectF(0.0, 0.0, self.snap_distance, 1.0)).width()
+        distance = self.viewportTransform().inverted()[0].mapRect(QRectF(0.0, 0.0, self.snap_distance, 1.0)).width()
         x = None
 
         #if distance < 1.0:

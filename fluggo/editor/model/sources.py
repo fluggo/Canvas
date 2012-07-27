@@ -87,22 +87,44 @@ class _SpaceSource(plugins.Source):
         self._asset_list = asset_list
         self._video = None
         self._audio = None
+        self._load_alert = None
 
     def bring_online(self):
+        if self._load_alert:
+            self.hide_alert(self._load_alert)
+            self._load_alert = None
+
         try:
-            self._video = graph.SpaceVideoManager(self, self._asset_list, self.space.video_format)
+            import fluggo.editor.graph
+
+            self._video = fluggo.editor.graph.SpaceVideoManager(self._space, self._asset_list)
             self._video.name = 'Video'
             self.follow_alerts(self._video)
 
-            self._audio = graph.SpaceAudioManager(self, self._asset_list, self.space.audio_format)
+            self._audio = fluggo.editor.graph.SpaceAudioManager(self._space, self._asset_list)
             self._video.name = 'Audio'
             self.follow_alerts(self._audio)
 
             plugins.Source.bring_online(self)
-        except:
+        except Exception as ex:
+            _log.debug('Error while creating source for space "{0}"', self.name, exc_info=True)
             self.take_offline()
 
+            self._load_alert = plugins.Alert(
+                'Unexpected ' + ex.__class__.__name__ + ' while creating source from space: ' + str(ex),
+                icon=plugins.AlertIcon.Error,
+                source=self.name,
+                model_obj=self._space,
+                actions=[],
+                exc_info=True)
+
+            self.show_alert(self._load_alert)
+
     def take_offline(self):
+        if self._load_alert:
+            self.hide_alert(self._load_alert)
+            self._load_alert = None
+
         if self._video:
             self.unfollow_alerts(self._video)
             self._video = None
@@ -145,7 +167,10 @@ class SpaceAsset(Asset):
         if not self._asset_list:
             raise RuntimeError('Asset list not set on asset')
 
-        self._source = _SpaceSource(self._space, self._asset_list)
+        if not self._source:
+            self._source = _SpaceSource(self._space, self._asset_list)
+
+        return self._source
 
     def fixup(self):
         Asset.fixup(self)
