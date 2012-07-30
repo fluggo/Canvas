@@ -125,6 +125,11 @@ class ClipManipulator:
                     anchor_commands = []
 
                     for item in anchored:
+                        if not item.anchor:
+                            # We probably found them through our own two-way anchor,
+                            # in which case our anchor is already correct
+                            continue
+
                         new_anchor = item.anchor.clone(target=self.seq_item)
                         command = UpdateItemPropertiesCommand(item, anchor=new_anchor)
                         command.redo()
@@ -133,7 +138,7 @@ class ClipManipulator:
 
                     self.swap_anchor_op = CompoundCommand('Swap anchors', anchor_commands, done=True)
 
-            # TODO: If this next line raises a NoRoomError, meaning we haven't
+            # If this next line raises a NoRoomError, meaning we haven't
             # placed the item anywhere, finish() needs to fail loudly, and the
             # caller needs to know it will fail
             self.seq_add_op = AddOverlapItemsToSequenceCommand(sequence, self.seq_mover, target_x)
