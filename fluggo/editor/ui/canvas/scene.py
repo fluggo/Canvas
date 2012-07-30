@@ -16,12 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import fractions
+import fractions, traceback
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 from ..canvas import *
 from fluggo import sortlist, signal
 from fluggo.editor import model
+from fluggo.media import process
 import fluggo.editor
 
 from fluggo import logging
@@ -29,65 +30,70 @@ from fluggo import logging
 _log = logging.getLogger(__name__)
 
 class Scene(QtGui.QGraphicsScene):
-    DEFAULT_HEIGHT = 40
+    DEFAULT_HEIGHT = 40.0
 
-    class DragOp(object):
-        def lay_out(self, pos):
-            raise NotImplementedError
-
-        def leave(self):
-            raise NotImplementedError
-
-        def drop(self):
-            raise NotImplementedError
-
-    class SourceDragOp(DragOp):
-        def __init__(self, scene, source):
-            # TODO: Handle source offline, source missing
+    class AssetAddManipulator:
+        def __init__(self, space, source, asset_path):
             self.source = source
-            self.scene = scene
-            self.present = False
+            self.space = space
+
+            self.add_op = None
+            self.item_manip = None
 
             default_streams = source.get_default_streams()
 
-            self.drag_items = [PlaceholderItem(source.name, stream, 0, 0, self.scene.DEFAULT_HEIGHT) for stream in default_streams]
-            self.drag_key_index = 0
+            self.items = []
+            commands = []
 
-        def lay_out(self, pos):
-            # All other items are placed in relation to the item at drag_key_index
-            item = self.drag_items[self.drag_key_index]
-            time = round(pos.x() * self.scene.get_rate(item.stream_format.type)) / self.scene.get_rate(item.stream_format.type)
+            for i, stream in enumerate(default_streams):
+                # TODO: Handle streams with infinite ranges
+                item = model.Clip(type=stream.stream_type,
+                    source=model.AssetStreamRef(asset_path=asset_path, stream=stream.name),
+                    x=stream.defined_range[0], offset=stream.defined_range[0],
+                    length=stream.defined_range[1] - stream.defined_range[0] + 1,
+                    y=i * Scene.DEFAULT_HEIGHT, height=Scene.DEFAULT_HEIGHT)
 
-            for i, item in enumerate(self.drag_items):
-                item_time = round(time * self.scene.get_rate(item.stream_format.type)) / self.scene.get_rate(item.stream_format.type)
-                item.setPos(item_time, pos.y() + self.scene.DEFAULT_HEIGHT * (float(i) - 0.5))
+                if i != 0:
+                    # Set two-way anchors to match for defined_range differences
+                    offset_ns = (process.get_frame_time(space.rate(item.type()), item.x)
+                        - process.get_frame_time(space.rate(self.items[0].type()), self.items[0].x))
 
-            if not self.present:
-                for placeholder in self.drag_items:
-                    self.scene.addItem(placeholder)
+                    item.update(anchor=model.Anchor(target=self.items[0], offset_ns=offset_ns, two_way=True))
 
-                self.present = True
+                self.items.append(item)
+                commands.append(model.InsertItemCommand(space, item, i))
+
+            self.add_commands = commands
+
+        def add_to_space(self):
+            if not self.add_op:
+                self.add_op = model.CompoundCommand('Add asset to space', self.add_commands)
+                self.add_op.redo()
+
+                self.item_manip = model.ItemManipulator(self.items, self.items[0].x, Scene.DEFAULT_HEIGHT * 0.5)
+
+        def set_space_item(self, space, x, y):
+            self.add_to_space()
+            self.item_manip.set_space_item(space, x, y)
+
+        def set_sequence_item(self, sequence, x, y, operation):
+            self.add_to_space()
+            self.item_manip.set_sequence_item(sequence, x, y, operation)
 
         def reset(self):
-            for item in self.drag_items:
-                self.scene.removeItem(item)
+            if self.item_manip:
+                self.item_manip.reset()
+                self.item_manip = None
 
-            self.present = False
+            if self.add_op:
+                self.add_op.undo()
+                self.add_op = None
 
         def finish(self):
-            # Turn them into real boys and girls
-            items = []
+            if not self.add_op:
+                raise RuntimeError('Operation not in correct state for finish')
 
-            for item in self.drag_items:
-                rate = self.scene.get_rate(item.stream_format.type)
-
-                items.append(model.Clip(type=item.stream_format.type,
-                    source=model.AssetStreamRef(asset_path=item.asset_path, stream=item.stream_format.index),
-                    x=int(round(item.pos().x() * float(rate))), y=item.pos().y(), length=item.width, height=item.height))
-
-                self.scene.removeItem(item)
-
-            self.scene.space[0:0] = items
+            return model.CompoundCommand('Drag asset to canvas', [self.add_op, self.item_manip.finish()], done=True)
 
     def __init__(self, space, source_list, undo_stack):
         QtGui.QGraphicsScene.__init__(self)
@@ -96,6 +102,8 @@ class Scene(QtGui.QGraphicsScene):
         self.space.item_added.connect(self._handle_item_added)
         self.space.item_removed.connect(self._handle_item_removed)
         self.drag_op = None
+        self.drag_exc = None
+        self.drag_is_offline = False
         self.undo_stack = undo_stack
         self.sort_list = sortlist.SortedList(keyfunc=lambda a: a.item.z, index_attr='z_order')
         self.marker_added = signal.Signal()
@@ -174,6 +182,8 @@ class Scene(QtGui.QGraphicsScene):
         self.marker_removed(marker)
 
     def do_drag(self, event):
+        '''Start a drag op from the current selection. Used by individual items
+        when they find out they are being dragged.'''
         drag = QtGui.QDrag(event.widget())
         data = QtCore.QMimeData()
         data.obj = DragDropSelection(self.space, self.selected_model_items(), event.scenePos())
@@ -188,6 +198,11 @@ class Scene(QtGui.QGraphicsScene):
     def dragMoveEvent(self, event):
         QtGui.QGraphicsScene.dragMoveEvent(self, event)
 
+        if self.drag_exc or self.drag_is_offline:
+            # An error has occurred, which we'll report if they drop here
+            event.ignore()
+            return
+
         if not self.drag_op:
             data = event.mimeData()
             obj = data.obj if hasattr(data, 'obj') else None
@@ -195,11 +210,27 @@ class Scene(QtGui.QGraphicsScene):
             if isinstance(obj, DragDropSelection) and obj.space == self.space:
                 # Our own drag-and-drop items
                 self.drag_op = model.ItemManipulator(obj.objects, event.scenePos().x(), obj.grab_pos.y())
-            elif isinstance(obj, fluggo.editor.DragDropAsset):
-                # TODO: Use the ItemManipulator to move these around
+            elif isinstance(obj, fluggo.editor.DragDropAsset) and obj.asset.is_source:
+                source = obj.asset.get_source()
+
+                if source.offline:
+                    try:
+                        source.bring_online()
+
+                        if source.offline:
+                            _log.warning('Failed to bring source online')
+                            self.drag_is_offline = True
+                            event.ignore()
+                            return
+                    except Exception:
+                        _log.warning('Exception bringing source online', exc_info=True)
+                        self.drag_exc = traceback.format_exc()
+                        event.ignore()
+                        return
+
+                # Use the ItemManipulator to move these around
+                self.drag_op = Scene.AssetAddManipulator(self.space, source, obj.asset.path)
                 event.accept()
-                self.drag_op = Scene.SourceDragOp(self, obj.asset)
-                self.drag_op.lay_out(event.scenePos())
 
         if not self.drag_op:
             event.ignore()
@@ -223,7 +254,7 @@ class Scene(QtGui.QGraphicsScene):
 
 
 
-                
+
 
 #            if not event.isAccepted():
 #                event.accept()
@@ -256,8 +287,31 @@ class Scene(QtGui.QGraphicsScene):
             finally:
                 self.drag_op = None
 
+        self.drag_exc = None
+        self.drag_is_offline = False
+
     def dropEvent(self, event):
         QtGui.QGraphicsScene.dropEvent(self, event)
+
+        if self.drag_exc:
+            mbox = QMessageBox(self,
+                text='Could not bring the asset online',
+                informativeText='An unexpected error happened while trying to bring the asset online.',
+                icon=QMessageBox.Warning,
+                detailedText=self.drag_exc)
+            mbox.exec_()
+
+            event.ignore()
+
+        if self.drag_is_offline:
+            # TODO: Show alerts from the source?
+            mbox = QMessageBox(self,
+                text='Could not bring the asset online',
+                informativeText='The asset failed to come online.',
+                icon=QMessageBox.Warning)
+            mbox.exec_()
+
+            event.ignore()
 
         if self.drag_op:
             try:
@@ -270,6 +324,9 @@ class Scene(QtGui.QGraphicsScene):
                 self.drag_op.reset()
             finally:
                 self.drag_op = None
+
+        self.drag_exc = None
+        self.drag_is_offline = False
 
     @property
     def scene_top(self):
