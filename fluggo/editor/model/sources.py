@@ -63,6 +63,11 @@ class Asset:
         return self._asset_list
 
     @property
+    def path(self):
+        # TODO: Return full path of this asset
+        return self.name
+
+    @property
     def keywords(self):
         return self._keywords
 
