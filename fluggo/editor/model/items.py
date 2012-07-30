@@ -313,7 +313,7 @@ class Item(object):
 
             self._anchor = kw['anchor']
 
-            if self._anchor:
+            if self._anchor and self._space:
                 self._space.add_anchor_map(self, self._anchor.target)
 
                 if self._anchor.two_way:
