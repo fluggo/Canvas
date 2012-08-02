@@ -95,6 +95,22 @@ class View(QGraphicsView):
 
         self.scale(4 * 24, 1)
 
+        self.canvas_group = QActionGroup(self)
+        self.canvas_bring_forward_action = QAction('Bring Forward', self.canvas_group,
+            statusTip='Bring the current item(s) forward', triggered=self.canvas_bring_forward,
+            icon=self.style().standardIcon(QStyle.SP_ArrowUp))
+        self.canvas_send_backward_action = QAction('Send Backward', self.canvas_group,
+            statusTip='Bring the current item(s) forward', triggered=self.canvas_send_backward,
+            icon=self.style().standardIcon(QStyle.SP_ArrowDown))
+
+        self.top_toolbar = QToolBar(self)
+
+        for action in self.canvas_group.actions():
+            self.top_toolbar.addAction(action)
+
+    def get_toolbars(self):
+        return [self.top_toolbar]
+
     def _clock_changed(self, speed, time, data):
         if speed.numerator and self.playback_timer is None:
             self.playback_timer = self.startTimer(20)
@@ -259,4 +275,44 @@ class View(QGraphicsView):
                 distance = abs(x - time)
 
         return x
+
+    def canvas_bring_forward(self):
+        items = list(self.view.selected_model_items())
+        command = None
+
+        if len(items) == 0:
+            return
+
+        if len(items) == 1:
+            # Gosh I hope the active stack is the right one
+            command = model.BringItemForwardCommand(items[0])
+            self.undo_group.activeStack().push(command)
+            self.view.load_selection(items)
+            return
+
+        command = CompoundCommand('Bring items forward',
+            [model.BringItemForwardCommand(item) for item in items])
+        self.undo_group.activeStack().push(command)
+
+        self.view.load_selection(items)
+
+    def canvas_send_backward(self):
+        items = list(self.view.selected_model_items())
+        command = None
+
+        if len(items) == 0:
+            return
+
+        if len(items) == 1:
+            # Gosh I hope the active stack is the right one
+            command = model.SendItemBackCommand(items[0])
+            self.undo_group.activeStack().push(command)
+            self.view.load_selection(items)
+            return
+
+        command = CompoundCommand('Send items back',
+            [model.SendItemBackCommand(item) for item in items])
+        self.undo_group.activeStack().push(command)
+
+        self.view.load_selection(items)
 

@@ -419,6 +419,15 @@ class CompositionEditor:
         '''Return the widget to display in the main area of the editor.'''
         raise NotImplementedError
 
+    def get_toolbars(self):
+        '''Return a list of toolbars provided by the composition editor.
+
+        Multiple composition editors are expected to return the same toolbars (that
+        is, the same instances). If the toolbar's object is named (the toolbar's
+        objectName property is not an empty string), the UIManager may make an effort
+        to preserve the toolbar's placement when running the application again.'''
+        return []
+
 class SpaceEditor(CompositionEditor):
     def __init__(self, uimgr, space_asset):
         self.uimgr = uimgr
@@ -452,6 +461,10 @@ class SpaceEditor(CompositionEditor):
     def get_undo_stack(self):
         self._create_widget()
         return self.view.undo_stack
+
+    def get_toolbars(self):
+        self._create_widget()
+        return self.view.get_toolbars()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -506,18 +519,12 @@ class MainWindow(QMainWindow):
         self.create_actions()
         self.create_menus()
 
-        top_toolbar = QToolBar(self)
-
-        for action in self.canvas_group.actions():
-            top_toolbar.addAction(action)
-
         transport_toolbar = QToolBar(self)
 
         for action in self.transport_group.actions():
             transport_toolbar.addAction(action)
 
         self.addToolBar(Qt.TopToolBarArea, transport_toolbar)
-        self.addToolBar(Qt.TopToolBarArea, top_toolbar)
 
         self.setCentralWidget(self.document_tabs)
 
@@ -537,6 +544,10 @@ class MainWindow(QMainWindow):
             self.space_asset = model.Space('', vidformat, audformat)
 
         self.source_alert = None
+
+        self._seen_toolbars = set()
+        self._current_toolbars = set()
+        self._visible_toolbars = set()
 
         # FOR TESTING
         self.open_file('test_timeline.yaml')
@@ -582,14 +593,6 @@ class MainWindow(QMainWindow):
             statusTip='Play the current timeline at double speed', triggered=self.transport_fastforward,
             icon=self.style().standardIcon(QStyle.SP_MediaSeekForward), checkable=True,
             shortcutContext=Qt.ApplicationShortcut)
-
-        self.canvas_group = QActionGroup(self)
-        self.canvas_bring_forward_action = QAction('Bring Forward', self.canvas_group,
-            statusTip='Bring the current item(s) forward', triggered=self.canvas_bring_forward,
-            icon=self.style().standardIcon(QStyle.SP_ArrowUp))
-        self.canvas_send_backward_action = QAction('Send Backward', self.canvas_group,
-            statusTip='Bring the current item(s) forward', triggered=self.canvas_send_backward,
-            icon=self.style().standardIcon(QStyle.SP_ArrowDown))
 
     def create_menus(self):
         self.file_menu = self.menuBar().addMenu('&File')
@@ -650,9 +653,35 @@ class MainWindow(QMainWindow):
         if not self.uimgr.current_editor:
             return
 
+        # Show toolbars
+        # Once upon a time, I considered caching these. I don't do that now because
+        # each editor creates its own copy of each action. I do want those to be
+        # garbage-collected. I would love to figure out a good caching scheme,
+        # but I think that will probably best come from the editors themselves.
+        new_toolbars = set(self.uimgr.current_editor.get_toolbars())
+
+        for toolbar in (self._current_toolbars - new_toolbars):
+            toolbar.removeToolBar(toolbar)
+            self._current_toolbars.remove(toolbar)
+
+        for toolbar in (new_toolbars - self._current_toolbars):
+            # TODO: Remember positions, if that's possible
+            if toolbar.objectName() != '' and toolbar.objectName() not in self._seen_toolbars:
+                self._seen_toolbars.add(toolbar.objectName())
+                self._visible_toolbars.add(toolbar.objectName())
+
+            self._current_toolbars.add(toolbar)
+            self.addToolBar(Qt.TopToolBarArea, toolbar)
+
+        for toolbar in new_toolbars:
+            if toolbar.objectName() != '':
+                toolbar.setVisible(toolbar.objectName() in self._visible_toolbars)
+
+        # Set correct tab
         if self.document_tabs.currentWidget() != self.uimgr.current_editor.get_widget():
             self.document_tabs.setCurrentWidget(self.uimgr.current_editor.get_widget())
 
+        # Set up source and previews
         source = self.uimgr.current_editor.get_source()
 
         if not source:
@@ -819,46 +848,6 @@ class MainWindow(QMainWindow):
     def transport_rewind(self):
         self.uimgr.play(-2)
         self.transport_rewind_action.setChecked(True)
-
-    def canvas_bring_forward(self):
-        items = list(self.view.selected_model_items())
-        command = None
-
-        if len(items) == 0:
-            return
-
-        if len(items) == 1:
-            # Gosh I hope the active stack is the right one
-            command = model.BringItemForwardCommand(items[0])
-            self.undo_group.activeStack().push(command)
-            self.view.load_selection(items)
-            return
-
-        command = CompoundCommand('Bring items forward',
-            [model.BringItemForwardCommand(item) for item in items])
-        self.undo_group.activeStack().push(command)
-
-        self.view.load_selection(items)
-
-    def canvas_send_backward(self):
-        items = list(self.view.selected_model_items())
-        command = None
-
-        if len(items) == 0:
-            return
-
-        if len(items) == 1:
-            # Gosh I hope the active stack is the right one
-            command = model.SendItemBackCommand(items[0])
-            self.undo_group.activeStack().push(command)
-            self.view.load_selection(items)
-            return
-
-        command = CompoundCommand('Send items back',
-            [model.SendItemBackCommand(item) for item in items])
-        self.undo_group.activeStack().push(command)
-
-        self.view.load_selection(items)
 
     @_log.warnonerror('Error executing plugin editor dialog')
     def edit_plugins(self, event):
