@@ -1,36 +1,10 @@
 
-class NotificationManager(object):
-    '''Not a plugin. Lets plugins report errors and give the user ways to manage them.'''
-    def add_notification(self, notification):
-        '''Add a notification to the list of notifications shown to the user.'''
-        raise NotImplementedError
+# Idea: Use file change date / hash /size to know when things need to be rebuilt
+# You could even think of the whole thing as a build process
 
-    def remove_notification(self, notification):
-        raise NotImplementedError
-
-class Notification(object):
-    '''Base class of NotificationManager notifications.'''
-
-    def get_plugin(self):
-        '''Return a reference to the plugin that made this notification.'''
-        raise NotImplementedError
-
-    def get_object(self):
-        '''Return a reference to the object affected by this notification, such as a source.
-
-        If the notification is general, return None.'''
-        return None
-
-    def get_description(self):
-        '''Return a short, localized string description of the error or warning.'''
-        raise NotImplementedError
-
-    def get_actions(self):
-        '''Return a list of QActions the user can choose from to resolve the notification.'''
-        return []
 
 # More plugin types: File output, preview output, transitions, effects,
-# timecodes, compositions, codecs, transitions...
+# timecodes, compositions, codecs, transitions, asset...
 
 # One thing I wonder... I spent a good deal of time on the
 # canvas spaces separating model from UI from rendering, so that
@@ -445,4 +419,65 @@ class EffectParameter(object):
 
 
 
+
+class Asset:
+    # Will take some of the functionality ofPluginSource; SourceList will be AssetList
+
+    @property
+    def can_expand(self):
+        # True if the asset can contain other assets
+        return False
+
+    @property
+    def children(self):
+        # dict-like mapping of names to child assets
+        raise NotImplementedError
+
+    # Keywords, authorship, etc. is here instead of PluginSource
+
+    def can_accept_drop(self, drop):
+        # Returns true if the asset can accept the given dropped object
+        # Can be anything, but can be list of assets
+        return False
+
+    def drop(self, drop):
+        # Tries to drop the given objects here; only
+        # called if can_accept_drop returned True; return True if successful
+        raise NotImplementedError
+
+    def get_definition(self):
+        # As always, dictionary definition to recover the asset later
+
+class FolderAsset(Asset):
+    can_expand = True
+
+    def __init__(self, definition={}):
+        self._children = {}
+
+class PluginSourceAsset(Asset):
+    # This is what contains the plugin_urn and definition
+    pass
+
+class EffectAsset(Asset):
+    # Later down the line
+    pass
+
+
+# Things we need:
+
+# Drag-and-drop into space fixed
+# Fix moving clips around
+# Save whole project (not just source list)
+# Undo and redo
+
+# Auto-save
+# Narrative
+# Multiple spaces
+# Clip -> subclip slicing
+# Effects
+# * Source, transform, and clip effects
+# Output codec selection
+# Assets and folder assets
+
+# Multiple spaces on one canvas
 
