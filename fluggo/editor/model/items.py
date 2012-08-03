@@ -263,6 +263,19 @@ class Item(object):
     def space(self):
         return self._space
 
+    @property
+    def anchor_target(self):
+        if self.anchor:
+            return self.anchor.target
+
+        if self.space:
+            # Check for two-way anchors
+            for item in self.space.find_immediate_anchored_items(self):
+                if item.anchor and item.anchor.target == self and item.anchor.two_way:
+                    return item
+
+        return None
+
     def z_sort_key(self, y=None, z=None):
         '''
         Get an object that can be used to sort items in video overlay order. *y* and *z*
@@ -305,7 +318,7 @@ class Item(object):
             self.in_motion = bool(kw['in_motion'])
 
         if 'anchor' in kw:
-            if self._anchor:
+            if self._anchor and self._space:
                 self._space.remove_anchor_map(self, self._anchor.target)
 
                 if self._anchor.two_way:

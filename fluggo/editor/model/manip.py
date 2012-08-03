@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 class ClipManipulator:
     '''Manipulates a lone clip.'''
 
-    def __init__(self, item, grab_x, grab_y):
+    def __init__(self, item, grab_x, grab_y, ignore_anchor=False):
         self.item = item
 
         self.original_x = item.x
@@ -44,6 +44,7 @@ class ClipManipulator:
         self.original_space = item.space
         self.offset_x = float(item.x) - float(grab_x)
         self.offset_y = item.y - grab_y
+        self.ignore_anchor = ignore_anchor
 
         self.item.update(in_motion=True)
 
@@ -64,9 +65,20 @@ class ClipManipulator:
         target_x = int(round(float(x) + self.offset_x))
         target_y = y + self.offset_y
 
-        if self.item.anchor:
-            target_x = self.item.anchor.get_desired_x(self.item)
-            target_y = self.item.anchor.get_desired_y()
+        anchor = self.item.anchor
+
+        if not anchor and not self.ignore_anchor:
+            # Check for two-way anchors
+            target = self.item.anchor_target
+
+            if target:
+                # Make a pretend anchor to do the job
+                anchor = Anchor(target=target, offset_ns=-target.anchor.offset_ns)
+                anchor.y_offset = -target.anchor.y_offset
+
+        if anchor and not self.ignore_anchor:
+            target_x = anchor.get_desired_x(self.item)
+            target_y = anchor.get_desired_y()
 
         space_move_op = MoveItemCommand(self.item, x=target_x, y=target_y)
         space_move_op.redo()
@@ -364,7 +376,7 @@ class SequenceItemGroupManipulator:
 class SequenceManipulator:
     '''Manipulates an entire existing sequence.'''
 
-    def __init__(self, item, grab_x, grab_y):
+    def __init__(self, item, grab_x, grab_y, ignore_anchor=False):
         self.item = item
 
         self.original_x = item.x
@@ -382,6 +394,7 @@ class SequenceManipulator:
         self.space_remove_op = None
         self.seq_add_op = None
         self.seq_move_op = None
+        self.ignore_anchor = ignore_anchor
 
     def type(self):
         return self.item.type()
@@ -392,9 +405,20 @@ class SequenceManipulator:
         target_x = int(round(float(x) + self.offset_x))
         target_y = y + self.offset_y
 
-        if self.item.anchor:
-            target_x = self.item.anchor.get_desired_x(self.item)
-            target_y = self.item.anchor.get_desired_y()
+        anchor = self.item.anchor
+
+        if not anchor and not self.ignore_anchor:
+            # Check for two-way anchors
+            target = self.item.anchor_target
+
+            if target:
+                # Make a pretend anchor to do the job
+                anchor = Anchor(target=target, offset_ns=-target.anchor.offset_ns)
+                anchor.y_offset = -target.anchor.y_offset
+
+        if anchor and not self.ignore_anchor:
+            target_x = anchor.get_desired_x(self.item)
+            target_y = anchor.get_desired_y()
 
         space_move_op = MoveItemCommand(self.item, x=target_x, y=target_y)
         space_move_op.redo()
@@ -595,7 +619,7 @@ class ItemManipulator:
                     sequences.append(mover)
 
         if isinstance(primary, Clip):
-            primary = ClipManipulator(primary, grab_x * float(space.rate(primary.type())), grab_y)
+            primary = ClipManipulator(primary, grab_x * float(space.rate(primary.type())), grab_y, ignore_anchor=True)
         elif isinstance(primary, Sequence):
             primary = SequenceManipulator(primary, grab_x * float(space.rate(primary.type())), grab_y)
         elif isinstance(primary, SequenceItem):
@@ -607,23 +631,39 @@ class ItemManipulator:
         # Sort the items so that anchored items appear after their anchor
         seen = {primary}
         itemset = frozenset(items)
-        new_list = []
-
-        while len(new_list) != len(items):
-            for item in items:
-                if not item.anchor or item.anchor.target not in itemset or item.anchor.target in seen:
-                    seen.add(item)
-                    new_list.append(item)
-
-        items = new_list
-
         self.items = []
+        last_len = 0
 
-        for item in items:
-            if isinstance(item, Clip):
-                self.items.append(ClipManipulator(item, grab_x * float(space.rate(item.type())), grab_y))
-            else:
-                self.items.append(SequenceManipulator(item, grab_x * float(space.rate(item.type())), grab_y))
+        while len(self.items) != len(items):
+            for item in items:
+                if item in seen:
+                    continue
+
+                target = item.anchor_target
+
+                if not target or (target not in itemset) or (target in seen):
+                    seen.add(item)
+
+                    if isinstance(item, Clip):
+                        self.items.append(ClipManipulator(item, grab_x * float(space.rate(item.type())), grab_y))
+                    else:
+                        self.items.append(SequenceManipulator(item, grab_x * float(space.rate(item.type())), grab_y))
+
+            if len(self.items) == last_len:
+                # All we've got are circular anchors left; find one and break it
+                # Favor one with the lowest frame rate
+                local_list = [item for item in items if item not in seen]
+                local_list.sort(key=space.rate(item.type()))
+
+                item = local_list[0]
+                seen.add(item)
+
+                if isinstance(item, Clip):
+                    self.items.append(ClipManipulator(item, grab_x * float(space.rate(item.type())), grab_y))
+                else:
+                    self.items.append(SequenceManipulator(item, grab_x * float(space.rate(item.type())), grab_y))
+
+            last_len = len(self.items)
 
     def set_space_item(self, space, x, y):
         x = float(x)

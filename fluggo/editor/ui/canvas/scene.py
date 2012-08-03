@@ -137,8 +137,16 @@ class Scene(QtGui.QGraphicsScene):
         self.sort_list.add(ui_item)
 
     def selected_model_items(self):
-        '''Model items that are selected.'''
-        return [item.model_item for item in self.selectedItems() if hasattr(item, 'model_item') and item.model_item is not None]
+        '''Return a list of model items that are selected, with the focus item
+        (if any) first.'''
+        items = list(self.selectedItems())
+        focus_item = self.focusItem()
+
+        if focus_item and focus_item in items:
+            items.remove(focus_item)
+            items.insert(0, focus_item)
+
+        return [item.model_item for item in items if hasattr(item, 'model_item') and item.model_item is not None]
 
     def _scene_item_for_model_item(self, item):
         # TODO: Might find a more efficient way to do this

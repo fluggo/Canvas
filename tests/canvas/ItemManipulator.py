@@ -14,6 +14,8 @@ frame_rate = float(vidformat.frame_rate)
 audformat = plugins.AudioFormat(
     sample_rate = 48000, channel_assignment=['FL', 'FR'])
 
+sample_rate = fractions.Fraction(48000, 1)
+
 class test_ClipManipulator(unittest.TestCase):
     def test_sample(self):
         '''Sample'''
@@ -1299,6 +1301,110 @@ class test_SequenceItemGroupManipulator(unittest.TestCase):
         raise NotImplementedError
 
 class test_ItemManipulator(unittest.TestCase):
+    def test_move_anchored_videos(self):
+        space = model.Space('', vidformat, audformat)
+
+        item0 = model.Clip(source=model.AssetStreamRef('red', 0), x=5, y=4.5,
+            offset=13, length=10, type='video')
+        item1 = model.Clip(source=model.AssetStreamRef('blue', 0), x=2, y=17.3,
+            offset=13, length=10, type='video', anchor=model.Anchor(target=item0))
+
+        space[:] = [item0, item1]
+
+        manip = model.ItemManipulator([item0], 7.0 / frame_rate, 4.5)
+
+        manip.set_space_item(space, 8.0 / frame_rate, 4.5)
+        self.assertEqual(item0.x, 6)
+        self.assertEqual(item0.y, 4.5)
+        self.assertEqual(item1.x, 6)
+        self.assertEqual(item1.y, 17.3)
+
+        manip.set_space_item(space, 9.3 / frame_rate, 5.0)
+        self.assertEqual(item0.x, 7)
+        self.assertEqual(item0.y, 5.0)
+        self.assertEqual(item1.x, 7)
+        self.assertEqual(item1.y, 17.3 + 0.5)
+
+        self.assertIsInstance(manip.finish(), QUndoCommand)
+
+    def test_move_anchored_audio_video(self):
+        space = model.Space('', vidformat, audformat)
+
+        item0 = model.Clip(source=model.AssetStreamRef('red', 0), x=5, y=4.5,
+            offset=13, length=10, type='video')
+        item1 = model.Clip(source=model.AssetStreamRef('blue', 0), x=2, y=17.3,
+            offset=13, length=10, type='audio', anchor=model.Anchor(target=item0))
+
+        space[:] = [item0, item1]
+
+        manip = model.ItemManipulator([item0], 7.0 / frame_rate, 4.5)
+
+        manip.set_space_item(space, 8.0 / frame_rate, 4.5)
+        self.assertEqual(item0.x, 6)
+        self.assertEqual(item0.y, 4.5)
+        self.assertEqual(item1.x, round(6.0 * float(sample_rate) / float(frame_rate)))
+        self.assertEqual(item1.y, 17.3)
+
+        manip.set_space_item(space, 9.3 / frame_rate, 5.0)
+        self.assertEqual(item0.x, 7)
+        self.assertEqual(item0.y, 5.0)
+        self.assertEqual(item1.x, round(7.0 * float(sample_rate) / float(frame_rate)))
+        self.assertEqual(item1.y, 17.3 + 0.5)
+
+        self.assertIsInstance(manip.finish(), QUndoCommand)
+
+    def test_move_anchored_audio_video_2way(self):
+        space = model.Space('', vidformat, audformat)
+
+        item0 = model.Clip(source=model.AssetStreamRef('red', 0), x=5, y=4.5,
+            offset=13, length=10, type='video')
+        item1 = model.Clip(source=model.AssetStreamRef('blue', 0), x=2, y=17.3,
+            offset=13, length=10, type='audio', anchor=model.Anchor(target=item0, two_way=True))
+
+        space[:] = [item0, item1]
+
+        manip = model.ItemManipulator([item0], 7.0 / frame_rate, 4.5)
+
+        manip.set_space_item(space, 8.0 / frame_rate, 4.5)
+        self.assertEqual(item0.x, 6)
+        self.assertEqual(item0.y, 4.5)
+        self.assertEqual(item1.x, round(6.0 * float(sample_rate) / float(frame_rate)))
+        self.assertEqual(item1.y, 17.3)
+
+        manip.set_space_item(space, 9.3 / frame_rate, 5.0)
+        self.assertEqual(item0.x, 7)
+        self.assertEqual(item0.y, 5.0)
+        self.assertEqual(item1.x, round(7.0 * float(sample_rate) / float(frame_rate)))
+        self.assertEqual(item1.y, 17.3 + 0.5)
+
+        self.assertIsInstance(manip.finish(), QUndoCommand)
+
+    def test_move_anchored_video_audio_2way(self):
+        space = model.Space('', vidformat, audformat)
+
+        item0 = model.Clip(source=model.AssetStreamRef('red', 0), x=5, y=4.5,
+            offset=13, length=10, type='video')
+        item1 = model.Clip(source=model.AssetStreamRef('blue', 0), x=2, y=17.3,
+            offset=13, length=10, type='audio', anchor=model.Anchor(target=item0, two_way=True))
+
+        space[:] = [item0, item1]
+
+        manip = model.ItemManipulator([item1], 0.0 / sample_rate, 17.3)
+
+        manip.set_space_item(space, 70000.0 / sample_rate, 17.3)
+        self.assertEqual(item1.x, 70002)
+        self.assertEqual(item1.y, 17.3)
+        self.assertEqual(item0.x, round(70000.0 * float(frame_rate) / float(sample_rate)))
+        self.assertEqual(item0.y, 4.5)
+
+#        manip.set_space_item(space, 9.3 / frame_rate, 5.0)
+#        self.assertEqual(item0.x, 7)
+#        self.assertEqual(item0.y, 5.0)
+#        self.assertEqual(item1.x, round(7.0 * float(sample_rate) / float(frame_rate)))
+#        self.assertEqual(item1.y, 17.3 + 0.5)
+
+        self.assertIsInstance(manip.finish(), QUndoCommand)
+
     def test_move_anchored_videos(self):
         space = model.Space('', vidformat, audformat)
 
