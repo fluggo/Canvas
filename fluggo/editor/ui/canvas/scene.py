@@ -31,6 +31,7 @@ _log = logging.getLogger(__name__)
 
 class Scene(QtGui.QGraphicsScene):
     DEFAULT_HEIGHT = 40.0
+    DEFAULT_LENGTH_SECONDS = 5.0
 
     class AssetAddManipulator:
         def __init__(self, space, source, asset_path):
@@ -46,11 +47,23 @@ class Scene(QtGui.QGraphicsScene):
             commands = []
 
             for i, stream in enumerate(default_streams):
-                # TODO: Handle streams with infinite ranges
+                # Handle streams with infinite ranges
+                start_pos = stream.defined_range[0]
+                end_pos = stream.defined_range[1]
+
+                if not start_pos:
+                    if not end_pos:
+                        start_pos = 0
+                        end_pos = int(round(float(space.rate(stream.stream_type)) * Scene.DEFAULT_LENGTH_SECONDS))
+                    else:
+                        start_pos = int(round(float(end_pos) - float(space.rate(stream.stream_type)) * Scene.DEFAULT_LENGTH_SECONDS))
+                else:
+                    end_pos = int(round(float(start_pos) + float(space.rate(stream.stream_type)) * Scene.DEFAULT_LENGTH_SECONDS))
+
                 item = model.Clip(type=stream.stream_type,
                     source=model.AssetStreamRef(asset_path=asset_path, stream=stream.name),
-                    x=stream.defined_range[0], offset=stream.defined_range[0],
-                    length=stream.defined_range[1] - stream.defined_range[0] + 1,
+                    x=start_pos, offset=start_pos,
+                    length=end_pos - start_pos + 1,
                     y=i * Scene.DEFAULT_HEIGHT, height=Scene.DEFAULT_HEIGHT)
 
                 if i != 0:
