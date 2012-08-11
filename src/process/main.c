@@ -176,6 +176,63 @@ static PyMethodDef module_methods[] = {
     { NULL }
 };
 
+static PyObject *__getLoggerFunc;
+
+static void python_logger( const gchar *log_domain,
+                           GLogLevelFlags log_level,
+                           const gchar *message,
+                           gpointer user_data ) {
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
+    PyObject *logger = PyObject_CallFunction( __getLoggerFunc, "s", log_domain );
+
+    if( logger == NULL ) {
+        g_printerr( "fluggo.media.process: Exception when calling logger.getLogger\n" );
+        g_log_default_handler( log_domain, log_level, message, user_data );
+        PyErr_Clear();
+        PyGILState_Release( gstate );
+        return;
+    }
+
+    // BJC: I'm not sure the GLib interpretations of these levels line up with
+    // the Python logging interpretations of the same
+    PyObject *result;
+
+    if( log_level & G_LOG_LEVEL_ERROR ) {
+        result = PyObject_CallMethod( logger, "error", "s", message );
+    }
+    else if( log_level & G_LOG_LEVEL_CRITICAL ) {
+        result = PyObject_CallMethod( logger, "critical", "s", message );
+    }
+    else if( log_level & G_LOG_LEVEL_WARNING ) {
+        result = PyObject_CallMethod( logger, "warning", "s", message );
+    }
+    else if( (log_level & G_LOG_LEVEL_MESSAGE) || (log_level & G_LOG_LEVEL_INFO) ) {
+        result = PyObject_CallMethod( logger, "info", "s", message );
+    }
+    else if( log_level & G_LOG_LEVEL_DEBUG ) {
+        result = PyObject_CallMethod( logger, "debug", "s", message );
+    }
+    else {
+        Py_CLEAR(logger);
+        PyGILState_Release( gstate );
+        return;
+    }
+
+    Py_CLEAR(logger);
+
+    if( result ) {
+        Py_CLEAR(result);
+    }
+    else {
+        g_printerr( "fluggo.media.process: Exception when calling logger routine\n" );
+        g_log_default_handler( log_domain, log_level, message, user_data );
+        PyErr_Clear();
+    }
+
+    PyGILState_Release( gstate );
+}
+
 void init_basetypes( PyObject *module );
 void init_AudioSource( PyObject *module );
 void init_VideoSource( PyObject *module );
@@ -203,6 +260,8 @@ void init_AnimationFunc( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
 PyInit_process() {
+    __getLoggerFunc = NULL;
+
     static PyModuleDef mdef = {
         .m_base = PyModuleDef_HEAD_INIT,
         .m_name = "process",
@@ -247,6 +306,13 @@ PyInit_process() {
 
     if( !g_thread_supported() )
         g_thread_init( NULL );
+
+    // Connect GLib logging support to Python logging
+    PyObject *logging_module = PyImport_ImportModule( "logging" );
+    __getLoggerFunc = PyObject_GetAttrString( logging_module, "getLogger" );
+    Py_CLEAR(logging_module);
+
+    g_log_set_default_handler( python_logger, NULL );
 
     return m;
 }
