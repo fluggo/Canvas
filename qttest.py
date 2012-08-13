@@ -1,28 +1,59 @@
-# Setup sip API usage (remove for Python 3)
-import sip
-sip.setapi('QDate', 2)
-sip.setapi('QDateTime', 2)
-sip.setapi('QTime', 2)
-sip.setapi('QUrl', 2)
-sip.setapi('QString', 2)
-sip.setapi('QVariant', 2)
+from fluggo.media import process
+import sys
 
 # Grab command-line arguments
 import argparse
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument('--log', dest='log_level',
-                        choices=['debug', 'info', 'warning', 'error', 'critical'],
-                        default='warning',
-                        help='Logging level to use.')
+argparser.add_argument('--log-level', dest='log_level',
+                       choices=['debug', 'info', 'warning', 'error', 'critical'],
+                       default='warning',
+                       help='Logging level to use for the root logger.')
 argparser.add_argument('--break-exc', dest='break_exc', action='store_true', default=False,
-                        help='Instructs PDB to break at all exceptions.')
+                       help='Instructs PDB to break at all exceptions.')
+argparser.add_argument('--log', dest='log_filter', action='append',
+                       help='Log debug events from the given module.',
+                       default=[])
+argparser.add_argument('--log-glib', dest='enable_glib_logging', action='store_true',
+                       help='Enable event logging from GLib and C processing libraries.', default=False)
 
 args = argparser.parse_args()
 
 # Set up logging
-import logging
-logging.basicConfig(level=args.log_level.upper())
+process.enable_glib_logging(args.enable_glib_logging)
+
+if True:
+    import fluggo.logging
+    import logging
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.NOTSET)
+    handler.setFormatter(logging.Formatter('{levelname}:{name}:{msg}', style='{'))
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.NOTSET)
+    root_logger.addHandler(handler)
+
+    rootno = getattr(logging, args.log_level.upper())
+
+    filtereq = [arg for arg in args.log_filter]
+    filterstart = [arg + '.' for arg in args.log_filter]
+
+    class MyFilter:
+        def filter(self, record):
+            for name in filtereq:
+                if name == record.name:
+                    return True
+
+            for name in filterstart:
+                if record.name.startswith(name):
+                    return True
+
+            if record.levelno >= rootno:
+                return True
+
+            return False
+
+    handler.addFilter(MyFilter())
 
 # Set up pdb debugging if requested
 if args.break_exc:
@@ -34,8 +65,8 @@ if args.break_exc:
     sys.excepthook = excepthook
 
 # Identify ourselves to Qt
-from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+from PyQt4.QtCore import *
 from PyQt4.QtOpenGL import *
 
 QCoreApplication.setOrganizationName('Fluggo Productions')
@@ -43,9 +74,9 @@ QCoreApplication.setOrganizationDomain('fluggo.com')
 QCoreApplication.setApplicationName('Canvas')
 
 from fluggo import signal, sortlist, logging
-from fluggo.media import process, timecode, qt, alsa
+from fluggo.media import timecode, qt, alsa
 from fluggo.media.basetypes import *
-import sys, fractions, array, collections
+import fractions, array, collections
 import os.path
 from fluggo.editor import ui, model, graph, plugins
 from fluggo.editor.ui import notificationwidget
