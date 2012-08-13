@@ -128,6 +128,7 @@ static void destroyShader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
     glDeleteObjectARB( shader->program );
     glDeleteObjectARB( shader->shader );
+    g_free( shader );
 }
 
 static void
@@ -174,7 +175,7 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
 
         if( !shader ) {
             // Time to create the program for this context
-            shader = calloc( sizeof(gl_shader_state), 1 );
+            shader = g_new0( gl_shader_state, 1 );
 
             gl_buildShader( interlaceText, &shader->shader, &shader->program );
 
