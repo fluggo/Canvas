@@ -41,7 +41,7 @@ class Codec(object):
 
     @property
     def plugin(self):
-        '''Return a reference to the plugin that created this source.'''
+        '''Return a reference to the plugin that provided this codec.'''
         return None
 
     @property
