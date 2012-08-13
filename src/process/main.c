@@ -287,6 +287,7 @@ void init_RgbaFrameF32( PyObject *module );
 void init_VideoScaler( PyObject *module );
 void init_VideoPullQueue( PyObject *module );
 void init_AnimationFunc( PyObject *module );
+void init_FrameFuncPassThroughFilter( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
 PyInit_process() {
@@ -331,6 +332,7 @@ PyInit_process() {
     init_VideoScaler( m );
     init_VideoPullQueue( m );
     init_AnimationFunc( m );
+    init_FrameFuncPassThroughFilter( m );
 
     PyModule_AddObject( m, "NS_PER_SEC", PyLong_FromLongLong( NS_PER_SEC ) );
 

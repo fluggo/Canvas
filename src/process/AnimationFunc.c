@@ -181,7 +181,7 @@ static PyTypeObject py_type_AnimationPoint = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.AnimationPoint",
     .tp_basicsize = sizeof(py_obj_AnimationPoint),
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AnimationPoint_dealloc,
     .tp_init = (initproc) AnimationPoint_init,
