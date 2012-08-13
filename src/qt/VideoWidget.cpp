@@ -13,6 +13,13 @@ VideoWidget::VideoWidget( const QGLFormat &format, QWidget *parent ) : QGLWidget
 }
 
 VideoWidget::~VideoWidget() {
+    // Our context is going to go away (hopefully it hasn't already)
+    // We need to free any memory that might have been associated with it
+    makeCurrent();
+    void *context = getCurrentGLContext();
+    g_dataset_destroy( context );
+    doneCurrent();
+
     widget_gl_free( _context );
 }
 
