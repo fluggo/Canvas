@@ -20,6 +20,9 @@
 
 #include "pyframework.h"
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "fluggo.media.process.DVReconstructionFilter"
+
 typedef struct {
     PyObject_HEAD
 
@@ -49,14 +52,40 @@ DVReconstructionFilter_dealloc( py_obj_DVReconstructionFilter *self ) {
 
 static void
 DVReconstructionFilter_get_frame( py_obj_DVReconstructionFilter *self, int frame_index, rgba_frame_f16 *frame ) {
-    coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, frame_index );
-
-    if( !image ) {
-        box2i_set_empty( &frame->current_window );
+    if( self->source.source.obj == NULL ) {
+        video_get_frame_f16( NULL, 0, frame );
         return;
     }
 
-    video_reconstruct_dv( image, frame );
+    coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, frame_index );
+
+    if( !image ) {
+        video_get_frame_f16( NULL, 0, frame );
+        return;
+    }
+
+    video_reconstruct_dv( frame, image );
+
+    if( image->free_func )
+        image->free_func( image );
+}
+
+static void
+DVReconstructionFilter_get_frame_gl( py_obj_DVReconstructionFilter *self, int frame_index, rgba_frame_gl *frame ) {
+    if( self->source.source.obj == NULL ) {
+        // No result
+        video_get_frame_gl( NULL, 0, frame );
+        return;
+    }
+
+    coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, frame_index );
+
+    if( !image ) {
+        video_get_frame_gl( NULL, 0, frame );
+        return;
+    }
+
+    video_reconstruct_dv_gl( frame, image );
 
     if( image->free_func )
         image->free_func( image );
@@ -64,6 +93,7 @@ DVReconstructionFilter_get_frame( py_obj_DVReconstructionFilter *self, int frame
 
 static video_frame_source_funcs source_funcs = {
     .get_frame = (video_get_frame_func) DVReconstructionFilter_get_frame,
+    .get_frame_gl = (video_get_frame_gl_func) DVReconstructionFilter_get_frame_gl
 };
 
 static PyObject *pySourceFuncs;
@@ -100,6 +130,5 @@ void init_DVReconstructionFilter( PyObject *module ) {
 
     pySourceFuncs = PyCapsule_New( &source_funcs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 }
-
 
 

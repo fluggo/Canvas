@@ -439,7 +439,8 @@ typedef struct {
 } coded_image_source;
 
 // Video subsampling/reconstruction
-void video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame );
+void video_reconstruct_dv( rgba_frame_f16 *frame, coded_image *planar );
+void video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar );
 coded_image *video_subsample_dv( rgba_frame_f16 *frame );
 
 

@@ -21,6 +21,9 @@
 #include <string.h>
 #include "framework.h"
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "fluggo.media.cprocess.video_reconstuct"
+
 typedef struct {
     float cb, cr;
 } cbcr_f32;
@@ -45,7 +48,7 @@ studio_luma8_to_float( uint8_t luma ) {
     Rec 709 transfer function
 */
 EXPORT void
-video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
+video_reconstruct_dv( rgba_frame_f16 *frame, coded_image *planar ) {
     const int full_width = 720, full_height = 480;
 
     // Rec. 601 YCbCr->RGB matrix in Poynton, p. 305:
@@ -131,5 +134,153 @@ video_reconstruct_dv( coded_image *planar, rgba_frame_f16 *frame ) {
     filter_free( &triangleFilter );
     g_slice_free1( sizeof(rgba_f32) * full_width, tempRow );
     g_slice_free1( sizeof(cbcr_f32) * full_width, tempChroma );
+}
+
+static const char *recon_dv_shader_text =
+"#version 110\n"
+"#extension GL_ARB_texture_rectangle : enable\n"
+"uniform sampler2DRect texY;"
+"uniform sampler2DRect texCb;"
+"uniform sampler2DRect texCr;"
+"uniform vec2 picOffset;"
+"uniform mat3 yuv2rgb;"
+
+"void main() {"
+"    vec2 yTexCoord = gl_TexCoord[0].st - picOffset;"
+"    vec2 cTexCoord = (yTexCoord - vec2(0.5, 0.5)) * vec2(0.25, 1.0) + vec2(0.5, 0.5);"
+"    float y = texture2DRect( texY, yTexCoord ).r - (16.0/256.0);"
+"    float cb = texture2DRect( texCb, cTexCoord ).r - 0.5;"
+"    float cr = texture2DRect( texCr, cTexCoord ).r - 0.5;"
+
+"    vec3 ycbcr = vec3(y, cb, cr);"
+
+"    gl_FragColor.rgb = pow(max(vec3(0.0), ycbcr * yuv2rgb), vec3(2.2));"
+"    gl_FragColor.a = 1.0;"
+"}";
+
+typedef struct {
+    GLhandleARB shader, program;
+    int texY, texCb, texCr, yuv2rgb, picOffset;
+} gl_shader_state;
+
+static void destroy_shader( gl_shader_state *shader ) {
+    // We assume that we're in the right GL context
+    glDeleteObjectARB( shader->program );
+    glDeleteObjectARB( shader->shader );
+    g_free( shader );
+}
+
+EXPORT void
+video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
+    GQuark shader_quark = g_quark_from_static_string( "cprocess::video_reconstruct::recon_dv_shader" );
+
+    if( !planar ) {
+        box2i_set_empty( &frame->current_window );
+        return;
+    }
+
+    v2i frame_size;
+    box2i_get_size( &frame->full_window, &frame_size );
+
+    void *context = getCurrentGLContext();
+    gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, shader_quark );
+
+    if( !shader ) {
+        // Time to create the program for this context
+        shader = g_new0( gl_shader_state, 1 );
+
+        g_debug( "Building DV shader..." );
+        gl_buildShader( recon_dv_shader_text, &shader->shader, &shader->program );
+
+        shader->texY = glGetUniformLocationARB( shader->program, "texY" );
+        shader->texCb = glGetUniformLocationARB( shader->program, "texCb" );
+        shader->texCr = glGetUniformLocationARB( shader->program, "texCr" );
+        shader->yuv2rgb = glGetUniformLocationARB( shader->program, "yuv2rgb" );
+        shader->picOffset = glGetUniformLocationARB( shader->program, "picOffset" );
+
+        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
+    }
+
+    GLuint textures[4];
+    glGenTextures( 4, textures );
+
+    // Set up the result texture
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[3] );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frame_size.x, frame_size.y, 0,
+        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+    gl_checkError();
+
+    // Offset the frame so that line zero is part of the first field
+    // TODO: Should probably fold these constants into the shader
+    v2i pic_offset = { 0, -1 };
+
+    v2i y_size = { 720, 480 };
+    v2i c_size = { 720 / 4, 480 };
+
+    // Rec. 601 YCbCr->RGB matrix in Poynton, p. 305:
+    // TODO: This should probably be configurable
+    float color_matrix[3][3];
+    color_matrix[0][0] = 1.0f;
+    color_matrix[0][1] = 0.0f;
+    color_matrix[0][2] = 1.402f;
+    color_matrix[1][0] = 1.0f;
+    color_matrix[1][1] = -0.344136f;
+    color_matrix[1][2] = -0.714136f;
+    color_matrix[2][0] = 1.0f;
+    color_matrix[2][1] = 1.772f;
+    color_matrix[2][2] = 0.0f;
+
+    box2i_set( &frame->current_window,
+        max( pic_offset.x, frame->full_window.min.x ),
+        max( pic_offset.y, frame->full_window.min.y ),
+        min( y_size.x + pic_offset.x - 1, frame->full_window.max.x ),
+        min( y_size.y + pic_offset.y - 1, frame->full_window.max.y ) );
+
+    // Set up the input textures
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[0] );
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, planar->stride[0] );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, y_size.x, y_size.y, 0,
+        GL_LUMINANCE, GL_UNSIGNED_BYTE, planar->data[0] );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glActiveTexture( GL_TEXTURE1 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[1] );
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, planar->stride[1] );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, c_size.x, c_size.y, 0,
+        GL_LUMINANCE, GL_UNSIGNED_BYTE, planar->data[1] );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glActiveTexture( GL_TEXTURE2 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[2] );
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, planar->stride[2] );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, c_size.x, c_size.y, 0,
+        GL_LUMINANCE, GL_UNSIGNED_BYTE, planar->data[2] );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
+
+    glUseProgramObjectARB( shader->program );
+    glUniform1iARB( shader->texY, 0 );
+    glUniform1iARB( shader->texCb, 1 );
+    glUniform1iARB( shader->texCr, 2 );
+    glUniformMatrix3fvARB( shader->yuv2rgb, 1, false, &color_matrix[0][0] );
+    glUniform2fARB( shader->picOffset, pic_offset.x, pic_offset.y );
+
+    // The troops are ready; define the image
+    frame->texture = textures[3];
+    gl_renderToTexture( frame );
+
+    glDeleteTextures( 3, textures );
+
+    glUseProgramObjectARB( 0 );
+
+    glActiveTexture( GL_TEXTURE2 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glActiveTexture( GL_TEXTURE1 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glActiveTexture( GL_TEXTURE0 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
 }
 
