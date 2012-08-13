@@ -487,3 +487,82 @@ video_mix_cross_gl_pull( rgba_frame_gl *out, video_source *a, int frame_a, video
     glDeleteTextures( 1, &fa.texture );
     glDeleteTextures( 1, &fb.texture );
 }
+
+static const char *over_shader_text =
+"#version 110\n"
+"#extension GL_ARB_texture_rectangle : enable\n"
+"uniform sampler2DRect texA;"
+"uniform sampler2DRect texB;"
+"uniform float mixB;"
+""
+"void main() {"
+"    vec4 colorA = texture2DRect( texA, gl_FragCoord.st );"
+"    vec4 colorB = texture2DRect( texB, gl_FragCoord.st );"
+""
+"    float alpha_a = colorA.a * (1.0f - colorB.a * mixB);"
+"    float alpha_b = colorB.a * mixB;"
+""
+"    gl_FragColor.a = alpha_a + alpha_b;"
+""
+"    if( gl_FragColor.a != 0.0 )"
+"        gl_FragColor.rgb = (colorA.rgb * alpha_a + colorB.rgb * alpha_b) / gl_FragColor.a;"
+"    else"
+"        gl_FragColor.rgb = vec3(0.0, 0.0, 0.0);"
+"}";
+
+EXPORT void
+video_mix_over_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, float mix_b ) {
+    // Really, this is almost exactly the same code as video_mix_cross_gl; the two
+    // should probably be combined (difference is just the shader text)
+    GQuark shader_quark = g_quark_from_static_string( "cprocess::video_mix::over_shader" );
+
+    // Gather the mix factor
+    mix_b = clampf(mix_b, 0.0f, 1.0f);
+
+    void *context = getCurrentGLContext();
+    gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, shader_quark );
+
+    if( !shader ) {
+        // Time to create the program for this context
+        shader = g_new0( gl_shader_state, 1 );
+
+        gl_buildShader( over_shader_text, &shader->shader, &shader->program );
+
+        shader->tex_a = glGetUniformLocationARB( shader->program, "texA" );
+        shader->tex_b = glGetUniformLocationARB( shader->program, "texB" );
+        shader->mix_b = glGetUniformLocationARB( shader->program, "mixB" );
+
+        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroyShader );
+    }
+
+    glUseProgramObjectARB( shader->program );
+    glUniform1iARB( shader->tex_a, 0 );
+    glUniform1iARB( shader->tex_b, 1 );
+    glUniform1fARB( shader->mix_b, mix_b );
+
+    // Now set up the texture to render to
+    v2i frame_size;
+    box2i_get_size( &out->full_window, &frame_size );
+    box2i_union( &out->current_window, &a->current_window, &b->current_window );
+
+    glGenTextures( 1, &out->texture );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, out->texture );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frame_size.x, frame_size.y, 0,
+        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, a->texture );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glActiveTexture( GL_TEXTURE1 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, a->texture );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    gl_renderToTexture( out );
+
+    glUseProgramObjectARB( 0 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glActiveTexture( GL_TEXTURE0 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+}
+

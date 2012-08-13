@@ -21,6 +21,9 @@
 #include "framework.h"
 #include <stdio.h>
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "fluggo.media.cprocess.workspace"
+
 struct workspace_t_tag {
     // leftsort and rightsort both contain all items in the workspace. leftsort is sorted
     // on item->x, rightsort is sorted backwards on (item->x + item->length).
@@ -544,8 +547,61 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
     g_slice_free1( sizeof(workspace_item_t *) * item_count, items );
 }
 
+static void
+workspace_get_frame_gl( workspace_t *self, int frame_index, rgba_frame_gl *frame ) {
+    g_static_mutex_lock( &self->mutex );
+
+    // Update the composite list
+    workspace_move_it( self, frame_index, frame_index );
+
+    // Now composite everything in it
+    int item_count = g_sequence_get_length( self->composite_list );
+
+    if( !item_count ) {
+        box2i_set_empty( &frame->current_window );
+        g_static_mutex_unlock( &self->mutex );
+        return;
+    }
+
+    workspace_item_t **items = g_slice_alloc( sizeof(workspace_item_t*) * item_count );
+    GSequenceIter *iter = g_sequence_iter_prev( g_sequence_get_end_iter( self->composite_list ) );
+
+    for( int i = 0; i < item_count; i++ ) {
+        items[i] = (workspace_item_t *) g_sequence_get( iter );
+
+        if( g_sequence_iter_is_begin( iter ) )
+            break;
+
+        iter = g_sequence_iter_prev( iter );
+    }
+
+    g_static_mutex_unlock( &self->mutex );
+
+    // Start at the *top* and move our way to the *bottom*
+    // When we get the opaque hint later, this will save us tons of time
+    // (Also, this only works if we have only "over" operations; add, for example,
+    // must be done in-order)
+    video_get_frame_gl( (video_source *) items[0]->source, frame_index - items[0]->x + items[0]->offset, frame );
+
+    for( int i = 1; i < item_count; i++ ) {
+        rgba_frame_gl temp_a_frame = { 0 };
+        rgba_frame_gl temp_current_frame = *frame;
+
+        temp_a_frame.full_window = frame->full_window;
+
+        video_get_frame_gl( (video_source *) items[i]->source, frame_index - items[i]->x + items[i]->offset, &temp_a_frame );
+        video_mix_over_gl( frame, &temp_a_frame, &temp_current_frame, 1.0f );
+
+        glDeleteTextures( 1, &temp_a_frame.texture );
+        glDeleteTextures( 1, &temp_current_frame.texture );
+    }
+
+    g_slice_free1( sizeof(workspace_item_t *) * item_count, items );
+}
+
 static video_frame_source_funcs workspace_video_funcs = {
-    .get_frame_32 = (video_get_frame_32_func) workspace_get_frame_f32
+    .get_frame_32 = (video_get_frame_32_func) workspace_get_frame_f32,
+    .get_frame_gl = (video_get_frame_gl_func) workspace_get_frame_gl,
 };
 
 EXPORT void

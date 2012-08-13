@@ -330,6 +330,13 @@ Workspace_getFrame32( PyObject *self, int frame_index, rgba_frame_f32 *frame ) {
 }
 
 static void
+Workspace_get_frame_gl( PyObject *self, int frame_index, rgba_frame_gl *frame ) {
+    g_static_rw_lock_reader_lock( &PRIV(self)->rwlock );
+    video_get_frame_gl( &PRIV(self)->source, frame_index, frame );
+    g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+}
+
+static void
 Workspace_dealloc( PyObject *self ) {
     // Free the sources from each of the workspace items
     gint item_count = workspace_get_length( PRIV(self)->workspace );
@@ -355,6 +362,7 @@ Workspace_dealloc( PyObject *self ) {
 
 static video_frame_source_funcs source_funcs = {
     .get_frame_32 = (video_get_frame_32_func) Workspace_getFrame32,
+    .get_frame_gl = (video_get_frame_gl_func) Workspace_get_frame_gl,
 };
 
 static PyObject *
