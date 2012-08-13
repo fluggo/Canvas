@@ -166,6 +166,30 @@ py_timeGetFrame( PyObject *self, PyObject *args, PyObject *kw ) {
     return Py_BuildValue( "L", endTime - startTime );
 }
 
+static bool __enable_logging = false;
+
+PyObject *
+py_enable_glib_logging( PyObject *self, PyObject *args ) {
+    PyObject *bool_obj = NULL;
+
+    if( !PyArg_ParseTuple( args, "|O", &bool_obj ) )
+        return NULL;
+
+    if( bool_obj == NULL ) {
+        __enable_logging = true;
+    }
+    else {
+        int value = PyObject_IsTrue( bool_obj );
+
+        if( value == -1 )
+            return NULL;
+
+        __enable_logging = value ? true : false;
+    }
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef module_methods[] = {
     { "get_frame_time", (PyCFunction) py_getFrameTime, METH_VARARGS,
         "get_frame_time(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
@@ -173,6 +197,8 @@ static PyMethodDef module_methods[] = {
         "get_time_frame(rate, time): Gets the frame containing the given time in nanoseconds at the given Fraction frame rate." },
     { "time_get_frame", (PyCFunction) py_timeGetFrame, METH_VARARGS | METH_KEYWORDS,
         "timeGetFrame(source, min_frame, max_frame, data_window=(0,0,1,1)): Retrieves min_frame through max_frame from the source and returns the time it took in nanoseconds." },
+    { "enable_glib_logging", (PyCFunction) py_enable_glib_logging, METH_VARARGS,
+        "enable_glib_logging([True]): Connects GLib log reporting to the Python logging module." },
     { NULL }
 };
 
@@ -182,6 +208,10 @@ static void python_logger( const gchar *log_domain,
                            GLogLevelFlags log_level,
                            const gchar *message,
                            gpointer user_data ) {
+    // Skip out early if we don't want to report this
+    if( !__enable_logging )
+        return;
+
     PyGILState_STATE gstate = PyGILState_Ensure();
 
     PyObject *logger = PyObject_CallFunction( __getLoggerFunc, "s", log_domain );
