@@ -21,6 +21,9 @@
 #include <string.h>
 #include "framework.h"
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "fluggo.media.cprocess.video_mix"
+
 EXPORT void
 video_copy_frame_f16( rgba_frame_f16 *out, rgba_frame_f16 *in ) {
     box2i inner;
@@ -366,3 +369,121 @@ video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *b, float mix_b ) {
     out->current_window = outer;
 }
 
+// This crossfade is based on the associative alpha blending formula from:
+//    http://en.wikipedia.org/w/index.php?title=Alpha_compositing&oldid=337850364
+
+static const char *crossfadeShaderText =
+"#version 110\n"
+"#extension GL_ARB_texture_rectangle : enable\n"
+"uniform sampler2DRect texA;"
+"uniform sampler2DRect texB;"
+"uniform float mixB;"
+""
+"void main() {"
+"    vec4 colorA = texture2DRect( texA, gl_FragCoord.st );"
+"    vec4 colorB = texture2DRect( texB, gl_FragCoord.st );"
+""
+"    float alpha_a = colorA.a * (1.0 - mixB);"
+"    float alpha_b = colorB.a * mixB;"
+""
+"    gl_FragColor.a = alpha_a + alpha_b;"
+""
+"    if( gl_FragColor.a != 0.0 )"
+"        gl_FragColor.rgb = (colorA.rgb * alpha_a + colorB.rgb * alpha_b) / gl_FragColor.a;"
+"    else"
+"        gl_FragColor.rgb = vec3(0.0, 0.0, 0.0);"
+"}";
+
+typedef struct {
+    GLhandleARB shader, program;
+    int tex_a, tex_b, mix_b;
+} gl_shader_state;
+
+static void destroyShader( gl_shader_state *shader ) {
+    // We assume that we're in the right GL context
+    glDeleteObjectARB( shader->program );
+    glDeleteObjectARB( shader->shader );
+    g_free( shader );
+}
+
+EXPORT void
+video_mix_cross_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, float mix_b ) {
+    GQuark shader_quark = g_quark_from_static_string( "cprocess::video_mix::crossfade_shader" );
+    g_debug( "In video_mix_cross_gl, mix_b=%f", mix_b );
+
+    // Gather the mix factor
+    mix_b = clampf(mix_b, 0.0f, 1.0f);
+
+    void *context = getCurrentGLContext();
+    gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, shader_quark );
+
+    if( !shader ) {
+        // Time to create the program for this context
+        shader = g_new0( gl_shader_state, 1 );
+
+        gl_buildShader( crossfadeShaderText, &shader->shader, &shader->program );
+
+        shader->tex_a = glGetUniformLocationARB( shader->program, "texA" );
+        shader->tex_b = glGetUniformLocationARB( shader->program, "texB" );
+        shader->mix_b = glGetUniformLocationARB( shader->program, "mixB" );
+
+        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroyShader );
+    }
+
+    glUseProgramObjectARB( shader->program );
+    glUniform1iARB( shader->tex_a, 0 );
+    glUniform1iARB( shader->tex_b, 1 );
+    glUniform1fARB( shader->mix_b, mix_b );
+
+    // Now set up the texture to render to
+    v2i frame_size;
+    box2i_get_size( &out->full_window, &frame_size );
+    box2i_union( &out->current_window, &a->current_window, &b->current_window );
+
+    glGenTextures( 1, &out->texture );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, out->texture );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frame_size.x, frame_size.y, 0,
+        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, a->texture );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    glActiveTexture( GL_TEXTURE1 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, b->texture );
+    glEnable( GL_TEXTURE_RECTANGLE_ARB );
+
+    gl_renderToTexture( out );
+
+    glUseProgramObjectARB( 0 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glActiveTexture( GL_TEXTURE0 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+}
+
+EXPORT void
+video_mix_cross_gl_pull( rgba_frame_gl *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b ) {
+    // Gather the mix factor
+    g_debug( "In video_mix_cross_gl_pull, mix_b=%f", mix_b );
+    mix_b = clampf(mix_b, 0.0f, 1.0f);
+
+    if( mix_b == 1.0f ) {
+        // We only need frame B
+        video_get_frame_gl( b, frame_b, out );
+        return;
+    }
+    else if( mix_b == 0.0f ) {
+        video_get_frame_gl( a, frame_a, out );
+        return;
+    }
+
+    rgba_frame_gl fa = *out, fb = *out;
+
+    video_get_frame_gl( a, frame_a, &fa );
+    video_get_frame_gl( b, frame_b, &fb );
+
+    video_mix_cross_gl( out, &fa, &fb, mix_b );
+
+    glDeleteTextures( 1, &fa.texture );
+    glDeleteTextures( 1, &fb.texture );
+}

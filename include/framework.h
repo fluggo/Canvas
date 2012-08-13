@@ -219,6 +219,8 @@ void video_copy_frame_alpha_f32( rgba_frame_f32 *out, rgba_frame_f32 *in, float 
 void video_attenuate_f32( rgba_frame_f32 *frame, float alpha );
 void video_mix_cross_f32_pull( rgba_frame_f32 *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b );
 void video_mix_cross_f32( rgba_frame_f32 *out, rgba_frame_f32 *a, rgba_frame_f32 *b, float mix_b );
+void video_mix_cross_gl_pull( rgba_frame_gl *out, video_source *a, int frame_a, video_source *b, int frame_b, float mix_b );
+void video_mix_cross_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, float mix_b );
 void video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *b, float mix_b );
 
 void video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f32 *source, v2f source_point, v2f factors );
