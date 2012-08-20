@@ -189,35 +189,28 @@ class Alert(object):
 #   File missing
 #   Failure to bring online?
 
-class Plugin(AlertPublisher):
-    def __init__(self):
-        # TODO: keep track of alert keys so we can clean up after ourselves
-        # TODO: Or, should alerts just be a property on a plugin or other
-        #   object so that we don't have to keep up with alert managers? That
-        #   seems like the easier option.
-        AlertPublisher.__init__(self)
+class Plugin:
+    '''Alert publisher for this plugin. Create your own alert publisher at the
+    class level.'''
+    alerts = None
 
-    @property
-    def name(self):
-        '''Return the name of the plugin.'''
-        raise NotImplementedError
+    '''The name of the plugin.'''
+    name = None
 
-    @property
-    def description(self):
-        '''Return a short (one-line) description of the plugin.'''
-        raise NotImplementedError
+    '''A short (one-line) description of the plugin.'''
+    description = None
 
-    @property
-    def plugin_urn(self):
-        '''Return a URN that uniquely identifies all versions of this plugin.'''
-        raise NotImplementedError
+    '''Return a URN that uniquely identifies all versions of this plugin.'''
+    plugin_urn = None
 
-    def activate(self):
+    @classmethod
+    def activate(cls):
         '''Called when the user has activated the plugin. This is usually
         the time to install any hooks into the interface.'''
         pass
 
-    def deactivate(self):
+    @classmethod
+    def deactivate(cls):
         '''Called when the user has deactivated the plugin. This is usually
         the time to remove any hooks from the interface.'''
         pass
@@ -262,13 +255,12 @@ class PluginManager(object):
 
         for plugin_cls in plugin_classes:
             try:
-                new_plugin = plugin_cls()
-                existing_plugin = plugins.setdefault(new_plugin.plugin_urn, new_plugin)
+                existing_plugin = plugins.setdefault(plugin_cls.plugin_urn, plugin_cls)
 
-                if new_plugin is not existing_plugin:
-                    _log.error('Two plugins tried to claim the URN "{0}"', new_plugin.plugin_urn)
+                if plugin_cls is not existing_plugin:
+                    _log.error('Two plugins tried to claim the URN "{0}"', plugin_cls.plugin_urn)
             except Exception as ex:
-                _log.error('Could not create {0} plugin class: {1}', plugin_cls.__name__, ex, exc_info=True)
+                _log.error('Could not add {0} plugin class: {1}', plugin_cls.__name__, ex, exc_info=True)
 
         cls.plugins = plugins
         cls.enabled_plugins = {}
@@ -284,7 +276,10 @@ class PluginManager(object):
             if enabled:
                 try:
                     plugin.activate()
-                    cls.alert_manager.follow_alerts(plugin)
+
+                    if plugin.alerts:
+                        cls.alert_manager.follow_alerts(plugin.alerts)
+
                     cls.enabled_plugins[key] = plugin
                 except:
                     _log.error('Failed to activate plugin "{0}"', plugin.name, exc_info=True)
@@ -296,7 +291,7 @@ class PluginManager(object):
         cls.load_all()
 
         plugins = cls.enabled_plugins if enabled_only else cls.plugins
-        return [plugin for plugin in plugins.values() if isinstance(plugin, baseclass)]
+        return [plugin for plugin in plugins.values() if issubclass(plugin, baseclass)]
 
     @classmethod
     def find_plugin_by_urn(cls, urn):
@@ -319,7 +314,10 @@ class PluginManager(object):
         if enable and not enabled:
             try:
                 plugin.activate()
-                cls.alert_manager.follow_alerts(plugin)
+
+                if plugin.alerts:
+                    cls.alert_manager.follow_alerts(plugin.alerts)
+
                 cls.enabled_plugins[plugin.plugin_urn] = plugin
                 settings.setValue('enabled', True)
                 cls.reset_codecs()
@@ -328,7 +326,10 @@ class PluginManager(object):
         elif not enable and enabled:
             try:
                 plugin.deactivate()
-                cls.alert_manager.unfollow_alerts(plugin)
+
+                if plugin.alerts:
+                    cls.alert_manager.unfollow_alerts(plugin)
+
                 del cls.enabled_plugins[plugin.plugin_urn]
                 settings.setValue('enabled', False)
                 cls.reset_codecs()

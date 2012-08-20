@@ -137,7 +137,7 @@ class ThumbnailPainter(object):
         if self._rect != rect or self._thumbnail_count == 0:
             self._rect = rect
 
-            if self._stream:
+            if self._stream and self._stream.format:
                 box = self._stream.format.thumbnail_box
                 aspect = self._stream.format.pixel_aspect_ratio
                 frame_count = self._length

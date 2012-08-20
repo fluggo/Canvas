@@ -29,7 +29,8 @@ class CodecPlugin(Plugin):
     They do not expose any intermediate steps, such as CodedImageSources, except
     where options for reconstructing images are exposed in the codec's settings.'''
 
-    def get_all_codecs(self):
+    @classmethod
+    def get_all_codecs(cls):
         '''Return a list of all codecs supported by this plugin.'''
         return []
 
@@ -39,41 +40,28 @@ class Codec(object):
     this higher.'''
     default_priority = 0
 
-    @property
-    def plugin(self):
-        '''Return a reference to the plugin that provided this codec.'''
-        return None
+    '''A reference to the plugin that provided this codec.'''
+    plugin = None
 
-    @property
-    def name(self):
-        raise NotImplementedError
+    name = None
 
-    @property
-    def format_urns(self):
-        '''Return a frozenset of format URNs this codec supports.'''
-        raise NotImplementedError
+    '''A frozenset of format URNs this codec supports.'''
+    format_urns = frozenset()
 
-    @property
-    def urn(self):
-        '''Return a URN that uniquely identifies this codec.'''
-        raise NotImplementedError
+    '''A URN that uniquely identifies this codec.'''
+    urn = None
 
-    @property
-    def stream_type(self):
-        # Video/audio/subtitle/etc.
-        raise NotImplementedError
+    # Video/audio/subtitle/etc.
+    stream_type = None
 
-    @property
-    def can_decode(self):
-        '''Return true if the codec can decode streams.'''
-        return False
+    '''True if the codec can decode streams.'''
+    can_decode = False
 
-    @property
-    def can_encode(self):
-        '''Return true if the codec can encode streams.'''
-        return False
+    '''True if the codec can encode streams.'''
+    can_encode = False
 
-    def create_encoder(self, stream, offset, length, definition):
+    @classmethod
+    def create_encoder(cls, stream, offset, length, definition):
         '''Return a CodecPacketSource for the given stream and definition (which can be None if a source is trying to discover).
 
         *defined_range* identifies which part of the stream should be encoded.
@@ -83,7 +71,8 @@ class Codec(object):
         could be used to identify this codec.'''
         raise NotImplementedError
 
-    def create_decoder(self, packet_stream, offset, length, definition):
+    @classmethod
+    def create_decoder(cls, packet_stream, offset, length, definition):
         '''Return a stream object (VideoStream, AudioStream, etc.) to decode the given packet stream and definition (which can be None if a source is trying to discover).
 
         *defined_range* is supplied by the source, and should indicate where and how long the
@@ -134,7 +123,7 @@ class _DecoderConnector(object):
 
     def get_definition(self):
         if not self.decoder:
-            raise NotConnectedError('Decoder connector is not connected.')
+            return self._start_definition or {}
 
         return self.decoder.get_definition()
 

@@ -34,28 +34,24 @@ class _DVError(Exception):
 
 class LibavDvSourcePlugin(plugins.SourcePlugin):
     plugin_urn = 'urn:fluggo.com/canvas/plugins:libav-dv'
+    name = 'Libav DV Source'
+    description = 'Provides special DV support from Libav'
 
-    @property
-    def name(self):
-        return 'Libav DV Source'
-
-    @property
-    def description(self):
-        return 'Provides special DV support from Libav'
-
-    def create_source(self, name, definition):
+    @classmethod
+    def create_source(cls, name, definition):
         '''Return a source from the given definition.
 
         The *definition* will be a definition returned by Source.definition().'''
-        return _LibavSource.from_definition(self, name, definition)
+        return _LibavSource.from_definition(name, definition)
 
-    def create_source_from_file(self, name, path):
+    @classmethod
+    def create_source_from_file(cls, name, path):
         '''Return a new source if one can be created from the given file. If the plugin
         can't read the file (or doesn't support files), it can raise an error or return None.
 
         This method is only called to attempt to read new files. Existing
         sources are re-created using create_source().'''
-        source = _LibavSource(name, self, path)
+        source = _LibavSource(name, path)
         source.bring_online()
 
         if not source.offline:
@@ -63,22 +59,13 @@ class LibavDvSourcePlugin(plugins.SourcePlugin):
 
 class LibavDVCodecPlugin(plugins.CodecPlugin):
     plugin_urn = 'urn:fluggo.com/canvas/plugins:libav-dv-codec'
+    name = 'Libav DV Codec'
+    description = 'Provides codec support for DV using Libav'
 
-    def __init__(self):
-        plugins.CodecPlugin.__init__(self)
-        self.codecs = [_DVCodec(self), _PCMCodec(self)]
-
-    @property
-    def name(self):
-        return 'Libav DV Codec'
-
-    @property
-    def description(self):
-        return 'Provides codec support for DV using Libav'
-
+    @classmethod
     def get_all_codecs(self):
         '''Return a list of all codecs supported by this plugin.'''
-        return self.codecs
+        return [_DVCodec, _PCMCodec]
 
 class _DVCodec(plugins.Codec):
     urn = 'urn:fluggo.com/canvas/codecs:libav-dv-codec'
@@ -88,28 +75,23 @@ class _DVCodec(plugins.Codec):
     name = 'Libav DV Video'
     #can_encode = True
     default_priority = 1
+    plugin = LibavDVCodecPlugin
 
-    def __init__(self, plugin):
-        self._plugin = plugin
-
-    @property
-    def plugin(self):
-        '''Return a reference to the plugin that created this source.'''
-        return self._plugin
-
-    def create_decoder(self, packet_stream, offset, length, definition):
+    @classmethod
+    def create_decoder(cls, packet_stream, offset, length, definition):
         '''Return a stream object (VideoStream, AudioStream, etc.) to decode the given packet stream and definition.'''
-        return _DVVideoDecoder(self, packet_stream, offset, length)
+        return _DVVideoDecoder(packet_stream, offset, length)
 
 class _DVVideoDecoder(plugins.VideoStream):
-    def __init__(self, codec, packet_stream, offset, length):
+    codec = _DVCodec
+
+    def __init__(self, packet_stream, offset, length):
         # TODO: pixel_aspect_ratio, distinguish between 4:3 and 16:9 video
         # TODO: specify pulldown here, and if so, do we decode before output?
         #   I expect not; we give interlaced and let transform/source filters take care of it
         if offset != 0:
             raise NotImplementedError
 
-        self.codec = codec
         self._pktstream = packet_stream
         base_filter = self.get_static_stream()
 
@@ -137,21 +119,17 @@ class _PCMCodec(plugins.Codec):
     can_decode = True
     name = 'Libav PCM'
     #can_encode = True
+    plugin = LibavDVCodecPlugin
 
-    def __init__(self, plugin):
-        self._plugin = plugin
-
-    @property
-    def plugin(self):
-        '''Return a reference to the plugin that created this source.'''
-        return self._plugin
-
-    def create_decoder(self, packet_stream, offset, length, definition):
+    @classmethod
+    def create_decoder(cls, packet_stream, offset, length, definition):
         '''Return a stream object (VideoStream, AudioStream, etc.) to decode the given packet stream and definition.'''
-        return _PCMs16leAudioDecoder(self, packet_stream, offset, length)
+        return _PCMs16leAudioDecoder(packet_stream, offset, length)
 
 class _PCMs16leAudioDecoder(plugins.AudioStream):
-    def __init__(self, codec, packet_stream, offset, length):
+    codec = _PCMCodec
+
+    def __init__(self, packet_stream, offset, length):
         # TODO: audio, allow for quad-channel on output
         # TODO: Take sample rate from container; split-stream files may trip
         #   us up with 44.1kHz sample rates
@@ -159,7 +137,6 @@ class _PCMs16leAudioDecoder(plugins.AudioStream):
             raise NotImplementedError
 
         self._pktstream = packet_stream
-        self.codec = codec
         base_filter = self.get_static_stream()
 
         audio_format = plugins.AudioFormat(sample_rate=48000,
@@ -179,9 +156,9 @@ _codec_format_names = {codec_id: name for name, codec_id in libav.__dict__.items
 
 class _LibavSource(plugins.Source):
     translation_context = 'fluggo.editor.plugins.libav._LibavSource'
+    plugin = LibavDvSourcePlugin
 
-    def __init__(self, name, plugin, path):
-        self._plugin = plugin
+    def __init__(self, name, path):
         self.path = path
         self._load_alert = None
 
@@ -190,10 +167,6 @@ class _LibavSource(plugins.Source):
         self._streams = []
 
         plugins.Source.__init__(self, name)
-
-    @property
-    def plugin(self):
-        return self._plugin
 
     def bring_online(self):
         if not self.offline:
@@ -287,9 +260,9 @@ class _LibavSource(plugins.Source):
         self.bring_online()
 
     @classmethod
-    def from_definition(cls, plugin, name, definition):
+    def from_definition(cls, name, definition):
         _log.debug('Producing DV source from definition {0!r}', definition)
-        source = cls(name, plugin, definition['path'])
+        source = cls(name, definition['path'])
         source._loaded_definitions = definition.get('streams') or {}
 
         return source

@@ -49,13 +49,15 @@ class SourcePlugin(Plugin):
     It's this plugin's responsibility to notify the user of any source errors
     to the user through a NotificationManager.'''
 
-    def create_source(self, name, definition):
+    @classmethod
+    def create_source(cls, name, definition):
         '''Return a source from the given definition.
 
         The *definition* will be a definition returned by Source.definition().'''
         raise NotImplementedError
 
-    def create_source_from_file(self, name, path):
+    @classmethod
+    def create_source_from_file(cls, name, path):
         '''Return a new source if one can be created from the given file. If the plugin
         can't read the file (or doesn't support files), it can raise an error or return None.'''
         return None
