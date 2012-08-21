@@ -61,7 +61,17 @@ class Codec(object):
     can_encode = False
 
     @classmethod
-    def create_encoder(cls, stream, offset, length, definition):
+    def get_localized_name(self):
+        '''Return the localized name of this codec, or None if the codec doesn't
+        support the current locale.'''
+        return None
+
+    def get_definition(self):
+        '''Return a dictionary of parameters that can be passed to the codec's
+        constructor to re-create the object.'''
+        return {}
+
+    def create_encoder(self, stream, offset, length):
         '''Return a CodecPacketSource for the given stream and definition (which can be None if a source is trying to discover).
 
         *defined_range* identifies which part of the stream should be encoded.
@@ -71,8 +81,7 @@ class Codec(object):
         could be used to identify this codec.'''
         raise NotImplementedError
 
-    @classmethod
-    def create_decoder(cls, packet_stream, offset, length, definition):
+    def create_decoder(self, packet_stream, offset, length):
         '''Return a stream object (VideoStream, AudioStream, etc.) to decode the given packet stream and definition (which can be None if a source is trying to discover).
 
         *defined_range* is supplied by the source, and should indicate where and how long the
@@ -104,7 +113,7 @@ class _DecoderConnector(object):
         self._pktstream = packet_stream
         self._offset = offset
         self._length = length
-        self._start_definition = definition
+        self._start_definition = definition or {}
         self._format_urn = format_urn
         self._codec_urn = codec_urn
         self.model_obj = model_obj
@@ -123,7 +132,7 @@ class _DecoderConnector(object):
 
     def get_definition(self):
         if not self.decoder:
-            return self._start_definition or {}
+            return self._start_definition
 
         return self.decoder.get_definition()
 
@@ -141,10 +150,11 @@ class _DecoderConnector(object):
 
             if self._codec_urn:
                 # We're out to find a specific codec
-                codec = PluginManager.get_codec_by_urn(self._codec_urn)
+                codec_class = PluginManager.get_codec_by_urn(self._codec_urn)
                 decoder = None
+                codec = None
 
-                if not codec:
+                if not codec_class:
                     self._clear()
                     self._error = Alert('Could not find codec "' + self._codec_urn + '". Check to see that it is installed and enabled.',
                         model_obj=self.model_obj, icon=AlertIcon.Error)
@@ -152,7 +162,16 @@ class _DecoderConnector(object):
                     return
 
                 try:
-                    self.decoder = codec.create_decoder(self._pktstream, self._offset, self._length, self._start_definition)
+                    codec = codec_class(**self._start_definition)
+                except:
+                    self._clear()
+                    self._error = Alert('Error while creating codec instance',
+                        model_obj=self.model_obj, icon=AlertIcon.Error, exc_info=True)
+                    self.show_alert(self._error)
+                    return
+
+                try:
+                    self.decoder = codec.create_decoder(self._pktstream, self._offset, self._length)
                     self.codec = codec
                 except:
                     self._clear()
@@ -171,9 +190,17 @@ class _DecoderConnector(object):
                     self.show_alert(self._error)
                     return
 
-                for codec in codecs:
+                for codec_class in codecs:
+                    codec = None
+
                     try:
-                        self.decoder = codec.create_decoder(self._pktstream, self._offset, self._length, None)
+                        codec = codec_class()
+                    except:
+                        _log.warning('Error while creating instance of codec {0}', codec.__name__, exc_info=True)
+                        continue
+
+                    try:
+                        self.decoder = codec.create_decoder(self._pktstream, self._offset, self._length)
                         self.codec = codec
                     except:
                         _log.warning('Error while trying codec {0}', codec.urn, exc_info=True)

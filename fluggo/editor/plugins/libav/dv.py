@@ -77,8 +77,7 @@ class _DVCodec(plugins.Codec):
     default_priority = 1
     plugin = LibavDVCodecPlugin
 
-    @classmethod
-    def create_decoder(cls, packet_stream, offset, length, definition):
+    def create_decoder(self, packet_stream, offset, length):
         '''Return a stream object (VideoStream, AudioStream, etc.) to decode the given packet stream and definition.'''
         return _DVVideoDecoder(packet_stream, offset, length)
 
@@ -121,9 +120,9 @@ class _PCMCodec(plugins.Codec):
     #can_encode = True
     plugin = LibavDVCodecPlugin
 
-    @classmethod
-    def create_decoder(cls, packet_stream, offset, length, definition):
-        '''Return a stream object (VideoStream, AudioStream, etc.) to decode the given packet stream and definition.'''
+    def create_decoder(self, packet_stream, offset, length):
+        '''Return a stream object (VideoStream, AudioStream, etc.) to decode the
+        given packet stream.'''
         return _PCMs16leAudioDecoder(packet_stream, offset, length)
 
 class _PCMs16leAudioDecoder(plugins.AudioStream):
