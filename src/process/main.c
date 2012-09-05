@@ -391,6 +391,21 @@ PyInit_process() {
 
     g_log_set_default_handler( python_logger, NULL );
 
+    // Set up an offscreen OpenGL context on the main thread
+    __enable_logging = true;
+    gl_ensure_context();
+
+    // Check for required extensions
+    bool hard_mode_available =
+        GLEW_VERSION_2_1 &&
+        GLEW_ATI_texture_float &&
+        GLEW_ARB_texture_rectangle &&
+        GLEW_ARB_fragment_shader &&
+        GLEW_EXT_framebuffer_object &&
+        GLEW_ARB_half_float_pixel;
+
+    PyModule_AddObject( m, "hardware_mode_available", PyBool_FromLong( hard_mode_available ? 1 : 0 ) );
+
     return m;
 }
 
