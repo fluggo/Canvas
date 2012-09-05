@@ -81,6 +81,8 @@ gl_renderToTexture( rgba_frame_gl *frame ) {
     v2i frameSize;
     box2i_get_size( &frame->full_window, &frameSize );
 
+    // TODO: It's a rumor that creating and destroying framebuffers is bad for
+    // performance; we do it here maybe a dozen times per frame
     GLuint fbo;
     glGenFramebuffersEXT( 1, &fbo );
     glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
@@ -153,8 +155,17 @@ EXPORT void video_get_frame_gl( video_source *source, int frameIndex, rgba_frame
         glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
             GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
 
+        // Clear the texture (is there a faster way to do this?)
+        GLuint fbo;
+        glGenFramebuffersEXT( 1, &fbo );
+        glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
+        glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+            GL_TEXTURE_RECTANGLE_ARB, targetFrame->texture, 0 );
+
         glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
         glClear( GL_COLOR_BUFFER_BIT );
+
+        glDeleteFramebuffersEXT( 1, &fbo );
 
         box2i_set_empty( &targetFrame->current_window );
         return;
