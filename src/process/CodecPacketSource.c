@@ -82,8 +82,7 @@ CodecPacketSource_get_header( PyObject *self, PyObject *args ) {
 
     py_codec_packet_take_source( NULL, &holder );
 
-    // TODO: In Python 3, return a bytes object (same for get_next_packet below)
-    PyObject *result = PyByteArray_FromStringAndSize( buffer, header_size );
+    PyObject *result = PyBytes_FromStringAndSize( buffer, header_size );
     PyMem_Free( buffer );
 
     return result;
@@ -108,7 +107,7 @@ CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
     if( !packet )
         Py_RETURN_NONE;
 
-    PyObject *data = PyByteArray_FromStringAndSize( packet->data, packet->length );
+    PyObject *data = PyBytes_FromStringAndSize( packet->data, packet->length );
     int64_t pts = packet->pts;
     int64_t dts = packet->dts;
 
