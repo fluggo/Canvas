@@ -474,19 +474,15 @@ widget_gl_free( widget_gl_context *self ) {
 
 static void
 widget_gl_initialize( widget_gl_context *self ) {
-    static bool __glewInit = false;
+    self->hardModeSupported =
+        GLEW_ATI_texture_float &&
+        GLEW_ARB_texture_rectangle &&
+        GLEW_ARB_fragment_shader &&
+        GLEW_EXT_framebuffer_object &&
+        GLEW_ARB_half_float_pixel;
 
-    if( !__glewInit ) {
-        glewInit();
-        __glewInit = true;
-
-        self->hardModeSupported =
-            GLEW_ATI_texture_float &&
-            GLEW_ARB_texture_rectangle &&
-            GLEW_ARB_fragment_shader &&
-            GLEW_EXT_framebuffer_object &&
-            GLEW_ARB_half_float_pixel;
-    }
+    if( !self->hardModeSupported )
+        g_warning( "Hardware mode not supported on this hardware" );
 
     self->softMode = !self->hardModeSupported || self->hardModeDisable;
 
@@ -544,6 +540,10 @@ widget_gl_softLoadTexture( widget_gl_context *self ) {
 static void
 widget_gl_hardLoadTexture( widget_gl_context *self ) {
     // This is being done on the main app thread
+    // TODO: Schedule multiple frames through OpenGL at once
+    // (the driver will work out the sync issues); perhaps do
+    // a pre-roll at the beginning to get more frames in the
+    // buffer?
     if( self->hardTextureId ) {
         glDeleteTextures( 1, &self->hardTextureId );
         self->hardTextureId = 0;
