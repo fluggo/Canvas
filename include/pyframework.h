@@ -86,6 +86,7 @@ float framefunc_get_f32( FrameFunctionHolder *holder, double frame );
 void framefunc_get_v2f( v2f *result, FrameFunctionHolder *holder, double frame );
 void framefunc_get_box2i( box2i *result, FrameFunctionHolder *holder, double frame );
 void framefunc_get_rgba_f32( rgba_f32 *result, FrameFunctionHolder *holder, double frame );
+void framefunc_init( FrameFunctionHolder *holder, double c0, double c1, double c2, double c3 );
 
 extern PyTypeObject py_type_FrameFunction;
 

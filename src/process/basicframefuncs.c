@@ -347,6 +347,17 @@ framefunc_get_rgba_f32( rgba_f32 *result, FrameFunctionHolder *holder, double fr
     }
 }
 
+EXPORT void
+framefunc_init( FrameFunctionHolder *holder, double c0, double c1, double c2, double c3 ) {
+    holder->source = NULL;
+    holder->csource = NULL;
+    holder->funcs = NULL;
+    holder->constant[0] = c0;
+    holder->constant[1] = c1;
+    holder->constant[2] = c2;
+    holder->constant[3] = c3;
+}
+
 static PyObject *
 py_frame_func_get( PyObject *self, PyObject *args, PyObject *kw ) {
     PyObject *frames_obj;
