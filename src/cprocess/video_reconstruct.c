@@ -137,7 +137,7 @@ video_reconstruct_dv( rgba_frame_f16 *frame, coded_image *planar ) {
 }
 
 static const char *recon_dv_shader_text =
-"#version 110\n"
+"#version 120\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
 "uniform sampler2DRect texY;"
 "uniform sampler2DRect texCb;"
@@ -145,16 +145,31 @@ static const char *recon_dv_shader_text =
 "uniform vec2 picOffset;"
 "uniform mat3 yuv2rgb;"
 
+/*
+    const float __transition = 4.5f * 0.018f;
+
+    if( in < __transition )
+        return in / 4.5f;
+
+    return powf( (in + 0.099f) / 1.099f, 1.0f / 0.45f );
+*/
+"vec3 rec709_to_linear( vec3 color ) {"
+"    return mix("
+"        color / 4.5f,"
+"        pow((color + 0.099f) / 1.099f, vec3(1.0f / 0.45f)),"
+"        step(4.5f * 0.018f, color));"
+"}"
+
 "void main() {"
 "    vec2 yTexCoord = gl_TexCoord[0].st - picOffset;"
 "    vec2 cTexCoord = (yTexCoord - vec2(0.5, 0.5)) * vec2(0.25, 1.0) + vec2(0.5, 0.5);"
-"    float y = texture2DRect( texY, yTexCoord ).r - (16.0/256.0);"
-"    float cb = texture2DRect( texCb, cTexCoord ).r - 0.5;"
-"    float cr = texture2DRect( texCr, cTexCoord ).r - 0.5;"
+"    float y = (texture2DRect( texY, yTexCoord ).r - (16.0/255.0)) / (219.0/255.0);"
+"    float cb = (texture2DRect( texCb, cTexCoord ).r - (128.0/255.0)) / (224.0/255.0);"
+"    float cr = (texture2DRect( texCr, cTexCoord ).r - (128.0/255.0)) / (224.0/255.0);"
 
-"    vec3 ycbcr = vec3(y, cb, cr);"
+"    vec3 ycbcr = vec3(y, cb, cr) * yuv2rgb;"
 
-"    gl_FragColor.rgb = pow(max(vec3(0.0), ycbcr * yuv2rgb), vec3(2.2));"
+"    gl_FragColor.rgb = rec709_to_linear(ycbcr);"
 "    gl_FragColor.a = 1.0;"
 "}";
 
@@ -217,16 +232,11 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
 
     // Rec. 601 YCbCr->RGB matrix in Poynton, p. 305:
     // TODO: This should probably be configurable
-    float color_matrix[3][3];
-    color_matrix[0][0] = 1.0f;
-    color_matrix[0][1] = 0.0f;
-    color_matrix[0][2] = 1.402f;
-    color_matrix[1][0] = 1.0f;
-    color_matrix[1][1] = -0.344136f;
-    color_matrix[1][2] = -0.714136f;
-    color_matrix[2][0] = 1.0f;
-    color_matrix[2][1] = 1.772f;
-    color_matrix[2][2] = 0.0f;
+    const float color_matrix[3][3] = {
+        {  1.0f,       0.0f,       1.402f    },
+        {  1.0f,      -0.344136f, -0.714136f },
+        {  1.0f,       1.772f,     0.0f      }
+    };
 
     box2i_set( &frame->current_window,
         max( pic_offset.x, frame->full_window.min.x ),
@@ -235,6 +245,8 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
         min( y_size.y + pic_offset.y - 1, frame->full_window.max.y ) );
 
     // Set up the input textures
+    glPushClientAttrib( GL_CLIENT_PIXEL_STORE_BIT );
+
     glActiveTexture( GL_TEXTURE0 );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[0] );
     glPixelStorei( GL_UNPACK_ROW_LENGTH, planar->stride[0] );
@@ -256,7 +268,7 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
         GL_LUMINANCE, GL_UNSIGNED_BYTE, planar->data[2] );
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
-    glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
+    glPopClientAttrib();
 
     glUseProgramObjectARB( shader->program );
     glUniform1iARB( shader->texY, 0 );
