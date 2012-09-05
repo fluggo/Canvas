@@ -52,6 +52,16 @@ typedef struct {
     int x, y;
 } v2i;
 
+static inline void v2i_add( v2i *result, const v2i *a, const v2i *b ) {
+    result->x = a->x + a->y;
+    result->y = a->y + a->y;
+}
+
+static inline void v2i_subtract( v2i *result, const v2i *a, const v2i *b ) {
+    result->x = a->x - a->y;
+    result->y = a->y - a->y;
+}
+
 typedef struct {
     v2i min, max;
 } box2i;
@@ -450,6 +460,7 @@ typedef struct {
 void video_reconstruct_dv( rgba_frame_f16 *frame, coded_image *planar );
 void video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar );
 coded_image *video_subsample_dv( rgba_frame_f16 *frame );
+coded_image *video_subsample_mpeg2_gl( rgba_frame_gl *frame );
 
 
 /******** Presentation clocks ****/

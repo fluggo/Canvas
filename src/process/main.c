@@ -333,6 +333,7 @@ void init_VideoScaler( PyObject *module );
 void init_VideoPullQueue( PyObject *module );
 void init_AnimationFunc( PyObject *module );
 void init_FrameFuncPassThroughFilter( PyObject *module );
+void init_MPEG2SubsampleFilter( PyObject *module );
 
 EXPORT PyMODINIT_FUNC
 PyInit_process() {
@@ -378,6 +379,7 @@ PyInit_process() {
     init_VideoPullQueue( m );
     init_AnimationFunc( m );
     init_FrameFuncPassThroughFilter( m );
+    init_MPEG2SubsampleFilter( m );
 
     PyModule_AddObject( m, "NS_PER_SEC", PyLong_FromLongLong( NS_PER_SEC ) );
 
