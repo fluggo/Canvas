@@ -155,6 +155,25 @@ if not env.Execute('@pkg-config --exists libavformat libswscale'):
 else:
     print 'Skipping Libav library build'
 
+if not env.Execute('@pkg-config --exists x264'):
+    x264_env = python_env.Clone()
+    x264_env.ParseConfig('pkg-config --libs --cflags x264 glib-2.0 gthread-2.0')
+    x264_env.Append(LIBS=[process], CCFLAGS=['-Wno-error=deprecated-declarations'])
+
+    #if env['PLATFORM'] == 'win32':
+    #    libav_env.Append(LIBS=['glew32', 'opengl32'])
+    #else:
+    #    libav_env.ParseConfig('pkg-config --libs --cflags gl')
+    #    libav_env.Append(LIBS=['GLEW'])
+
+    x264 = x264_env.SharedLibrary('fluggo/media/x264', env.Glob('src/x264/*.c'))
+
+    Alias('x264', x264)
+    Alias('all', 'x264')
+    Default('x264')
+else:
+    print 'Skipping x264 library build'
+
 if not env.Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
     gtk_env = python_env.Clone()
     gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
