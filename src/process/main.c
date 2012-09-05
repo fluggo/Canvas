@@ -190,6 +190,47 @@ py_enable_glib_logging( PyObject *self, PyObject *args ) {
     Py_RETURN_NONE;
 }
 
+#define GL_CONTEXT_NAME     "fluggo.media.process.Offscreen GL Context"
+
+static void
+py_destroy_offscreen_gl_context( PyObject *obj ) {
+    void *context = PyCapsule_GetPointer( obj, GL_CONTEXT_NAME );
+
+    if( context )
+        gl_destroy_offscreen_context( context );
+}
+
+static PyObject *
+py_create_offscreen_gl_context( PyObject *self, PyObject *args ) {
+    void *context = gl_create_offscreen_context();
+
+    if( !context )
+        return NULL;
+
+    return PyCapsule_New( context, GL_CONTEXT_NAME, py_destroy_offscreen_gl_context );
+}
+
+static PyObject *
+py_set_current_gl_context( PyObject *self, PyObject *capsule ) {
+    if( capsule == Py_None ) {
+        gl_set_current_context( NULL );
+    }
+    else {
+        // BJC: Note that we don't hang on to the PyObject here; as it stands now,
+        // it's up to the caller to hang on to the capsule object until it unsets
+        // the current context. I don't know if that's the best idea, but keeping
+        // track of it also involves keeping track of it on multiple threads.
+        void *context = PyCapsule_GetPointer( capsule, GL_CONTEXT_NAME );
+
+        if( !context )
+            return NULL;
+
+        gl_set_current_context( context );
+    }
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef module_methods[] = {
     { "get_frame_time", (PyCFunction) py_getFrameTime, METH_VARARGS,
         "get_frame_time(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
@@ -199,6 +240,10 @@ static PyMethodDef module_methods[] = {
         "timeGetFrame(source, min_frame, max_frame, data_window=(0,0,1,1)): Retrieves min_frame through max_frame from the source and returns the time it took in nanoseconds." },
     { "enable_glib_logging", (PyCFunction) py_enable_glib_logging, METH_VARARGS,
         "enable_glib_logging([True]): Connects GLib log reporting to the Python logging module." },
+    { "create_offscreen_gl_context", (PyCFunction) py_create_offscreen_gl_context, METH_NOARGS,
+        "create_offscreen_gl_context(): Returns an opaque object that can be used with set_current_gl_context." },
+    { "set_current_gl_context", (PyCFunction) py_set_current_gl_context, METH_O,
+        "set_current_gl_context( context ): Sets the current GL context to one returned from create_offscreen_gl_context (or None)." },
     { NULL }
 };
 
