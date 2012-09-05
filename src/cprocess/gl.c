@@ -29,6 +29,150 @@
 #include <GL/glx.h>
 #endif
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "fluggo.media.cprocess.gl"
+
+static gsize __glew_init = 0;
+
+static void
+gl_ensure_glew() {
+    if( g_once_init_enter( &__glew_init ) ) {
+        g_debug( "Initializing GLEW" );
+        glewInit();
+
+        g_once_init_leave( &__glew_init, 1 );
+    }
+}
+
+#if !defined(WINNT)
+static Display *__display = NULL;
+
+typedef struct {
+    GLXContext context;
+    GLXPbuffer pbuffer;
+} glx_context_holder;
+
+EXPORT void *
+gl_create_offscreen_context() {
+    // Create a GL context suitable for rendering offscreen
+    // TODO: Run glewInit() after this
+    if( g_once_init_enter( &__display ) ) {
+        g_debug( "Opening X display..." );
+        Display *display = XOpenDisplay( NULL );
+
+        if( !display )
+            g_error( "Could not open X display." );
+
+        g_once_init_leave( &__display, display );
+    }
+
+    int fb_attrs[] = {
+        GLX_DRAWABLE_TYPE, GLX_PBUFFER_BIT, None };
+
+    g_debug( "Choosing framebuffer config" );
+    int config_count = 0;
+    GLXFBConfig *configs = glXChooseFBConfig(
+        __display, DefaultScreen( __display ), fb_attrs, &config_count );
+
+    if( !config_count )
+        g_error( "No frame buffer configurations available. Which is weird." );
+
+    GLXContext new_context = glXCreateNewContext(
+        __display, configs[0], GLX_RGBA_TYPE, NULL, True );
+
+    if( !new_context )
+        g_error( "Failed to create context." );
+
+    int pbuf_attrs[] = { GLX_PBUFFER_WIDTH, 1, GLX_PBUFFER_HEIGHT, 1, GLX_PRESERVED_CONTENTS, False, None };
+
+    GLXPbuffer pbuf = glXCreatePbuffer( __display, configs[0], pbuf_attrs );
+
+    if( pbuf == None )
+        g_error( "Failed to create XGL pixel buffer." );
+
+    glx_context_holder *result = g_new( glx_context_holder, 1 );
+
+    result->context = new_context;
+    result->pbuffer = pbuf;
+
+    return result;
+}
+
+EXPORT void
+gl_destroy_offscreen_context( void *context ) {
+    glx_context_holder *holder = (glx_context_holder *) context;
+
+    // Clean up attached resources
+    gl_set_current_context( context );
+    g_dataset_destroy( holder->context );
+    gl_set_current_context( NULL );
+
+    glXDestroyPbuffer( __display, holder->pbuffer );
+    glXDestroyContext( __display, holder->context );
+
+    g_free( holder );
+}
+
+EXPORT void
+gl_set_current_context( void *context ) {
+    glx_context_holder *holder = (glx_context_holder *) context;
+
+    if( !holder ) {
+        if( !glXMakeContextCurrent( __display,
+            None,
+            None,
+            NULL ) ) {
+            g_error( "Failed to set null context." );
+        }
+    }
+
+    if( !glXMakeContextCurrent( __display,
+        holder->pbuffer,
+        holder->pbuffer,
+        holder->context ) ) {
+        g_error( "Failed to set context current." );
+    }
+}
+#endif
+
+static GPrivate __thread_context = G_PRIVATE_INIT(gl_destroy_offscreen_context);
+
+EXPORT void *
+gl_create_thread_offscreen_context() {
+    // Ensure that a GL offscreen context is associated with this thread.
+    // This context will be used if no context is current at the time of a video
+    // fetch call.
+    void *context = g_private_get( &__thread_context );
+
+    if( !context ) {
+        context = gl_create_offscreen_context();
+        g_private_replace( &__thread_context, context );
+    }
+
+    return context;
+}
+
+EXPORT void
+gl_ensure_context() {
+    // Ensures that *a* context-- our thread-local or someone else's-- is current.
+    g_debug( "gl_ensure_context() called" );
+    if( !getCurrentGLContext() ) {
+        g_debug( "No current context, going to check for a thread context..." );
+        void *context = gl_create_thread_offscreen_context();
+        gl_set_current_context( context );
+    }
+
+    gl_ensure_glew();
+}
+
+EXPORT void
+gl_destroy_thread_offscreen_context() {
+    // The context should automatically get cleaned up when the thread finishes,
+    // but in case someone wants to clean it up early:
+    g_private_replace( &__thread_context, NULL );
+}
+
+
 EXPORT void
 __gl_checkError(const char *file, const unsigned long line) {
     int error = glGetError();

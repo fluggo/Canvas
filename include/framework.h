@@ -242,6 +242,13 @@ void __gl_checkError(const char *file, const unsigned long line);
 void gl_printShaderErrors( GLhandleARB shader );
 void gl_renderToTexture( rgba_frame_gl *frame );
 void gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram );
+G_GNUC_MALLOC void *gl_create_offscreen_context();
+void gl_destroy_offscreen_context( void *context );
+void gl_set_current_context( void *context );
+void *gl_create_thread_offscreen_context();
+void gl_ensure_context();
+void gl_destroy_thread_offscreen_context();
+
 
 /************* Audio *******/
 
