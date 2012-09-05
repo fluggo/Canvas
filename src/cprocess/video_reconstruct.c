@@ -206,10 +206,7 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
 
     // Set up the result texture
     glActiveTexture( GL_TEXTURE0 );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[3] );
-    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frame_size.x, frame_size.y, 0,
-        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
-    gl_checkError();
+    video_make_gl_texture( textures[3], frame_size.x, frame_size.y, NULL );
 
     // Offset the frame so that line zero is part of the first field
     // TODO: Should probably fold these constants into the shader

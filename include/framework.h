@@ -211,6 +211,7 @@ rgba_f16_to_f32( rgba_f32 *out, const rgba_f16 *in, int count ) {
 void video_get_frame_f16( video_source *source, int frame_index, rgba_frame_f16 *frame );
 void video_get_frame_f32( video_source *source, int frame_index, rgba_frame_f32 *frame );
 void video_get_frame_gl( video_source *source, int frame_index, rgba_frame_gl *frame );
+void video_make_gl_texture( GLuint texture, int width, int height, rgba_f16 *data );
 
 const uint8_t *video_get_gamma45_ramp();
 

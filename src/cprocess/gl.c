@@ -252,6 +252,27 @@ gl_renderToTexture( rgba_frame_gl *frame ) {
     glDeleteFramebuffersEXT( 1, &fbo );
 }
 
+/*
+    Make a suitable GL texture for a video frame, and bind it to the current stage.
+
+    The texture ID should already be allocated from glGenTextures. *data* is optional;
+    if supplied, it should be a straight array of [width*height] colors.
+
+    The key things here are: half-float, RGBA, texture rectangle, and
+    clamp-to-transparent on the edges.
+*/
+EXPORT void
+video_make_gl_texture( GLuint texture, int width, int height, rgba_f16 *data ) {
+    const float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, texture );
+    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, width, height, 0,
+        GL_RGBA, GL_HALF_FLOAT_ARB, data );
+    glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER );
+    glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER );
+    glTexParameterfv( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_BORDER_COLOR, black );
+}
+
 EXPORT void
 gl_printShaderErrors( GLhandleARB shader ) {
     int status;
@@ -295,11 +316,11 @@ EXPORT void video_get_frame_gl( video_source *source, int frameIndex, rgba_frame
         box2i_get_size( &targetFrame->full_window, &frameSize );
 
         glGenTextures( 1, &targetFrame->texture );
-        glBindTexture( GL_TEXTURE_RECTANGLE_ARB, targetFrame->texture );
-        glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
-            GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
+        glActiveTexture( GL_TEXTURE0 );
+        video_make_gl_texture( targetFrame->texture, frameSize.x, frameSize.y, NULL );
 
         // Clear the texture (is there a faster way to do this?)
+        // BJC: If we kill current_window, as below, we can just upload a dumb 1x1 pixel texture
         GLuint fbo;
         glGenFramebuffersEXT( 1, &fbo );
         glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
@@ -332,10 +353,11 @@ EXPORT void video_get_frame_gl( video_source *source, int frameIndex, rgba_frame
     video_get_frame_f16( source, frameIndex, &frame );
 
     // TODO: Only fill in the area specified by current_window
+    // BJC: A different solution would remove the distinction between full_window
+    // and current_window for GL textures, which would be easy to do since the
+    // upstream allocates the texture anyhow
     glGenTextures( 1, &targetFrame->texture );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, targetFrame->texture );
-    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
-        GL_RGBA, GL_HALF_FLOAT_ARB, frame.data );
+    video_make_gl_texture( targetFrame->texture, frameSize.x, frameSize.y, frame.data );
 
     g_slice_free1( sizeof(rgba_f16) * frameSize.x * frameSize.y, frame.data );
 }
