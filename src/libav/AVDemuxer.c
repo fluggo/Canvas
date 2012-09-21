@@ -190,6 +190,7 @@ AVDemuxer_get_next_packet( py_obj_AVDemuxer *self ) {
     packet->packet.length = packet->av_packet.size;
     packet->packet.dts = packet->av_packet.dts;
     packet->packet.pts = packet->av_packet.pts;
+    packet->packet.duration = packet->av_packet.duration;
     packet->packet.free_func = (GFreeFunc) my_packet_free;
 
     // TODO: There are a lot of cases where this won't work
@@ -207,6 +208,9 @@ AVDemuxer_get_next_packet( py_obj_AVDemuxer *self ) {
 
         if( packet->packet.pts != PACKET_TS_NONE )
             packet->packet.pts = (packet->av_packet.pts * self->frame_duration.d + self->frame_duration.n / 2) / self->frame_duration.n;
+
+        if( packet->packet.duration != 0 )
+            packet->packet.duration = (packet->av_packet.duration * self->frame_duration.d + self->frame_duration.n / 2) / self->frame_duration.n;
     }
 
     return (codec_packet *) packet;
