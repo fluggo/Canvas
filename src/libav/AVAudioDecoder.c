@@ -21,6 +21,9 @@
 #include "pyframework.h"
 #include <libavformat/avformat.h>
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "fluggo.media.faac.AVAudioDecoder"
+
 typedef struct {
     PyObject_HEAD
 
@@ -185,7 +188,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
 
         // We could be done...
         if( frame->current_min_sample == frame->full_min_sample && frame->current_max_sample == frame->full_max_sample ) {
-            //printf( "Going home early: (%d, %d)\n", startSample, duration );
+            g_debug( "Going home early: (%d, %d)", start_sample, duration );
             g_static_mutex_unlock( &self->mutex );
             return;
         }
@@ -231,7 +234,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
 #else
             if( (decoded = avcodec_decode_audio3( &self->context, audio_buffer, &buffer_size, &av_packet )) < 0 ) {
 #endif
-                printf( "Could not decode the audio (%s).\n", g_strerror( -decoded ) );
+                g_warning( "Could not decode the audio (%s).", g_strerror( -decoded ) );
                 frame->current_max_sample = -1;
                 frame->current_min_sample = 0;
 
@@ -243,11 +246,11 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
             }
 
             if( buffer_size <= 0 ) {
-                //printf( "Didn't get a sound\n" );
+                g_warning( "Didn't get a sound" );
                 continue;
             }
 
-            //printf( "Decoded %d bytes, got %d bytes\n", decoded, bufferSize );
+            //g_debug( "Decoded %d bytes, got %d bytes", decoded, buffer_size );
 
             packet_duration += get_sample_count( buffer_size, self->context.sample_fmt, self->context.channels );
 
@@ -262,7 +265,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
         self->last_packet_start = packet_start;
         self->last_packet_duration = packet_duration;
 
-        //printf( "We'll take that (%d, %d)\n", packet_start, packet_duration );
+        g_debug( "We'll take that (%d, %d)", packet_start, packet_start + packet_duration - 1 );
         int start_sample = max(packet_start, frame->full_min_sample);
         int duration = min(packet_start + packet_duration, frame->full_max_sample + 1) - start_sample;
         float *out = audio_get_sample( frame, start_sample, 0 );
@@ -287,12 +290,12 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
             if( packet && packet->free_func )
                 packet->free_func( packet );
 
-//            printf( "Enough: (%d, %d) vs (%d, %d)\n", frame->current_min_sample, frame->current_max_sample, frame->full_min_sample, frame->full_max_sample );
+            g_debug( "Enough: (%d, %d) vs (%d, %d)", frame->current_min_sample, frame->current_max_sample, frame->full_min_sample, frame->full_max_sample );
             g_static_mutex_unlock( &self->mutex );
             return;
         }
         else {
-//            printf( "Not enough: (%d, %d) vs (%d, %d)\n", frame->currentMinSample, frame->currentMaxSample, frame->fullMinSample, frame->fullMaxSample );
+            g_debug( "Not enough: (%d, %d) vs (%d, %d)", frame->current_min_sample, frame->current_max_sample, frame->full_min_sample, frame->full_max_sample );
         }
     }
 }
