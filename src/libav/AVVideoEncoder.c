@@ -152,7 +152,7 @@ AVVideoEncoder_get_next_packet( py_obj_AVVideoEncoder *self ) {
     codec_packet *packet;
     int result;
 
-    while( self->current_frame < self->end_frame ) {
+    while( self->current_frame <= self->end_frame ) {
         coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, self->current_frame );
 
         if( !image ) {
