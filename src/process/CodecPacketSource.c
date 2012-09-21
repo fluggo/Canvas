@@ -110,6 +110,9 @@ CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
     PyObject *data = PyBytes_FromStringAndSize( packet->data, packet->length );
     int64_t pts = packet->pts;
     int64_t dts = packet->dts;
+    int64_t duration = packet->duration;
+    bool keyframe = packet->keyframe;
+    bool discardable = packet->discardable;
 
     if( packet->free_func )
         packet->free_func( packet );
@@ -117,7 +120,7 @@ CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
     if( !data )
         return NULL;
 
-    PyObject *ptsObj, *dtsObj;
+    PyObject *ptsObj, *dtsObj, *duration_obj, *keyframe_obj, *discardable_obj;
 
     if( dts == PACKET_TS_NONE ) {
         dtsObj = Py_None;
@@ -133,10 +136,22 @@ CodecPacketSource_get_next_packet( PyObject *self, PyObject *args ) {
     else
         ptsObj = PyLong_FromLongLong( pts );
 
-    PyObject *result = PyObject_CallFunctionObjArgs( py_type_packet, data, dtsObj, ptsObj, NULL );
+    if( duration == 0 ) {
+        duration_obj = Py_None;
+        Py_INCREF(duration_obj);
+    }
+    else
+        duration_obj = PyLong_FromLongLong( duration );
+
+    // We skip Py_INCREF on keyframe; the tuple will do that for us
+    keyframe_obj = keyframe ? Py_True : Py_False;
+    discardable_obj = discardable ? Py_True : Py_False;
+
+    PyObject *result = PyObject_CallFunctionObjArgs( py_type_packet, data, dtsObj, ptsObj, duration_obj, keyframe_obj, discardable_obj, NULL );
     Py_CLEAR( data );
     Py_CLEAR( dtsObj );
     Py_CLEAR( ptsObj );
+    Py_CLEAR( duration_obj );
 
     return result;
 }
@@ -196,7 +211,7 @@ void init_CodecPacketSource( PyObject *module ) {
     PyObject *namedtuple = PyObject_GetAttrString( collections, "namedtuple" );
     Py_CLEAR( collections );
 
-    py_type_packet = PyObject_CallFunction( namedtuple, "ss", "CodecPacket", "data dts pts" );
+    py_type_packet = PyObject_CallFunction( namedtuple, "ss", "CodecPacket", "data dts pts duration keyframe discardable" );
 
     Py_CLEAR( namedtuple );
 
