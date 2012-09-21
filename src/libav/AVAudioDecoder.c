@@ -25,6 +25,22 @@
 #define G_LOG_DOMAIN "fluggo.media.faac.AVAudioDecoder"
 
 typedef struct {
+    int64_t timestamp;
+    int64_t sample;
+    int duration;
+} timestamp_to_sample;
+
+static void
+destroy_tts( timestamp_to_sample *ptr ) {
+    g_slice_free( timestamp_to_sample, ptr );
+}
+
+G_GNUC_PURE static gint
+compare_tts( timestamp_to_sample *a, timestamp_to_sample *b, gpointer user_data ) {
+    return a->timestamp - b->timestamp;
+}
+
+typedef struct {
     PyObject_HEAD
 
     CodecPacketSourceHolder source;
@@ -32,7 +48,12 @@ typedef struct {
     AVFrame *input_frame;
     void *audio_buffer;
     int last_packet_start, last_packet_duration;
-    bool context_open;
+    bool context_open, trust_timestamps;
+    GSequence *timestamp_to_sample;
+    int32_t max_sample_seen;
+
+    int64_t current_pts;
+    bool current_pts_valid;
 
     GStaticMutex mutex;
 } py_obj_AVAudioDecoder;
@@ -43,6 +64,11 @@ AVAudioDecoder_init( py_obj_AVAudioDecoder *self, PyObject *args, PyObject *kw )
 
     // Zero all pointers (so we know later what needs deleting)
     self->input_frame = NULL;
+    self->timestamp_to_sample = NULL;
+    self->trust_timestamps = false;
+    self->audio_buffer = NULL;
+    self->max_sample_seen = INT32_MIN;
+    self->current_pts_valid = false;
 
     PyObject *source_obj;
     const char *codec_name;
@@ -90,6 +116,10 @@ AVAudioDecoder_init( py_obj_AVAudioDecoder *self, PyObject *args, PyObject *kw )
     self->last_packet_start = 0;
     self->last_packet_duration = 0;
 
+    if( !self->trust_timestamps ) {
+        self->timestamp_to_sample = g_sequence_new( (GDestroyNotify) destroy_tts );
+    }
+
     return 0;
 }
 
@@ -100,6 +130,9 @@ AVAudioDecoder_dealloc( py_obj_AVAudioDecoder *self ) {
 
     if( self->context_open )
         avcodec_close( &self->context );
+
+    if( self->timestamp_to_sample )
+        g_sequence_free( self->timestamp_to_sample );
 
     py_codec_packet_take_source( NULL, &self->source );
     g_static_mutex_free( &self->mutex );
@@ -156,12 +189,45 @@ static void
 AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
     g_static_mutex_lock( &self->mutex );
 
-    if( self->source.source.funcs->seek &&
-            self->last_packet_start != -1 &&
-            (frame->full_min_sample < self->last_packet_start ||
-                (frame->full_min_sample - self->last_packet_start) >= (frame->full_max_sample - frame->full_min_sample + 1) * 4) ) {
+    // BJC: What does trust_timestamps mean? Well, some containers have timestamps
+    // that are less precise than their sample rate. DV, for example, has timestamps
+    // with a resolution of 1/30000, but a sample rate of 48000 Hz. The packet
+    // source will do its best to convert the timestamps into samples, but it
+    // does not have enough information to be accurate to the sample.
+    //
+    // That's fine for pure playback scenarios. We've got to be able to produce
+    // frames from any point in the stream accurate to the sample. So, by default,
+    // unless someone gives us permission to trust that the timestamps are accurate
+    // with trust_timestamps, we make sure to decode our way through the stream
+    // and build a map of what timestamps correspond to what actual samples.
 
-        if( !self->source.source.funcs->seek( self->source.source.obj, frame->full_min_sample ) ) {
+    bool do_seek = false;
+
+    if( self->source.source.funcs->seek ) {
+        do_seek = true;
+
+        if( self->current_pts_valid ) {
+            // If our last packet was before (but not too far before) the current
+            // frame, read up to it
+            do_seek = frame->full_min_sample < self->current_pts ||
+                frame->full_min_sample >= (self->current_pts + 10000);
+
+            // But don't do it if our last packet contains the seek point
+            if( self->last_packet_duration != 0 &&
+                    self->last_packet_start + self->last_packet_duration == self->current_pts &&
+                    frame->full_min_sample >= self->last_packet_start &&
+                    frame->full_min_sample <= self->current_pts )
+                do_seek = false;
+
+            if( do_seek )
+                g_debug( "Deciding to seek, current %" PRId64 " vs. target %d", self->current_pts, frame->full_min_sample );
+        }
+
+        if( !self->trust_timestamps && frame->full_min_sample < self->max_sample_seen )
+            do_seek = false;
+
+        if( do_seek && !self->source.source.funcs->seek( self->source.source.obj, frame->full_min_sample ) ) {
+            g_warning( "Failed to seek to sample %d", frame->full_min_sample );
             g_static_mutex_unlock( &self->mutex );
             frame->current_max_sample = -1;
             frame->current_min_sample = 0;
@@ -171,13 +237,18 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
 
     bool first = true;
 
-    if( self->last_packet_start != -1 && self->last_packet_start <= frame->full_max_sample &&
+    if( self->last_packet_duration != 0 && self->last_packet_start <= frame->full_max_sample &&
         (self->last_packet_start + self->last_packet_duration) >= frame->full_min_sample ) {
 
         // Decode into the current frame
         int start_sample = max(self->last_packet_start, frame->full_min_sample);
         int duration = min(self->last_packet_start + self->last_packet_duration, frame->full_max_sample + 1) - start_sample;
         float *out = audio_get_sample( frame, start_sample, 0 );
+
+        g_debug( "Using last packet from (%d->%d, %d->%d)",
+            self->last_packet_start, start_sample,
+            self->last_packet_start + self->last_packet_duration - 1,
+            start_sample + duration - 1 );
 
         convert_samples( out, frame->channels, self->audio_buffer, self->context.channels, (start_sample - self->last_packet_start),
             self->context.sample_fmt, duration );
@@ -222,9 +293,6 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
 
         void *audio_buffer = self->audio_buffer;
 
-        int packet_start = packet->pts;
-        int packet_duration = 0;
-
         while( data_size > 0 ) {
             int decoded;
 
@@ -252,8 +320,6 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
 
             //g_debug( "Decoded %d bytes, got %d bytes", decoded, buffer_size );
 
-            packet_duration += get_sample_count( buffer_size, self->context.sample_fmt, self->context.channels );
-
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
             data += decoded;
 #endif
@@ -262,8 +328,69 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
             buffer_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;        // A lie, but a safe one, I think
         }
 
+        // Patch up timestamps if necessary
+        int packet_start = packet->pts;
+        int packet_duration = packet->duration;
+
+        g_debug( "Got packet start %d duration %d", packet_start, packet_duration );
+
+        if( !self->trust_timestamps ) {
+            // Calculate new duration
+            packet_duration = get_sample_count( audio_buffer - self->audio_buffer,
+                self->context.sample_fmt, self->context.channels );
+
+            if( !do_seek && self->current_pts_valid ) {
+                // We can trust our previous PTS
+                packet_start = self->current_pts;
+            }
+            else {
+                // We will use the PTS from the packet;
+                // the idea is that this will only really stick for the first
+                // packet, since on the next pass, we will override it.
+            }
+
+            g_debug( "Substituted start %d duration %d", packet_start, packet_duration );
+
+            // Look up entry in our table
+            timestamp_to_sample tts = {
+                .timestamp = packet->pts,
+                .sample = packet_start,
+                .duration = packet_duration };
+
+            GSequenceIter *iter = g_sequence_lookup( self->timestamp_to_sample,
+                &tts, (GCompareDataFunc) compare_tts, NULL );
+
+            if( iter == NULL ) {
+                // We don't have this entry, make one
+                if( do_seek )
+                    g_warning( "Seek brought us to a point not covered in the timestamp table." );
+
+                g_debug( "Adding to timestamp table" );
+
+                timestamp_to_sample *ttsptr = g_slice_dup( timestamp_to_sample, &tts );
+
+                g_sequence_insert_sorted( self->timestamp_to_sample,
+                    ttsptr, (GCompareDataFunc) compare_tts, NULL );
+            }
+            else {
+                // This packet is covered, let's use the start and duration we recorded
+                timestamp_to_sample *ttsptr = g_sequence_get( iter );
+
+                packet_start = ttsptr->sample;
+                packet_duration = ttsptr->duration;
+
+                g_debug( "Re-substituting start %d duration %d from timestamp table", packet_start, packet_duration );
+            }
+        }
+
+        // After this, we haven't seeked to this spot anymore
+        do_seek = false;
+
         self->last_packet_start = packet_start;
         self->last_packet_duration = packet_duration;
+        self->current_pts = packet_start + packet_duration;
+        self->current_pts_valid = true;
+        self->max_sample_seen = packet_start + packet_duration - 1;
 
         g_debug( "We'll take that (%d, %d)", packet_start, packet_start + packet_duration - 1 );
         int start_sample = max(packet_start, frame->full_min_sample);
