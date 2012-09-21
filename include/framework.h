@@ -365,10 +365,21 @@ void audio_mix_add_pull( audio_frame *out, const audio_source *a, float mix_a, i
 #define PACKET_TS_NONE      INT64_C(0x8000000000000000)
 
 typedef struct {
+    // The data for the packet, which is "length" bytes.
     void *data;
     int length;
-    int64_t pts, dts;
+
+    // The presentation and decode timestamps and duration in samples (audio) or
+    // frames (video). Duration is zero if unknown, but please do your best to
+    // come up with the duration. If PTS or DTS is unknown, it's PACKET_TS_NONE.
+    int64_t pts, dts, duration;
+
+    // Keyframe if this packet can be decoded by itself, should be true if unsure.
     bool keyframe;
+
+    // True if this packet could be discarded and the stream picked up later.
+    // Generally true of B-frames in video.
+    bool discardable;
 
     GFreeFunc free_func;
 } codec_packet;
