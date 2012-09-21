@@ -31,11 +31,16 @@ typedef struct {
     int start_frame, end_frame, current_frame;
     CodedImageSourceHolder source;
     x264_t *encoder;
+
+    PyObject *sps, *pps, *sei;
 } py_obj_X264VideoEncoder;
 
 static int
 X264VideoEncoder_init( py_obj_X264VideoEncoder *self, PyObject *args, PyObject *kw ) {
     self->source.csource = NULL;
+    self->sps = NULL;
+    self->pps = NULL;
+    self->sei = NULL;
 
     PyObject *source_obj;
     const char *preset = NULL, *tune = NULL, *profile = NULL;
@@ -79,7 +84,9 @@ X264VideoEncoder_init( py_obj_X264VideoEncoder *self, PyObject *args, PyObject *
     params.i_fps_den = 1001;
     params.i_timebase_num = 1001;   // Special things to be done here for pulldown
     params.i_timebase_den = 30000;
-    params.b_annexb = 1;            // Suitable for standalone file
+    params.b_annexb = 0;            // 1=Suitable for standalone file
+    params.b_repeat_headers = 0;
+    params.b_vfr_input = 0;
 
     x264_param_apply_fastfirstpass( &params );
 
@@ -93,6 +100,19 @@ X264VideoEncoder_init( py_obj_X264VideoEncoder *self, PyObject *args, PyObject *
 
     self->encoder = x264_encoder_open( &params );
 
+    // Grab the headers here; we're copying x264's example on the IDs
+    x264_nal_t *nals;
+    int count;
+
+    if( x264_encoder_headers( self->encoder, &nals, &count ) < 0 ) {
+        PyErr_Format( PyExc_Exception, "Failed to fetch headers." );
+        return -1;
+    }
+
+    self->sps = PyBytes_FromStringAndSize( (char*) nals[0].p_payload, nals[0].i_payload );
+    self->pps = PyBytes_FromStringAndSize( (char*) nals[1].p_payload, nals[1].i_payload );
+    self->sei = PyBytes_FromStringAndSize( (char*) nals[2].p_payload, nals[2].i_payload );
+
     return 0;
 }
 
@@ -102,6 +122,10 @@ X264VideoEncoder_dealloc( py_obj_X264VideoEncoder *self ) {
         x264_encoder_close( self->encoder );
 
     py_coded_image_take_source( NULL, &self->source );
+    Py_CLEAR( self->sei );
+    Py_CLEAR( self->pps );
+    Py_CLEAR( self->sps );
+
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
@@ -143,7 +167,7 @@ X264VideoEncoder_get_next_packet( py_obj_X264VideoEncoder *self ) {
     x264_nal_t *nals;
     int result, nal_count;
 
-    while( self->current_frame < self->end_frame ) {
+    while( self->current_frame <= self->end_frame ) {
         coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, self->current_frame );
 
         if( !image ) {
@@ -190,7 +214,9 @@ X264VideoEncoder_get_next_packet( py_obj_X264VideoEncoder *self ) {
         packet->data = g_slice_copy( size, nals[0].p_payload );
         packet->pts = pict_out.i_pts;
         packet->dts = pict_out.i_dts;
+        packet->duration = 1;
         packet->keyframe = pict_out.b_keyframe ? true : false;
+        packet->discardable = pict_out.i_type == X264_TYPE_B;
         packet->free_func = (GFreeFunc) my_packet_free;
 
         return packet;
@@ -225,7 +251,9 @@ X264VideoEncoder_get_next_packet( py_obj_X264VideoEncoder *self ) {
     packet->data = g_slice_copy( size, nals[0].p_payload );
     packet->pts = pict_out.i_pts;
     packet->dts = pict_out.i_dts;
+    packet->duration = 1;
     packet->keyframe = pict_out.b_keyframe ? true : false;
+    packet->discardable = pict_out.i_type == X264_TYPE_B;
     packet->free_func = (GFreeFunc) my_packet_free;
 
     return packet;
@@ -266,6 +294,13 @@ static PyMethodDef X264VideoEncoder_methods[] = {
     { NULL }
 };
 
+static PyMemberDef X264VideoEncoder_members[] = {
+    { "pps", T_OBJECT_EX, G_STRUCT_OFFSET(py_obj_X264VideoEncoder, pps), READONLY, NULL },
+    { "sps", T_OBJECT_EX, G_STRUCT_OFFSET(py_obj_X264VideoEncoder, sps), READONLY, NULL },
+    { "sei", T_OBJECT_EX, G_STRUCT_OFFSET(py_obj_X264VideoEncoder, sei), READONLY, NULL },
+    { NULL }
+};
+
 static PyTypeObject py_type_X264VideoEncoder = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.x264.X264VideoEncoder",
@@ -276,7 +311,8 @@ static PyTypeObject py_type_X264VideoEncoder = {
     .tp_dealloc = (destructor) X264VideoEncoder_dealloc,
     .tp_init = (initproc) X264VideoEncoder_init,
     .tp_getset = X264VideoEncoder_getsetters,
-    .tp_methods = X264VideoEncoder_methods
+    .tp_methods = X264VideoEncoder_methods,
+    .tp_members = X264VideoEncoder_members,
 };
 
 void init_X264VideoEncoder( PyObject *module ) {
