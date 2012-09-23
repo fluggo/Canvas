@@ -32,7 +32,12 @@ profile = int(ARGUMENTS.get('profile', 0))
 release = int(ARGUMENTS.get('release', 0))
 mingw = int(ARGUMENTS.get('mingw', 0))
 
+# Beats me if I'm using this right
 check_env = Environment()
+conf = Configure(check_env)
+has_libfaac = conf.CheckLib('faac')
+check_env = conf.Finish()
+
 tools = ['default']
 
 if mingw or check_env['PLATFORM'] == 'win32':
@@ -158,13 +163,7 @@ else:
 if not env.Execute('@pkg-config --exists x264'):
     x264_env = python_env.Clone()
     x264_env.ParseConfig('pkg-config --libs --cflags x264 glib-2.0 gthread-2.0')
-    x264_env.Append(LIBS=[process], CCFLAGS=['-Wno-error=deprecated-declarations'])
-
-    #if env['PLATFORM'] == 'win32':
-    #    libav_env.Append(LIBS=['glew32', 'opengl32'])
-    #else:
-    #    libav_env.ParseConfig('pkg-config --libs --cflags gl')
-    #    libav_env.Append(LIBS=['GLEW'])
+    x264_env.Append(LIBS=[process])
 
     x264 = x264_env.SharedLibrary('fluggo/media/x264', env.Glob('src/x264/*.c'))
 
@@ -173,6 +172,19 @@ if not env.Execute('@pkg-config --exists x264'):
     Default('x264')
 else:
     print 'Skipping x264 library build'
+
+if has_libfaac:
+    faac_env = python_env.Clone()
+    faac_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
+    faac_env.Append(LIBS=[process, 'faac'])
+
+    faac = faac_env.SharedLibrary('fluggo/media/faac', env.Glob('src/faac/*.c'))
+
+    Alias('faac', faac)
+    Alias('all', 'faac')
+    Default('faac')
+else:
+    print 'Skipping faac library build'
 
 if not env.Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
     gtk_env = python_env.Clone()
