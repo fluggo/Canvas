@@ -197,7 +197,7 @@ AACAudioEncoder_get_next_packet( py_obj_AACAudioEncoder *self ) {
 
         // libfaac expects even float data at 16-bit levels
         for( int i = (frame.current_min_sample - frame.full_min_sample) * self->channels;
-                i < (frame.current_max_sample - frame.full_min_sample) * self->channels; i++ ) {
+                i < (frame.current_max_sample - frame.full_min_sample + 1) * self->channels; i++ ) {
             frame.data[i] *= (float) 0x7FFF;
         }
 
