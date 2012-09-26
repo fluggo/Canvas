@@ -165,6 +165,8 @@ AACAudioEncoder_get_next_packet( py_obj_AACAudioEncoder *self ) {
             .full_max_sample = min(self->current_sample + self->input_samples - 1, self->end_sample),
         };
 
+        int sample_count = frame.full_max_sample - frame.full_min_sample + 1;
+
         audio_get_frame( &self->source.source, &frame );
 
         g_debug( "Current min/max: %i %i (full %i %i)",
@@ -175,7 +177,7 @@ AACAudioEncoder_get_next_packet( py_obj_AACAudioEncoder *self ) {
         // silence if there's no data
         if( frame.current_min_sample > frame.current_max_sample ) {
             // Silence
-            for( int i = 0; i < self->input_samples * self->channels; i++ )
+            for( int i = 0; i < sample_count * self->channels; i++ )
                 frame.data[i] = 0.0f;
         }
         else {
@@ -187,22 +189,19 @@ AACAudioEncoder_get_next_packet( py_obj_AACAudioEncoder *self ) {
 
             int first_silence_sample = frame.current_max_sample - frame.full_min_sample + 1;
 
-            for( int i = first_silence_sample * self->channels; i < self->input_samples * self->channels; i++ )
+            for( int i = first_silence_sample * self->channels;
+                    i < sample_count * self->channels; i++ )
                 frame.data[i] = 0.0f;
         }
 
-        for( int i = 0; i < self->input_samples; i++ ) {
-            //g_debug( "Sample %d: L %f R %f", i + frame.full_min_sample, frame.data[i * 2 + 0], frame.data[i * 2 + 1] );
-        }
-
-        // libfaac expects even float data at 16-bit levels
+        // libfaac expects float data at 16-bit levels
         for( int i = (frame.current_min_sample - frame.full_min_sample) * self->channels;
                 i < (frame.current_max_sample - frame.full_min_sample + 1) * self->channels; i++ ) {
             frame.data[i] *= (float) 0x7FFF;
         }
 
         result = faacEncEncode( self->encoder, (int32_t*)(void*) frame.data,
-            (frame.full_max_sample - frame.full_min_sample + 1) * self->channels,
+            sample_count * self->channels,
             data, self->max_output_bytes );
 
         g_slice_free1( sizeof(float) * self->channels * self->input_samples, frame.data );
