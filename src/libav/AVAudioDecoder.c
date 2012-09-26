@@ -24,10 +24,27 @@
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN "fluggo.media.faac.AVAudioDecoder"
 
+#if LIBAVUTIL_VERSION_INT < AV_VERSION_INT(50, 32, 0)
+#define AVSampleFormat SampleFormat
+#define AV_SAMPLE_FMT_U8  SAMPLE_FMT_U8
+#define AV_SAMPLE_FMT_S16 SAMPLE_FMT_S16
+#define AV_SAMPLE_FMT_S32 SAMPLE_FMT_S32
+#define AV_SAMPLE_FMT_FLT SAMPLE_FMT_FLT
+#define AV_SAMPLE_FMT_DBL SAMPLE_FMT_DBL
+#endif
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
+// We don't support avcodec_decode_audio2
+#error Libavcodec is too old. Please use 52.23.0 or newer.
+#endif
+
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(53, 25, 0)
+#define USE_DECODE4 1
+#endif
+
 typedef struct {
     int64_t timestamp;
     int64_t sample;
-    int duration;
 } timestamp_to_sample;
 
 static void
@@ -45,12 +62,16 @@ typedef struct {
 
     CodecPacketSourceHolder source;
     AVCodecContext context;
-    AVFrame *input_frame;
-    void *audio_buffer;
-    int last_packet_start, last_packet_duration;
+    AVFrame input_frame;
+    AVPacket input_packet;
+    codec_packet *last_packet;
+#if !defined(USE_DECODE4)
+    uint8_t audio_buffer[AVCODEC_MAX_AUDIO_FRAME_SIZE];
+#endif
     bool context_open, trust_timestamps;
     GSequence *timestamp_to_sample;
     int32_t max_sample_seen;
+    int32_t packet_left;
 
     int64_t current_pts;
     bool current_pts_valid;
@@ -63,10 +84,12 @@ AVAudioDecoder_init( py_obj_AVAudioDecoder *self, PyObject *args, PyObject *kw )
     int error;
 
     // Zero all pointers (so we know later what needs deleting)
-    self->input_frame = NULL;
+    self->input_frame = (AVFrame) {{0}};
+    self->input_packet = (AVPacket) {0};
+    self->last_packet = NULL;
+    self->packet_left = 0;
     self->timestamp_to_sample = NULL;
     self->trust_timestamps = false;
-    self->audio_buffer = NULL;
     self->max_sample_seen = INT32_MIN;
     self->current_pts_valid = false;
 
@@ -90,8 +113,28 @@ AVAudioDecoder_init( py_obj_AVAudioDecoder *self, PyObject *args, PyObject *kw )
     if( !py_codec_packet_take_source( source_obj, &self->source ) )
         return -1;
 
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(53, 14, 0)
+    // To Anton Khirnov: This version number was difficult to find, since it
+    // wasn't listed in APIchanges.
     avcodec_get_context_defaults( &self->context );
+#else
+    avcodec_get_context_defaults3( &self->context, codec );
+#endif
+
     self->context.channels = channels;
+
+    // Pull in extradata (codec header)
+    if( self->source.source.funcs->getHeader ) {
+        int size = self->source.source.funcs->getHeader( self->source.source.obj, NULL );
+
+        if( size > 0 ) {
+            self->context.extradata = g_malloc( size );
+            self->context.extradata_size = size;
+
+            if( !self->source.source.funcs->getHeader( self->source.source.obj, self->context.extradata ) )
+                g_warning( "Failed to retrieve extradata from codec packet source." );
+        }
+    }
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(53, 6, 0)
     if( (error = avcodec_open( &self->context, codec )) != 0 ) {
@@ -106,16 +149,6 @@ AVAudioDecoder_init( py_obj_AVAudioDecoder *self, PyObject *args, PyObject *kw )
     self->context_open = true;
     g_static_mutex_init( &self->mutex );
 
-    self->audio_buffer = PyMem_Malloc( AVCODEC_MAX_AUDIO_FRAME_SIZE );
-
-    if( !self->audio_buffer ) {
-        PyErr_NoMemory();
-        return -1;
-    }
-
-    self->last_packet_start = 0;
-    self->last_packet_duration = 0;
-
     if( !self->trust_timestamps ) {
         self->timestamp_to_sample = g_sequence_new( (GDestroyNotify) destroy_tts );
     }
@@ -124,15 +157,31 @@ AVAudioDecoder_init( py_obj_AVAudioDecoder *self, PyObject *args, PyObject *kw )
 }
 
 static void
+codec_packet_free( codec_packet **packet ) {
+    if( *packet && (*packet)->free_func ) {
+        (*packet)->free_func( *packet );
+        *packet = NULL;
+    }
+}
+
+static void
 AVAudioDecoder_dealloc( py_obj_AVAudioDecoder *self ) {
-    PyMem_Free( self->audio_buffer );
-    self->audio_buffer = NULL;
+    codec_packet_free( &self->last_packet );
 
-    if( self->context_open )
+    if( self->context_open ) {
         avcodec_close( &self->context );
+        self->context_open = false;
+    }
 
-    if( self->timestamp_to_sample )
+    if( self->context.extradata ) {
+        g_free( self->context.extradata );
+        self->context.extradata = NULL;
+    }
+
+    if( self->timestamp_to_sample ) {
         g_sequence_free( self->timestamp_to_sample );
+        self->timestamp_to_sample = NULL;
+    }
 
     py_codec_packet_take_source( NULL, &self->source );
     g_static_mutex_free( &self->mutex );
@@ -140,7 +189,7 @@ AVAudioDecoder_dealloc( py_obj_AVAudioDecoder *self ) {
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
-static void convert_samples( float *out, int out_channels, void *in, int in_channels, int offset, enum SampleFormat sample_fmt, int duration ) {
+static void convert_samples( float *out, int out_channels, void *in, int in_channels, int offset, enum AVSampleFormat sample_fmt, int duration ) {
     #define CONVERT(in_type, factor) \
         for( int sample = 0; sample < duration; sample++ ) { \
             for( int channel = 0; channel < out_channels; channel++ ) { \
@@ -150,23 +199,23 @@ static void convert_samples( float *out, int out_channels, void *in, int in_chan
         }
 
     switch( sample_fmt ) {
-        case SAMPLE_FMT_U8:
+        case AV_SAMPLE_FMT_U8:
             CONVERT(uint8_t, (1.0f / (float) INT8_MAX) - 1.0f)
             return;
 
-        case SAMPLE_FMT_S16:
+        case AV_SAMPLE_FMT_S16:
             CONVERT(int16_t, (1.0f / (float) INT16_MAX))
             return;
 
-        case SAMPLE_FMT_S32:
+        case AV_SAMPLE_FMT_S32:
             CONVERT(int32_t, (1.0f / (float) INT32_MAX))
             return;
 
-        case SAMPLE_FMT_FLT:
+        case AV_SAMPLE_FMT_FLT:
             CONVERT(float, 1.0f)
             return;
 
-        case SAMPLE_FMT_DBL:
+        case AV_SAMPLE_FMT_DBL:
             CONVERT(double, 1.0f)
             return;
 
@@ -176,7 +225,8 @@ static void convert_samples( float *out, int out_channels, void *in, int in_chan
     }
 }
 
-static int get_sample_count( int bytes, enum SampleFormat sample_fmt, int channels ) {
+#if !defined(USE_DECODE4)
+static int get_sample_count( int bytes, enum AVSampleFormat sample_fmt, int channels ) {
     static int format_size[] = { 1, 2, 4, 4, 8 };
 
     if( sample_fmt < 0 || sample_fmt > 4 )
@@ -184,6 +234,7 @@ static int get_sample_count( int bytes, enum SampleFormat sample_fmt, int channe
 
     return bytes / (format_size[sample_fmt] * channels);
 }
+#endif
 
 static void
 AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
@@ -202,55 +253,69 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
     // and build a map of what timestamps correspond to what actual samples.
 
     bool do_seek = false;
+    bool first = true;
+    frame->current_max_sample = -1;
+    frame->current_min_sample = 0;
 
+    // Seek to the spot if we need to (and if we can)
     if( self->source.source.funcs->seek ) {
         do_seek = true;
 
         if( self->current_pts_valid ) {
-            // If our last packet was before (but not too far before) the current
-            // frame, read up to it
+            // If our last read frame was before (but not too far before) the
+            // current output frame, read up to it
             do_seek = frame->full_min_sample < self->current_pts ||
                 frame->full_min_sample >= (self->current_pts + 10000);
 
-            // But don't do it if our last packet contains the seek point
-            if( self->last_packet_duration != 0 &&
-                    self->last_packet_start + self->last_packet_duration == self->current_pts &&
-                    frame->full_min_sample >= self->last_packet_start &&
-                    frame->full_min_sample <= self->current_pts )
-                do_seek = false;
-
             if( do_seek )
-                g_debug( "Deciding to seek, current %" PRId64 " vs. target %d", self->current_pts, frame->full_min_sample );
+                g_debug( "Looks like we need to seek..." );
+
+            // But don't do it if our last frame contains the seek point
+            if( do_seek &&
+                    self->input_frame.data[0] &&
+                    self->input_frame.pts + self->input_frame.nb_samples == self->current_pts &&
+                    frame->full_min_sample >= self->input_frame.pts &&
+                    frame->full_min_sample <= self->current_pts ) {
+                g_debug( "Skip seek, previous frame contains our read point" );
+                do_seek = false;
+            }
         }
 
-        if( !self->trust_timestamps && frame->full_min_sample < self->max_sample_seen )
+        if( do_seek && !self->trust_timestamps && frame->full_min_sample > self->max_sample_seen ) {
+            g_debug( "Skip seek, we don't trust the timestamps there yet" );
             do_seek = false;
+        }
 
-        if( do_seek && !self->source.source.funcs->seek( self->source.source.obj, frame->full_min_sample ) ) {
-            g_warning( "Failed to seek to sample %d", frame->full_min_sample );
-            g_static_mutex_unlock( &self->mutex );
-            frame->current_max_sample = -1;
-            frame->current_min_sample = 0;
-            return;
+        if( do_seek )
+            g_debug( "Deciding to seek, current %" PRId64 " vs. target %d", self->current_pts, frame->full_min_sample );
+
+        if( do_seek ) {
+            if( !self->source.source.funcs->seek( self->source.source.obj, frame->full_min_sample ) ) {
+                g_warning( "Failed to seek to sample %d", frame->full_min_sample );
+                g_static_mutex_unlock( &self->mutex );
+                return;
+            }
+
+            self->current_pts_valid = false;
         }
     }
 
-    bool first = true;
-
-    if( self->last_packet_duration != 0 && self->last_packet_start <= frame->full_max_sample &&
-        (self->last_packet_start + self->last_packet_duration) >= frame->full_min_sample ) {
+    // Use data from the last frame decoded, if we can
+    if( self->input_frame.data[0] && self->input_frame.pts <= frame->full_max_sample &&
+        (self->input_frame.pts + self->input_frame.nb_samples) >= frame->full_min_sample ) {
 
         // Decode into the current frame
-        int start_sample = max(self->last_packet_start, frame->full_min_sample);
-        int duration = min(self->last_packet_start + self->last_packet_duration, frame->full_max_sample + 1) - start_sample;
+        int64_t start_sample = max(self->input_frame.pts, frame->full_min_sample);
+        int duration = min(self->input_frame.pts + self->input_frame.nb_samples, frame->full_max_sample + 1) - start_sample;
         float *out = audio_get_sample( frame, start_sample, 0 );
 
-        g_debug( "Using last packet from (%d->%d, %d->%d)",
-            self->last_packet_start, start_sample,
-            self->last_packet_start + self->last_packet_duration - 1,
+        g_debug( "Using last frame from (%"PRId64"->%"PRId64", %"PRId64"->%"PRId64")",
+            self->input_frame.pts, start_sample,
+            self->input_frame.pts + self->input_frame.nb_samples - 1,
             start_sample + duration - 1 );
 
-        convert_samples( out, frame->channels, self->audio_buffer, self->context.channels, (start_sample - self->last_packet_start),
+        convert_samples( out, frame->channels, self->input_frame.data[0],
+            self->context.channels, (start_sample - self->input_frame.pts),
             self->context.sample_fmt, duration );
 
         frame->current_min_sample = start_sample;
@@ -259,86 +324,96 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
 
         // We could be done...
         if( frame->current_min_sample == frame->full_min_sample && frame->current_max_sample == frame->full_max_sample ) {
-            g_debug( "Going home early: (%d, %d)", start_sample, duration );
+            g_debug( "Going home early: (%"PRId64", %d)", start_sample, duration );
             g_static_mutex_unlock( &self->mutex );
             return;
         }
     }
 
-    codec_packet *packet = NULL;
-
     for( ;; ) {
-        if( packet && packet->free_func )
-            packet->free_func( packet );
+        // Fetch the next packet if we need to
+        if( self->packet_left <= 0 ) {
+            codec_packet_free( &self->last_packet );
+            self->input_packet = (AVPacket) {0};
 
-        packet = self->source.source.funcs->getNextPacket( self->source.source.obj );
+            self->last_packet = self->source.source.funcs->getNextPacket( self->source.source.obj );
 
-        if( !packet ) {
-            g_static_mutex_unlock( &self->mutex );
-            return;
-        }
-
-        int buffer_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
-
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
-        uint8_t *data = packet->data;
-#else
-        AVPacket av_packet = {
-            .pts = AV_NOPTS_VALUE,
-            .dts = AV_NOPTS_VALUE,
-            .data = packet->data,
-            .size = packet->length };
-#endif
-        int data_size = packet->length;
-
-        void *audio_buffer = self->audio_buffer;
-
-        while( data_size > 0 ) {
-            int decoded;
-
-            //printf( "Decoding audio (size left: %d)\n", dataSize );
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
-            if( (decoded = avcodec_decode_audio2( &self->context, audio_buffer, &buffer_size, data, data_size )) < 0 ) {
-#else
-            if( (decoded = avcodec_decode_audio3( &self->context, audio_buffer, &buffer_size, &av_packet )) < 0 ) {
-#endif
-                g_warning( "Could not decode the audio (%s).", g_strerror( -decoded ) );
-                frame->current_max_sample = -1;
-                frame->current_min_sample = 0;
-
-                if( packet && packet->free_func )
-                    packet->free_func( packet );
-
+            if( !self->last_packet ) {
+                // End of stream!
                 g_static_mutex_unlock( &self->mutex );
                 return;
             }
 
-            if( buffer_size <= 0 ) {
-                g_warning( "Didn't get a sound" );
-                continue;
-            }
+            self->input_packet = (AVPacket) {
+                .pts = self->last_packet->pts,
+                .dts = self->last_packet->dts,
+                .data = self->last_packet->data,
+                .size = self->last_packet->length };
 
-            //g_debug( "Decoded %d bytes, got %d bytes", decoded, buffer_size );
+            self->packet_left = self->last_packet->length;
 
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
-            data += decoded;
-#endif
-            data_size -= decoded;
-            audio_buffer += buffer_size;
-            buffer_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;        // A lie, but a safe one, I think
+            g_debug( "Got packet start %"PRId64, self->input_packet.pts );
         }
 
-        // Patch up timestamps if necessary
-        int packet_start = packet->pts;
-        int packet_duration = packet->duration;
+        // There used to be code here for releasing the previous frame, but
+        // apparently the default buffers for frames are allocated and freed
+        // by the context itself, so we shouldn't do anything here. (That, and
+        // when I tried, I got an assertion failure with the default release_buffer.)
 
-        g_debug( "Got packet start %d duration %d", packet_start, packet_duration );
+        // Decode the data
+        avcodec_get_frame_defaults( &self->input_frame );
+
+#if defined(USE_DECODE4)
+        int got_frame = 0;
+#else
+        int buffer_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
+        self->input_frame.data[0] = self->audio_buffer;
+#endif
+        int decoded;
+
+#if defined(USE_DECODE4)
+        if( (decoded = avcodec_decode_audio4( &self->context,
+                &self->input_frame, &got_frame, &self->input_packet )) < 0 ) {
+#else
+        if( (decoded = avcodec_decode_audio3( &self->context,
+                (int16_t*) self->input_frame.data[0], &buffer_size, &self->input_packet )) < 0 ) {
+#endif
+            g_warning( "Could not decode the audio (%s).", g_strerror( -decoded ) );
+            g_static_mutex_unlock( &self->mutex );
+            return;
+        }
+
+        self->packet_left -= decoded;
+
+        if( self->packet_left < 0 )
+            g_warning( "Codec appears to have read more than the packet contained." );
+
+        // Check if we got any data back
+#if defined(USE_DECODE4)
+        if( !got_frame )
+            continue;
+#else
+        if( buffer_size <= 0 ) {
+            g_warning( "Didn't get a sound" );
+            continue;
+        }
+
+        self->input_frame.nb_samples = get_sample_count( buffer_size,
+            self->context.sample_fmt, self->context.channels );
+#endif
+
+        // Patch up timestamps if necessary
+
+        // Truly we cannot trust any PTS coming back from the codec; the PCM
+        // codec doesn't even set PTS
+        self->input_frame.pts = self->input_packet.pts;
+
+        int64_t packet_start = self->input_frame.pts;
+        int packet_duration = self->input_frame.nb_samples;
+
+        g_debug( "Got frame start %"PRId64" duration %d", packet_start, packet_duration );
 
         if( !self->trust_timestamps ) {
-            // Calculate new duration
-            packet_duration = get_sample_count( audio_buffer - self->audio_buffer,
-                self->context.sample_fmt, self->context.channels );
-
             if( !do_seek && self->current_pts_valid ) {
                 // We can trust our previous PTS
                 packet_start = self->current_pts;
@@ -349,13 +424,12 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
                 // packet, since on the next pass, we will override it.
             }
 
-            g_debug( "Substituted start %d duration %d", packet_start, packet_duration );
+            g_debug( "Substituted start %"PRId64, packet_start );
 
             // Look up entry in our table
             timestamp_to_sample tts = {
-                .timestamp = packet->pts,
-                .sample = packet_start,
-                .duration = packet_duration };
+                .timestamp = self->input_frame.pts,
+                .sample = packet_start };
 
             GSequenceIter *iter = g_sequence_lookup( self->timestamp_to_sample,
                 &tts, (GCompareDataFunc) compare_tts, NULL );
@@ -377,27 +451,26 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
                 timestamp_to_sample *ttsptr = g_sequence_get( iter );
 
                 packet_start = ttsptr->sample;
-                packet_duration = ttsptr->duration;
 
-                g_debug( "Re-substituting start %d duration %d from timestamp table", packet_start, packet_duration );
+                g_debug( "Re-substituting start %"PRId64" from timestamp table", packet_start );
             }
         }
 
         // After this, we haven't seeked to this spot anymore
         do_seek = false;
 
-        self->last_packet_start = packet_start;
-        self->last_packet_duration = packet_duration;
+        self->input_frame.pts = packet_start;
         self->current_pts = packet_start + packet_duration;
         self->current_pts_valid = true;
-        self->max_sample_seen = packet_start + packet_duration - 1;
+        self->max_sample_seen = max(self->max_sample_seen, packet_start + packet_duration - 1);
 
-        g_debug( "We'll take that (%d, %d)", packet_start, packet_start + packet_duration - 1 );
-        int start_sample = max(packet_start, frame->full_min_sample);
+        g_debug( "We'll take that (%"PRId64", %"PRId64")", packet_start, packet_start + packet_duration - 1 );
+        int64_t start_sample = max(packet_start, frame->full_min_sample);
         int duration = min(packet_start + packet_duration, frame->full_max_sample + 1) - start_sample;
         float *out = audio_get_sample( frame, start_sample, 0 );
 
-        convert_samples( out, frame->channels, self->audio_buffer, self->context.channels, (start_sample - packet_start),
+        convert_samples( out, frame->channels, self->input_frame.data[0],
+            self->context.channels, (start_sample - packet_start),
             self->context.sample_fmt, duration );
 
         if( first ) {
@@ -414,9 +487,6 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
         frame->current_max_sample = min(frame->current_max_sample, frame->full_max_sample);
 
         if( packet_start + packet_duration >= frame->full_max_sample ) {
-            if( packet && packet->free_func )
-                packet->free_func( packet );
-
             g_debug( "Enough: (%d, %d) vs (%d, %d)", frame->current_min_sample, frame->current_max_sample, frame->full_min_sample, frame->full_max_sample );
             g_static_mutex_unlock( &self->mutex );
             return;

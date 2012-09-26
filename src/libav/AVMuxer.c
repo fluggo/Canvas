@@ -23,11 +23,14 @@
 #include <libavutil/avstring.h>
 
 // Support old Libav
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 107, 0)
+#define AVIO_FLAG_WRITE URL_WRONLY
 #if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 105, 0)
 #define avio_close  url_fclose
 #define avio_open   url_fopen
 #if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 102, 0)
 #define AVIOContext ByteIOContext
+#endif
 #endif
 #endif
 
@@ -213,7 +216,7 @@ AVMuxer_run( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
 
     self->quit = false;
 
-    if( avio_open( &stream, self->context->filename, URL_WRONLY ) < 0 ) {
+    if( avio_open( &stream, self->context->filename, AVIO_FLAG_WRITE ) < 0 ) {
         PyErr_SetString( PyExc_Exception, "Failed to open the file." );
         return NULL;
     }

@@ -260,7 +260,7 @@ PyInit_libav() {
     PyModule_AddIntMacro( m, CODEC_ID_TIERTEXSEQVIDEO );
     PyModule_AddIntMacro( m, CODEC_ID_TIFF );
     PyModule_AddIntMacro( m, CODEC_ID_GIF );
-    PyModule_AddIntMacro( m, CODEC_ID_FFH264 );
+    //PyModule_AddIntMacro( m, CODEC_ID_FFH264 );
     PyModule_AddIntMacro( m, CODEC_ID_DXA );
     PyModule_AddIntMacro( m, CODEC_ID_DNXHD );
     PyModule_AddIntMacro( m, CODEC_ID_THP );

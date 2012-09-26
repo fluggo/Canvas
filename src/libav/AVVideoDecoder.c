@@ -62,7 +62,6 @@ counted_get_buffer( AVCodecContext *codec, AVFrame *frame ) {
         image->image.stride[i] = picture.linesize[i];
     }
 
-    frame->age = 256*256*256*64;        // BJC: Yeah, don't ask me, look at Libav.
     frame->opaque = image;
     frame->type = FF_BUFFER_TYPE_USER;
 
@@ -142,7 +141,13 @@ AVVideoDecoder_init( py_obj_AVVideoDecoder *self, PyObject *args, PyObject *kw )
     if( !py_codec_packet_take_source( source_obj, &self->source ) )
         return -1;
 
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(53, 14, 0)
+    // To Anton Khirnov: This version number was difficult to find, since it
+    // wasn't listed in APIchanges.
     avcodec_get_context_defaults( &self->context );
+#else
+    avcodec_get_context_defaults3( &self->context, codec );
+#endif
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(53, 6, 0)
     if( (error = avcodec_open( &self->context, codec )) != 0 ) {

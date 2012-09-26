@@ -44,12 +44,27 @@
 #define AV_PKT_FLAG_KEY         PKT_FLAG_KEY
 #endif
 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 107, 0)
+#define AVIO_FLAG_WRITE URL_WRONLY
 #if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 105, 0)
 #define avio_close  url_fclose
 #define avio_open   url_fopen
 #if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(52, 102, 0)
 #define AVIOContext ByteIOContext
 #endif
+#endif
+#endif
+
+#if LIBAVUTIL_VERSION_INT < AV_VERSION_INT(50, 32, 0)
+#define AVSampleFormat SampleFormat
+#define AV_SAMPLE_FMT_U8  SAMPLE_FMT_U8
+#define AV_SAMPLE_FMT_S16 SAMPLE_FMT_S16
+#define AV_SAMPLE_FMT_S32 SAMPLE_FMT_S32
+#define AV_SAMPLE_FMT_FLT SAMPLE_FMT_FLT
+#define AV_SAMPLE_FMT_DBL SAMPLE_FMT_DBL
+
+// I honestly don't know when this was done
+#define AV_CH_LAYOUT_STEREO CH_LAYOUT_STEREO
 #endif
 
 PyObject *
@@ -120,7 +135,7 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
 
     AVIOContext *stream;
 
-    if( avio_open( &stream, filename, URL_WRONLY ) < 0 ) {
+    if( avio_open( &stream, filename, AVIO_FLAG_WRITE ) < 0 ) {
         PyErr_SetString( PyExc_Exception, "Failed to open the file." );
         return NULL;
     }
@@ -206,8 +221,8 @@ py_writeVideo( PyObject *self, PyObject *args, PyObject *kw ) {
         }
 
         audio->codec->channels = audioChannels;
-        audio->codec->sample_fmt = SAMPLE_FMT_S16;
-        audio->codec->channel_layout = CH_LAYOUT_STEREO;
+        audio->codec->sample_fmt = AV_SAMPLE_FMT_S16;
+        audio->codec->channel_layout = AV_CH_LAYOUT_STEREO;
         audio->codec->sample_rate = audioRate.n / audioRate.d;
         audio->codec->time_base = (AVRational) { audioRate.d, audioRate.n };
 

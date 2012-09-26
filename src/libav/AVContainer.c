@@ -158,11 +158,6 @@ AVContainer_bitRate( py_obj_AVContainer *self, void *closure ) {
 }
 
 static PyObject *
-AVContainer_loopCount( py_obj_AVContainer *self, void *closure ) {
-    return PyLong_FromLong( self->format->loop_output );
-}
-
-static PyObject *
 AVContainer_streams( py_obj_AVContainer *self, void *closure ) {
     Py_INCREF( self->streamList );
     return self->streamList;
@@ -177,7 +172,6 @@ static PyGetSetDef AVContainer_getsetters[] = {
     { "format_name", (getter) AVContainer_formatName, NULL, "The short name of the container format." },
     { "format_long_name", (getter) AVContainer_formatLongName, NULL, "A more descriptive name of the container format." },
     { "bit_rate", (getter) AVContainer_bitRate, NULL, "The bit rate of the file in bit/s." },
-    { "loop_count", (getter) AVContainer_loopCount, NULL, "The number of times the output should loop, or -1 for no looping or 0 for infinite looping." },
     { "streams", (getter) AVContainer_streams, NULL, "List of stream descriptors found in the container." },
     { "mime_type", (getter) AVContainer_mimeType, NULL, "The MIME type of the format, if known." },
     { "duration", (getter) AVContainer_duration, NULL, "The file's (estimated) duration in microseconds." },

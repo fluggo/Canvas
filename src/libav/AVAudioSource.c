@@ -26,6 +26,15 @@
 #define AVMEDIA_TYPE_AUDIO      CODEC_TYPE_AUDIO
 #endif
 
+#if LIBAVUTIL_VERSION_INT < AV_VERSION_INT(50, 32, 0)
+#define AVSampleFormat SampleFormat
+#define AV_SAMPLE_FMT_U8  SAMPLE_FMT_U8
+#define AV_SAMPLE_FMT_S16 SAMPLE_FMT_S16
+#define AV_SAMPLE_FMT_S32 SAMPLE_FMT_S32
+#define AV_SAMPLE_FMT_FLT SAMPLE_FMT_FLT
+#define AV_SAMPLE_FMT_DBL SAMPLE_FMT_DBL
+#endif
+
 /******** AVAudioSource *********/
 typedef struct {
     PyObject_HEAD
@@ -202,29 +211,29 @@ static void convert_double( float *out, int outChannels, double *in, int inChann
     }
 }
 
-static void convert_samples( float *out, int outChannels, void *in, int inChannels, int offset, enum SampleFormat sample_fmt, int duration ) {
+static void convert_samples( float *out, int outChannels, void *in, int inChannels, int offset, enum AVSampleFormat sample_fmt, int duration ) {
     switch( sample_fmt ) {
-        case SAMPLE_FMT_U8:
+        case AV_SAMPLE_FMT_U8:
             convert_uint8( out, outChannels,
                 ((uint8_t *) in) + offset * inChannels, inChannels, duration );
             return;
 
-        case SAMPLE_FMT_S16:
+        case AV_SAMPLE_FMT_S16:
             convert_int16( out, outChannels,
                 ((int16_t *) in) + offset * inChannels, inChannels, duration );
             return;
 
-        case SAMPLE_FMT_S32:
+        case AV_SAMPLE_FMT_S32:
             convert_int32( out, outChannels,
                 ((int32_t *) in) + offset * inChannels, inChannels, duration );
             return;
 
-        case SAMPLE_FMT_FLT:
+        case AV_SAMPLE_FMT_FLT:
             convert_float( out, outChannels,
                 ((float *) in) + offset * inChannels, inChannels, duration );
             return;
 
-        case SAMPLE_FMT_DBL:
+        case AV_SAMPLE_FMT_DBL:
             convert_double( out, outChannels,
                 ((double *) in) + offset * inChannels, inChannels, duration );
             return;
@@ -235,7 +244,7 @@ static void convert_samples( float *out, int outChannels, void *in, int inChanne
     }
 }
 
-static int getSampleCount( int byteCount, enum SampleFormat sample_fmt, int channels ) {
+static int getSampleCount( int byteCount, enum AVSampleFormat sample_fmt, int channels ) {
     static int formatSize[] = { 1, 2, 4, 4, 8 };
 
     if( sample_fmt < 0 || sample_fmt > 4 )
