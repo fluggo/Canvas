@@ -44,12 +44,12 @@ extern "C" {
 #endif
 
 typedef struct {
-    int n;
-    unsigned int d;
+    int32_t n;
+    uint32_t d;
 } rational;
 
 typedef struct {
-    int x, y;
+    int32_t x, y;
 } v2i;
 
 static inline void v2i_add( v2i *result, const v2i *a, const v2i *b ) {
@@ -116,7 +116,7 @@ static inline void box2i_union( box2i *result, const box2i *first, const box2i *
 }
 
 static inline void box2i_normalize( box2i *result ) {
-    int temp;
+    int32_t temp;
 
     if( result->min.x > result->max.x ) {
         temp = result->min.x - 1;
