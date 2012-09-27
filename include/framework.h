@@ -82,6 +82,10 @@ G_GNUC_CONST static inline int max( int a, int b ) {
     return a > b ? a : b;
 }
 
+G_GNUC_CONST static inline int clamp( int value, int min_value, int max_value ) {
+    return min(max(value, min_value), max_value);
+}
+
 static inline void box2i_set( box2i *box, int minX, int minY, int maxX, int maxY ) {
     box->min.x = minX;
     box->min.y = minY;
