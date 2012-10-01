@@ -55,6 +55,12 @@ def encode_int(value):
     else:
         return result
 
+def timecode(sample, sample_rate, timecode_scale):
+    ns = 1000000000
+    raw_timecode = round(float(sample * ns) / float(sample_rate))
+    abs_timecode = round(raw_timecode / timecode_scale)
+    return abs_timecode
+
 def make_void(size):
     if size == 0:
         return b''
@@ -74,6 +80,7 @@ class ebml:
         self.size = size
         self.written_size = None
         self.written_pos = None
+        self.written_header_size = None
 
     def add_bool(self, element_id, value, default=None):
         if value is None or value == default:
@@ -187,6 +194,7 @@ class ebml:
             # us a size, we'll use it
             if self.size:
                 result.extend(encode_size(self.size))
+                self.written_header_size = len(result)
             else:
                 # Indeterminate size, but room to write one
                 result.extend(b'\xFF' + make_void(7))
@@ -197,24 +205,30 @@ class ebml:
             data = ((diff.days * 24 * 60 * 60 + diff.seconds) * 1000000 + diff.microseconds) * 1000
 
             result.extend(encode_size(8))
+            self.written_header_size = len(result)
             result.extend(data.to_bytes(8, byteorder='big', signed=True))
         elif isinstance(self.contents, float):
             if self.size == 8:
                 result.extend(encode_size(8))
+                self.written_header_size = len(result)
                 result.extend(struct.pack('>d', self.contents))
             else:
                 result.extend(encode_size(4))
+                self.written_header_size = len(result)
                 result.extend(struct.pack('>f', self.contents))
         elif isinstance(self.contents, bool):
+            self.written_header_size = len(result) + 1
             data = b'\x01' if self.contents else b'\x00'
             result.extend(encode_size(1) + data)
         elif isinstance(self.contents, int):
             data = encode_int(self.contents)
             result.extend(encode_size(len(data)))
+            self.written_header_size = len(result)
             result.extend(data)
         elif isinstance(self.contents, bytes) or isinstance(self.contents, bytearray):
             data = self.contents
             result.extend(encode_size(len(data)))
+            self.written_header_size = len(result)
             result.extend(data)
         elif isinstance(self.contents, str):
             data = self.contents.encode()
@@ -224,10 +238,12 @@ class ebml:
                     raise ValueError('UTF-8 string too long for the given size.')
                 else:
                     result.extend(encode_size(self.size))
+                    self.written_header_size = len(result)
                     result.extend(data)
                     result.extend(b'\x00' * (self.size - len(data)))
             else:
                 result.extend(encode_size(len(data)))
+                self.written_header_size = len(result)
                 result.extend(data)
         else:
             # It had better be a list of elements
@@ -239,6 +255,7 @@ class ebml:
                 data.extend(body)
 
             result.extend(encode_size(len(data)))
+            self.written_header_size = len(result)
             current_pos = pos + len(result)
 
             for element in self.contents:
@@ -573,6 +590,42 @@ class SegmentInfo(ebml):
         self.add_utf8(self.NextFilename, self.next_filename)
         self.add_binary(self.SegmentFamily, self.segment_family_uid)
 
+class Cues(ebml):
+    Element = 0x1C53BB6B
+
+    def __init__(self, cue_points=None):
+        ebml.__init__(self, self.Element, cue_points or [])
+
+class CuePoint(ebml):
+    Element = 0xBB
+    Time = 0xB3
+    Duration = 0xB2
+
+    def __init__(self, time, track_positions, duration=None):
+        ebml.__init__(self, self.Element, [])
+        self.add_int(self.Time, time)
+
+        for pos in track_positions:
+            self.contents.append(pos)
+
+class CueTrackPosition(ebml):
+    Element = 0xB7
+    Track = 0xF7
+    ClusterPosition = 0xF1
+    RelativePosition = 0xF0
+    BlockNumber = 0x5378
+    CodecState = 0xEA
+
+    def __init__(self, track, cluster_position, relative_position=None,
+        block_number=None, codec_state_position=None):
+
+        ebml.__init__(self, self.Element, [])
+        self.add_int(self.Track, track)
+        self.add_int(self.ClusterPosition, cluster_position)
+        self.add_int(self.RelativePosition, relative_position)
+        self.add_int(self.BlockNumber, block_number)
+        self.add_int(self.CodecState, codec_state_position)
+
 class Cluster(ebml):
     Element = 0x1F43B675
     Timecode = 0xE7
@@ -584,7 +637,7 @@ class Cluster(ebml):
 class SimpleBlock(ebml):
     Element = 0xA3
 
-    def __init__(self, track, relative_pts, data, keyframe=True, invisible=False, discardable=False):
+    def __init__(self, track, absolute_pts, relative_pts, data, keyframe=True, invisible=False, discardable=False):
         contents = bytearray()
         contents.extend(encode_size(track))
         contents.extend(relative_pts.to_bytes(2, byteorder='big', signed=True))
@@ -595,6 +648,9 @@ class SimpleBlock(ebml):
         contents.extend(data)
 
         ebml.__init__(self, self.Element, contents)
+        self.track = track
+        self.keyframe = keyframe
+        self.absolute_pts = absolute_pts
 
 class MatroskaWriter:
     def __init__(self, fd):
@@ -607,6 +663,7 @@ class MatroskaWriter:
         self.cluster = None
         self.cluster_size = 0
         self.cluster_time = 0
+        self.video_tracks = {}
 
     def write_start(self, *args, **kw):
         # Write the EBML header
@@ -620,74 +677,87 @@ class MatroskaWriter:
             ebml(EBMLIDs.DocTypeReadVersion, 2)])
 
         header.write(self.fd)
-        print('Wrote header...')
 
         # Start the segment
         self.segment = Segment()
         self.segment.write(self.fd)
-        print('Wrote segment start...')
 
         # Follow what libav does: write a seek head at the beginning of the file,
         # which points to the segment info and tracks, and a second seek head at
         # the end, which points to all of the clusters.
-        self.top_seek_head = SeekHead([], max_count=3)
+        self.top_seek_head = SeekHead([], max_count=5)
         self.top_seek_head.write(self.fd)
-        print('Wrote top seek head...')
-
-        self.bottom_seek_head = SeekHead([])
 
         self.segment_info = SegmentInfo(*args, **kw)
         self.segment_info.write(self.fd)
-        print('Wrote segment info...')
+
+        self.cues = Cues()
 
         self.top_seek_head.contents.append(Seek.from_element(self.segment, self.segment_info))
 
     def write_tracks(self, tracks):
         tracks = TrackList(tracks)
         tracks.write(self.fd)
-        print('Wrote tracks...')
+        self.video_tracks = {track.number for track in tracks.contents if track.type_ == TrackType.VIDEO}
         self.top_seek_head.contents.append(Seek.from_element(self.segment, tracks))
-
-    def write_top_level(self, element):
-        element.write(self.fd)
-        self.bottom_seek_head.contents.append(Seek.from_element(self.segment, element))
 
     def write_simple_block(self, track, pts, data, keyframe=True, invisible=False, discardable=False):
         # TODO: Support cue points for video keyframes
 
         # Limit cluster to particular PTS / size
         if self.cluster and (abs(pts - self.cluster_time) > 32767 or self.cluster_size > self.max_cluster_size):
-            self.write_top_level(self.cluster)
-            self.cluster = None
-            self.cluster_size = 0
+            self.finish_cluster()
 
         if not self.cluster:
             self.cluster_time = pts
             self.cluster = Cluster(pts)
 
-        self.cluster.contents.append(SimpleBlock(track, (pts - self.cluster_time),
+        self.cluster.contents.append(SimpleBlock(track, pts, (pts - self.cluster_time),
             data, keyframe=keyframe, invisible=invisible, discardable=discardable))
         self.cluster_size += len(data)
 
+    def finish_cluster(self):
+        if self.cluster:
+            self.cluster.write(self.fd)
+
+            block_count = 1
+
+            # Add cue points for video blocks
+            for block in self.cluster.contents:
+                if not isinstance(block, SimpleBlock):
+                    continue
+
+                if block.keyframe and block.track in self.video_tracks:
+                    print('Add cue to track {0} time {1} at {2}'.format(block.track, block.absolute_pts, block.written_pos))
+                    trackpos = CueTrackPosition(
+                        block.track, self.cluster.written_pos - (self.segment.written_pos + self.segment.written_size),
+                        # Jumped the gun: Relative position not used until Matroska v4
+                        #relative_position=block.written_pos - (self.cluster.written_pos + self.cluster.written_header_size),
+                        #block_number=block_count
+                        )
+
+                    self.cues.contents.append(CuePoint(block.absolute_pts, [trackpos]))
+
+                block_count += 1
+
+            self.cluster = None
+            self.cluster_size = 0
+
     def write_end(self, duration=None):
         # Write the final cluster
-        if self.cluster:
-            self.write_top_level(self.cluster)
-            self.cluster = None
+        self.finish_cluster()
 
-        # Pop the bottom seek head at the end
-        self.bottom_seek_head.write(self.fd)
+        # Write the cues
+        self.cues.write(self.fd)
+        self.top_seek_head.contents.append(Seek.from_element(self.segment, self.cues))
 
-        # Put a pointer to it at the beginning
-        self.top_seek_head.contents.append(Seek.from_element(self.segment, self.bottom_seek_head))
+        # Finally write the seek head at the top
         self.top_seek_head.write(self.fd)
 
         # Rewrite the duration if that's been asked for
         if duration:
-            print('Rewriting duration to {0}'.format(duration))
+            _log.debug('Rewriting duration to {0}', duration)
             self.segment_info.duration_element.contents = duration
-            print(self.segment_info.duration_element.written_pos)
-            print(self.segment_info.duration_element.written_size)
             self.segment_info.duration_element.write(self.fd)
 
         # Close the segment
@@ -721,11 +791,6 @@ def write_audio_pcm_float(filename, source, min_sample, max_sample, sample_rate,
         writer.write_tracks([audio_track])
 
         # Time to actually code stuff!
-        cluster = None
-        cluster_time = 0
-        cluster_size = 0
-        first_frame = True
-        frames_written = 0
         last_pts = 0
         samples_per_block = 1024
         last_sample = min_sample
@@ -739,8 +804,7 @@ def write_audio_pcm_float(filename, source, min_sample, max_sample, sample_rate,
                     min(last_sample + samples_per_block - 1, max_sample), channels)
 
                 _log.debug('Writing packet {0} - {1}', frame.full_min_sample, frame.full_max_sample)
-                raw_timecode = round(float(frame.current_min_sample * ns) / float(sample_rate))
-                abs_timecode = int(round(raw_timecode / timescale))
+                abs_timecode = timecode(frame.full_min_sample, sample_rate, timescale)
 
                 # Pack into audio packet
                 packet = bytearray(sample_struct.size * (frame.full_max_sample - frame.full_min_sample + 1))
@@ -753,12 +817,8 @@ def write_audio_pcm_float(filename, source, min_sample, max_sample, sample_rate,
                 # Write the block
                 _log.debug('raw_timecode: {0}, abs_timecode {1}', raw_timecode, abs_timecode)
                 writer.write_simple_block(1, abs_timecode, packet, keyframe=True)
-                frames_written += 1
 
-                raw_timecode = round(float((frame.current_max_sample + 1) * ns) / float(sample_rate))
-                abs_timecode = int(round(raw_timecode / timescale))
-
-                last_pts = abs_timecode
+                last_pts = timecode(frame.full_max_sample + 1, sample_rate, timescale)
                 last_sample += samples_per_block
         finally:
             _log.debug('Duration: ' + str(float(last_pts * timescale)/float(ns)))
