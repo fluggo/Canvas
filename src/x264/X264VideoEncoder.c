@@ -19,11 +19,170 @@
 */
 
 #include "pyframework.h"
-#include <libavcodec/avcodec.h>
+#include <structmember.h>
 #include <x264.h>
 
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN "fluggo.media.x264.X264VideoEncoder"
+
+typedef struct {
+    PyObject_HEAD;
+    x264_param_t params;
+} py_obj_X264EncoderParams;
+
+static int
+X264EncoderParams_init( py_obj_X264EncoderParams *self, PyObject *args, PyObject *kw ) {
+    PyObject *frame_rate_obj = NULL, *sar_obj = NULL, *timebase_obj = NULL,
+        *annexb_obj = NULL, *repeat_headers_obj = NULL, *interlaced_obj = NULL;
+    int width = -1, height = -1, qp = -1, bitrate = -1, max_bitrate = -1;
+    float crf = -1.0f;
+    const char *preset = NULL, *tune = NULL;
+
+    static char *kwlist[] = { "preset", "tune", "frame_rate", "sample_aspect_ratio",
+        "timebase", "width", "height", "constant_ratefactor", "constant_quantizer",
+        "bitrate", "vbv_max_bitrate", "annex_b", "repeat_headers", "interlaced", NULL };
+
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "|ssOOOiifiiiOOO", kwlist, &preset, &tune,
+            &frame_rate_obj, &sar_obj, &timebase_obj, &width, &height, &crf, &qp,
+            &bitrate, &max_bitrate, &annexb_obj, &repeat_headers_obj, &interlaced_obj ) )
+        return -1;
+
+    // Parse and validate the arguments
+    if( x264_param_default_preset( &self->params, preset, tune ) < 0 ) {
+        PyErr_Format( PyExc_Exception, "Failed to set x264 presets." );
+        return -1;
+    }
+
+    // We don't do variable frame rates
+    self->params.b_vfr_input = 0;
+
+    if( frame_rate_obj ) {
+        rational frame_rate;
+
+        if( !py_parse_rational( frame_rate_obj, &frame_rate ) )
+            return -1;
+
+        self->params.i_fps_num = frame_rate.n;
+        self->params.i_fps_den = frame_rate.d;
+        self->params.i_timebase_num = frame_rate.d;
+        self->params.i_timebase_den = frame_rate.n;
+    }
+
+    if( timebase_obj ) {
+        rational timebase;
+
+        if( !py_parse_rational( timebase_obj, &timebase ) )
+            return -1;
+
+        self->params.i_timebase_num = timebase.n;
+        self->params.i_timebase_den = timebase.d;
+    }
+
+    if( sar_obj ) {
+        rational sar;
+
+        if( !py_parse_rational( sar_obj, &sar ) )
+            return -1;
+
+        self->params.vui.i_sar_width = sar.n;
+        self->params.vui.i_sar_height = sar.d;
+    }
+
+    if( width != -1 )
+        self->params.i_width = width;
+
+    if( height != -1 )
+        self->params.i_height = height;
+
+    // Ratecontrol defaults
+    if( crf != -1.0f ) {
+        // Constant ratefactor
+        self->params.rc.i_rc_method = X264_RC_CRF;
+        self->params.rc.f_rf_constant = crf;
+    }
+
+    if( qp != -1 ) {
+        // Constant quantizer
+        self->params.rc.i_rc_method = X264_RC_CQP;
+        self->params.rc.i_qp_constant = qp;
+    }
+
+    if( bitrate != -1 ) {
+        self->params.rc.i_rc_method = X264_RC_ABR;
+        self->params.rc.i_bitrate = bitrate;
+    }
+
+    // VBV
+    if( max_bitrate != -1 ) {
+        self->params.rc.i_vbv_max_bitrate = max_bitrate;
+    }
+
+    if( interlaced_obj )
+        self->params.b_interlaced = PyObject_IsTrue( interlaced_obj );
+
+    if( annexb_obj )
+        self->params.b_annexb = PyObject_IsTrue( annexb_obj );
+
+    if( repeat_headers_obj )
+        self->params.b_repeat_headers = PyObject_IsTrue( repeat_headers_obj );
+
+    // For the moment, these can't be changed
+    self->params.i_csp = X264_CSP_I420;
+    self->params.vui.i_overscan = 2;      // yes overscan
+    self->params.vui.i_vidformat = 2;     // NTSC
+    self->params.vui.b_fullrange = 0;     // Studio level encoding
+    self->params.vui.i_colorprim = 1;     // Rec. 709 primaries
+    self->params.vui.i_transfer = 1;      // Rec. 709 transfer
+    self->params.vui.i_colmatrix = 1;     // Rec. 709 matrix (incidentally, 0 encodes RGB)
+    self->params.vui.i_chroma_loc = 0;    // MPEG2-style chroma siting
+    // Specify max VBV bitrate here
+
+    return 0;
+}
+
+static PyObject *
+X264EncoderParams_apply_fast_first_pass( py_obj_X264EncoderParams *self, PyObject *args ) {
+    x264_param_apply_fastfirstpass( &self->params );
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+X264EncoderParams_apply_profile( py_obj_X264EncoderParams *self, PyObject *args ) {
+    const char *profile;
+
+    if( !PyArg_ParseTuple( args, "s", &profile ) )
+        return NULL;
+
+    x264_param_apply_profile( &self->params, profile );
+    Py_RETURN_NONE;
+}
+
+static void
+X264EncoderParams_dealloc( py_obj_X264EncoderParams *self ) {
+    Py_TYPE(self)->tp_free( (PyObject*) self );
+}
+
+static PyMethodDef X264EncoderParams_methods[] = {
+    { "apply_fast_first_pass", (PyCFunction) X264EncoderParams_apply_fast_first_pass, METH_NOARGS,
+        "apply_fast_first_pass(): Sets faster settings if this is a first pass." },
+    { "apply_profile", (PyCFunction) X264EncoderParams_apply_profile, METH_VARARGS,
+        "apply_profile(profile): Limits the settings to those in the specified profile, which is a string." },
+    { NULL }
+};
+
+static PyTypeObject py_type_X264EncoderParams = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "fluggo.media.x264.X264EncoderParams",
+    .tp_basicsize = sizeof(py_obj_X264EncoderParams),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_base = &py_type_CodecPacketSource,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) X264EncoderParams_dealloc,
+    .tp_init = (initproc) X264EncoderParams_init,
+    //.tp_getset = X264VideoEncoder_getsetters,
+    .tp_methods = X264EncoderParams_methods,
+    //.tp_members = X264VideoEncoder_members,
+};
 
 typedef struct {
     PyObject_HEAD
@@ -43,57 +202,22 @@ X264VideoEncoder_init( py_obj_X264VideoEncoder *self, PyObject *args, PyObject *
     self->sei = NULL;
 
     PyObject *source_obj;
-    const char *preset = NULL, *tune = NULL, *profile = NULL;
+    py_obj_X264EncoderParams *params_obj;
 
     static char *kwlist[] = { "source", "start_frame", "end_frame",
-        "preset", "tune", "profile", NULL };
+        "params", NULL };
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "Oii|sss", kwlist, &source_obj,
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "OiiO!", kwlist, &source_obj,
             &self->current_frame, &self->end_frame,
-            &preset, &tune, &profile ) )
+            &py_type_X264EncoderParams, &params_obj ) )
         return -1;
 
     self->start_frame = self->current_frame;
+    x264_param_t params = params_obj->params;
 
-    // Parse and validate the arguments
-    x264_param_t params;
-
-    if( x264_param_default_preset( &params, preset, tune ) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Failed to set x264 presets." );
-        return -1;
-    }
-
-    params.i_width = 720;
-    params.i_height = 480;
-    params.i_csp = X264_CSP_I420;
     params.i_frame_total = (self->end_frame - self->start_frame + 1);
-    params.vui.i_sar_height = 33;   // 16:9
-    params.vui.i_sar_width = 40;
-    params.vui.i_overscan = 2;      // yes overscan
-    params.vui.i_vidformat = 2;     // NTSC
-    params.vui.b_fullrange = 0;     // Studio level encoding
-    params.vui.i_colorprim = 1;     // Rec. 709 primaries
-    params.vui.i_transfer = 1;      // Rec. 709 transfer
-    params.vui.i_colmatrix = 1;     // Rec. 709 matrix (incidentally, 0 encodes RGB)
-    params.vui.i_chroma_loc = 0;    // MPEG2-style chroma siting
-    params.b_interlaced = 1;
-    params.rc.i_rc_method = X264_RC_CRF;        // Constant quality
-    params.rc.f_rf_constant = 23.0f;            // Ratefactor (quality)
-    // Specify max VBV bitrate here
-    params.i_fps_num = 30000;
-    params.i_fps_den = 1001;
-    params.i_timebase_num = 1001;   // Special things to be done here for pulldown
-    params.i_timebase_den = 30000;
-    params.b_annexb = 0;            // 1=Suitable for standalone file
-    params.b_repeat_headers = 0;
-    params.b_vfr_input = 0;
-
-    x264_param_apply_fastfirstpass( &params );
-
-    if( x264_param_apply_profile( &params, profile ) < 0 ) {
-        PyErr_Format( PyExc_Exception, "Failed to set x264 profile." );
-        return -1;
-    }
+    //params.b_annexb = 0;            // 1=Suitable for standalone file
+    //params.b_repeat_headers = 0;
 
     if( !py_coded_image_take_source( source_obj, &self->source ) )
         return -1;
@@ -315,6 +439,23 @@ static PyTypeObject py_type_X264VideoEncoder = {
     .tp_members = X264VideoEncoder_members,
 };
 
+static void
+_make_name_list( PyObject *module, const char *varname, const char * const *names ) {
+    g_assert( module );
+    g_assert( varname );
+    g_assert( names );
+
+    PyObject *list = PyList_New( 0 );
+
+    for( int i = 0; names[i] != NULL; i++ ) {
+        PyObject *str = PyUnicode_FromString( names[i] );
+        PyList_Append( list, str );
+        Py_DECREF( str );
+    }
+
+    PyModule_AddObject( module, varname, list );
+}
+
 void init_X264VideoEncoder( PyObject *module ) {
     if( PyType_Ready( &py_type_X264VideoEncoder ) < 0 )
         return;
@@ -322,8 +463,18 @@ void init_X264VideoEncoder( PyObject *module ) {
     Py_INCREF( &py_type_X264VideoEncoder );
     PyModule_AddObject( module, "X264VideoEncoder", (PyObject *) &py_type_X264VideoEncoder );
 
+    if( PyType_Ready( &py_type_X264EncoderParams ) < 0 )
+        return;
+
+    Py_INCREF( &py_type_X264EncoderParams );
+    PyModule_AddObject( module, "X264EncoderParams", (PyObject *) &py_type_X264EncoderParams );
+
     pySourceFuncs = PyCapsule_New( &source_funcs,
         CODEC_PACKET_SOURCE_FUNCS, NULL );
+
+    _make_name_list( module, "preset_names", x264_preset_names );
+    _make_name_list( module, "tune_names", x264_tune_names );
+    _make_name_list( module, "profile_names", x264_profile_names );
 }
 
 
