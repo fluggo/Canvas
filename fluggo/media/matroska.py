@@ -626,6 +626,103 @@ class CueTrackPosition(ebml):
         self.add_int(self.BlockNumber, block_number)
         self.add_int(self.CodecState, codec_state_position)
 
+class VideoTargetTypeValue:
+    COLLECTION = 70
+    SEASON = 60
+    SEQUEL = 60
+    VOLUME = 60
+    MOVIE = 50
+    EPISODE = 50
+    CONCERT = 50
+    PART = 40
+    SESSION = 40
+    CHAPTER = 30
+    SCENE = 20
+    SHOT = 10
+
+class VideoTargetType:
+    pass
+
+for key, value in VideoTargetTypeValue.__dict__.items():
+    if not key.startswith('__'):
+        setattr(VideoTargetType, key, key)
+
+class AudioTargetTypeValue:
+    COLLECTION = 70
+    EDITION = 60
+    ISSUE = 60
+    VOLUME = 60
+    OPUS = 60
+    ALBUM = 50
+    OPERA = 50
+    CONCERT = 50
+    PART = 40
+    SESSION = 40
+    TRACK = 30
+    SONG = 30
+    SUBTRACK = 20
+    PART = 20
+    MOVEMENT = 20
+
+class AudioTargetType:
+    pass
+
+for key, value in AudioTargetTypeValue.__dict__.items():
+    if not key.startswith('__'):
+        setattr(AudioTargetType, key, key)
+
+class Tags(ebml):
+    Element = 0x1254C367
+
+    def __init__(self, tags=None):
+        ebml.__init__(self, self.Element, tags or [])
+
+class Tag(ebml):
+    Element = 0x7373
+
+    def __init__(self, targets, tags):
+        ebml.__init__(self, self.Element, targets + tags)
+
+class Target(ebml):
+    Element = 0x63C0
+    TargetTypeValue = 0x68CA
+    TargetType = 0x63CA
+    TagTrackUID = 0x63C5
+    TagEditionUID = 0x63C9
+    TagChapterUID = 0x63C4
+    TagAttachmentUID = 0x63C6
+
+    def __init__(self, target_type, target_type_value=None, track_uid=None,
+            edition_uid=None, chapter_uid=None, attachment_uid=None):
+        ebml.__init__(self, self.Element, [])
+        self.add_string(self.TargetType, target_type)
+        self.add_int(self.TargetTypeValue, target_type_value or
+            (hasattr(VideoTargetTypeValue, target_type) and getattr(VideoTargetTypeValue, target_type)) or
+            (hasattr(AudioTargetTypeValue, target_type) and getattr(AudioTargetTypeValue, target_type)))
+        self.add_int(self.TagTrackUID, track_uid)
+        self.add_int(self.TagEditionUID, edition_uid)
+        self.add_int(self.TagChapterUID, chapter_uid)
+        self.add_int(self.TagAttachmentUID, attachment_uid)
+
+class SimpleTag(ebml):
+    Element = 0x67C8
+    TagName = 0x45A3
+    TagLanguage = 0x447A
+    TagDefault = 0x4484
+    TagString = 0x4487
+    TagBinary = 0x4485
+
+    def __init__(self, name, value, language=None, is_default_language=None):
+        ebml.__init__(self, self.Element, [])
+        self.add_utf8(self.TagName, name)
+        self.add_string(self.TagLanguage, language)
+        self.add_bool(self.TagDefault, is_default_language)
+
+        if isinstance(value, str):
+            self.add_utf8(self.TagString, value)
+        else:
+            self.add_binary(self.TagBinary, value)
+
 class Cluster(ebml):
     Element = 0x1F43B675
     Timecode = 0xE7
@@ -692,8 +789,12 @@ class MatroskaWriter:
         self.segment_info.write(self.fd)
 
         self.cues = Cues()
+        self.tags = Tags()
 
         self.top_seek_head.contents.append(Seek.from_element(self.segment, self.segment_info))
+
+    def add_tag(self, tag):
+        self.tags.contents.append(tag)
 
     def write_tracks(self, tracks):
         tracks = TrackList(tracks)
@@ -750,6 +851,11 @@ class MatroskaWriter:
         # Write the cues
         self.cues.write(self.fd)
         self.top_seek_head.contents.append(Seek.from_element(self.segment, self.cues))
+
+        # Write the tags
+        if self.tags.contents:
+            self.tags.write(self.fd)
+            self.top_seek_head.contents.append(Seek.from_element(self.segment, self.tags))
 
         # Finally write the seek head at the top
         self.top_seek_head.write(self.fd)
