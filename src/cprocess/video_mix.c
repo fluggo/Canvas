@@ -395,14 +395,14 @@ static const char *crossfadeShaderText =
 "}";
 
 typedef struct {
-    GLhandleARB shader, program;
+    GLuint shader, program;
     int tex_a, tex_b, mix_b;
 } gl_shader_state;
 
 static void destroyShader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteObjectARB( shader->program );
-    glDeleteObjectARB( shader->shader );
+    glDeleteProgram( shader->program );
+    glDeleteShader( shader->shader );
     g_free( shader );
 }
 
@@ -423,17 +423,17 @@ video_mix_cross_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, floa
 
         gl_buildShader( crossfadeShaderText, &shader->shader, &shader->program );
 
-        shader->tex_a = glGetUniformLocationARB( shader->program, "texA" );
-        shader->tex_b = glGetUniformLocationARB( shader->program, "texB" );
-        shader->mix_b = glGetUniformLocationARB( shader->program, "mixB" );
+        shader->tex_a = glGetUniformLocation( shader->program, "texA" );
+        shader->tex_b = glGetUniformLocation( shader->program, "texB" );
+        shader->mix_b = glGetUniformLocation( shader->program, "mixB" );
 
         g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroyShader );
     }
 
-    glUseProgramObjectARB( shader->program );
-    glUniform1iARB( shader->tex_a, 0 );
-    glUniform1iARB( shader->tex_b, 1 );
-    glUniform1fARB( shader->mix_b, mix_b );
+    glUseProgram( shader->program );
+    glUniform1i( shader->tex_a, 0 );
+    glUniform1i( shader->tex_b, 1 );
+    glUniform1f( shader->mix_b, mix_b );
 
     // Now set up the texture to render to
     v2i frame_size;
@@ -455,7 +455,7 @@ video_mix_cross_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, floa
 
     gl_renderToTexture( out );
 
-    glUseProgramObjectARB( 0 );
+    glUseProgram( 0 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
     glActiveTexture( GL_TEXTURE0 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
@@ -528,17 +528,17 @@ video_mix_over_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, float
 
         gl_buildShader( over_shader_text, &shader->shader, &shader->program );
 
-        shader->tex_a = glGetUniformLocationARB( shader->program, "texA" );
-        shader->tex_b = glGetUniformLocationARB( shader->program, "texB" );
-        shader->mix_b = glGetUniformLocationARB( shader->program, "mixB" );
+        shader->tex_a = glGetUniformLocation( shader->program, "texA" );
+        shader->tex_b = glGetUniformLocation( shader->program, "texB" );
+        shader->mix_b = glGetUniformLocation( shader->program, "mixB" );
 
         g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroyShader );
     }
 
-    glUseProgramObjectARB( shader->program );
-    glUniform1iARB( shader->tex_a, 0 );
-    glUniform1iARB( shader->tex_b, 1 );
-    glUniform1fARB( shader->mix_b, mix_b );
+    glUseProgram( shader->program );
+    glUniform1i( shader->tex_a, 0 );
+    glUniform1i( shader->tex_b, 1 );
+    glUniform1f( shader->mix_b, mix_b );
 
     // Now set up the texture to render to
     v2i frame_size;
@@ -560,7 +560,7 @@ video_mix_over_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, float
 
     gl_renderToTexture( out );
 
-    glUseProgramObjectARB( 0 );
+    glUseProgram( 0 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
     glActiveTexture( GL_TEXTURE0 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );

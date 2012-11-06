@@ -402,7 +402,6 @@ PyInit_process() {
         GLEW_VERSION_2_1 &&
         GLEW_ATI_texture_float &&
         GLEW_ARB_texture_rectangle &&
-        GLEW_ARB_fragment_shader &&
         GLEW_EXT_framebuffer_object &&
         GLEW_ARB_half_float_pixel;
 

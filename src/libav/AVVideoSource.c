@@ -472,14 +472,15 @@ static const char *recon411Text =
 "}";
 
 typedef struct {
-    GLhandleARB shader, program;
+    GLuint shader, program;
     int texY, texCb, texCr, yuv2rgb, picOffset;
 } gl_shader_state;
 
 static void destroyShader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteObjectARB( shader->program );
-    glDeleteObjectARB( shader->shader );
+    glDeleteProgram( shader->program );
+    glDeleteShader( shader->shader );
+    g_free( shader );
 }
 
 static void
@@ -504,15 +505,15 @@ AVVideoSource_getFrameGL( py_obj_AVVideoSource *self, int frameIndex, rgba_frame
 
     if( !shader ) {
         // Time to create the program for this context
-        shader = calloc( sizeof(gl_shader_state), 1 );
+        shader = g_new0( gl_shader_state, 1 );
 
         gl_buildShader( recon411Text, &shader->shader, &shader->program );
 
-        shader->texY = glGetUniformLocationARB( shader->program, "texY" );
-        shader->texCb = glGetUniformLocationARB( shader->program, "texCb" );
-        shader->texCr = glGetUniformLocationARB( shader->program, "texCr" );
-        shader->yuv2rgb = glGetUniformLocationARB( shader->program, "yuv2rgb" );
-        shader->picOffset = glGetUniformLocationARB( shader->program, "picOffset" );
+        shader->texY = glGetUniformLocation( shader->program, "texY" );
+        shader->texCb = glGetUniformLocation( shader->program, "texCb" );
+        shader->texCr = glGetUniformLocation( shader->program, "texCr" );
+        shader->yuv2rgb = glGetUniformLocation( shader->program, "yuv2rgb" );
+        shader->picOffset = glGetUniformLocation( shader->program, "picOffset" );
 
         g_dataset_id_set_data_full( context, q_recon411Shader, shader, (GDestroyNotify) destroyShader );
     }
@@ -581,12 +582,12 @@ AVVideoSource_getFrameGL( py_obj_AVVideoSource *self, int frameIndex, rgba_frame
     glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
     g_static_mutex_unlock( &self->mutex );
 
-    glUseProgramObjectARB( shader->program );
-    glUniform1iARB( shader->texY, 0 );
-    glUniform1iARB( shader->texCb, 1 );
-    glUniform1iARB( shader->texCr, 2 );
-    glUniformMatrix3fvARB( shader->yuv2rgb, 1, false, &self->colorMatrix[0][0] );
-    glUniform2fARB( shader->picOffset, picOffset.x, picOffset.y );
+    glUseProgram( shader->program );
+    glUniform1i( shader->texY, 0 );
+    glUniform1i( shader->texCb, 1 );
+    glUniform1i( shader->texCr, 2 );
+    glUniformMatrix3fv( shader->yuv2rgb, 1, false, &self->colorMatrix[0][0] );
+    glUniform2f( shader->picOffset, picOffset.x, picOffset.y );
 
     // The troops are ready; define the image
     frame->texture = textures[3];
@@ -594,7 +595,7 @@ AVVideoSource_getFrameGL( py_obj_AVVideoSource *self, int frameIndex, rgba_frame
 
     glDeleteTextures( 3, textures );
 
-    glUseProgramObjectARB( 0 );
+    glUseProgram( 0 );
 
     glActiveTexture( GL_TEXTURE2 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );

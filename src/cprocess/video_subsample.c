@@ -275,14 +275,14 @@ static const char *subsample_mpeg2_chroma_shader_text =
 "}";
 
 typedef struct {
-    GLhandleARB shader, program;
+    GLuint shader, program;
     int tex, rgb2yuv, input_offset, result0;
 } gl_shader_state;
 
 static void destroy_shader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteObjectARB( shader->program );
-    glDeleteObjectARB( shader->shader );
+    glDeleteProgram( shader->program );
+    glDeleteShader( shader->shader );
     g_free( shader );
 }
 
@@ -329,9 +329,9 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
         g_debug( "Building MPEG2 luma shader..." );
         gl_buildShader( subsample_mpeg2_luma_shader_text, &luma_shader->shader, &luma_shader->program );
 
-        luma_shader->tex = glGetUniformLocationARB( luma_shader->program, "tex" );
-        luma_shader->rgb2yuv = glGetUniformLocationARB( luma_shader->program, "rgb2yuv" );
-        luma_shader->input_offset = glGetUniformLocationARB( luma_shader->program, "input_offset" );
+        luma_shader->tex = glGetUniformLocation( luma_shader->program, "tex" );
+        luma_shader->rgb2yuv = glGetUniformLocation( luma_shader->program, "rgb2yuv" );
+        luma_shader->input_offset = glGetUniformLocation( luma_shader->program, "input_offset" );
 
         g_dataset_id_set_data_full( context, luma_shader_quark, luma_shader, (GDestroyNotify) destroy_shader );
     }
@@ -345,10 +345,10 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
         g_debug( "Building MPEG2 chroma shader..." );
         gl_buildShader( subsample_mpeg2_chroma_shader_text, &chroma_shader->shader, &chroma_shader->program );
 
-        chroma_shader->tex = glGetUniformLocationARB( chroma_shader->program, "tex" );
-        chroma_shader->rgb2yuv = glGetUniformLocationARB( chroma_shader->program, "rgb2yuv" );
-        chroma_shader->input_offset = glGetUniformLocationARB( chroma_shader->program, "input_offset" );
-        chroma_shader->result0 = glGetUniformLocationARB( chroma_shader->program, "result0" );
+        chroma_shader->tex = glGetUniformLocation( chroma_shader->program, "tex" );
+        chroma_shader->rgb2yuv = glGetUniformLocation( chroma_shader->program, "rgb2yuv" );
+        chroma_shader->input_offset = glGetUniformLocation( chroma_shader->program, "input_offset" );
+        chroma_shader->result0 = glGetUniformLocation( chroma_shader->program, "result0" );
 
         g_dataset_id_set_data_full( context, chroma_shader_quark, chroma_shader, (GDestroyNotify) destroy_shader );
     }
@@ -419,19 +419,19 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
     glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
         GL_TEXTURE_RECTANGLE_ARB, luma_tex, 0 );
 
-    glUseProgramObjectARB( luma_shader->program );
-    glUniform1iARB( luma_shader->tex, 0 );
-    glUniformMatrix3fvARB( luma_shader->rgb2yuv, 1, false, &color_matrix[0][0] );
-    glUniform2fARB( luma_shader->input_offset, input_offset.x, input_offset.y );
+    glUseProgram( luma_shader->program );
+    glUniform1i( luma_shader->tex, 0 );
+    glUniformMatrix3fv( luma_shader->rgb2yuv, 1, false, &color_matrix[0][0] );
+    glUniform2f( luma_shader->input_offset, input_offset.x, input_offset.y );
 
     quad( &result_window );
 
     // Now paint to chromas
-    glUseProgramObjectARB( chroma_shader->program );
-    glUniform1iARB( chroma_shader->tex, 0 );
-    glUniformMatrix3fvARB( chroma_shader->rgb2yuv, 1, false, &color_matrix[0][0] );
-    glUniform2fARB( chroma_shader->input_offset, input_offset.x, input_offset.y );
-    glUniform1fARB( chroma_shader->result0, 0.0f );
+    glUseProgram( chroma_shader->program );
+    glUniform1i( chroma_shader->tex, 0 );
+    glUniformMatrix3fv( chroma_shader->rgb2yuv, 1, false, &color_matrix[0][0] );
+    glUniform2f( chroma_shader->input_offset, input_offset.x, input_offset.y );
+    glUniform1f( chroma_shader->result0, 0.0f );
 
     if( max_draw_buffers >= 2 && max_color_attachments >= 2 ) {
         // Bind and use both chromas at the same time
@@ -466,7 +466,7 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
         // Select CR in the shader and draw it now
         glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
             GL_TEXTURE_RECTANGLE_ARB, cr_tex, 0 );
-        glUniform1fARB( chroma_shader->result0, 1.0f );
+        glUniform1f( chroma_shader->result0, 1.0f );
         quad( &chroma_box );
     }
 
@@ -482,7 +482,7 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
 
     glDeleteTextures( 3, textures );
-    glUseProgramObjectARB( 0 );
+    glUseProgram( 0 );
 
     return planar;
 }

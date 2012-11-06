@@ -121,13 +121,13 @@ static const char *interlaceText =
 "}";
 
 typedef struct {
-    GLhandleARB shader, program;
+    GLuint shader, program;
 } gl_shader_state;
 
 static void destroyShader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteObjectARB( shader->program );
-    glDeleteObjectARB( shader->shader );
+    glDeleteProgram( shader->program );
+    glDeleteShader( shader->shader );
     g_free( shader );
 }
 
@@ -188,8 +188,8 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
         video_get_frame_gl( self->source, baseFrame + 2, frame );
         video_get_frame_gl( self->source, baseFrame + 3, &frameB );
 
-        glUseProgramObjectARB( shader->program );
-        glUniform1iARB( glGetUniformLocationARB( shader->program, "texA" ), 0 );
+        glUseProgram( shader->program );
+        glUniform1i( glGetUniformLocation( shader->program, "texA" ), 0 );
 
         glActiveTexture( GL_TEXTURE0 );
         glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameB.texture );
@@ -197,7 +197,7 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
 
         gl_renderToTexture( frame );
 
-        glUseProgramObjectARB( 0 );
+        glUseProgram( 0 );
         glDisable( GL_TEXTURE_RECTANGLE_ARB );
         glDeleteTextures( 1, &frameB.texture );
     }

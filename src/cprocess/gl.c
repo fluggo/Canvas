@@ -294,16 +294,16 @@ gl_printShaderErrors( GLhandleARB shader ) {
 }
 
 EXPORT void
-gl_buildShader( const char *source, GLhandleARB *outShader, GLhandleARB *outProgram ) {
-    GLhandleARB shader = glCreateShaderObjectARB( GL_FRAGMENT_SHADER_ARB );
-    glShaderSourceARB( shader, 1, &source, NULL );
-    glCompileShaderARB( shader );
+gl_buildShader( const char *source, GLuint *outShader, GLuint *outProgram ) {
+    GLuint shader = glCreateShader( GL_FRAGMENT_SHADER );
+    glShaderSource( shader, 1, &source, NULL );
+    glCompileShader( shader );
 
-    gl_printShaderErrors( shader );
+    //gl_printShaderErrors( shader );
 
-    GLhandleARB program = glCreateProgramObjectARB();
-    glAttachObjectARB( program, shader );
-    glLinkProgramARB( program );
+    GLuint program = glCreateProgram();
+    glAttachShader( program, shader );
+    glLinkProgram( program );
 
     *outShader = shader;
     *outProgram = program;

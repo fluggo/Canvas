@@ -64,7 +64,7 @@ struct __tag_widget_gl_context {
 
     SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
     GLuint softTextureId, hardTextureId, checkerTextureId;
-    GLhandleARB hardGammaShader, hardGammaProgram;
+    GLuint hardGammaShader, hardGammaProgram;
 
     // Number of buffers available
     int bufferCount;
@@ -475,9 +475,9 @@ widget_gl_free( widget_gl_context *self ) {
 static void
 widget_gl_initialize( widget_gl_context *self ) {
     self->hardModeSupported =
+        GLEW_VERSION_2_1 &&
         GLEW_ATI_texture_float &&
         GLEW_ARB_texture_rectangle &&
-        GLEW_ARB_fragment_shader &&
         GLEW_EXT_framebuffer_object &&
         GLEW_ARB_half_float_pixel;
 
@@ -675,7 +675,7 @@ widget_gl_draw( widget_gl_context *self, v2i widget_size ) {
         if( !self->hardGammaShader )
             gl_buildShader( gammaShader, &self->hardGammaShader, &self->hardGammaProgram );
 
-        glUseProgramObjectARB( self->hardGammaProgram );
+        glUseProgram( self->hardGammaProgram );
     }
 
     // Find the corners of the defined window
@@ -705,7 +705,7 @@ widget_gl_draw( widget_gl_context *self, v2i widget_size ) {
     glDisable( GL_BLEND );
 
     if( !self->softMode ) {
-        glUseProgramObjectARB( 0 );
+        glUseProgram( 0 );
     }
 }
 

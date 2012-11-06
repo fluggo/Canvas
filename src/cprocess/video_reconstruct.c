@@ -174,14 +174,14 @@ static const char *recon_dv_shader_text =
 "}";
 
 typedef struct {
-    GLhandleARB shader, program;
+    GLuint shader, program;
     int texY, texCb, texCr, yuv2rgb, picOffset;
 } gl_shader_state;
 
 static void destroy_shader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteObjectARB( shader->program );
-    glDeleteObjectARB( shader->shader );
+    glDeleteProgram( shader->program );
+    glDeleteShader( shader->shader );
     g_free( shader );
 }
 
@@ -207,11 +207,11 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
         g_debug( "Building DV shader..." );
         gl_buildShader( recon_dv_shader_text, &shader->shader, &shader->program );
 
-        shader->texY = glGetUniformLocationARB( shader->program, "texY" );
-        shader->texCb = glGetUniformLocationARB( shader->program, "texCb" );
-        shader->texCr = glGetUniformLocationARB( shader->program, "texCr" );
-        shader->yuv2rgb = glGetUniformLocationARB( shader->program, "yuv2rgb" );
-        shader->picOffset = glGetUniformLocationARB( shader->program, "picOffset" );
+        shader->texY = glGetUniformLocation( shader->program, "texY" );
+        shader->texCb = glGetUniformLocation( shader->program, "texCb" );
+        shader->texCr = glGetUniformLocation( shader->program, "texCr" );
+        shader->yuv2rgb = glGetUniformLocation( shader->program, "yuv2rgb" );
+        shader->picOffset = glGetUniformLocation( shader->program, "picOffset" );
 
         g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
     }
@@ -270,12 +270,12 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
 
     glPopClientAttrib();
 
-    glUseProgramObjectARB( shader->program );
-    glUniform1iARB( shader->texY, 0 );
-    glUniform1iARB( shader->texCb, 1 );
-    glUniform1iARB( shader->texCr, 2 );
-    glUniformMatrix3fvARB( shader->yuv2rgb, 1, false, &color_matrix[0][0] );
-    glUniform2fARB( shader->picOffset, pic_offset.x, pic_offset.y );
+    glUseProgram( shader->program );
+    glUniform1i( shader->texY, 0 );
+    glUniform1i( shader->texCb, 1 );
+    glUniform1i( shader->texCr, 2 );
+    glUniformMatrix3fv( shader->yuv2rgb, 1, false, &color_matrix[0][0] );
+    glUniform2f( shader->picOffset, pic_offset.x, pic_offset.y );
 
     // The troops are ready; define the image
     frame->texture = textures[3];
@@ -283,7 +283,7 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
 
     glDeleteTextures( 3, textures );
 
-    glUseProgramObjectARB( 0 );
+    glUseProgram( 0 );
 
     glActiveTexture( GL_TEXTURE2 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
