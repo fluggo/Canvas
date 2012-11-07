@@ -29,7 +29,10 @@ class _DeferredFormat(object):
         self.kw = kw
 
     def __str__(self):
-        return self.format.format(*self.args, **self.kw)
+        if len(self.args) > 1 or self.kw:
+            return self.format.format(*self.args, **self.kw)
+
+        return self.format
 
 class _mylogger(getLoggerClass()):
     def warnonerror(self, msg='Error while executing method'):
