@@ -216,12 +216,12 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
         g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
     }
 
-    GLuint textures[4];
-    glGenTextures( 4, textures );
+    GLuint textures[3];
+    glGenTextures( 3, textures );
 
     // Set up the result texture
     glActiveTexture( GL_TEXTURE0 );
-    video_make_gl_texture( textures[3], frame_size.x, frame_size.y, NULL );
+    frame->texture = video_make_gl_texture( frame_size.x, frame_size.y, NULL );
 
     // Offset the frame so that line zero is part of the first field
     // TODO: Should probably fold these constants into the shader
@@ -278,7 +278,6 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
     glUniform2f( shader->picOffset, pic_offset.x, pic_offset.y );
 
     // The troops are ready; define the image
-    frame->texture = textures[3];
     gl_renderToTexture( frame );
 
     glDeleteTextures( 3, textures );

@@ -394,15 +394,12 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, luma_tex );
     glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, luma_size.x, luma_size.y, 0,
         GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL );
-    gl_checkError();
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, cb_tex );
     glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, chroma_size.x, chroma_size.y, 0,
         GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL );
-    gl_checkError();
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, cr_tex );
     glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE8, chroma_size.x, chroma_size.y, 0,
         GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL );
-    gl_checkError();
 
     // Set up the input textures
     glActiveTexture( GL_TEXTURE0 );

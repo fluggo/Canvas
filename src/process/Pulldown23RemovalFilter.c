@@ -191,7 +191,6 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
         glUseProgram( shader->program );
         glUniform1i( glGetUniformLocation( shader->program, "texA" ), 0 );
 
-        glActiveTexture( GL_TEXTURE0 );
         glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameB.texture );
         glEnable( GL_TEXTURE_RECTANGLE_ARB );
 

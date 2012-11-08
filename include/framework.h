@@ -225,7 +225,7 @@ rgba_f16_to_f32( rgba_f32 *out, const rgba_f16 *in, int count ) {
 void video_get_frame_f16( video_source *source, int frame_index, rgba_frame_f16 *frame );
 void video_get_frame_f32( video_source *source, int frame_index, rgba_frame_f32 *frame );
 void video_get_frame_gl( video_source *source, int frame_index, rgba_frame_gl *frame );
-void video_make_gl_texture( GLuint texture, int width, int height, rgba_f16 *data );
+GLuint video_make_gl_texture( int width, int height, rgba_f16 *data );
 
 const uint8_t *video_get_gamma45_ramp();
 
@@ -248,14 +248,24 @@ void video_transfer_rec709_to_linear_display( half *out, const half *in, size_t 
 void video_transfer_linear_to_rec709( half *out, const half *in, size_t count );
 void video_transfer_linear_to_sRGB( half *out, const half *in, size_t count );
 
-// OpenGL utility routines
+// GL utility routines
 void *getCurrentGLContext();
 
 #define gl_checkError()        __gl_checkError(__FILE__, __LINE__)
 void __gl_checkError(const char *file, const unsigned long line);
 
-void gl_printShaderErrors( GLhandleARB shader );
+#define VIDEO_MAX_FILTER_INPUTS     8
+
+typedef struct {
+    GLuint program, fragment_shader;
+} video_filter_program;
+
+video_filter_program *video_create_filter_program( const char *fragment_shader, const char *name );
+void video_render_gl_frame_filter1( video_filter_program *program, rgba_frame_gl *out, rgba_frame_gl *in );
+void video_delete_filter_program( video_filter_program *program );
+
 void gl_renderToTexture( rgba_frame_gl *frame );
+GLuint gl_compile_shader( GLenum shader_type, const char *source, const char *name );
 void gl_buildShader( const char *source, GLuint *outShader, GLuint *outProgram );
 G_GNUC_MALLOC void *gl_create_offscreen_context();
 void gl_destroy_offscreen_context( void *context );
