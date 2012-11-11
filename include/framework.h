@@ -263,6 +263,7 @@ typedef struct {
 video_filter_program *video_create_filter_program( const char *fragment_shader, const char *name );
 void video_render_gl_frame_filter1( video_filter_program *program, rgba_frame_gl *out, rgba_frame_gl *in );
 void video_delete_filter_program( video_filter_program *program );
+void video_render_gl_frame( video_filter_program *program, rgba_frame_gl *out, box2i *in_full_windows[], int input_count );
 
 void gl_renderToTexture( rgba_frame_gl *frame );
 GLuint gl_compile_shader( GLenum shader_type, const char *source, const char *name );

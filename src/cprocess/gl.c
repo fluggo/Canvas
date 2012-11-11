@@ -525,10 +525,12 @@ gl_get_composite_framebuffer() {
 }
 
 /*
-    Renders a GL frame with the current settings and a filter with one input.
+    Renders a GL frame with the current settings and the given program.
 
-    This is the most convenient means of running a GL filter. It allocates the
-    output frame and computes the current_window for you.
+    This function assumes that all needed textures and uniforms are set before
+    being called, and requires that the output frame's full_window is set.
+    It does not allocate the output texture, and does not set current_window; you
+    must do that yourself.
 
     program - Filter program to use. If you need to set custom uniforms, load the
         program and set the uniforms before calling this function. This function
@@ -536,11 +538,13 @@ gl_get_composite_framebuffer() {
     out - Frame to render into. Must have its full_window set. The current_window
         will be set to the current window of the input frame. A new texture will
         be generated for the result.
-    in - Input frame.
+    in_full_windows - An array of pointers to the full_windows of the textures
+        assigned to GL_TEXTURE0, GL_TEXTURE1, etc. These are used to generate
+        texture coordinates in the tex_coord varying. May be NULL.
+    input_count - The number of pointers in in_full_windows.
 */
 EXPORT void
-video_render_gl_frame_filter1( video_filter_program *program, rgba_frame_gl *out, rgba_frame_gl *in ) {
-    box2i* in_windows[1] = { &in->full_window };
+video_render_gl_frame( video_filter_program *program, rgba_frame_gl *out, box2i *in_full_windows[], int input_count ) {
     user_filter_program *up = (user_filter_program *) program;
 
     v2i frame_size;
@@ -548,19 +552,15 @@ video_render_gl_frame_filter1( video_filter_program *program, rgba_frame_gl *out
 
     // Set up the program
     glUseProgram( program->program );
-    video_set_filter_uniforms( program, &out->full_window, in_windows, 1 );
+    video_set_filter_uniforms( program, &out->full_window, in_full_windows, input_count );
 
     // Compose the texture
     vertex_shader_state *vshader = gl_get_vertex_shader();
-
-    out->texture = video_make_gl_texture( frame_size.x, frame_size.y, NULL );
     GLuint fbo = gl_get_composite_framebuffer();
 
     glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
     glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
         GL_TEXTURE_RECTANGLE_ARB, out->texture, 0 );
-
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, in->texture );
 
     glBindBuffer( GL_ARRAY_BUFFER, vshader->vertex_buffer );
     glEnableVertexAttribArray( up->position_attribute );
@@ -572,9 +572,36 @@ video_render_gl_frame_filter1( video_filter_program *program, rgba_frame_gl *out
 
     glDisableVertexAttribArray( up->position_attribute );
     glBindBuffer( GL_ARRAY_BUFFER, 0 );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, 0 );
     glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, 0 );
+}
 
+/*
+    Renders a GL frame with the current settings and a filter with one input.
+
+    This is the most convenient means of running a GL filter. It allocates the
+    output frame and computes the current_window for you (as the intersection of
+    the output frame's full_window and the input frame's current_window).
+
+    program - Filter program to use. If you need to set custom uniforms, load the
+        program and set the uniforms before calling this function. This function
+        will overwrite the uniforms for the built-in compositor vertex shader.
+    out - Frame to render into. Must have its full_window set. The current_window
+        will be set to the current window of the input frame. A new texture will
+        be generated for the result.
+    in - Input frame.
+*/
+EXPORT void
+video_render_gl_frame_filter1( video_filter_program *program, rgba_frame_gl *out, rgba_frame_gl *in ) {
+    v2i frame_size;
+    box2i_get_size( &out->full_window, &frame_size );
+    box2i* in_windows[1] = { &in->full_window };
+
+    out->texture = video_make_gl_texture( frame_size.x, frame_size.y, NULL );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, in->texture );
+
+    video_render_gl_frame( program, out, in_windows, 1 );
+
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, 0 );
     box2i_intersect( &out->current_window, &out->full_window, &in->current_window );
 }
 
