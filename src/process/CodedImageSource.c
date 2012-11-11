@@ -20,6 +20,9 @@
 
 #include "pyframework.h"
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "fluggo.media.process.CodedImageSource"
+
 static PyObject *py_type_packet;
 
 EXPORT bool
@@ -104,12 +107,146 @@ static PyMethodDef CodedImageSource_methods[] = {
     { NULL }
 };
 
+static void
+destroy_image( coded_image *image ) {
+    for( int i = 0; i < CODED_IMAGE_MAX_PLANES; i++ )
+        g_free( image->data[i] );
+
+    g_free( image );
+}
+
+static coded_image *
+CodedImageSource_get_frame_from_python( PyObject *self, int frame ) {
+    PyGILState_STATE gstate;
+    gstate = PyGILState_Ensure();
+
+    PyObject *result_obj = PyObject_CallMethod( (PyObject *) self, "get_frame", "i", frame );
+
+    PyGILState_Release( gstate );
+
+    if( !result_obj ) {
+        PyErr_Print();
+        return NULL;
+    }
+
+    Py_ssize_t plane_count = PySequence_Length( result_obj );
+
+    if( plane_count == -1 ) {
+        PyErr_Print();
+        return NULL;
+    }
+
+    coded_image *image = g_new0( coded_image, 1 );
+    image->free_func = (GFreeFunc) destroy_image;
+
+    for( Py_ssize_t plane = 0; plane < plane_count && plane < CODED_IMAGE_MAX_PLANES; plane++ ) {
+        PyObject *plane_obj = PySequence_GetItem( result_obj, plane );
+
+        if( !plane_obj ) {
+            PyErr_Print();
+            Py_CLEAR(result_obj);
+            destroy_image( image );
+
+            return NULL;
+        }
+
+        PyObject *data_obj = PyObject_GetAttrString( plane_obj, "data" );
+
+        if( data_obj == Py_None ) {
+            Py_CLEAR(data_obj);
+            Py_CLEAR(plane_obj);
+            continue;
+        }
+
+        PyObject *stride_obj = PyObject_GetAttrString( plane_obj, "stride" );
+        PyObject *line_count_obj = PyObject_GetAttrString( plane_obj, "line_count" );
+        Py_CLEAR(plane_obj);
+
+        if( !data_obj || !stride_obj || !line_count_obj ) {
+            PyErr_Print();
+            Py_CLEAR(data_obj);
+            Py_CLEAR(stride_obj);
+            Py_CLEAR(line_count_obj);
+            Py_CLEAR(result_obj);
+            destroy_image( image );
+
+            return NULL;
+        }
+
+        image->stride[plane] = PyLong_AsLong( stride_obj );
+        Py_CLEAR(stride_obj);
+
+        image->line_count[plane] = PyLong_AsLong( line_count_obj );
+        Py_CLEAR(line_count_obj);
+
+        if( PyErr_Occurred() ) {
+            PyErr_Print();
+            Py_CLEAR(data_obj);
+            Py_CLEAR(result_obj);
+            destroy_image( image );
+
+            return NULL;
+        }
+
+        Py_buffer buffer;
+
+        if( PyObject_GetBuffer( data_obj, &buffer, PyBUF_SIMPLE ) == -1 ) {
+            PyErr_Print();
+            Py_CLEAR(data_obj);
+            Py_CLEAR(result_obj);
+            destroy_image( image );
+
+            return NULL;
+        }
+
+        if( buffer.len != image->stride[plane] * image->line_count[plane] ) {
+            Py_CLEAR(data_obj);
+            Py_CLEAR(result_obj);
+            PyBuffer_Release( &buffer );
+            destroy_image( image );
+
+            g_warning(
+                "Error in plane %d: expected %zd bytes, got %zd bytes.",
+                plane,
+                (Py_ssize_t) image->stride[plane] * image->line_count[plane],
+                buffer.len );
+            return NULL;
+        }
+
+        image->data[plane] = g_memdup( buffer.buf, buffer.len );
+
+        PyBuffer_Release( &buffer );
+        Py_CLEAR(data_obj);
+    }
+
+    return image;
+}
+
+static coded_image_source_funcs source_funcs = {
+    .getFrame = (coded_image_getFrameFunc) CodedImageSource_get_frame_from_python,
+};
+
+static PyObject *py_source_funcs;
+
+static PyObject *
+CodedImageSource_get_funcs( PyObject *self, void *closure ) {
+    Py_INCREF(py_source_funcs);
+    return py_source_funcs;
+}
+
+static PyGetSetDef CodedImageSource_getsetters[] = {
+    { CODED_IMAGE_SOURCE_FUNCS, (getter) CodedImageSource_get_funcs, NULL, "Coded image source C API." },
+    { NULL }
+};
+
 EXPORT PyTypeObject py_type_CodedImageSource = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "fluggo.media.process.CodedImageSource",
     .tp_basicsize = 0,
+    .tp_new = PyType_GenericNew,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_methods = CodedImageSource_methods,
+    .tp_getset = CodedImageSource_getsetters,
 };
 
 void init_CodedImageSource( PyObject *module ) {
@@ -131,6 +268,9 @@ void init_CodedImageSource( PyObject *module ) {
     Py_INCREF( (PyObject*) &py_type_CodedImageSource );
     PyModule_AddObject( module, "CodedImageSource", (PyObject *) &py_type_CodedImageSource );
     PyModule_AddObject( module, "CodedImage", py_type_packet );
+
+    py_source_funcs = PyCapsule_New( &source_funcs,
+        CODED_IMAGE_SOURCE_FUNCS, NULL );
 }
 
 
