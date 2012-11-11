@@ -487,7 +487,7 @@ video_set_filter_uniforms( video_filter_program *program, box2i *out_full_window
     // Calculate texture offsets
     v2i tex_offsets[VIDEO_MAX_FILTER_INPUTS];
 
-    for( int i = 0; i < input_count; i++ ) {
+    for( int i = 0; i < input_count && in_full_windows; i++ ) {
         v2i_subtract( &tex_offsets[i], &out_full_window->min,
             &in_full_windows[i]->min );
     }
