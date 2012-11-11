@@ -139,6 +139,7 @@ video_reconstruct_dv( rgba_frame_f16 *frame, coded_image *planar ) {
 static const char *recon_dv_shader_text =
 "#version 120\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
+"varying vec2 tex_coord[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
 "uniform sampler2DRect texY;"
 "uniform sampler2DRect texCb;"
 "uniform sampler2DRect texCr;"
@@ -161,7 +162,7 @@ static const char *recon_dv_shader_text =
 "}"
 
 "void main() {"
-"    vec2 yTexCoord = gl_TexCoord[0].st - picOffset;"
+"    vec2 yTexCoord = tex_coord[0];"
 "    vec2 cTexCoord = (yTexCoord - vec2(0.5, 0.5)) * vec2(0.25, 1.0) + vec2(0.5, 0.5);"
 "    float y = (texture2DRect( texY, yTexCoord ).r - (16.0/255.0)) / (219.0/255.0);"
 "    float cb = (texture2DRect( texCb, cTexCoord ).r - (128.0/255.0)) / (224.0/255.0);"
@@ -169,19 +170,21 @@ static const char *recon_dv_shader_text =
 
 "    vec3 ycbcr = vec3(y, cb, cr) * yuv2rgb;"
 
-"    gl_FragColor.rgb = rec709_to_linear(ycbcr);"
-"    gl_FragColor.a = 1.0;"
+"    bool out_of_bounds = any(lessThan(yTexCoord, vec2(0.0, 0.0))) || any(greaterThan(yTexCoord, vec2(720.0, 480.0)));"
+"    float alpha = out_of_bounds ? 0.0 : 1.0;"
+
+"    gl_FragColor.rgb = rec709_to_linear(ycbcr) * alpha;"
+"    gl_FragColor.a = alpha;"
 "}";
 
 typedef struct {
-    GLuint shader, program;
+    video_filter_program *program;
     int texY, texCb, texCr, yuv2rgb, picOffset;
 } gl_shader_state;
 
 static void destroy_shader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteProgram( shader->program );
-    glDeleteShader( shader->shader );
+    video_delete_filter_program( shader->program );
     g_free( shader );
 }
 
@@ -205,13 +208,13 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
         shader = g_new0( gl_shader_state, 1 );
 
         g_debug( "Building DV shader..." );
-        gl_buildShader( recon_dv_shader_text, &shader->shader, &shader->program );
+        shader->program = video_create_filter_program( recon_dv_shader_text, "Reconstruct DV shader" );
 
-        shader->texY = glGetUniformLocation( shader->program, "texY" );
-        shader->texCb = glGetUniformLocation( shader->program, "texCb" );
-        shader->texCr = glGetUniformLocation( shader->program, "texCr" );
-        shader->yuv2rgb = glGetUniformLocation( shader->program, "yuv2rgb" );
-        shader->picOffset = glGetUniformLocation( shader->program, "picOffset" );
+        shader->texY = glGetUniformLocation( shader->program->program, "texY" );
+        shader->texCb = glGetUniformLocation( shader->program->program, "texCb" );
+        shader->texCr = glGetUniformLocation( shader->program->program, "texCr" );
+        shader->yuv2rgb = glGetUniformLocation( shader->program->program, "yuv2rgb" );
+        shader->picOffset = glGetUniformLocation( shader->program->program, "picOffset" );
 
         g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
     }
@@ -220,7 +223,6 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
     glGenTextures( 3, textures );
 
     // Set up the result texture
-    glActiveTexture( GL_TEXTURE0 );
     frame->texture = video_make_gl_texture( frame_size.x, frame_size.y, NULL );
 
     // Offset the frame so that line zero is part of the first field
@@ -238,15 +240,7 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
         {  1.0f,       1.772f,     0.0f      }
     };
 
-    box2i_set( &frame->current_window,
-        max( pic_offset.x, frame->full_window.min.x ),
-        max( pic_offset.y, frame->full_window.min.y ),
-        min( y_size.x + pic_offset.x - 1, frame->full_window.max.x ),
-        min( y_size.y + pic_offset.y - 1, frame->full_window.max.y ) );
-
     // Set up the input textures
-    glPushClientAttrib( GL_CLIENT_PIXEL_STORE_BIT );
-
     glActiveTexture( GL_TEXTURE0 );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textures[0] );
     glPixelStorei( GL_UNPACK_ROW_LENGTH, planar->stride[0] );
@@ -268,9 +262,9 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
         GL_LUMINANCE, GL_UNSIGNED_BYTE, planar->data[2] );
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
-    glPopClientAttrib();
+    glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
 
-    glUseProgram( shader->program );
+    glUseProgram( shader->program->program );
     glUniform1i( shader->texY, 0 );
     glUniform1i( shader->texCb, 1 );
     glUniform1i( shader->texCr, 2 );
@@ -278,7 +272,11 @@ video_reconstruct_dv_gl( rgba_frame_gl *frame, coded_image *planar ) {
     glUniform2f( shader->picOffset, pic_offset.x, pic_offset.y );
 
     // The troops are ready; define the image
-    gl_renderToTexture( frame );
+    box2i input_window = { { 0, -1 }, { 719, 478 } };
+    box2i *in_windows[1] = { &input_window };
+
+    video_render_gl_frame( shader->program, frame, in_windows, 1 );
+    box2i_intersect( &frame->current_window, &frame->full_window, &input_window );
 
     glDeleteTextures( 3, textures );
 
