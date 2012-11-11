@@ -53,12 +53,12 @@ typedef struct {
 } v2i;
 
 static inline void v2i_add( v2i *result, const v2i *a, const v2i *b ) {
-    result->x = a->x + b->y;
+    result->x = a->x + b->x;
     result->y = a->y + b->y;
 }
 
 static inline void v2i_subtract( v2i *result, const v2i *a, const v2i *b ) {
-    result->x = a->x - b->y;
+    result->x = a->x - b->x;
     result->y = a->y - b->y;
 }
 
