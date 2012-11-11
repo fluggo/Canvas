@@ -31,7 +31,10 @@ mpeg2_subsample = process.MPEG2SubsampleFilter(dv_reconstruct)
 audio_packet_source = libav.AVDemuxer(sys.argv[1], 1)
 audio_decoder = libav.AVAudioDecoder(audio_packet_source, 'pcm_s16le', 2)
 
-encoder = x264.X264VideoEncoder(mpeg2_subsample, 0, 1000, preset='veryfast')
+params = x264.X264EncoderParams(preset='ultrafast', width=720, height=480,
+    frame_rate=fractions.Fraction(30000, 1001), constant_ratefactor=23.0,
+    sample_aspect_ratio=fractions.Fraction(10, 11), annex_b=False, repeat_headers=False, interlaced=True)
+encoder = x264.X264VideoEncoder(mpeg2_subsample, 0, 1000, params)
 
 with open('test.mkv', mode='wb') as myfile:
     writer = matroska.MatroskaWriter(myfile)
