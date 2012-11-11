@@ -1,0 +1,18 @@
+Rules for GL usage
+==================
+
+Later versions of OpenGL do not allow the client to save the current state of the
+GL, so certain expectations need to be met on the state of things between GL
+routines.
+
+The default state, and the one that should be there at the end of any GL routine,
+is:
+
+    glBindBuffer( GL_ARRAY_BUFFER, 0 );
+    glActiveTexture( GL_TEXTURE0 );
+    glUseProgramObjectARB( 0 );
+    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, 0 );
+    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, 0 );
+
+
