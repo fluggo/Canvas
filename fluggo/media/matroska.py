@@ -829,7 +829,7 @@ class MatroskaWriter:
                     continue
 
                 if block.keyframe and block.track in self.video_tracks:
-                    print('Add cue to track {0} time {1} at {2}'.format(block.track, block.absolute_pts, block.written_pos))
+                    _log.debug('Add cue to track {0} time {1} at {2}', block.track, block.absolute_pts, block.written_pos)
                     trackpos = CueTrackPosition(
                         block.track, self.cluster.written_pos - (self.segment.written_pos + self.segment.written_size),
                         # Jumped the gun: Relative position not used until Matroska v4
@@ -909,7 +909,7 @@ def write_audio_pcm_float(filename, source, min_sample, max_sample, sample_rate,
                 frame = source.get_frame(last_sample,
                     min(last_sample + samples_per_block - 1, max_sample), channels)
 
-                _log.debug('Writing packet {0} - {1}', frame.full_min_sample, frame.full_max_sample)
+                #_log.debug('Writing packet {0} - {1}', frame.full_min_sample, frame.full_max_sample)
                 abs_timecode = timecode(frame.full_min_sample, sample_rate, timescale)
 
                 # Pack into audio packet
