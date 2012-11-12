@@ -231,6 +231,24 @@ py_set_current_gl_context( PyObject *self, PyObject *capsule ) {
     Py_RETURN_NONE;
 }
 
+static PyObject *
+py_check_context_supported( PyObject *self, PyObject *args ) {
+    gl_ensure_context();
+
+    // Check for required extensions
+    bool hard_mode_available =
+        GLEW_VERSION_2_1 &&
+        GLEW_ATI_texture_float &&
+        GLEW_ARB_texture_rectangle &&
+        GLEW_EXT_framebuffer_object &&
+        GLEW_ARB_half_float_pixel;
+
+    if( hard_mode_available )
+        Py_RETURN_TRUE;
+    else
+        Py_RETURN_FALSE;
+}
+
 static PyMethodDef module_methods[] = {
     { "get_frame_time", (PyCFunction) py_getFrameTime, METH_VARARGS,
         "get_frame_time(rate, frame): Gets the time, in nanoseconds, of a frame at the given Rational frame rate." },
@@ -244,6 +262,8 @@ static PyMethodDef module_methods[] = {
         "create_offscreen_gl_context(): Returns an opaque object that can be used with set_current_gl_context." },
     { "set_current_gl_context", (PyCFunction) py_set_current_gl_context, METH_O,
         "set_current_gl_context( context ): Sets the current GL context to one returned from create_offscreen_gl_context (or None)." },
+    { "check_context_supported", (PyCFunction) py_check_context_supported, METH_NOARGS,
+        "check_context_supported(): Returns true if the available GL context supports video rendering (a context is created if it hasn't already been done). If false, video rendering will be unavailable." },
     { NULL }
 };
 
@@ -392,20 +412,6 @@ PyInit_process() {
     Py_CLEAR(logging_module);
 
     g_log_set_default_handler( python_logger, NULL );
-
-    // Set up an offscreen OpenGL context on the main thread
-    __enable_logging = true;
-    gl_ensure_context();
-
-    // Check for required extensions
-    bool hard_mode_available =
-        GLEW_VERSION_2_1 &&
-        GLEW_ATI_texture_float &&
-        GLEW_ARB_texture_rectangle &&
-        GLEW_EXT_framebuffer_object &&
-        GLEW_ARB_half_float_pixel;
-
-    PyModule_AddObject( m, "hardware_mode_available", PyBool_FromLong( hard_mode_available ? 1 : 0 ) );
 
     return m;
 }

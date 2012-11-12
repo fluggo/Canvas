@@ -17,7 +17,7 @@ import math
 
 process.enable_glib_logging(True)
 
-if not process.hardware_mode_available:
+if not process.check_context_supported():
     print("Sorry, your drivers don't support the minimum")
     print("requirements for this library. Consider using a")
     print("software driver.")
