@@ -328,7 +328,7 @@ static void python_logger( const gchar *log_domain,
     PyGILState_Release( gstate );
 }
 
-void init_basetypes( PyObject *module );
+bool init_basetypes( PyObject *module );
 void init_AudioSource( PyObject *module );
 void init_VideoSource( PyObject *module );
 void init_CodecPacketSource( PyObject *module );
@@ -374,7 +374,8 @@ PyInit_process() {
     PyObject *m = PyModule_Create( &mdef );
 
     init_half();
-    init_basetypes( m );
+    if( !init_basetypes( m ) )
+        return NULL;
     init_AudioSource( m );
     init_VideoSource( m );
     init_CodecPacketSource( m );

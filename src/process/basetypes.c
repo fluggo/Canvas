@@ -114,12 +114,17 @@ EXPORT PyObject *py_make_rational( rational *in ) {
     return PyObject_CallFunction( (PyObject *) py_fraction, "iI", in->n, in->d );
 }
 
-void
+bool
 init_basetypes( PyObject *module ) {
     PyObject *basetypes = PyImport_ImportModule( "fluggo.media.basetypes" );
 
-    if( basetypes == NULL )
-        return;
+    if( basetypes == NULL ) {
+        if( PyErr_Occurred() )
+            PyErr_Print();
+
+        PyErr_SetString( PyExc_RuntimeError, "Failed to import fluggo.media.basetypes." );
+        return false;
+    }
 
     py_v2i = (PyTypeObject *) PyObject_GetAttrString( basetypes, "v2i" );
     py_v2f = (PyTypeObject *) PyObject_GetAttrString( basetypes, "v2f" );
@@ -131,10 +136,14 @@ init_basetypes( PyObject *module ) {
 
     PyObject *fractions = PyImport_ImportModule( "fractions" );
 
-    if( fractions == NULL )
-        return;
+    if( fractions == NULL ) {
+        PyErr_SetString( PyExc_RuntimeError, "Failed to import fractions module." );
+        return false;
+    }
 
     py_fraction = (PyTypeObject *) PyObject_GetAttrString( fractions, "Fraction" );
     Py_CLEAR( fractions );
+
+    return true;
 }
 
