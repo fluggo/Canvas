@@ -194,12 +194,27 @@ video_subsample_dv( rgba_frame_f16 *frame ) {
     The luma-shader pretty much just shifts the picture into place and does the color
     transforms.
 */
+static const char *vertex_shader_text =
+"#version 120\n"
+"uniform ivec2 tex_offset;\n"
+"uniform ivec2 frame_size;\n"
+"uniform ivec2 frame_offset;\n"
+"attribute vec2 position;\n"
+"varying vec2 tex_coord;\n"
+"varying vec2 frame_coord;\n"
+"\n"
+"void main() {\n"
+"    gl_Position = vec4(position * vec2(2.0, 2.0) + vec2(-1.0, -1.0), 0.0, 1.0);\n"
+"    tex_coord = position * vec2(frame_size) + frame_offset + tex_offset;\n"
+"    frame_coord = position * vec2(frame_size) + frame_offset;\n"
+"}\n";
+
 static const char *subsample_mpeg2_luma_shader_text =
 "#version 120\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
-"uniform sampler2DRect tex;"
-"uniform vec2 input_offset;"
-"uniform mat3 rgb2yuv;"
+"uniform sampler2DRect tex;\n"
+"varying vec2 tex_coord;\n"
+"uniform mat3 rgb2yuv;\n"
 
 /*
     const float __transition = 0.018f;
@@ -217,8 +232,7 @@ static const char *subsample_mpeg2_luma_shader_text =
 "}"
 
 "void main() {"
-"    vec2 yTexCoord = gl_TexCoord[0].st - input_offset;"
-"    float y = (linear_to_rec709(texture2DRect( tex, yTexCoord ).rgb) * rgb2yuv).r;"
+"    float y = (linear_to_rec709(texture2DRect( tex, tex_coord ).rgb) * rgb2yuv).r;"
 "    y = y * (219.0f / 255.0f) + (16.0f / 255.0f);"
 
 "    gl_FragColor.r = y;"
@@ -227,10 +241,11 @@ static const char *subsample_mpeg2_luma_shader_text =
 static const char *subsample_mpeg2_chroma_shader_text =
 "#version 120\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
-"uniform sampler2DRect tex;"
-"uniform vec2 input_offset;"
-"uniform mat3 rgb2yuv;"
-"uniform float result0;"
+"varying vec2 tex_coord;\n"
+"varying vec2 frame_coord;\n"
+"uniform sampler2DRect tex;\n"
+"uniform mat3 rgb2yuv;\n"
+"uniform float result0;\n"
 
 /*
     const float __transition = 0.018f;
@@ -248,26 +263,26 @@ static const char *subsample_mpeg2_chroma_shader_text =
 "}"
 
 "void main() {"
-// y_coord points to the even-numbered luma sample above the current chroma sample
+// luma_coord points to the even-numbered luma sample above the current chroma sample
 // in the source texture.
-"    vec2 luma_coord = (gl_TexCoord[0].st - vec2(0.5)) * vec2(2.0) + vec2(0.5) - input_offset;"
-// gl_TexCoord[0] is going to be at the texel locations; that is, (0.5, 0.5)
+"    vec2 luma_coord = (tex_coord - vec2(0.5)) * vec2(2.0) + vec2(0.5);"
+// frame_coord is going to be at the texel locations; that is, (0.5, 0.5)
 // for the first texel and so on. Given luma_coord, these vertical offsets will yield
 // the luma samples near the chroma or far from it.
 // Example: Chroma at (0,0) has luma_coord=(0,0) (really 0.5,0.5) is near luma at (0,0) and far from luma at (0,2).
 // Chroma at (0,1) has luma_coord=(0,2), but being odd, is near luma at (0,3) and far from luma at (0,1).
 // Near is 0.0 for even lines and 1.0 for odd. Far is 2.0 for even and -1.0 for odd.
-"    float near_offset = sin(gl_TexCoord[0].t * 3.14156) * -0.5 + 0.5;"
-"    float far_offset = sin(gl_TexCoord[0].t * 3.14156) * 1.5 + 0.5;"
+"    float near_offset = sin(frame_coord.y * 3.14156) * -0.5 + 0.5;"
+"    float far_offset = sin(frame_coord.y * 3.14156) * 1.5 + 0.5;"
 
 // Simple dumb linear combination
 "    vec2 cbcr ="
-"        (3.0/16.0) * (linear_to_rec709(texture2DRect( tex, luma_coord + vec2(-1.0, near_offset) ).rgb) * rgb2yuv).gb + "
-"        (6.0/16.0) * (linear_to_rec709(texture2DRect( tex, luma_coord + vec2( 0.0, near_offset) ).rgb) * rgb2yuv).gb + "
-"        (3.0/16.0) * (linear_to_rec709(texture2DRect( tex, luma_coord + vec2( 1.0, near_offset) ).rgb) * rgb2yuv).gb + "
-"        (1.0/16.0) * (linear_to_rec709(texture2DRect( tex, luma_coord + vec2(-1.0,  far_offset) ).rgb) * rgb2yuv).gb + "
-"        (2.0/16.0) * (linear_to_rec709(texture2DRect( tex, luma_coord + vec2( 0.0,  far_offset) ).rgb) * rgb2yuv).gb + "
-"        (1.0/16.0) * (linear_to_rec709(texture2DRect( tex, luma_coord + vec2( 1.0,  far_offset) ).rgb) * rgb2yuv).gb;"
+"        (3.0/16.0) * (linear_to_rec709(texture2DRect(tex, luma_coord + vec2(-1.0, near_offset)).rgb) * rgb2yuv).gb + "
+"        (6.0/16.0) * (linear_to_rec709(texture2DRect(tex, luma_coord + vec2( 0.0, near_offset)).rgb) * rgb2yuv).gb + "
+"        (3.0/16.0) * (linear_to_rec709(texture2DRect(tex, luma_coord + vec2( 1.0, near_offset)).rgb) * rgb2yuv).gb + "
+"        (1.0/16.0) * (linear_to_rec709(texture2DRect(tex, luma_coord + vec2(-1.0,  far_offset)).rgb) * rgb2yuv).gb + "
+"        (2.0/16.0) * (linear_to_rec709(texture2DRect(tex, luma_coord + vec2( 0.0,  far_offset)).rgb) * rgb2yuv).gb + "
+"        (1.0/16.0) * (linear_to_rec709(texture2DRect(tex, luma_coord + vec2( 1.0,  far_offset)).rgb) * rgb2yuv).gb;"
 "    cbcr = cbcr * (224.0f / 255.0f) + (128.0f / 255.0f);"
 
 "    gl_FragData[0].r = mix(cbcr.r, cbcr.g, step(0.5f, result0));"
@@ -275,42 +290,29 @@ static const char *subsample_mpeg2_chroma_shader_text =
 "}";
 
 typedef struct {
-    GLuint shader, program;
-    int tex, rgb2yuv, input_offset, result0;
+    struct {
+        GLuint program;
+        GLint tex_uniform, rgb2yuv_uniform, result0_uniform,
+            frame_offset_uniform, tex_offset_uniform, frame_size_uniform;
+        GLint position_attrib;
+    } luma, chroma;
+
+    GLuint framebuffer;
+    GLuint vertex_buffer;
 } gl_shader_state;
 
 static void destroy_shader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteProgram( shader->program );
-    glDeleteShader( shader->shader );
+    glDeleteProgram( shader->luma.program );
+    glDeleteProgram( shader->chroma.program );
+    glDeleteBuffers( 1, &shader->vertex_buffer );
+    glDeleteFramebuffersEXT( 1, &shader->framebuffer );
     g_free( shader );
-}
-
-static void quad( box2i *box ) {
-    v2i size;
-    box2i_get_size( box, &size );
-
-    glLoadIdentity();
-    glOrtho( 0, size.x, 0, size.y, -1, 1 );
-    glViewport( 0, 0, size.x, size.y );
-
-    glBegin( GL_QUADS );
-    glColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
-    glTexCoord2i( box->min.x, box->min.y );
-    glVertex2i( 0, 0 );
-    glTexCoord2i( box->max.x + 1, box->min.y );
-    glVertex2i( size.x, 0 );
-    glTexCoord2i( box->max.x + 1, box->max.y + 1 );
-    glVertex2i( size.x, size.y );
-    glTexCoord2i( box->min.x, box->max.y + 1 );
-    glVertex2i( 0, size.y );
-    glEnd();
 }
 
 EXPORT coded_image *
 video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
-    GQuark luma_shader_quark = g_quark_from_static_string( "cprocess::video_subsample::subsample_mpeg2_luma_shader" );
-    GQuark chroma_shader_quark = g_quark_from_static_string( "cprocess::video_subsample::subsample_mpeg2_chroma_shader" );
+    GQuark shader_quark = g_quark_from_static_string( "cprocess::video_subsample::subsample_mpeg2_shaders" );
 
     GLint max_draw_buffers, max_color_attachments;
     glGetIntegerv( GL_MAX_COLOR_ATTACHMENTS, &max_color_attachments );
@@ -320,37 +322,60 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
     box2i_get_size( &frame->full_window, &frame_size );
 
     void *context = getCurrentGLContext();
-    gl_shader_state *luma_shader = (gl_shader_state *) g_dataset_id_get_data( context, luma_shader_quark );
+    gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, shader_quark );
 
-    if( !luma_shader ) {
+    if( !shader ) {
         // Time to create the program for this context, any time now
-        luma_shader = g_new0( gl_shader_state, 1 );
+        shader = g_new0( gl_shader_state, 1 );
 
-        g_debug( "Building MPEG2 luma shader..." );
-        gl_buildShader( subsample_mpeg2_luma_shader_text, &luma_shader->shader, &luma_shader->program );
+        GLuint vshader = gl_compile_shader( GL_VERTEX_SHADER,
+            vertex_shader_text, "MPEG2 subsample vertex shader" );
 
-        luma_shader->tex = glGetUniformLocation( luma_shader->program, "tex" );
-        luma_shader->rgb2yuv = glGetUniformLocation( luma_shader->program, "rgb2yuv" );
-        luma_shader->input_offset = glGetUniformLocation( luma_shader->program, "input_offset" );
+        GLuint luma_shader = gl_compile_shader( GL_FRAGMENT_SHADER,
+            subsample_mpeg2_luma_shader_text, "MPEG2 luma subsample shader" );
+        GLuint luma_shaders[2] = { vshader, luma_shader };
+        shader->luma.program = gl_link_program( luma_shaders, 2, "MPEG2 luma subsample program" );
+        glDeleteShader( luma_shader );
 
-        g_dataset_id_set_data_full( context, luma_shader_quark, luma_shader, (GDestroyNotify) destroy_shader );
-    }
+        shader->luma.tex_uniform = glGetUniformLocation( shader->luma.program, "tex" );
+        shader->luma.rgb2yuv_uniform = glGetUniformLocation( shader->luma.program, "rgb2yuv" );
+        shader->luma.frame_offset_uniform = glGetUniformLocation( shader->luma.program, "frame_offset" );
+        shader->luma.frame_size_uniform = glGetUniformLocation( shader->luma.program, "frame_size" );
+        shader->luma.tex_offset_uniform = glGetUniformLocation( shader->luma.program, "tex_offset" );
+        shader->luma.position_attrib = glGetAttribLocation( shader->luma.program, "position" );
 
-    gl_shader_state *chroma_shader = (gl_shader_state *) g_dataset_id_get_data( context, chroma_shader_quark );
+        GLuint chroma_shader = gl_compile_shader( GL_FRAGMENT_SHADER,
+            subsample_mpeg2_chroma_shader_text, "MPEG2 chroma subsample shader" );
+        GLuint chroma_shaders[2] = { vshader, chroma_shader };
+        shader->chroma.program = gl_link_program( chroma_shaders, 2, "MPEG2 chroma subsample program" );
+        glDeleteShader( chroma_shader );
+        glDeleteShader( vshader );
 
-    if( !chroma_shader ) {
-        // Time to create the program for this context, any time now
-        chroma_shader = g_new0( gl_shader_state, 1 );
+        shader->chroma.tex_uniform = glGetUniformLocation( shader->chroma.program, "tex" );
+        shader->chroma.rgb2yuv_uniform = glGetUniformLocation( shader->chroma.program, "rgb2yuv" );
+        shader->chroma.result0_uniform = glGetUniformLocation( shader->chroma.program, "result0" );
+        shader->chroma.frame_offset_uniform = glGetUniformLocation( shader->chroma.program, "frame_offset" );
+        shader->chroma.frame_size_uniform = glGetUniformLocation( shader->chroma.program, "frame_size" );
+        shader->chroma.tex_offset_uniform = glGetUniformLocation( shader->chroma.program, "tex_offset" );
+        shader->chroma.position_attrib = glGetAttribLocation( shader->chroma.program, "position" );
 
-        g_debug( "Building MPEG2 chroma shader..." );
-        gl_buildShader( subsample_mpeg2_chroma_shader_text, &chroma_shader->shader, &chroma_shader->program );
+        glGenFramebuffersEXT( 1, &shader->framebuffer );
 
-        chroma_shader->tex = glGetUniformLocation( chroma_shader->program, "tex" );
-        chroma_shader->rgb2yuv = glGetUniformLocation( chroma_shader->program, "rgb2yuv" );
-        chroma_shader->input_offset = glGetUniformLocation( chroma_shader->program, "input_offset" );
-        chroma_shader->result0 = glGetUniformLocation( chroma_shader->program, "result0" );
+        // Set up a static buffer with four corners for us to work with
+        glGenBuffers( 1, &shader->vertex_buffer );
 
-        g_dataset_id_set_data_full( context, chroma_shader_quark, chroma_shader, (GDestroyNotify) destroy_shader );
+        v2f positions[4] = {
+            { 0.0f, 0.0f },
+            { 1.0f, 0.0f },
+            { 1.0f, 1.0f },
+            { 0.0f, 1.0f }
+        };
+
+        glBindBuffer( GL_ARRAY_BUFFER, shader->vertex_buffer );
+        glBufferData( GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW );
+        glBindBuffer( GL_ARRAY_BUFFER, 0 );
+
+        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
     }
 
     GLuint textures[3];
@@ -406,29 +431,44 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frame->texture );
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
 
+    // Set up vertex buffer
+    glBindBuffer( GL_ARRAY_BUFFER, shader->vertex_buffer );
+
     //three o eight, oh me oh myo, I love jumbalayo, you pretty thingo, o me oh myo
-    // TODO: Creating and destroying framebuffers may be slow
-    GLuint fbo;
-    glGenFramebuffersEXT( 1, &fbo );
-    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
+    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, shader->framebuffer );
 
     // Define the luma texture first
     glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
         GL_TEXTURE_RECTANGLE_ARB, luma_tex, 0 );
 
-    glUseProgram( luma_shader->program );
-    glUniform1i( luma_shader->tex, 0 );
-    glUniformMatrix3fv( luma_shader->rgb2yuv, 1, false, &color_matrix[0][0] );
-    glUniform2f( luma_shader->input_offset, input_offset.x, input_offset.y );
+    glUseProgram( shader->luma.program );
+    glUniform1i( shader->luma.tex_uniform, 0 );
+    glUniformMatrix3fv( shader->luma.rgb2yuv_uniform, 1, false, &color_matrix[0][0] );
+    glUniform2iv( shader->luma.tex_offset_uniform, 1, &input_offset.x );
+    glUniform2iv( shader->luma.frame_size_uniform, 1, &luma_size.x );
+    glUniform2i( shader->luma.frame_offset_uniform, 0, 0 );
 
-    quad( &result_window );
+    glEnableVertexAttribArray( shader->luma.position_attrib );
+    glVertexAttribPointer( shader->luma.position_attrib, 2, GL_FLOAT, GL_FALSE, 0, 0 );
+
+    glViewport( 0, 0, luma_size.x, luma_size.y );
+    glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+
+    glDisableVertexAttribArray( shader->luma.position_attrib );
 
     // Now paint to chromas
-    glUseProgram( chroma_shader->program );
-    glUniform1i( chroma_shader->tex, 0 );
-    glUniformMatrix3fv( chroma_shader->rgb2yuv, 1, false, &color_matrix[0][0] );
-    glUniform2f( chroma_shader->input_offset, input_offset.x, input_offset.y );
-    glUniform1f( chroma_shader->result0, 0.0f );
+    glUseProgram( shader->chroma.program );
+    glUniform1i( shader->chroma.tex_uniform, 0 );
+    glUniformMatrix3fv( shader->chroma.rgb2yuv_uniform, 1, false, &color_matrix[0][0] );
+    glUniform2iv( shader->chroma.tex_offset_uniform, 1, &input_offset.x );
+    glUniform1f( shader->chroma.result0_uniform, 0.0f );
+    glUniform2iv( shader->chroma.frame_size_uniform, 1, &chroma_size.x );
+    glUniform2i( shader->chroma.frame_offset_uniform, 0, 0 );
+
+    glEnableVertexAttribArray( shader->chroma.position_attrib );
+    glVertexAttribPointer( shader->chroma.position_attrib, 2, GL_FLOAT, GL_FALSE, 0, 0 );
+
+    glViewport( 0, 0, chroma_size.x, chroma_size.y );
 
     if( max_draw_buffers >= 2 && max_color_attachments >= 2 ) {
         // Bind and use both chromas at the same time
@@ -437,37 +477,38 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
         glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT1_EXT,
             GL_TEXTURE_RECTANGLE_ARB, cr_tex, 0 );
 
+        // TODO: Replace glPushAttrib/glPopAttrib here
         glPushAttrib( GL_COLOR_BUFFER_BIT );
 
         GLenum buffers[] = { GL_COLOR_ATTACHMENT0_EXT, GL_COLOR_ATTACHMENT1_EXT };
         glDrawBuffers( 2, buffers );
 
-        // BJC: Note to self: The following only works because the target frame is
-        // sited with its upper-left at (0,0). For any result window without its
-        // origin there, the following won't map back to the luma (source) texture
-        // correctly. Compare with the logic in the luma filter if you want to
-        // resolve this.
-        box2i chroma_box = { { 0, 0 }, { chroma_size.x - 1, chroma_size.y - 1 } };
-        quad( &chroma_box );
+        glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
 
         glPopAttrib();
     }
     else {
-        box2i chroma_box = { { 0, 0 }, { chroma_size.x - 1, chroma_size.y - 1 } };
-
         // The slow way; draw twice
         glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
             GL_TEXTURE_RECTANGLE_ARB, cb_tex, 0 );
-        quad( &chroma_box );
+        glUniform1f( shader->chroma.result0_uniform, 0.0f );
+        glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
 
         // Select CR in the shader and draw it now
         glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
             GL_TEXTURE_RECTANGLE_ARB, cr_tex, 0 );
-        glUniform1f( chroma_shader->result0, 1.0f );
-        quad( &chroma_box );
+        glUniform1f( shader->chroma.result0_uniform, 1.0f );
+        glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
     }
 
-    glDeleteFramebuffersEXT( 1, &fbo );
+    glDisableVertexAttribArray( shader->chroma.position_attrib );
+
+    // Clean up
+    glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+        GL_TEXTURE_RECTANGLE_ARB, 0, 0 );
+    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, 0 );
+
+    glBindBuffer( GL_ARRAY_BUFFER, 0 );
 
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, luma_tex );
     glGetTexImage( GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, planar->data[0] );
