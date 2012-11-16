@@ -375,7 +375,7 @@ static const char *vertex_shader_text =
 "    gl_Position = vec4(position * vec2(2.0, 2.0) + vec2(-1.0, -1.0), 0.0, 1.0);\n"
 "\n"
 "    for( int i = 0; i < input_count; i++ ) {\n"
-"        tex_coord[i] = position * vec2(frame_size) + tex_offset[i];\n"
+"        tex_coord[i] = position * vec2(frame_size) + frame_offset + tex_offset[i];\n"
 "    }\n"
 "}\n";
 
