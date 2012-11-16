@@ -267,6 +267,7 @@ void video_render_gl_frame( video_filter_program *program, rgba_frame_gl *out, b
 
 void gl_renderToTexture( rgba_frame_gl *frame );
 GLuint gl_compile_shader( GLenum shader_type, const char *source, const char *name );
+GLuint gl_link_program( const GLuint *shaders, int shader_count, const char *name );
 void gl_buildShader( const char *source, GLuint *outShader, GLuint *outProgram );
 G_GNUC_MALLOC void *gl_create_offscreen_context();
 void gl_destroy_offscreen_context( void *context );
