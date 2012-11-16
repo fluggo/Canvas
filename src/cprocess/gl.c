@@ -572,6 +572,8 @@ video_render_gl_frame( video_filter_program *program, rgba_frame_gl *out, box2i 
 
     glDisableVertexAttribArray( up->position_attribute );
     glBindBuffer( GL_ARRAY_BUFFER, 0 );
+    glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+        GL_TEXTURE_RECTANGLE_ARB, 0, 0 );
     glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, 0 );
 }
 
