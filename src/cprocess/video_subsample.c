@@ -477,15 +477,10 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
         glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT1_EXT,
             GL_TEXTURE_RECTANGLE_ARB, cr_tex, 0 );
 
-        // TODO: Replace glPushAttrib/glPopAttrib here
-        glPushAttrib( GL_COLOR_BUFFER_BIT );
-
         GLenum buffers[] = { GL_COLOR_ATTACHMENT0_EXT, GL_COLOR_ATTACHMENT1_EXT };
         glDrawBuffers( 2, buffers );
 
         glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
-
-        glPopAttrib();
     }
     else {
         // The slow way; draw twice
