@@ -19,6 +19,25 @@ if not process.check_context_supported():
     print("software driver.")
     exit()
 
+class FakeDVImageSource(process.CodedImageSource):
+    def get_frame(self, frame):
+        result = [process.CodedImage(bytearray(720*480), 720, 480), # Y
+            process.CodedImage(b'\x80'*(180*480), 180, 480),    # Cb
+            process.CodedImage(b'\x80'*(180*480), 180, 480)]    # Cr
+
+        yp = result[0].data
+
+        for y in range(480):
+            for x in range(720):
+                value = 190
+
+                if x == 0 or x == 719 or y == 0 or y == 479:
+                    value = 0
+
+                yp[y*720 + x] = value
+
+        return result
+
 packet_source = libav.AVDemuxer(sys.argv[1], 0)
 dv_decoder = libav.AVVideoDecoder(packet_source, 'dvvideo')
 dv_reconstruct = process.DVReconstructionFilter(dv_decoder)
