@@ -35,7 +35,7 @@ class Error(Exception):
 
 def encode_size(value):
     for i, size in enumerate(sizes, start=1):
-        if value >= size:
+        if value >= size - 1:
             continue
 
         return (size | value).to_bytes(i, byteorder='big')
