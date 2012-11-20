@@ -372,37 +372,36 @@ video_mix_over_f32( rgba_frame_f32 *out, rgba_frame_f32 *b, float mix_b ) {
 // This crossfade is based on the associative alpha blending formula from:
 //    http://en.wikipedia.org/w/index.php?title=Alpha_compositing&oldid=337850364
 
-static const char *crossfadeShaderText =
+static const char *crossfade_shader_text =
 "#version 110\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
-"uniform sampler2DRect texA;"
-"uniform sampler2DRect texB;"
-"uniform float mixB;"
+"uniform sampler2DRect input_texture[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
+"varying vec2 tex_coord[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
+"uniform float mix_b;"
 ""
 "void main() {"
-"    vec4 colorA = texture2DRect( texA, gl_FragCoord.st );"
-"    vec4 colorB = texture2DRect( texB, gl_FragCoord.st );"
+"    vec4 color_a = texture2DRect(input_texture[0], tex_coord[0]);"
+"    vec4 color_b = texture2DRect(input_texture[1], tex_coord[1]);"
 ""
-"    float alpha_a = colorA.a * (1.0 - mixB);"
-"    float alpha_b = colorB.a * mixB;"
+"    float alpha_a = color_a.a * (1.0 - mix_b);"
+"    float alpha_b = color_b.a * mix_b;"
 ""
 "    gl_FragColor.a = alpha_a + alpha_b;"
 ""
 "    if( gl_FragColor.a != 0.0 )"
-"        gl_FragColor.rgb = (colorA.rgb * alpha_a + colorB.rgb * alpha_b) / gl_FragColor.a;"
+"        gl_FragColor.rgb = (color_a.rgb * alpha_a + color_b.rgb * alpha_b) / gl_FragColor.a;"
 "    else"
 "        gl_FragColor.rgb = vec3(0.0, 0.0, 0.0);"
 "}";
 
 typedef struct {
-    GLuint shader, program;
-    int tex_a, tex_b, mix_b;
+    video_filter_program *program;
+    int mix_b_uniform;
 } gl_shader_state;
 
-static void destroyShader( gl_shader_state *shader ) {
+static void destroy_shader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteProgram( shader->program );
-    glDeleteShader( shader->shader );
+    video_delete_filter_program( shader->program );
     g_free( shader );
 }
 
@@ -421,44 +420,16 @@ video_mix_cross_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, floa
         // Time to create the program for this context
         shader = g_new0( gl_shader_state, 1 );
 
-        gl_buildShader( crossfadeShaderText, &shader->shader, &shader->program );
+        shader->program = video_create_filter_program( crossfade_shader_text, "Video mix crossfade shader" );
+        shader->mix_b_uniform = glGetUniformLocation( shader->program->program, "mix_b" );
 
-        shader->tex_a = glGetUniformLocation( shader->program, "texA" );
-        shader->tex_b = glGetUniformLocation( shader->program, "texB" );
-        shader->mix_b = glGetUniformLocation( shader->program, "mixB" );
-
-        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroyShader );
+        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
     }
 
-    glUseProgram( shader->program );
-    glUniform1i( shader->tex_a, 0 );
-    glUniform1i( shader->tex_b, 1 );
-    glUniform1f( shader->mix_b, mix_b );
+    glUseProgram( shader->program->program );
+    glUniform1f( shader->mix_b_uniform, mix_b );
 
-    // Now set up the texture to render to
-    v2i frame_size;
-    box2i_get_size( &out->full_window, &frame_size );
-    box2i_union( &out->current_window, &a->current_window, &b->current_window );
-
-    glGenTextures( 1, &out->texture );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, out->texture );
-    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frame_size.x, frame_size.y, 0,
-        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
-
-    glActiveTexture( GL_TEXTURE0 );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, a->texture );
-    glEnable( GL_TEXTURE_RECTANGLE_ARB );
-
-    glActiveTexture( GL_TEXTURE1 );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, b->texture );
-    glEnable( GL_TEXTURE_RECTANGLE_ARB );
-
-    gl_renderToTexture( out );
-
-    glUseProgram( 0 );
-    glDisable( GL_TEXTURE_RECTANGLE_ARB );
-    glActiveTexture( GL_TEXTURE0 );
-    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    video_render_gl_frame_filter2( shader->program, out, a, b );
 }
 
 EXPORT void
@@ -491,21 +462,21 @@ video_mix_cross_gl_pull( rgba_frame_gl *out, video_source *a, int frame_a, video
 static const char *over_shader_text =
 "#version 110\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
-"uniform sampler2DRect texA;"
-"uniform sampler2DRect texB;"
-"uniform float mixB;"
+"uniform sampler2DRect input_texture[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
+"varying vec2 tex_coord[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
+"uniform float mix_b;"
 ""
 "void main() {"
-"    vec4 colorA = texture2DRect( texA, gl_FragCoord.st );"
-"    vec4 colorB = texture2DRect( texB, gl_FragCoord.st );"
+"    vec4 color_a = texture2DRect(input_texture[0], tex_coord[0]);"
+"    vec4 color_b = texture2DRect(input_texture[1], tex_coord[1]);"
 ""
-"    float alpha_a = colorA.a * (1.0f - colorB.a * mixB);"
-"    float alpha_b = colorB.a * mixB;"
+"    float alpha_a = color_a.a * (1.0f - color_b.a * mix_b);"
+"    float alpha_b = color_b.a * mix_b;"
 ""
 "    gl_FragColor.a = alpha_a + alpha_b;"
 ""
 "    if( gl_FragColor.a != 0.0 )"
-"        gl_FragColor.rgb = (colorA.rgb * alpha_a + colorB.rgb * alpha_b) / gl_FragColor.a;"
+"        gl_FragColor.rgb = (color_a.rgb * alpha_a + color_b.rgb * alpha_b) / gl_FragColor.a;"
 "    else"
 "        gl_FragColor.rgb = vec3(0.0, 0.0, 0.0);"
 "}";
@@ -526,43 +497,15 @@ video_mix_over_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, float
         // Time to create the program for this context
         shader = g_new0( gl_shader_state, 1 );
 
-        gl_buildShader( over_shader_text, &shader->shader, &shader->program );
+        shader->program = video_create_filter_program( over_shader_text, "Video mix over shader" );
+        shader->mix_b_uniform = glGetUniformLocation( shader->program->program, "mix_b" );
 
-        shader->tex_a = glGetUniformLocation( shader->program, "texA" );
-        shader->tex_b = glGetUniformLocation( shader->program, "texB" );
-        shader->mix_b = glGetUniformLocation( shader->program, "mixB" );
-
-        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroyShader );
+        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
     }
 
-    glUseProgram( shader->program );
-    glUniform1i( shader->tex_a, 0 );
-    glUniform1i( shader->tex_b, 1 );
-    glUniform1f( shader->mix_b, mix_b );
+    glUseProgram( shader->program->program );
+    glUniform1f( shader->mix_b_uniform, mix_b );
 
-    // Now set up the texture to render to
-    v2i frame_size;
-    box2i_get_size( &out->full_window, &frame_size );
-    box2i_union( &out->current_window, &a->current_window, &b->current_window );
-
-    glGenTextures( 1, &out->texture );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, out->texture );
-    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frame_size.x, frame_size.y, 0,
-        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
-
-    glActiveTexture( GL_TEXTURE0 );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, a->texture );
-    glEnable( GL_TEXTURE_RECTANGLE_ARB );
-
-    glActiveTexture( GL_TEXTURE1 );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, a->texture );
-    glEnable( GL_TEXTURE_RECTANGLE_ARB );
-
-    gl_renderToTexture( out );
-
-    glUseProgram( 0 );
-    glDisable( GL_TEXTURE_RECTANGLE_ARB );
-    glActiveTexture( GL_TEXTURE0 );
-    glDisable( GL_TEXTURE_RECTANGLE_ARB );
+    video_render_gl_frame_filter2( shader->program, out, a, b );
 }
 

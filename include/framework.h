@@ -264,6 +264,7 @@ typedef struct {
 
 video_filter_program *video_create_filter_program( const char *fragment_shader, const char *name );
 void video_render_gl_frame_filter1( video_filter_program *program, rgba_frame_gl *out, rgba_frame_gl *in );
+void video_render_gl_frame_filter2( video_filter_program *program, rgba_frame_gl *out, rgba_frame_gl *in0, rgba_frame_gl *in1 );
 void video_delete_filter_program( video_filter_program *program );
 void video_render_gl_frame( video_filter_program *program, rgba_frame_gl *out, box2i *in_full_windows[], int input_count );
 

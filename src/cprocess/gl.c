@@ -608,6 +608,28 @@ video_render_gl_frame_filter1( video_filter_program *program, rgba_frame_gl *out
 }
 
 EXPORT void
+video_render_gl_frame_filter2( video_filter_program *program, rgba_frame_gl *out, rgba_frame_gl *in0, rgba_frame_gl *in1 ) {
+    v2i frame_size;
+    box2i_get_size( &out->full_window, &frame_size );
+    box2i* in_windows[2] = { &in0->full_window, &in1->full_window };
+
+    out->texture = video_make_gl_texture( frame_size.x, frame_size.y, NULL );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, in0->texture );
+    glActiveTexture( GL_TEXTURE1 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, in1->texture );
+
+    video_render_gl_frame( program, out, in_windows, 2 );
+
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, 0 );
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, 0 );
+
+    box2i union_box;
+    box2i_union( &union_box, &in0->current_window, &in1->current_window );
+    box2i_intersect( &out->current_window, &out->full_window, &union_box );
+}
+
+EXPORT void
 video_get_frame_gl( video_source *source, int frameIndex, rgba_frame_gl *targetFrame ) {
     if( !source || !source->funcs ) {
         // Even empty video sources need to produce a texture
