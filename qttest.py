@@ -98,6 +98,7 @@ class AssetSearchModel(QAbstractTableModel):
         self.asset_list.removed.connect(self._item_removed)
         self.setSupportedDragActions(Qt.LinkAction)
 
+        # TODO: Don't do searching within one model, switch models
         self.search_string = None
         self.search('')
 
@@ -776,6 +777,7 @@ class MainWindow(QMainWindow):
         self.video_widget.setPixelAspectRatio(video.format.pixel_aspect_ratio)
         self.video_widget.setVideoSource(video)
 
+    @_log.warnonerror('Error while updating frames')
     def handle_update_frames(self, min_frame, max_frame):
         if not self.space_asset:
             return
@@ -823,6 +825,8 @@ class MainWindow(QMainWindow):
         self.uimgr.set_current_editor(editor)
 
     def save_file(self, path):
+        # TODO: Make backup file, or otherwise protect against the case that we
+        # file while writing, leaving the user with half of his original file (!)
         with open(path, 'w') as stream:
             yaml.dump_all(self.uimgr.asset_list.get_asset_list(), stream)
 

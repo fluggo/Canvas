@@ -316,3 +316,20 @@ class View(QGraphicsView):
 
         self.view.load_selection(items)
 
+#    def update_canvas_commands(self):
+#        down_active = False
+#        up_active = False
+#
+#        for item in self.view.selected_model_items():
+#            key = item.z
+#            overlaps = item.overlap_items()
+#
+#            down_active = down_active or any(x.z > key for x in overlaps)
+#            up_active = up_active or any(x.z < key for x in overlaps)
+#
+#            if down_active and up_active:
+#                break
+#
+#        self.canvas_bring_forward_action.setEnabled(up_active)
+#        self.canvas_send_backward_action.setEnabled(down_active)
+

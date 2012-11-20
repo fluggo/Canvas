@@ -15,7 +15,8 @@
           channel_assignment: [FrontLeft, FrontRight]
         items:
         - &A !CanvasClip {height: 40.0, offset: 1000, source: !AssetStreamRef {asset_path: 79b, stream: "0"},
-          type: video, length: 100, x: 60, y: 30.0}
+          type: video, length: 100, x: 60, y: 30.0,
+          effects: [{urn: "urn:fluggo.com/canvas/effects:gain-offset", gain: 2.0}]}
         - !CanvasClip {height: 40.0, offset: 1000, source: !AssetStreamRef {asset_path: 79b, stream: "1"},
           type: audio, length: 100000, x: 96096, y: 70.0, anchor: !CanvasAnchor {target: *A, two_way: true}}
         - !CanvasSequence

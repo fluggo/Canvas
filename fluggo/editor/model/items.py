@@ -161,6 +161,31 @@ class Anchor:
     def two_way(self):
         return self._two_way
 
+class EffectStack:
+    def __init__(self, effects=None):
+        self._effects = sortlist.AutoIndexList(effects or [], index_attr='_index')
+        self.effect_added = signal.Signal()
+        self.effect_removed = signal.Signal()
+
+    def __len__(self):
+        return len(self._effects)
+
+    def __getitem__(self, key):
+        return self._effects[key]
+
+    def _replace_range(self, start, stop, items):
+        old_item_set = frozenset(self._items[start:stop])
+        new_item_set = frozenset(items)
+
+        for item in (old_item_set - new_item_set):
+            self.effect_removed(item)
+
+        self._items[start:stop] = items
+        self._update_marks(start, stop, len(items))
+
+        for item in (new_item_set - old_item_set):
+            self.effect_added(item)
+
 class Item(object):
     '''
     Class for all items that can appear in the canvas.
@@ -172,7 +197,8 @@ class Item(object):
     yaml_tag = '!CanvasItem'
 
     def __init__(self, x=0, y=0.0, length=1, height=1.0, type=None, anchor=None, tags=None,
-            ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None, in_motion=False):
+            ease_in=0, ease_out=0, ease_in_type=None, ease_out_type=None, in_motion=False,
+            effects=None):
         self._space = None
         self._x = x
         self._y = y
@@ -188,6 +214,8 @@ class Item(object):
         self._anchor = anchor
         self._tags = set(tags) if tags else set()
         self.in_motion = in_motion
+        self._orig_effects = effects or []
+        self._effects = None
 
     def clone(self):
         return self.__class__(**self._create_repr_dict())
@@ -216,6 +244,16 @@ class Item(object):
 
         if self._tags:
             result['tags'] = list(self._tags)
+
+        if self._effects:
+            effect_list = []
+
+            for effect in self._effects:
+                def_ = effect.get_definition()
+                def_['urn'] = effect.urn
+                effect_list.append(def_)
+
+            result['effects'] = effect_list
 
         return result
 
@@ -361,9 +399,24 @@ class Item(object):
 
             self._anchor.y_offset = self._anchor.get_y_offset(self)
 
-    def type(self):
+        effects = []
+
+        for effectdef in self._orig_effects:
+            effects.append(plugins.PlaceholderEffect(
+                stream_type=self.stream_type, **effectdef))
+
+        self._effects = effects
+
+    @property
+    def stream_type(self):
         '''
         The type of the item, such as ``'audio'`` or ``'video'``.
+        '''
+        return self._type
+
+    def type(self):
+        '''
+        Obsolete because of its name. Use stream_type instead.
         '''
         return self._type
 

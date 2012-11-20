@@ -41,11 +41,12 @@ class FakeDVImageSource(process.CodedImageSource):
 packet_source = libav.AVDemuxer(sys.argv[1], 0)
 dv_decoder = libav.AVVideoDecoder(packet_source, 'dvvideo')
 dv_reconstruct = process.DVReconstructionFilter(dv_decoder)
-f = process.VideoGainOffsetFilter(dv_reconstruct, 1.0, 0.0)
-mpeg2_subsample = process.MPEG2SubsampleFilter(f)
+f_offset = process.VideoPassThroughFilter(dv_reconstruct, 9000)
+f_mix = process.VideoMixFilter(dv_reconstruct, f_offset, 0.5)
+mpeg2_subsample = process.MPEG2SubsampleFilter(f_mix)
 
-dv_frame = dv_decoder.get_frame(63986)
-mpeg2_frame = mpeg2_subsample.get_frame(63986)
+dv_frame = dv_decoder.get_frame(0)
+mpeg2_frame = mpeg2_subsample.get_frame(0)
 
 def save_plane(plane, filename):
     image = Image.frombuffer('L', (plane.stride, plane.line_count), plane.data, 'raw', 'L', 0, 1)
@@ -56,6 +57,8 @@ frame = mpeg2_frame
 save_plane(frame[0], 'plane_luma.png')
 save_plane(frame[1], 'plane_cb.png')
 save_plane(frame[2], 'plane_cr.png')
+
+save_plane(dv_frame[0], 'plane_dvluma.png')
 
 # Run "convert -size 720x480 -depth 8 r:plane0 plane0.png" on the resulting
 # image to get something you can look at, since PIL doesn't work in Python 3

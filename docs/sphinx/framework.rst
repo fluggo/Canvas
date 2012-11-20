@@ -166,7 +166,7 @@ Types of Sources
 ================
 
 Almost all of the work of the framework is done with sources, which are objects
-that can produce some kind of data on request, and usually at random.
+that can produce some kind of data on request, and usually with random access.
 
 There are six kinds of sources in the framework. These four are common:
 
@@ -228,6 +228,27 @@ Frames
 
 Data windows
 ^^^^^^^^^^^^
+
+In most video software, video frames have relative coordinates-- that is, they
+only have a size, which is usually adapted to the size of whatever frame that
+displays them. Fluggo video uses absolute coordinates, which is a concept borrowed
+from the OpenEXR file format.
+
+In this system, a frame is defined by two absolute rectangles, the full data window
+and the current data window. The *full data window* defines how the frame's memory
+is allocated-- the upper-left corner of the rectangle is the first pixel in the
+array.
+
+The *current data window* is a subset of the full data window. Only the pixels in
+the current data window are valid. The other pixels are either unset (in software
+mode) or transparent black (in GL mode).
+
+The placement of the windows is up to video sources, but certain types of video
+are expected in certain locations. The MPEG2 720x480 video frame, for example, is
+expected at (-8, 0). This makes the clean aperture of the frame start at (0, 0),
+and extend to (703, 479). It also makes line 0 correspond to NTSC line 20, which
+all other NTSC-based formats use to make NTSC video line up correctly and achieve
+consistent interlacing. DV, 
 
 Interlacing
 """""""""""

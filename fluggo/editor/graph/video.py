@@ -29,6 +29,9 @@ from fluggo import sortlist, signal
 from fluggo.editor import model, plugins
 from fluggo.media import process
 
+from fluggo import logging
+_log = logging.getLogger(__name__)
+
 class SpaceVideoManager(plugins.VideoStream):
     class ItemWatcher(object):
         def __init__(self, owner, canvas_item, workspace_item, stream):
@@ -290,5 +293,87 @@ class SequenceVideoManager(plugins.VideoStream):
 
         if 'transition' in kw:
             pass
+
+class EffectVideoManager(plugins.VideoPassThroughStream):
+    class ItemWatcher(plugins.VideoPassThroughStream):
+        '''An ItemWatcher constructs the video for one effect in the stack. It
+        responds to bypass events from the effect to enable or disable it.'''
+
+        def __init__(self, owner, effect):
+            self.owner = owner
+            self.effect = effect
+            self.input_stream = plugins.VideoPassThroughStream(None)
+
+            # Lucky for us, the effect object can directly create its effect
+            self.filter = effect.create_filter(self.input_stream)
+
+            source = self.source if effect.bypass else self.filter
+
+            plugins.VideoPassThroughStream.__init__(self, self.input_stream)
+
+            effect.bypass_changed.connect(self._handle_bypass_changed)
+
+            if not effect.bypass:
+                self.follow_alerts(self.filter)
+
+        def _handle_bypass_changed(self, effect):
+            if effect.bypass:
+                self.set_stream(self.input_stream)
+                self.unfollow_alerts(self.filter)
+            else:
+                self.set_stream(self.filter)
+                self.follow_alerts(self.filter)
+
+    def __init__(self, input_stream, effect_stack):
+        plugins.VideoPassThroughStream.__init__(self, input_stream)
+        self.input_stream = input_stream
+
+        self.effect_stack = effect_stack
+        self.effect_stack.effect_added.connect(self.handle_effect_added)
+        self.effect_stack.effect_removed.connect(self.handle_effect_removed)
+
+        self.watchers = {}
+        self.watchers_sorted = sortlist.SortedList(keyfunc=lambda a: a.effect._index, index_attr='index')
+
+        for effect in effect_stack:
+            self.handle_effect_added(effect)
+
+    def handle_effect_added(self, effect):
+        watcher = self.ItemWatcher(self, effect)
+        self.watchers[id(effect)] = watcher
+        self.watchers_sorted.add(watcher)
+
+        _log.debug('Adding effect {0}', effect.name)
+
+        # Wire it up with the others
+        if watcher.index == 0:
+            _log.debug('Feeding with initial input')
+            watcher.input_stream.set_stream(self.input_stream)
+        else:
+            _log.debug('Feeding with [{0}] input', watcher.index - 1)
+            watcher.input_stream.set_stream(self.watchers_sorted[watcher.index - 1])
+
+        if watcher.index == len(self.watchers) - 1:
+            _log.debug('Using as output')
+            self.set_stream(watcher)
+        else:
+            _log.debug('Using as input to [{0}]', watcher.index + 1)
+            self.watchers_sorted[watcher.index + 1].input_stream.set_stream(watcher)
+
+        self.follow_alerts(watcher)
+
+    def handle_effect_removed(self, effect):
+        watcher = self.watchers.pop(id(item))
+        self.unfollow_alerts(watcher)
+        index = watcher.index
+
+        if index == len(self.watchers) - 1:
+            self.set_stream(self.watchers_sorted[index - 1])
+        elif index == 0:
+            self.watchers_sorted[index + 1].input_stream.set_stream(self.input_stream)
+        else:
+            self.watchers_sorted[index + 1].input_stream.set_stream(self.watchers_sorted[index - 1])
+
+        self.watchers_sorted.remove(watcher)
 
 

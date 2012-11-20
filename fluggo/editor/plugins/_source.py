@@ -491,6 +491,27 @@ class VideoStream(process.VideoPassThroughFilter, AlertPublisher):
         Further changes to the stream will not be reflected in the result.'''
         raise NotImplementedError
 
+class VideoPassThroughStream(VideoStream):
+    '''Like VideoPassThroughFilter, but passes on format, range, and frames events.'''
+
+    def __init__(self, stream):
+        VideoStream.__init__(self, stream,
+            stream and stream.format,
+            stream.defined_range if stream else (None, None))
+
+    def _handle_format_changed(self, stream):
+        self.set_format(stream.format)
+
+    def _handle_defined_range_changed(self, stream):
+        self.set_defined_range(stream.defined_range)
+
+    def _handle_frames_updated(self, stream, start_frame, end_frame):
+        self.frames_updated(self, start_frame, end_frame)
+
+    def set_stream(self, stream):
+        self.set_format(stream and stream.format)
+        self.set_base_filter(stream, stream.defined_range if stream else (None, None))
+
 class AudioStream(process.AudioPassThroughFilter, AlertPublisher):
     '''Abstract base class for an audio stream.
 

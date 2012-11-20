@@ -20,6 +20,9 @@
 
 #include "pyframework.h"
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "fluggo.media.process.VideoSequence"
+
 static PyObject *pysourceFuncs;
 
 typedef struct {

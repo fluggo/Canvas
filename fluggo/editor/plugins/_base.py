@@ -229,6 +229,7 @@ class PluginManager(object):
     enabled_codecs = {} # urn -> (priority, codec)
     codec_priorities = {}
     codecs_by_priority = []   # Enabled codecs in preference order
+    effects = []
     alert_manager = AlertPublisher()
 
     @classmethod
@@ -383,6 +384,14 @@ class PluginManager(object):
         cls.codecs_by_priority = list(cls.enabled_codecs.values())
         cls.codecs_by_priority.sort(key=lambda i: (i.priority, i.urn), reverse=True)
 
+        cls.effects = []
+
+        for plugin in cls.find_plugins(EffectPlugin):
+            try:
+                cls.codecs.extend(plugin.get_all_effects())
+            except:
+                _log.warning('Could not get a list of effects from a plugin', exc_info=True)
+
     @classmethod
     def find_codec_by_urn(cls, urn):
         '''Return the codec with the given URN, or None if it isn't enabled.'''
@@ -448,6 +457,15 @@ class PluginManager(object):
 
         settings.endGroup()
 
+    @classmethod
+    def find_effect_by_urn(cls, urn):
+        '''Return the effect with the given URN, or None if it can't be found.'''
+        for effect in cls.effects:
+            if effect.urn == urn:
+                return effect
+
+        return None
+
 class PluginModule(object):
     def __init__(self, name, module_name):
         self.name = name
@@ -492,5 +510,5 @@ class PluginModule(object):
 
 from ._source import *
 from ._codec import *
-
+from ._effect import *
 
