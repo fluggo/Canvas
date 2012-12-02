@@ -279,6 +279,9 @@ void *gl_create_thread_offscreen_context();
 void gl_ensure_context();
 void gl_destroy_thread_offscreen_context();
 
+// For use with GLEW MX
+GLEWContext *glewGetContext();
+
 
 /************* Audio *******/
 

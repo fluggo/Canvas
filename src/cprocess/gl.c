@@ -32,16 +32,34 @@
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN "fluggo.media.cprocess.gl"
 
-static gsize __glew_init = 0;
+/*
+    Current context-getter for GLEW MX.
 
-static void
-gl_ensure_glew() {
-    if( g_once_init_enter( &__glew_init ) ) {
-        g_debug( "Initializing GLEW" );
-        glewInit();
+    Not sure if I like this implementation very much, as it makes two calls for
+    every access, but on Linux and MAC OS, we only incur that penalty when
+    testing for extensions-- all function calls are free. On Windows, we incur
+    that penalty for every non-GL 1.1 call.
+*/
+EXPORT GLEWContext *
+glewGetContext() {
+    static GQuark quark = 0;
 
-        g_once_init_leave( &__glew_init, 1 );
+    if( quark == 0 ) {
+        quark = g_quark_from_static_string( "fluggo::cprocess:gl::glew_context" );
     }
+
+    void *context = getCurrentGLContext();
+
+    GLEWContext *result = (GLEWContext *) g_dataset_id_get_data( context, quark );
+
+    if( !result ) {
+        result = g_new0( GLEWContext, 1 );
+
+        glewContextInit( result );
+        g_dataset_id_set_data_full( context, quark, result, g_free );
+    }
+
+    return result;
 }
 
 #if !defined(WINNT)
@@ -94,6 +112,8 @@ gl_create_offscreen_context() {
 
     result->context = new_context;
     result->pbuffer = pbuf;
+
+    glewGetContext();
 
     return result;
 }
@@ -162,7 +182,7 @@ gl_ensure_context() {
         gl_set_current_context( context );
     }
 
-    gl_ensure_glew();
+    glewGetContext();
 }
 
 EXPORT void

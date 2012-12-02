@@ -113,10 +113,10 @@ cprocess_env = env.Clone()
 cprocess_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
 
 if env['PLATFORM'] == 'win32':
-    cprocess_env.Append(LIBS=['glew32'])
+    cprocess_env.Append(LIBS=['glewmx32'])
 else:
-    cprocess_env.ParseConfig('pkg-config --libs --cflags gl')
-    cprocess_env.Append(LIBS=['rt', 'GLEW'])
+    cprocess_env.ParseConfig('pkg-config --libs --cflags gl glewmx')
+    cprocess_env.Append(LIBS=['rt'])
 
 cprocess = [cprocess_env.SharedObject(None, node) for node in env.Glob('src/cprocess/*.c')]
 Depends(cprocess, half)
@@ -126,10 +126,10 @@ process_env = python_env.Clone()
 process_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
 
 if env['PLATFORM'] == 'win32':
-    process_env.Append(LIBS=['glew32', 'opengl32'])
+    process_env.Append(LIBS=['glewmx32', 'opengl32'])
 else:
-    process_env.ParseConfig('pkg-config --libs --cflags gl')
-    process_env.Append(LIBS=['rt', 'GLEW'])
+    process_env.ParseConfig('pkg-config --libs --cflags gl glewmx')
+    process_env.Append(LIBS=['rt'])
 
 process = process_env.SharedLibrary('fluggo/media/process', env.Glob('src/process/*.c') + cprocess)
 
@@ -147,10 +147,9 @@ if not env.Execute('@pkg-config --exists libavformat libswscale'):
     libav_env.Append(LIBS=[process], CCFLAGS=['-Wno-error=deprecated-declarations'])
 
     if env['PLATFORM'] == 'win32':
-        libav_env.Append(LIBS=['glew32', 'opengl32'])
+        libav_env.Append(LIBS=['glewmx32', 'opengl32'])
     else:
-        libav_env.ParseConfig('pkg-config --libs --cflags gl')
-        libav_env.Append(LIBS=['GLEW'])
+        libav_env.ParseConfig('pkg-config --libs --cflags gl glewmx')
 
     libav = libav_env.SharedLibrary('fluggo/media/libav', env.Glob('src/libav/*.c'))
 
@@ -162,7 +161,7 @@ else:
 
 if not env.Execute('@pkg-config --exists x264'):
     x264_env = python_env.Clone()
-    x264_env.ParseConfig('pkg-config --libs --cflags x264 glib-2.0 gthread-2.0')
+    x264_env.ParseConfig('pkg-config --libs --cflags x264 glib-2.0 gthread-2.0 gl glewmx')
     x264_env.Append(LIBS=[process])
 
     x264 = x264_env.SharedLibrary('fluggo/media/x264', env.Glob('src/x264/*.c'))
@@ -175,7 +174,7 @@ else:
 
 if has_libfaac:
     faac_env = python_env.Clone()
-    faac_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
+    faac_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0 gl glewmx')
     faac_env.Append(LIBS=[process, 'faac'])
 
     faac = faac_env.SharedLibrary('fluggo/media/faac', env.Glob('src/faac/*.c'))
@@ -188,8 +187,8 @@ else:
 
 if not env.Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
     gtk_env = python_env.Clone()
-    gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
-    gtk_env.Append(LIBS=['GLEW', process])
+    gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0 glewmx')
+    gtk_env.Append(LIBS=[process])
     gtk = gtk_env.SharedLibrary('fluggo/media/gtk', ['src/gtk/GtkVideoWidget.c'])
 
     Alias('gtk', gtk)
@@ -200,7 +199,7 @@ else:
 
 if not env.Execute('@pkg-config --exists alsa'):
     alsa_env = python_env.Clone()
-    alsa_env.ParseConfig('pkg-config --libs --cflags alsa glib-2.0 gthread-2.0')
+    alsa_env.ParseConfig('pkg-config --libs --cflags alsa glib-2.0 gthread-2.0 gl glewmx')
     alsa_env.Append(LIBS=[process])
     alsa = alsa_env.SharedLibrary('fluggo/media/alsa', alsa_env.Glob('src/alsa/*.c'))
 
@@ -257,7 +256,7 @@ print(config.pyqt_sip_flags)
     sip_builder = Builder(action=sip_action, emitter=emitter, source_scanner=SCons.Defaults.CScan)
 
     qt_env.Append(BUILDERS={'SipModule': sip_builder}, CPPPATH=['src/qt'], LIBS=[process])
-    qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl glib-2.0')
+    qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl glib-2.0 glewmx')
 
     qt_sip = qt_env.SipModule('qt', env.Glob('src/qt/*.sip'))
     qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip + env.Glob('src/qt/*.cpp'))
