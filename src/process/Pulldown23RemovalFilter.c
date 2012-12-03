@@ -21,7 +21,7 @@
 #include "pyframework.h"
 
 static PyObject *pysourceFuncs;
-static GQuark q_interlaceShader;
+static GQuark interlace_shader_quark;
 
 typedef struct {
     PyObject_HEAD
@@ -104,7 +104,7 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
     }
 }
 
-static const char *interlaceText =
+static const char *interlace_text =
 "#version 110\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
 "uniform sampler2DRect texA;"
@@ -121,21 +121,20 @@ static const char *interlaceText =
 "}";
 
 typedef struct {
-    GLuint shader, program;
+    video_filter_program *program;
 } gl_shader_state;
 
-static void destroyShader( gl_shader_state *shader ) {
+static void destroy_shader( gl_shader_state *shader ) {
     // We assume that we're in the right GL context
-    glDeleteProgram( shader->program );
-    glDeleteShader( shader->shader );
+    video_delete_filter_program( shader->program );
     g_free( shader );
 }
 
 static void
-Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int frameIndex, rgba_frame_gl *frame ) {
+Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int frame_index, rgba_frame_gl *frame ) {
     if( self->source == NULL ) {
         // No result
-        box2i_set_empty( &frame->current_window );
+        video_get_frame_gl( self->source, 0, frame );
         return;
     }
 
@@ -147,58 +146,47 @@ Pulldown23RemovalFilter_getFrameGL( py_obj_Pulldown23RemovalFilter *self, int fr
     // 3 CD DD EE FF FG (0->1, 1->2, 2->3), (3->4b5a) (same as 4 with 1st frame discarded)
     // 4 DD EE FF FG GH (0->0, 1->1, 2->2), (3->3b4a)
 
-    int frameOffset;
+    int frame_offset;
 
     if( self->offset == 4 )
-        frameOffset = (frameIndex + 3) & 3;
+        frame_offset = (frame_index + 3) & 3;
     else
-        frameOffset = (frameIndex + self->offset) & 3;
+        frame_offset = (frame_index + self->offset) & 3;
 
-    int64_t baseFrame = ((frameIndex + self->offset) >> 2) * 5 - self->offset;
+    int64_t base_frame = ((frame_index + self->offset) >> 2) * 5 - self->offset;
 
     // Solid frames
-    if( frameOffset == 0 ) {
-        video_get_frame_gl( self->source, baseFrame, frame );
+    if( frame_offset == 0 ) {
+        video_get_frame_gl( self->source, base_frame, frame );
     }
-    else if( frameOffset == 1 ) {
-        video_get_frame_gl( self->source, baseFrame + 1, frame );
+    else if( frame_offset == 1 ) {
+        video_get_frame_gl( self->source, base_frame + 1, frame );
     }
-    else if( frameOffset == 3 ) {
-        video_get_frame_gl( self->source, baseFrame + 4, frame );
+    else if( frame_offset == 3 ) {
+        video_get_frame_gl( self->source, base_frame + 4, frame );
     }
     else {
-        v2i frameSize;
-        box2i_get_size( &frame->full_window, &frameSize );
-
         void *context = getCurrentGLContext();
-        gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, q_interlaceShader );
+        gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, interlace_shader_quark );
 
         if( !shader ) {
             // Time to create the program for this context
             shader = g_new0( gl_shader_state, 1 );
 
-            gl_buildShader( interlaceText, &shader->shader, &shader->program );
+            shader->program = video_create_filter_program( interlace_text, "Video 2:3 pulldown removal shader" );
 
-            g_dataset_id_set_data_full( context, q_interlaceShader, shader, (GDestroyNotify) destroyShader );
+            g_dataset_id_set_data_full( context, interlace_shader_quark, shader, (GDestroyNotify) destroy_shader );
         }
 
         // Mixed fields
-        rgba_frame_gl frameB = *frame;
+        rgba_frame_gl frame_b = *frame;
 
-        video_get_frame_gl( self->source, baseFrame + 2, frame );
-        video_get_frame_gl( self->source, baseFrame + 3, &frameB );
+        video_get_frame_gl( self->source, base_frame + 2, frame );
+        video_get_frame_gl( self->source, base_frame + 3, &frame_b );
 
-        glUseProgram( shader->program );
-        glUniform1i( glGetUniformLocation( shader->program, "texA" ), 0 );
+        video_render_gl_frame_filter1( shader->program, frame, &frame_b );
 
-        glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frameB.texture );
-        glEnable( GL_TEXTURE_RECTANGLE_ARB );
-
-        gl_renderToTexture( frame );
-
-        glUseProgram( 0 );
-        glDisable( GL_TEXTURE_RECTANGLE_ARB );
-        glDeleteTextures( 1, &frameB.texture );
+        glDeleteTextures( 1, &frame_b.texture );
     }
 }
 
@@ -289,7 +277,7 @@ void init_Pulldown23RemovalFilter( PyObject *module ) {
 
     pysourceFuncs = PyCapsule_New( &sourceFuncs, VIDEO_FRAME_SOURCE_FUNCS, NULL );
 
-    q_interlaceShader = g_quark_from_static_string( "Pulldown23RemovalFilter::interlaceShader" );
+    interlace_shader_quark = g_quark_from_static_string( "Pulldown23RemovalFilter::interlace_shader" );
 }
 
 
