@@ -50,6 +50,11 @@ glewGetContext() {
 
     void *context = getCurrentGLContext();
 
+    if( !context ) {
+        g_error( "glewGetContext() called with no context active" );
+        return NULL;
+    }
+
     GLEWContext *result = (GLEWContext *) g_dataset_id_get_data( context, quark );
 
     if( !result ) {
@@ -112,8 +117,6 @@ gl_create_offscreen_context() {
 
     result->context = new_context;
     result->pbuffer = pbuf;
-
-    glewGetContext();
 
     return result;
 }
