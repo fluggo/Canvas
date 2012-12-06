@@ -100,55 +100,70 @@ SolidColorVideoSource_getFrame32( py_obj_SolidColorVideoSource *self, int frameI
     }
 }
 
-static void
-SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frameIndex, rgba_frame_gl *frame ) {
-    box2i window;
-    v2i size, frameSize;
+static const char *solid_color_shader_text =
+"#version 120\n"
+"#extension GL_ARB_texture_rectangle : enable\n"
+"uniform vec4 color;\n"
+"uniform vec4 window;\n"
+"varying vec2 frame_coord;\n"
+"\n"
+"void main() {"
+"    if( any(lessThan(frame_coord.xy, window.xz)) || any(greaterThan(frame_coord.xy, window.yw)) )\n"
+"        gl_FragColor = vec4(0.0);\n"
+"    else\n"
+"        gl_FragColor = color;\n"
+"}\n";
 
-    framefunc_get_box2i( &window, &self->window, frameIndex );
+typedef struct {
+    video_filter_program *program;
+    GLuint color_uniform, window_uniform;
+} gl_solid_color_shader_state;
+
+static void destroy_shader( gl_solid_color_shader_state *shader ) {
+    // We assume that we're in the right GL context
+    video_delete_filter_program( shader->program );
+    g_free( shader );
+}
+
+static void
+SolidColorVideoSource_getFrameGL( py_obj_SolidColorVideoSource *self, int frame_index, rgba_frame_gl *frame ) {
+    GQuark shader_quark = g_quark_from_static_string( "process::SolidColorVideoSource::solid_color_shader" );
+
+    void *context = getCurrentGLContext();
+    gl_solid_color_shader_state *shader = (gl_solid_color_shader_state *) g_dataset_id_get_data( context, shader_quark );
+
+    if( !shader ) {
+        // Time to create the program for this context
+        shader = g_new0( gl_solid_color_shader_state, 1 );
+
+        shader->program = video_create_filter_program( solid_color_shader_text,
+            "Fluggo SolidColorVideoSource shader" );
+
+        shader->color_uniform = glGetUniformLocation( shader->program->program, "color" );
+        shader->window_uniform = glGetUniformLocation( shader->program->program, "window" );
+
+        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
+    }
+
+    // Get the color and output window
+    rgba_f32 color_f32;
+    framefunc_get_rgba_f32( &color_f32, &self->color_f32, frame_index );
+
+    box2i window;
+    framefunc_get_box2i( &window, &self->window, frame_index );
 
     box2i_intersect( &frame->current_window, &window, &frame->full_window );
-    box2i_get_size( &frame->current_window, &size );
 
-    if( size.x == 0 || size.y == 0 )
-        return;
+    // Render the frame
+    v2i frame_size;
+    box2i_get_size( &frame->full_window, &frame_size );
 
-    box2i_get_size( &frame->full_window, &frameSize );
+    glUseProgram( shader->program->program );
+    glUniform4fv( shader->color_uniform, 1, &color_f32.r );
+    glUniform4f( shader->window_uniform, window.min.x, window.max.x, window.min.y, window.max.y );
 
-    rgba_f32 color_f32;
-    framefunc_get_rgba_f32( &color_f32, &self->color_f32, frameIndex );
-
-    glGenTextures( 1, &frame->texture );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, frame->texture );
-    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA_FLOAT16_ATI, frameSize.x, frameSize.y, 0,
-        GL_RGBA, GL_HALF_FLOAT_ARB, NULL );
-
-    GLuint fbo;
-    glGenFramebuffersEXT( 1, &fbo );
-    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
-    glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB,
-        frame->texture, 0 );
-
-    glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
-    glClear( GL_COLOR_BUFFER_BIT );
-
-    glLoadIdentity();
-    glOrtho( 0, frameSize.x, 0, frameSize.y, -1, 1 );
-    glViewport( 0, 0, frameSize.x, frameSize.y );
-
-    glBegin( GL_QUADS );
-    glColor4fv( &color_f32.r );
-    glVertex2i( frame->current_window.min.x - frame->full_window.min.x,
-        frame->current_window.min.y - frame->full_window.min.y );
-    glVertex2i( frame->current_window.max.x - frame->full_window.min.x + 1,
-        frame->current_window.min.y - frame->full_window.min.y );
-    glVertex2i( frame->current_window.max.x - frame->full_window.min.x + 1,
-        frame->current_window.max.y - frame->full_window.min.y + 1 );
-    glVertex2i( frame->current_window.min.x - frame->full_window.min.x,
-        frame->current_window.max.y - frame->full_window.min.y + 1 );
-    glEnd();
-
-    glDeleteFramebuffersEXT( 1, &fbo );
+    frame->texture = video_make_gl_texture( frame_size.x, frame_size.y, NULL );
+    video_render_gl_frame( shader->program, frame, NULL, 0 );
 }
 
 static void
