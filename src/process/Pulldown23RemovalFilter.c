@@ -105,18 +105,20 @@ Pulldown23RemovalFilter_getFrame( py_obj_Pulldown23RemovalFilter *self, int fram
 }
 
 static const char *interlace_text =
-"#version 110\n"
+"#version 120\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
-"uniform sampler2DRect texA;"
+"uniform sampler2DRect input_texture[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
+"varying vec2 tex_coord[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
+"varying vec2 frame_coord;\n"
 ""
 "void main() {"
-"    if( cos(gl_TexCoord[0].t * 3.14156) < 0.0 )"
+"    if( cos(frame_coord.y * 3.14156) < 0.0 )"
 // BJC: I have no clue why either of these variants does not work here:
 //"    if( int(gl_FragCoord.t) & 1 == 1 )"
 //"    if( int(gl_FragCoord.t) % 2 == 1 )"
 "        discard;"
 
-"    gl_FragColor = texture2DRect( texA, gl_FragCoord.st );"
+"    gl_FragColor = texture2DRect( input_texture[0], tex_coord[0] );"
 //"    gl_FragColor = vec4(fract(gl_FragCoord.t), 0.0, 0.0, 1.0);"
 "}";
 
