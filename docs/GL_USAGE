@@ -10,7 +10,8 @@ is:
 
     glBindBuffer( GL_ARRAY_BUFFER, 0 );
     glActiveTexture( GL_TEXTURE0 );
-    glUseProgramObjectARB( 0 );
+    // glUseProgram( 0 ); - Not generally necessary, but good to assume the
+    //    program is not the program you want
     glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, 0 );
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, 0 );
