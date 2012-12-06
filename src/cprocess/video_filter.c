@@ -24,17 +24,6 @@
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN "fluggo.media.cprocess.video_filter"
 
-typedef struct {
-    GLuint shader, program;
-} gl_shader_state;
-
-static void destroy_shader( gl_shader_state *shader ) {
-    // We assume that we're in the right GL context
-    glDeleteProgram( shader->program );
-    glDeleteShader( shader->shader );
-    g_free( shader );
-}
-
 static const char *gain_offset_shader_text =
 "#version 120\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
@@ -53,6 +42,12 @@ typedef struct {
     video_filter_program *program;
     GLuint gain, offset;
 } gl_gain_offset_shader_state;
+
+static void destroy_shader( gl_gain_offset_shader_state *shader ) {
+    // We assume that we're in the right GL context
+    video_delete_filter_program( shader->program );
+    g_free( shader );
+}
 
 EXPORT void
 video_filter_gain_offset_gl( rgba_frame_gl *out, rgba_frame_gl *input, float gain, float offset ) {
@@ -82,24 +77,26 @@ video_filter_gain_offset_gl( rgba_frame_gl *out, rgba_frame_gl *input, float gai
 }
 
 static const char *crop_shader_text =
-"#version 110\n"
+"#version 120\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
-"uniform sampler2DRect input;"
+"uniform sampler2DRect input_texture[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
+"varying vec2 tex_coord[" G_STRINGIFY(VIDEO_MAX_FILTER_INPUTS) "];\n"
+"varying vec2 frame_coord;\n"
 "uniform vec4 crop_rect;"
 ""
 "void main() {"
-"    vec4 color = texture2DRect( input, gl_FragCoord.st );"
+"    vec4 color = texture2DRect( input_texture[0], tex_coord[0] );"
 ""
-"    if( gl_FragCoord.s < crop_rect.x || gl_FragCoord.s > crop_rect.y ||"
-"        gl_FragCoord.t < crop_rect.z || gl_FragCoord.t > crop_rect.w )"
+"    if( frame_coord.x < crop_rect.x || frame_coord.x > crop_rect.y ||"
+"        frame_coord.y < crop_rect.z || frame_coord.y > crop_rect.w )"
 "        color = vec4(0.0);"
 ""
 "    gl_FragColor = color;"
 "}";
 
 typedef struct {
-    gl_shader_state state;
-    int input, crop_rect;
+    video_filter_program *program;
+    int crop_rect_uniform;
 } gl_crop_shader_state;
 
 EXPORT void
@@ -113,16 +110,13 @@ video_filter_crop_gl( rgba_frame_gl *out, rgba_frame_gl *input, box2i *crop_rect
         // Time to create the program for this context
         shader = g_new0( gl_crop_shader_state, 1 );
 
-        gl_buildShader( crop_shader_text, &shader->state.shader, &shader->state.program );
-
-        shader->input = glGetUniformLocation( shader->state.program, "input" );
-        shader->crop_rect = glGetUniformLocation( shader->state.program, "crop_rect" );
+        shader->program = video_create_filter_program( crop_shader_text, "Video crop filter" );
+        shader->crop_rect_uniform = glGetUniformLocation( shader->program->program, "crop_rect" );
 
         g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
     }
 
-    glUseProgram( shader->state.program );
-    glUniform1i( shader->input, 0 );
+    glUseProgram( shader->program->program );
 
     float crop_rect_f[4] = {
         (float) crop_rect->min.x,
@@ -131,22 +125,9 @@ video_filter_crop_gl( rgba_frame_gl *out, rgba_frame_gl *input, box2i *crop_rect
         (float) crop_rect->max.y,
     };
 
-    glUniform4fv( shader->crop_rect, 1, crop_rect_f );
+    glUniform4fv( shader->crop_rect_uniform, 1, crop_rect_f );
 
-    // Now set up the texture to render to
-    v2i frame_size;
-    box2i_get_size( &out->full_window, &frame_size );
-    out->current_window = input->current_window;
-
-    out->texture = video_make_gl_texture( frame_size.x, frame_size.y, NULL );
-
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, input->texture );
-    glEnable( GL_TEXTURE_RECTANGLE_ARB );
-
-    gl_renderToTexture( out );
-
-    glDisable( GL_TEXTURE_RECTANGLE_ARB );
-    glUseProgram( 0 );
+    video_render_gl_frame_filter1( shader->program, out, input );
 }
 
 
