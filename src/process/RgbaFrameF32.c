@@ -174,13 +174,13 @@ py_RgbaFrameF32_new( box2i *full_data_window, rgba_frame_f32 **frame ) {
 PyObject *
 py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw ) {
     // This function is now actually a member of the VideoSource base class
-    PyObject *window_tuple = NULL;
+    PyObject *window_tuple = NULL, *force_gl = NULL;
     int frame_index;
 
-    static char *kwlist[] = { "frame_index", "data_window", NULL };
+    static char *kwlist[] = { "frame_index", "data_window", "force_gl", NULL };
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "iO", kwlist,
-            &frame_index, &window_tuple ) )
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "iO|O", kwlist,
+            &frame_index, &window_tuple, &force_gl ) )
         return NULL;
 
     box2i window;
@@ -200,7 +200,12 @@ py_get_frame_f32( PyObject *self, PyObject *args, PyObject *kw ) {
         return NULL;
     }
 
-    video_get_frame_f32( source, frame_index, PRIV(result) );
+    if( force_gl && PyObject_IsTrue( force_gl ) ) {
+        video_get_frame_f32_gl( source, frame_index, PRIV(result) );
+    }
+    else {
+        video_get_frame_f32( source, frame_index, PRIV(result) );
+    }
 
     if( !py_video_take_source( NULL, &source ) ) {
         Py_DECREF(result);

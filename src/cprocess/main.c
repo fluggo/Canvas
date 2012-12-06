@@ -30,7 +30,8 @@ get_time_frame( const rational *frameRate, int64_t time ) {
     return (time * (int64_t)(frameRate->n)) / (INT64_C(1000000000) * (int64_t)(frameRate->d));
 }
 
-EXPORT void video_get_frame_f16( video_source *source, int frame_index, rgba_frame_f16 *frame ) {
+EXPORT void
+video_get_frame_f16( video_source *source, int frame_index, rgba_frame_f16 *frame ) {
     if( !source || !source->funcs ) {
         box2i_set_empty( &frame->current_window );
         return;
@@ -69,7 +70,20 @@ EXPORT void video_get_frame_f16( video_source *source, int frame_index, rgba_fra
 
         g_slice_free1( sizeof(rgba_f32) * size.x * size.y, temp_frame.data );
     }
-    else if( source->funcs->get_frame_gl ) {
+    else {
+        video_get_frame_f16_gl( source, frame_index, frame );
+    }
+}
+
+EXPORT void
+video_get_frame_f16_gl( video_source *source, int frame_index, rgba_frame_f16 *frame ) {
+    // Get an f16 frame, but forcibly pull it from the GL pipeline
+    if( !source || !source->funcs ) {
+        box2i_set_empty( &frame->current_window );
+        return;
+    }
+
+    if( source->funcs->get_frame_gl ) {
         // Load a GL texture, then transfer it to memory
         gl_ensure_context();
 
@@ -77,6 +91,7 @@ EXPORT void video_get_frame_f16( video_source *source, int frame_index, rgba_fra
         source->funcs->get_frame_gl( source->obj, frame_index, &temp_frame );
 
         // Default pixel store values should work just fine
+        glBindTexture( GL_TEXTURE_RECTANGLE, temp_frame.texture );
         glGetTexImage( GL_TEXTURE_RECTANGLE, 0, GL_RGBA, GL_HALF_FLOAT_ARB, frame->data );
         glDeleteTextures( 1, &temp_frame.texture );
 
@@ -87,7 +102,8 @@ EXPORT void video_get_frame_f16( video_source *source, int frame_index, rgba_fra
     }
 }
 
-EXPORT void video_get_frame_f32( video_source *source, int frame_index, rgba_frame_f32 *frame ) {
+EXPORT void
+video_get_frame_f32( video_source *source, int frame_index, rgba_frame_f32 *frame ) {
     if( !source || !source->funcs ) {
         box2i_set_empty( &frame->current_window );
         return;
@@ -122,7 +138,21 @@ EXPORT void video_get_frame_f32( video_source *source, int frame_index, rgba_fra
 
         g_slice_free1( sizeof(rgba_f16) * size.x * size.y, temp_frame.data );
     }
-    else if( source->funcs->get_frame_gl ) {
+    else {
+        video_get_frame_f32_gl( source, frame_index, frame );
+    }
+}
+
+EXPORT void
+video_get_frame_f32_gl( video_source *source, int frame_index, rgba_frame_f32 *frame ) {
+    // Get an f32 frame, but forcibly pull it from the GL pipeline
+
+    if( !source || !source->funcs ) {
+        box2i_set_empty( &frame->current_window );
+        return;
+    }
+
+    if( source->funcs->get_frame_gl ) {
         // Load a GL texture, then transfer it to memory
         gl_ensure_context();
 
@@ -130,6 +160,7 @@ EXPORT void video_get_frame_f32( video_source *source, int frame_index, rgba_fra
         source->funcs->get_frame_gl( source->obj, frame_index, &temp_frame );
 
         // Default pixel store values should work just fine
+        glBindTexture( GL_TEXTURE_RECTANGLE, temp_frame.texture );
         glGetTexImage( GL_TEXTURE_RECTANGLE, 0, GL_RGBA, GL_FLOAT, frame->data );
         glDeleteTextures( 1, &temp_frame.texture );
 
