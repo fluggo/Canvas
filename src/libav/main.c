@@ -32,10 +32,8 @@ static PyMethodDef module_methods[] = {
     { NULL }
 };
 
-void init_AVVideoSource( PyObject *module );
 void init_AVVideoDecoder( PyObject *module );
 void init_AVVideoEncoder( PyObject *module );
-void init_AVAudioSource( PyObject *module );
 void init_AVAudioDecoder( PyObject *module );
 void init_AVDemuxer( PyObject *module );
 void init_AVMuxer( PyObject *module );
@@ -61,10 +59,8 @@ PyInit_libav() {
     if( !PyImport_ImportModule( "fluggo.media.process" ) )
         return NULL;
 
-    init_AVVideoSource( m );
     init_AVVideoDecoder( m );
     init_AVVideoEncoder( m );
-    init_AVAudioSource( m );
     init_AVAudioDecoder( m );
     init_AVDemuxer( m );
     init_AVMuxer( m );
