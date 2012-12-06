@@ -231,54 +231,6 @@ EXPORT void *getCurrentGLContext() {
 }
 
 /*
-    Function: gl_renderToTexture
-    Render a quad to the given GL frame.
-
-    Parameters:
-
-    frame - Frame to render to, containing a valid full_window.
-            gl_renderToTexture won't alter the current_window.
-
-    Remarks:
-    This function creates a GL texture for the frame and renders a quad
-    with the current context settings to it.
-*/
-EXPORT void
-gl_renderToTexture( rgba_frame_gl *frame ) {
-    v2i frameSize;
-    box2i_get_size( &frame->full_window, &frameSize );
-
-    g_assert( frameSize.x > 0 );
-    g_assert( frameSize.y > 0 );
-
-    // TODO: It's a rumor that creating and destroying framebuffers is bad for
-    // performance; we do it here maybe a dozen times per frame
-    GLuint fbo;
-    glGenFramebuffersEXT( 1, &fbo );
-    glBindFramebufferEXT( GL_FRAMEBUFFER_EXT, fbo );
-    glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_RECTANGLE_ARB,
-        frame->texture, 0 );
-
-    glLoadIdentity();
-    glOrtho( 0, frameSize.x, 0, frameSize.y, -1, 1 );
-    glViewport( 0, 0, frameSize.x, frameSize.y );
-
-    glBegin( GL_QUADS );
-    glColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
-    glTexCoord2i( 0, 0 );
-    glVertex2i( 0, 0 );
-    glTexCoord2i( frameSize.x, 0 );
-    glVertex2i( frameSize.x, 0 );
-    glTexCoord2i( frameSize.x, frameSize.y );
-    glVertex2i( frameSize.x, frameSize.y );
-    glTexCoord2i( 0, frameSize.y );
-    glVertex2i( 0, frameSize.y );
-    glEnd();
-
-    glDeleteFramebuffersEXT( 1, &fbo );
-}
-
-/*
     Make a suitable GL texture for a video frame.
 
     *data* is optional; if supplied, it should be a straight array of [width*height]
