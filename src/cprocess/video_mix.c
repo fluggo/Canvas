@@ -396,7 +396,7 @@ static const char *crossfade_shader_text =
 
 typedef struct {
     video_filter_program *program;
-    int mix_b_uniform;
+    GLint mix_b_uniform;
 } gl_shader_state;
 
 static void destroy_shader( gl_shader_state *shader ) {
