@@ -64,7 +64,6 @@ struct __tag_widget_gl_context {
 
     SoftFrameTarget softTargets[SOFT_MODE_BUFFERS];
     GLuint softTextureId, hardTextureId, checkerTextureId;
-    GLuint hardGammaShader, hardGammaProgram;
 
     // Number of buffers available
     int bufferCount;
@@ -415,7 +414,6 @@ widget_gl_new() {
     self->softTextureId = 0;
     self->hardTextureId = 0;
     self->checkerTextureId = 0;
-    self->hardGammaShader = 0;
     self->renderOneFrame = true;
     self->lastHardFrame = -1;
     self->clock_callback_handle = NULL;
@@ -493,12 +491,13 @@ widget_gl_initialize( widget_gl_context *self ) {
         glGenTextures( 1, &self->softTextureId );
         glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softTextureId );
 
-        glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
         glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
         glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, frameSize.x, frameSize.y,
             0, GL_RGBA, GL_UNSIGNED_BYTE, NULL );
+
+        glBindTexture( GL_TEXTURE_RECTANGLE_ARB, 0 );
     }
 
     if( !self->checkerTextureId ) {
@@ -508,13 +507,16 @@ widget_gl_initialize( widget_gl_context *self ) {
         glGenTextures( 1, &self->checkerTextureId );
         glBindTexture( GL_TEXTURE_2D, self->checkerTextureId );
 
-        glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 
+        glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
         glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB, GL_UNSIGNED_BYTE, checker );
+        glPixelStorei( GL_UNPACK_ALIGNMENT, 4 );
+
+        glBindTexture( GL_TEXTURE_2D, 0 );
     }
 }
 
@@ -577,22 +579,95 @@ widget_gl_hardLoadTexture( widget_gl_context *self ) {
     self->currentDataWindow = frame.current_window;
 }
 
-static const char *gammaShader =
+static const char *vertex_shader_text =
+"#version 120\n"
+"#extension GL_ARB_texture_rectangle : require\n"
+"uniform ivec2 widget_size;\n"
+"uniform ivec2 frame_size;\n"
+"uniform float pixel_aspect_ratio;\n"
+"attribute vec2 position;\n"
+"varying vec2 checkerboard_coord;\n"
+"varying vec2 frame_coord;\n"
+"\n"
+"void main() {\n"
+"    gl_Position = vec4(position * vec2(2.0, 2.0) + vec2(-1.0, -1.0), 0.0, 1.0);\n"
+"    checkerboard_coord = position * vec2(widget_size) * (1.0 / 32.0);\n"
+"\n"
+"    float widget_ar = float(widget_size.x) / float(widget_size.y);\n"
+"    float frame_ar = float(frame_size.x) * pixel_aspect_ratio / float(frame_size.y);\n"
+"    float scale;\n"
+"\n"
+"    if( widget_ar > frame_ar ) {\n"
+"        // Constraining dimension is Y\n"
+"        scale = float(frame_size.y) / float(widget_size.y);\n"
+"    }\n"
+"    else {\n"
+"        scale = float(frame_size.x) * pixel_aspect_ratio / float(widget_size.x);\n"
+"    }\n"
+"\n"
+"    frame_coord =\n"
+"        // Find the center of the frame and reverse to a widget corner\n"
+"        (vec2(frame_size) - widget_size * scale * vec2(1.0 / pixel_aspect_ratio, -1.0)) * 0.5\n"
+"\n"
+"        // Then take us to each of the four corners\n"
+"        + position * widget_size * scale * vec2(1.0 / pixel_aspect_ratio, -1.0);\n"
+"}\n";
+
+static const char *gamma_shader_text =
 "#version 120\n"
 "#extension GL_ARB_texture_rectangle : enable\n"
-"uniform sampler2DRect tex;"
-"const float transition = 0.0031308f;"
-"const vec4 a = vec4(0.055);"
-""
-"void main() {"
-"   // GL equivalent of linear_to_sRGB in gammatab.c\n"
-"   vec4 color = texture2DRect( tex, gl_TexCoord[0].st );"
-""
-"   gl_FragColor.rgba = mix("
-"       color.rgba * 12.92f,"
-"       (1.0f + a) * pow(color.rgba, vec4(1.0/2.4)) - a,"
-"       step(transition, color.rgba));"
-"}";
+"uniform sampler2D checkerboard_texture;\n"
+"uniform sampler2DRect frame_texture;\n"
+"uniform bool gamma_correction;\n"
+"varying vec2 checkerboard_coord;\n"
+"varying vec2 frame_coord;\n"
+"const float transition = 0.0031308f;\n"
+"const vec4 a = vec4(0.055);\n"
+"\n"
+"vec4 color_over( vec4 color_a, vec4 color_b ) {\n"
+"    vec4 result;\n"
+"    float alpha_a = color_a.a * (1.0f - color_b.a);\n"
+"    float alpha_b = color_b.a;\n"
+"\n"
+"    result.a = alpha_a + alpha_b;\n"
+"\n"
+"    if( result.a != 0.0 )\n"
+"        result.rgb = (color_a.rgb * alpha_a + color_b.rgb * alpha_b) / result.a;\n"
+"    else\n"
+"        result.rgb = vec3(0.0, 0.0, 0.0);\n"
+"\n"
+"    return result;\n"
+"}\n"
+"\n"
+"void main() {\n"
+"    // GL equivalent of linear_to_sRGB in gammatab.c\n"
+"    vec4 checker_color = texture2D(checkerboard_texture, checkerboard_coord);\n"
+"    vec4 frame_color = texture2DRect(frame_texture, frame_coord);\n"
+"\n"
+"    if( gamma_correction ) {\n"
+"        frame_color = mix(\n"
+"            frame_color * 12.92f,\n"
+"            (1.0f + a) * pow(frame_color, vec4(1.0/2.4)) - a,\n"
+"            step(transition, frame_color));\n"
+"    }\n"
+"\n"
+"    gl_FragColor = color_over(checker_color, frame_color);\n"
+"}\n";
+
+typedef struct {
+    GLuint program;
+    GLint checkerboard_texture_uniform, frame_texture_uniform, gamma_correction_uniform;
+    GLint widget_size_uniform, frame_size_uniform, pixel_aspect_ratio_uniform;
+    GLint position_attrib;
+    GLuint vertex_buffer;
+} gl_shader_state;
+
+static void destroy_shader( gl_shader_state *shader ) {
+    // We assume that we're in the right GL context
+    glDeleteProgram( shader->program );
+    glDeleteBuffers( 1, &shader->vertex_buffer );
+    g_free( shader );
+}
 
 /*
     Function: widget_gl_draw
@@ -621,92 +696,92 @@ widget_gl_draw( widget_gl_context *self, v2i widget_size ) {
     if( !self->softMode && !self->renderOneFrame && self->lastHardFrame != self->nextToRenderFrame )
         widget_gl_hardLoadTexture( self );
 
-    // Set ourselves up with the correct aspect ratio for the space
-    v2i frameSize;
-    box2i_get_size( &self->displayWindow, &frameSize );
+    GQuark shader_quark = g_quark_from_static_string( "cprocess::widget_gl::widget_gl_gamma_program" );
 
-    float width = frameSize.x * self->pixelAspectRatio;
-    float height = frameSize.y;
+    void *context = getCurrentGLContext();
+    gl_shader_state *shader = (gl_shader_state *) g_dataset_id_get_data( context, shader_quark );
 
-    if( width > widget_size.x ) {
-        height *= widget_size.x / width;
-        width = widget_size.x;
+    if( !shader ) {
+        // Time to create the program for this context
+        shader = g_new0( gl_shader_state, 1 );
+
+        GLuint shaders[2];
+        shaders[0] = gl_compile_shader( GL_VERTEX_SHADER, vertex_shader_text,
+            "Widget GL vertex shader" );
+        shaders[1] = gl_compile_shader( GL_FRAGMENT_SHADER, gamma_shader_text,
+            "Widget GL gamma fragment shader" );
+
+        shader->program = gl_link_program( shaders, 2, "Widget GL program" );
+
+        glDeleteShader( shaders[0] );
+        glDeleteShader( shaders[1] );
+
+        shader->checkerboard_texture_uniform = glGetUniformLocation( shader->program, "checkerboard_texture" );
+        shader->frame_texture_uniform = glGetUniformLocation( shader->program, "frame_texture" );
+        shader->gamma_correction_uniform = glGetUniformLocation( shader->program, "gamma_correction" );
+        shader->widget_size_uniform = glGetUniformLocation( shader->program, "widget_size" );
+        shader->frame_size_uniform = glGetUniformLocation( shader->program, "frame_size" );
+        shader->pixel_aspect_ratio_uniform = glGetUniformLocation( shader->program, "pixel_aspect_ratio" );
+        shader->position_attrib = glGetAttribLocation( shader->program, "position" );
+
+        // Set up a static buffer with four corners for us to work with
+        glGenBuffers( 1, &shader->vertex_buffer );
+
+        v2f positions[4] = {
+            { 0.0f, 0.0f },
+            { 1.0f, 0.0f },
+            { 1.0f, 1.0f },
+            { 0.0f, 1.0f }
+        };
+
+        glBindBuffer( GL_ARRAY_BUFFER, shader->vertex_buffer );
+        glBufferData( GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW );
+        glBindBuffer( GL_ARRAY_BUFFER, 0 );
+
+        g_dataset_id_set_data_full( context, shader_quark, shader, (GDestroyNotify) destroy_shader );
     }
 
-    if( height > widget_size.y ) {
-        width *= widget_size.y / height;
-        height = widget_size.y;
-    }
-
-    // Upper-left
-    float x = floor( widget_size.x * 0.5f - width * 0.5f );
-    float y = floor( widget_size.y * 0.5f - height * 0.5f );
+    v2i frame_size;
+    box2i_get_size( &self->displayWindow, &frame_size );
 
     // Set up for drawing
-    glLoadIdentity();
     glViewport( 0, 0, widget_size.x, widget_size.y );
-    glOrtho( 0, widget_size.x, widget_size.y, 0, -1, 1 );
 
-    glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
-    glClear( GL_COLOR_BUFFER_BIT );
+    glUseProgram( shader->program );
 
-    // Render the checker onto the field
     glBindTexture( GL_TEXTURE_2D, self->checkerTextureId );
     glEnable( GL_TEXTURE_2D );
-
-    glBegin( GL_QUADS );
-    glColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
-    glTexCoord2f( self->displayWindow.min.x / 64.0f, self->displayWindow.min.y / 64.0f );
-    glVertex2f( x, y );
-    glTexCoord2f( self->displayWindow.max.x / 64.0f, self->displayWindow.min.y / 64.0f );
-    glVertex2f( x + width, y );
-    glTexCoord2f( self->displayWindow.max.x / 64.0f, self->displayWindow.max.y / 64.0f );
-    glVertex2f( x + width, y + height );
-    glTexCoord2f( self->displayWindow.min.x / 64.0f, self->displayWindow.max.y / 64.0f );
-    glVertex2f( x, y + height );
-    glEnd();
-
-    glDisable( GL_TEXTURE_2D );
-
-    if( box2i_is_empty( &self->currentDataWindow ) )
-        return;
-
-    if( !self->softMode ) {
-        if( !self->hardGammaShader )
-            gl_buildShader( gammaShader, &self->hardGammaShader, &self->hardGammaProgram );
-
-        glUseProgram( self->hardGammaProgram );
-    }
-
-    // Find the corners of the defined window
-    x += (self->currentDataWindow.min.x - self->displayWindow.min.x) * width / frameSize.x;
-    y += (self->currentDataWindow.min.y - self->displayWindow.min.y) * height / frameSize.y;
-    width *= (float)(self->currentDataWindow.max.x - self->currentDataWindow.min.x + 1) / (float)(frameSize.x);
-    height *= (float)(self->currentDataWindow.max.y - self->currentDataWindow.min.y + 1) / (float)(frameSize.y);
-
-    // Render texture onto quad
+    glActiveTexture( GL_TEXTURE1 );
     glBindTexture( GL_TEXTURE_RECTANGLE_ARB, self->softMode ? self->softTextureId : self->hardTextureId );
     glEnable( GL_TEXTURE_RECTANGLE_ARB );
-    glEnable( GL_BLEND );
-    glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
-    glBegin( GL_QUADS );
-    glTexCoord2i( self->currentDataWindow.min.x - self->displayWindow.min.x, self->currentDataWindow.min.y - self->displayWindow.min.y );
-    glVertex2f( x, y );
-    glTexCoord2i( self->currentDataWindow.max.x - self->displayWindow.min.x + 1, self->currentDataWindow.min.y - self->displayWindow.min.y );
-    glVertex2f( x + width, y );
-    glTexCoord2i( self->currentDataWindow.max.x - self->displayWindow.min.x + 1, self->currentDataWindow.max.y - self->displayWindow.min.y + 1 );
-    glVertex2f( x + width, y + height );
-    glTexCoord2i( self->currentDataWindow.min.x - self->displayWindow.min.x, self->currentDataWindow.max.y - self->displayWindow.min.y + 1 );
-    glVertex2f( x, y + height );
-    glEnd();
+    glBindBuffer( GL_ARRAY_BUFFER, shader->vertex_buffer );
+    glEnableVertexAttribArray( shader->position_attrib );
+    glVertexAttribPointer( shader->position_attrib, 2, GL_FLOAT, GL_FALSE, 0, 0 );
+
+    // Set uniforms
+    glUniform1i( shader->checkerboard_texture_uniform, 0 );
+    glUniform1i( shader->frame_texture_uniform, 1 );
+    glUniform1i( shader->gamma_correction_uniform, self->softMode ? 0 : 1 );
+    glUniform2iv( shader->widget_size_uniform, 1, &widget_size.x );
+    glUniform2iv( shader->frame_size_uniform, 1, &frame_size.x );
+    glUniform1f( shader->pixel_aspect_ratio_uniform, self->pixelAspectRatio );
+
+    // Draw
+    glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+
+    // Clean up
+    glBindBuffer( GL_ARRAY_BUFFER, 0 );
+    glDisableVertexAttribArray( shader->position_attrib );
 
     glDisable( GL_TEXTURE_RECTANGLE_ARB );
-    glDisable( GL_BLEND );
+    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, 0 );
 
-    if( !self->softMode ) {
-        glUseProgram( 0 );
-    }
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_2D, 0 );
+    glDisable( GL_TEXTURE_2D );
+
+    glUseProgram( 0 );
 }
 
 /*
