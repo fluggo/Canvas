@@ -108,19 +108,6 @@ print(sysconfig.get_config_var(\'SO\'))
 # Generate the half/float conversion tables
 half = env.Command('src/cprocess/halftab.c', 'src/cprocess/genhalf.py', '$PYTHON $SOURCE > $TARGET')
 
-# Build the cprocess shared objects
-cprocess_env = env.Clone()
-cprocess_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
-
-if env['PLATFORM'] == 'win32':
-    cprocess_env.Append(LIBS=['glewmx32'])
-else:
-    cprocess_env.ParseConfig('pkg-config --libs --cflags gl glewmx')
-    cprocess_env.Append(LIBS=['rt'])
-
-cprocess = [cprocess_env.SharedObject(None, node) for node in env.Glob('src/cprocess/*.c')]
-Depends(cprocess, half)
-
 # Build the process Python extension
 process_env = python_env.Clone()
 process_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
@@ -131,7 +118,8 @@ else:
     process_env.ParseConfig('pkg-config --libs --cflags gl glewmx')
     process_env.Append(LIBS=['rt'])
 
-process = process_env.SharedLibrary('fluggo/media/process', env.Glob('src/process/*.c') + cprocess)
+process = process_env.SharedLibrary('fluggo/media/process', env.Glob('src/process/*.c') + env.Glob('src/cprocess/*.c'))
+Depends(process, half)
 
 if env['PLATFORM'] == 'win32':
     # Go back and narrow down the import lib
@@ -271,7 +259,7 @@ except Exception as ex:
 
 # Tests
 testenv = env.Clone()
-testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=[cprocess, 'GLEW', 'm', 'rt'])
+testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=[process, 'GLEW', 'm', 'rt'])
 if env['PLATFORM'] != 'win32':
     testenv.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
 
@@ -281,7 +269,6 @@ testenv.Alias('test', testenv.Command('test_dummy', 'tests/cprocess_test', '@tes
 for testfile in locate('*.py', 'tests'):
     testenv.Alias('test', testenv.Command(None, testfile, '@python3 testrunner.py $SOURCE'))
 
-Requires('test', cprocess)
 Requires('test', test_cprocess)
 Requires('test', process)
 Alias('all', 'test')
