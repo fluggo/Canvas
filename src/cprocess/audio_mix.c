@@ -101,24 +101,30 @@ audio_overwrite_frame( audio_frame *out, audio_frame *in, int offset ) {
         return;
 
     // Do the two frames overlap? If not, we'll have to lay down some silence
-    for( int sample = out->current_max_sample + 1;
-            sample < in->current_min_sample - offset && sample <= out->full_max_sample;
-            sample++ ) {
+    if( out->current_max_sample >= out->current_min_sample ) {
+        for( int sample = out->current_max_sample + 1;
+                sample < in->current_min_sample - offset && sample <= out->full_max_sample;
+                sample++ ) {
 
-        for( int channel = 0; channel < out->channels; channel++ )
-            *audio_get_sample( out, sample, channel ) = 0.0f;
+            for( int channel = 0; channel < out->channels; channel++ )
+                *audio_get_sample( out, sample, channel ) = 0.0f;
+        }
+
+        for( int sample = out->current_min_sample - 1;
+                sample > in->current_max_sample - offset && sample >= out->full_min_sample;
+                sample-- ) {
+
+            for( int channel = 0; channel < out->channels; channel++ )
+                *audio_get_sample( out, sample, channel ) = 0.0f;
+        }
+
+        out->current_min_sample = max(out->full_min_sample, min(in->current_min_sample - offset, out->current_min_sample));
+        out->current_max_sample = min(out->full_max_sample, max(in->current_max_sample - offset, out->current_max_sample));
     }
-
-    for( int sample = out->current_min_sample - 1;
-            sample > in->current_max_sample - offset && sample >= out->full_min_sample;
-            sample-- ) {
-
-        for( int channel = 0; channel < out->channels; channel++ )
-            *audio_get_sample( out, sample, channel ) = 0.0f;
+    else {
+        out->current_min_sample = in_min_sample - offset;
+        out->current_max_sample = in_max_sample - offset;
     }
-
-    out->current_min_sample = max(out->full_min_sample, min(in->current_min_sample - offset, out->current_min_sample));
-    out->current_max_sample = min(out->full_max_sample, max(in->current_max_sample - offset, out->current_max_sample));
 
     if( out->current_max_sample < out->current_min_sample )
         return;
