@@ -29,7 +29,7 @@ class _DeferredFormat(object):
         self.kw = kw
 
     def __str__(self):
-        if len(self.args) > 1 or self.kw:
+        if self.args or self.kw:
             return self.format.format(*self.args, **self.kw)
 
         return self.format
