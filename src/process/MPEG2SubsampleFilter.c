@@ -49,7 +49,7 @@ MPEG2SubsampleFilter_dealloc( py_obj_MPEG2SubsampleFilter *self ) {
 }
 
 static coded_image *
-MPEG2SubsampleFilter_get_frame( py_obj_MPEG2SubsampleFilter *self, int frame ) {
+MPEG2SubsampleFilter_get_frame( py_obj_MPEG2SubsampleFilter *self, int frame, int quality ) {
     rgba_frame_gl temp_frame = { .texture = 0, .full_window = { { 0, 0 }, { 719, 479 } } };
 
     video_get_frame_gl( self->source, frame, &temp_frame );

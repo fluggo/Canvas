@@ -292,7 +292,7 @@ X264VideoEncoder_get_next_packet( py_obj_X264VideoEncoder *self ) {
     int result, nal_count;
 
     while( self->current_frame <= self->end_frame ) {
-        coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, self->current_frame );
+        coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, self->current_frame, 0 );
 
         if( !image ) {
             // TODO: Report an error instead of ending the stream early

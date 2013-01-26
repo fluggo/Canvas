@@ -61,7 +61,7 @@ CodedImageSource_get_frame( PyObject *self, PyObject *args ) {
     if( !py_coded_image_take_source( self, &holder ) )
         return NULL;
 
-    coded_image *image = holder.source.funcs->getFrame( holder.source.obj, frame );
+    coded_image *image = holder.source.funcs->getFrame( holder.source.obj, frame, 0 );
     py_coded_image_take_source( NULL, &holder );
 
     if( !image )
@@ -116,7 +116,7 @@ destroy_image( coded_image *image ) {
 }
 
 static coded_image *
-CodedImageSource_get_frame_from_python( PyObject *self, int frame ) {
+CodedImageSource_get_frame_from_python( PyObject *self, int frame, int quality ) {
     PyGILState_STATE gstate;
     gstate = PyGILState_Ensure();
 

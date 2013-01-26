@@ -57,7 +57,7 @@ DVReconstructionFilter_get_frame( py_obj_DVReconstructionFilter *self, int frame
         return;
     }
 
-    coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, frame_index );
+    coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, frame_index, 0 );
 
     if( !image ) {
         video_get_frame_f16( NULL, 0, frame );
@@ -78,7 +78,7 @@ DVReconstructionFilter_get_frame_gl( py_obj_DVReconstructionFilter *self, int fr
         return;
     }
 
-    coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, frame_index );
+    coded_image *image = self->source.source.funcs->getFrame( self->source.source.obj, frame_index, 0 );
 
     if( !image ) {
         video_get_frame_gl( NULL, 0, frame );

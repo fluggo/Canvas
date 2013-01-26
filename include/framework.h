@@ -478,7 +478,10 @@ G_GNUC_MALLOC coded_image *coded_image_alloc( const int *strides, const int *lin
 */
 G_GNUC_MALLOC coded_image *coded_image_alloc0( const int *strides, const int *line_counts, int count );
 
-typedef coded_image *(*coded_image_getFrameFunc)( void *self, int frame );
+// Quality hint, between 1 and 11. 10 is normal "best" quality,
+// 1 is fast-as-you-can, and 11 is additional-but-really-unnecessary
+// quality. 0 is taken as 10.
+typedef coded_image *(*coded_image_getFrameFunc)( void *self, int frame, int quality_hint );
 
 typedef struct {
     int flags;

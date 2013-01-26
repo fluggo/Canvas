@@ -49,7 +49,7 @@ DVSubsampleFilter_dealloc( py_obj_DVSubsampleFilter *self ) {
 }
 
 static coded_image *
-DVSubsampleFilter_get_frame( py_obj_DVSubsampleFilter *self, int frame ) {
+DVSubsampleFilter_get_frame( py_obj_DVSubsampleFilter *self, int frame, int quality ) {
     rgba_frame_f16 temp_frame;
     const v2i size = { 720, 480 };
     const box2i window = { { 0, -1 }, { 719, 478 } };

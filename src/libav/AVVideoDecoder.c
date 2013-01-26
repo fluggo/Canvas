@@ -179,7 +179,7 @@ AVVideoDecoder_dealloc( py_obj_AVVideoDecoder *self ) {
 }
 
 static coded_image *
-AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame ) {
+AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) {
     g_static_mutex_lock( &self->mutex );
 
     if( self->source.source.funcs->seek && frame != self->next_frame ) {
