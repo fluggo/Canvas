@@ -921,7 +921,7 @@ def write_audio_pcm_float(filename, source, min_sample, max_sample, sample_rate,
                         *(frame.sample(i, ch) for ch in range(channels)))
 
                 # Write the block
-                _log.debug('raw_timecode: {0}, abs_timecode {1}', raw_timecode, abs_timecode)
+                _log.debug('abs_timecode {0}', abs_timecode)
                 writer.write_simple_block(1, abs_timecode, packet, keyframe=True)
 
                 last_pts = timecode(frame.full_max_sample + 1, sample_rate, timescale)
