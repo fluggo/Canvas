@@ -280,6 +280,213 @@ test_copy_frame_attenuate_stereo_expand_channels() {
 
 
 /************
+    audio_overwrite_frame
+************/
+
+static void
+test_overwrite_frame_basic() {
+    float in_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+
+    audio_frame in = {
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
+    };
+
+    audio_frame out = {
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 1, .current_max_sample = 7,
+        .channels = 1,
+    };
+
+    audio_overwrite_frame( &out, &in, 0 );
+
+    // Check it
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 7);
+
+    g_assert_cmpfloat( out_data[0], ==, 9.0f );
+    g_assert_cmpfloat( out_data[6], ==, 9.0f );
+
+    for( int sample = 2; sample <= 6; sample++ ) {
+        g_assert_cmpfloat(*audio_get_sample( &out, sample, 0 ), ==, *audio_get_sample( &in, sample, 0 ));
+    }
+}
+
+static void
+test_overwrite_frame_basic_expand() {
+    float in_data[7] = { 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 16.0f };
+    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+
+    audio_frame in = {
+        .data = in_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
+    };
+
+    audio_frame out = {
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 1, .current_max_sample = 7,
+        .channels = 1,
+    };
+
+    audio_overwrite_frame( &out, &in, 0 );
+
+    // Check it
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 7);
+
+    g_assert_cmpfloat(*audio_get_sample( &out, 1, 0 ), ==, 9.0f);
+    g_assert_cmpfloat(*audio_get_sample( &out, 7, 0 ), ==, 9.0f);
+
+    for( int sample = 2; sample <= 6; sample++ ) {
+        g_assert_cmpfloat(*audio_get_sample( &out, sample, 0 ), ==, *audio_get_sample( &in, sample, 0 ));
+    }
+}
+
+static void
+test_overwrite_frame_basic_1ch_to_2ch() {
+    float in_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    float out_data[14] = {
+        9.0f, 8.0f,
+        9.0f, 8.0f,
+        9.0f, 8.0f,
+        9.0f, 8.0f,
+        9.0f, 8.0f,
+        9.0f, 8.0f,
+        9.0f, 8.0f };
+
+    audio_frame in = {
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
+    };
+
+    audio_frame out = {
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 1, .current_max_sample = 7,
+        .channels = 2,
+    };
+
+    audio_overwrite_frame( &out, &in, 0 );
+
+    // Check it
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 7);
+
+    g_assert_cmpfloat(*audio_get_sample( &out, 1, 0 ), ==, 9.0f);
+    g_assert_cmpfloat(*audio_get_sample( &out, 1, 1 ), ==, 8.0f);
+
+    for( int sample = 2; sample <= 6; sample++ ) {
+        g_assert_cmpfloat(*audio_get_sample( &out, sample, 0 ), ==, *audio_get_sample( &in, sample, 0 ));
+        g_assert_cmpfloat(*audio_get_sample( &out, sample, 1 ), ==, 0.0f);
+    }
+
+    g_assert_cmpfloat(*audio_get_sample( &out, 7, 0 ), ==, 9.0f);
+    g_assert_cmpfloat(*audio_get_sample( &out, 7, 1 ), ==, 8.0f);
+}
+
+static void
+test_overwrite_frame_away() {
+    float in_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+
+    audio_frame in = {
+        .data = in_data,
+        .full_min_sample = 2, .full_max_sample = 6,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
+    };
+
+    audio_frame out = {
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 2, .current_max_sample = 6,
+        .channels = 1,
+    };
+
+    // Put the source frame before the target frame
+    audio_overwrite_frame( &out, &in, -7 );
+
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
+
+    for( int sample = 2; sample <= 6; sample++ ) {
+        g_assert_cmpfloat(*audio_get_sample( &out, sample, 0 ), ==, 9.0f);
+    }
+
+    // Now after
+    audio_overwrite_frame( &out, &in, 7 );
+
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 2);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
+
+    for( int sample = 2; sample <= 6; sample++ ) {
+        g_assert_cmpfloat(*audio_get_sample( &out, sample, 0 ), ==, 9.0f);
+    }
+}
+
+static void
+test_overwrite_frame_overlap() {
+    // Partially hitting the front of the target frame and leaving a gap,
+    // which should be silenced
+    float in_data[5] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    float out_data[7] = { 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f, 9.0f };
+
+    audio_frame in = {
+        .data = in_data,
+        .full_min_sample = -2, .full_max_sample = 2,
+        .current_min_sample = -2, .current_max_sample = 2,
+        .channels = 1,
+    };
+
+    audio_frame out = {
+        .data = out_data,
+        .full_min_sample = 1, .full_max_sample = 7,
+        .current_min_sample = 4, .current_max_sample = 6,
+        .channels = 1,
+    };
+
+    audio_overwrite_frame( &out, &in, 0 );
+
+    g_assert_cmpint(out.full_min_sample, ==, 1);
+    g_assert_cmpint(out.full_max_sample, ==, 7);
+    g_assert_cmpint(out.current_min_sample, ==, 1);
+    g_assert_cmpint(out.current_max_sample, ==, 6);
+
+    // Overlapped frame
+    for( int sample = 1; sample <= 2; sample++ ) {
+        g_assert_cmpfloat(*audio_get_sample( &out, sample, 0 ), ==, *audio_get_sample( &in, sample, 0 ));
+    }
+
+    // Silenced sample
+    g_assert_cmpfloat(*audio_get_sample( &out, 3, 0 ), ==, 0.0f);
+
+    // Original data
+    for( int sample = 4; sample <= 6; sample++ ) {
+        g_assert_cmpfloat(*audio_get_sample( &out, sample, 0 ), ==, 9.0f);
+    }
+}
+
+
+/************
     audio_mix_add
 ************/
 
@@ -710,6 +917,11 @@ test_setup_audio_mix() {
     g_test_add_func( "/audio/mix/copy_frame_attenuate/basic_expand", test_copy_frame_attenuate_basic_expand );
     g_test_add_func( "/audio/mix/copy_frame_attenuate/stereo_reduce_channels", test_copy_frame_attenuate_stereo_reduce_channels );
     g_test_add_func( "/audio/mix/copy_frame_attenuate/stereo_expand_channels", test_copy_frame_attenuate_stereo_expand_channels );
+    g_test_add_func( "/audio/mix/overwrite/basic", test_overwrite_frame_basic );
+    g_test_add_func( "/audio/mix/overwrite/basic_expand", test_overwrite_frame_basic_expand );
+    g_test_add_func( "/audio/mix/overwrite/basic_1ch_to_2ch", test_overwrite_frame_basic_1ch_to_2ch );
+    g_test_add_func( "/audio/mix/overwrite/away", test_overwrite_frame_away );
+    g_test_add_func( "/audio/mix/overwrite/overlap", test_overwrite_frame_overlap );
     g_test_add_func( "/audio/mix/add/basic", test_add_basic );
     g_test_add_func( "/audio/mix/add/basic_empty_in", test_add_basic_empty_in );
     g_test_add_func( "/audio/mix/add/basic_empty_out", test_add_basic_empty_out );

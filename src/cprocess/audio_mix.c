@@ -84,6 +84,62 @@ audio_copy_frame_attenuate( audio_frame *out, const audio_frame *in, float facto
 }
 
 EXPORT void
+audio_overwrite_frame( audio_frame *out, audio_frame *in, int offset ) {
+    g_assert( out );
+    g_assert( out->data );
+    g_assert( in );
+    g_assert( in->data );
+
+    if( in->current_max_sample < in->current_min_sample )
+        return;
+
+    // Translate back to which of the input samples we'll copy
+    int in_min_sample = max(out->full_min_sample + offset, in->current_min_sample);
+    int in_max_sample = min(out->full_max_sample + offset, in->current_max_sample);
+
+    if( in_max_sample < in_min_sample )
+        return;
+
+    // Do the two frames overlap? If not, we'll have to lay down some silence
+    for( int sample = out->current_max_sample + 1;
+            sample < in->current_min_sample - offset && sample <= out->full_max_sample;
+            sample++ ) {
+
+        for( int channel = 0; channel < out->channels; channel++ )
+            *audio_get_sample( out, sample, channel ) = 0.0f;
+    }
+
+    for( int sample = out->current_min_sample - 1;
+            sample > in->current_max_sample - offset && sample >= out->full_min_sample;
+            sample-- ) {
+
+        for( int channel = 0; channel < out->channels; channel++ )
+            *audio_get_sample( out, sample, channel ) = 0.0f;
+    }
+
+    out->current_min_sample = max(out->full_min_sample, min(in->current_min_sample - offset, out->current_min_sample));
+    out->current_max_sample = min(out->full_max_sample, max(in->current_max_sample - offset, out->current_max_sample));
+
+    if( out->current_max_sample < out->current_min_sample )
+        return;
+
+    if( out->channels == in->channels ) {
+        // Easiest case: a direct copy
+        memcpy( audio_get_sample( out, in_min_sample - offset, 0 ),
+            audio_get_sample( in, in_min_sample, 0 ),
+            sizeof(float) * in->channels * (in_max_sample - in_min_sample + 1) );
+        return;
+    }
+
+    for( int in_sample = in_min_sample; in_sample <= in_max_sample; in_sample++ ) {
+        for( int channel = 0; channel < out->channels; channel++ ) {
+            *audio_get_sample( out, in_sample - offset, channel ) =
+                (channel < in->channels) ? *audio_get_sample( in, in_sample, channel ) : 0.0f;
+        }
+    }
+}
+
+EXPORT void
 audio_attenuate( audio_frame *frame, float factor ) {
     g_assert( frame );
     g_assert( frame->data );

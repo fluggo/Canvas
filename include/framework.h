@@ -337,7 +337,12 @@ extern AudioFrameSourceFuncs audio_frame_as_source_funcs;
 
 /*
     Function: audio_copy_frame
-    Copy a frame into another frame (already allocated) with a given offset.
+    Copy a frame into another frame.
+
+    This function respects the target frame's sample range (full_min_sample and
+    full_max_sample) and the number of channels, but resets its current_min_sample
+    and current_max_sample to refer to the copied samples. No samples from the
+    target frame are preserved, but the data member needs to be set.
 
     out - Destination frame.
     in - Source frame.
@@ -349,7 +354,12 @@ void audio_copy_frame( audio_frame *out, const audio_frame *in, int offset );
 
 /*
     Function: audio_copy_frame
-    Copy a frame into another frame (already allocated) with a given offset and attenuation.
+    Copy a frame into another frame with attenuation.
+
+    This function respects the target frame's sample range (full_min_sample and
+    full_max_sample) and the number of channels, but resets its current_min_sample
+    and current_max_sample to refer to the copied samples. No samples from the
+    target frame are preserved, but the data member needs to be set.
 
     out - Destination frame.
     in - Source frame.
@@ -359,6 +369,25 @@ void audio_copy_frame( audio_frame *out, const audio_frame *in, int offset );
         0, 501 to 1, and so on.
 */
 void audio_copy_frame_attenuate( audio_frame *out, const audio_frame *in, float factor, int offset );
+
+/*
+    Function: audio_overwrite_frame
+    Copy a frame over another frame.
+
+    This function writes over the samples in *out* with the corresponding
+    samples from *in*. If *in* has more channels than *out*, they are not copied.
+    If *in* has fewer channels, the extra channels are silenced.
+
+    Samples in *out* that aren't overwritten are preserved. If there's a gap
+    between the frames, it's filled with silence.
+
+    out - Destination frame.
+    in - Source frame.
+    offset - Offset, in samples, of the source frame relative to the destination frame.
+        An offset of 500, for example, would copy source sample 500 to destination sample
+        0, 501 to 1, and so on.
+*/
+void audio_overwrite_frame( audio_frame *out, audio_frame *in, int offset );
 
 /*
     Function: audio_attenuate
