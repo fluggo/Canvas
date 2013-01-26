@@ -206,7 +206,7 @@ CodedImageSource_get_frame_from_python( PyObject *self, int frame, int quality )
             destroy_image( image );
 
             g_warning(
-                "Error in plane %d: expected %zd bytes, got %zd bytes.",
+                "Error in plane %zd: expected %zd bytes, got %zd bytes.",
                 plane,
                 (Py_ssize_t) image->stride[plane] * image->line_count[plane],
                 buffer.len );
