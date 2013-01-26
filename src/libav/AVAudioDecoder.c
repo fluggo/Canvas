@@ -22,7 +22,7 @@
 #include <libavformat/avformat.h>
 
 #undef G_LOG_DOMAIN
-#define G_LOG_DOMAIN "fluggo.media.faac.AVAudioDecoder"
+#define G_LOG_DOMAIN "fluggo.media.libav.AVAudioDecoder"
 
 #if LIBAVUTIL_VERSION_INT < AV_VERSION_INT(50, 32, 0)
 #define AVSampleFormat SampleFormat
