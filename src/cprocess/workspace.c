@@ -521,10 +521,12 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
 
     g_static_mutex_unlock( &self->mutex );
 
-    // Start at the *top* and move our way to the *bottom*
+    // TODO: Start at the *top* and move our way to the *bottom*
     // When we get the opaque hint later, this will save us tons of time
     // (Also, this only works if we have only "over" operations; add, for example,
     // must be done in-order)
+
+    // Right now, this works bottom-to-top
     video_get_frame_f32( (video_source *) items[0]->source, frame_index - items[0]->x + items[0]->offset, frame );
 
     if( item_count > 1 ) {
@@ -590,7 +592,7 @@ workspace_get_frame_gl( workspace_t *self, int frame_index, rgba_frame_gl *frame
         temp_a_frame.full_window = frame->full_window;
 
         video_get_frame_gl( (video_source *) items[i]->source, frame_index - items[i]->x + items[i]->offset, &temp_a_frame );
-        video_mix_over_gl( frame, &temp_a_frame, &temp_current_frame, 1.0f );
+        video_mix_over_gl( frame, &temp_current_frame, &temp_a_frame, 1.0f );
 
         glDeleteTextures( 1, &temp_a_frame.texture );
         glDeleteTextures( 1, &temp_current_frame.texture );
