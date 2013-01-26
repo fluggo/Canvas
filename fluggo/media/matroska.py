@@ -918,7 +918,7 @@ def write_audio_pcm_float(filename, source, min_sample, max_sample, sample_rate,
                 for i in range(frame.full_min_sample, frame.full_max_sample + 1):
                     sample_struct.pack_into(packet,
                         (i - frame.full_min_sample) * sample_struct.size,
-                        *(frame.sample(i, ch) for ch in range(channels)))
+                        *(frame.sample(i, ch) or 0.0 for ch in range(channels)))
 
                 # Write the block
                 _log.debug('abs_timecode {0}', abs_timecode)
