@@ -115,7 +115,7 @@ process_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0')
 if env['PLATFORM'] == 'win32':
     process_env.Append(LIBS=['glewmx32', 'opengl32'])
 else:
-    process_env.ParseConfig('pkg-config --libs --cflags gl glewmx')
+    process_env.ParseConfig('pkg-config --libs --cflags gl glewmx python3')
     process_env.Append(LIBS=['rt'])
 
 process = process_env.SharedLibrary('fluggo/media/process', env.Glob('src/process/*.c') + env.Glob('src/cprocess/*.c'))
@@ -130,14 +130,9 @@ Alias('all', 'process')
 Default('process')
 
 if not env.Execute('@pkg-config --exists libavformat libswscale'):
-    libav_env = python_env.Clone()
-    libav_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale glib-2.0 gthread-2.0')
+    libav_env = process_env.Clone()
+    libav_env.ParseConfig('pkg-config --libs --cflags libavformat libswscale')
     libav_env.Append(LIBS=[process], CCFLAGS=['-Wno-error=deprecated-declarations'])
-
-    if env['PLATFORM'] == 'win32':
-        libav_env.Append(LIBS=['glewmx32', 'opengl32'])
-    else:
-        libav_env.ParseConfig('pkg-config --libs --cflags gl glewmx')
 
     libav = libav_env.SharedLibrary('fluggo/media/libav', env.Glob('src/libav/*.c'))
 
@@ -148,8 +143,8 @@ else:
     print 'Skipping Libav library build'
 
 if not env.Execute('@pkg-config --exists x264'):
-    x264_env = python_env.Clone()
-    x264_env.ParseConfig('pkg-config --libs --cflags x264 glib-2.0 gthread-2.0 gl glewmx')
+    x264_env = process_env.Clone()
+    x264_env.ParseConfig('pkg-config --libs --cflags x264')
     x264_env.Append(LIBS=[process])
 
     x264 = x264_env.SharedLibrary('fluggo/media/x264', env.Glob('src/x264/*.c'))
@@ -161,8 +156,7 @@ else:
     print 'Skipping x264 library build'
 
 if has_libfaac:
-    faac_env = python_env.Clone()
-    faac_env.ParseConfig('pkg-config --libs --cflags glib-2.0 gthread-2.0 gl glewmx')
+    faac_env = process_env.Clone()
     faac_env.Append(LIBS=[process, 'faac'])
 
     faac = faac_env.SharedLibrary('fluggo/media/faac', env.Glob('src/faac/*.c'))
@@ -173,9 +167,22 @@ if has_libfaac:
 else:
     print 'Skipping faac library build'
 
+if not env.Execute('@pkg-config --exists libdv'):
+    libdv_env = process_env.Clone()
+    libdv_env.ParseConfig('pkg-config --libs --cflags libdv')
+    libdv_env.Append(LIBS=[process])
+
+    libdv = libdv_env.SharedLibrary('fluggo/media/libdv', env.Glob('src/libdv/*.c'))
+
+    Alias('libdv', libdv)
+    Alias('all', 'libdv')
+    Default('libdv')
+else:
+    print 'Skipping libdv library build'
+
 if not env.Execute('@pkg-config --exists gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0'):
-    gtk_env = python_env.Clone()
-    gtk_env.ParseConfig('pkg-config --libs --cflags gl gthread-2.0 gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0 glewmx')
+    gtk_env = process_env.Clone()
+    gtk_env.ParseConfig('pkg-config --libs --cflags gtk+-2.0 gtkglext-1.0 pygtk-2.0 pygobject-2.0')
     gtk_env.Append(LIBS=[process])
     gtk = gtk_env.SharedLibrary('fluggo/media/gtk', ['src/gtk/GtkVideoWidget.c'])
 
@@ -186,8 +193,8 @@ else:
     print 'Skipping GTK build'
 
 if not env.Execute('@pkg-config --exists alsa'):
-    alsa_env = python_env.Clone()
-    alsa_env.ParseConfig('pkg-config --libs --cflags alsa glib-2.0 gthread-2.0 gl glewmx')
+    alsa_env = process_env.Clone()
+    alsa_env.ParseConfig('pkg-config --libs --cflags alsa')
     alsa_env.Append(LIBS=[process])
     alsa = alsa_env.SharedLibrary('fluggo/media/alsa', alsa_env.Glob('src/alsa/*.c'))
 
@@ -258,10 +265,8 @@ except Exception as ex:
     print 'Skipping Qt4 build: ' + str(ex)
 
 # Tests
-testenv = env.Clone()
-testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=[process, 'GLEW', 'm', 'rt'])
-if env['PLATFORM'] != 'win32':
-    testenv.ParseConfig('pkg-config --libs --cflags gl glib-2.0 gthread-2.0')
+testenv = process_env.Clone()
+testenv.Append(ENV={'PYTHONPATH': env.Dir('.')}, LIBS=[process])
 
 test_cprocess = testenv.Program('tests/cprocess_test', env.Glob('src/tests/*.c'))
 testenv.Alias('test', testenv.Command('test_dummy', 'tests/cprocess_test', '@tests/cprocess_test'))
