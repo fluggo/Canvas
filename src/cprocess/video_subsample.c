@@ -481,6 +481,11 @@ video_subsample_mpeg2_gl( rgba_frame_gl *frame ) {
         glDrawBuffers( 2, buffers );
 
         glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+
+        glFramebufferTexture2DEXT( GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT1_EXT,
+            GL_TEXTURE_RECTANGLE_ARB, 0, 0 );
+
+        glDrawBuffers( 1, buffers );
     }
     else {
         // The slow way; draw twice
