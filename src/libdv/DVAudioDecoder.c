@@ -378,11 +378,11 @@ DVAudioDecoder_get_frame( py_obj_DVAudioDecoder *self, audio_frame *frame ) {
             tts.sample = packet_start;
             int64_t expected_sample = tts.timestamp * dv_get_frequency( self->decoder ) * 1001 / 30000;
 
-            g_debug( "Adding to timestamp table %"PRId64" (%"PRId64"->%"PRId64", %s %"PRId64")",
+            g_debug( "Adding to timestamp table %"PRId64" (%"PRId64"->%"PRId64", %s %"PRIdMAX")",
                 tts.timestamp, expected_sample, tts.sample,
                 (expected_sample == tts.sample) ? "even" :
                     ((expected_sample > tts.sample) ? "ahead" : "behind"),
-                llabs(tts.sample - expected_sample) );
+                imaxabs(tts.sample - expected_sample) );
 
             timestamp_to_sample *ttsptr = g_slice_dup( timestamp_to_sample, &tts );
 
