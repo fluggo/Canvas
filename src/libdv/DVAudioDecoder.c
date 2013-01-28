@@ -25,7 +25,10 @@
 #define G_LOG_DOMAIN "fluggo.media.libdv.DVAudioDecoder"
 
 typedef struct {
+    // Timestamp on input packet, which will be in video frames
     int64_t timestamp;
+
+    // Sample at the start of the packet
     int64_t sample;
 } timestamp_to_sample;
 
@@ -155,18 +158,18 @@ DVAudioDecoder_get_frame( py_obj_DVAudioDecoder *self, audio_frame *frame ) {
             do_seek = frame->full_min_sample < self->current_pts ||
                 frame->full_min_sample >= (self->current_pts + 10000);
 
-            if( do_seek )
-                g_debug( "Looks like we need to seek..." );
-
             // But don't do it if our last frame contains the seek point
             if( do_seek &&
                     self->input_frame.data &&
                     self->input_frame.full_max_sample + 1 == self->current_pts &&
                     frame->full_min_sample >= self->input_frame.full_min_sample &&
                     frame->full_min_sample <= self->current_pts ) {
-                g_debug( "Skip seek, previous frame contains our read point" );
+                g_debug( "Previous frame contains our read point" );
                 do_seek = false;
             }
+
+            if( do_seek )
+                g_debug( "Looks like we need to seek..." );
         }
 
         if( do_seek && frame->full_min_sample > self->max_sample_seen ) {
@@ -174,12 +177,47 @@ DVAudioDecoder_get_frame( py_obj_DVAudioDecoder *self, audio_frame *frame ) {
             do_seek = false;
         }
 
-        if( do_seek )
-            g_debug( "Deciding to seek, current %" PRId64 " vs. target %d", self->current_pts, frame->full_min_sample );
-
         if( do_seek ) {
-            if( !self->source.source.funcs->seek( self->source.source.obj, frame->full_min_sample ) ) {
-                g_warning( "Failed to seek to sample %d", frame->full_min_sample );
+            // Look up the target frame so we know exactly where to seek to
+            int64_t target_frame = dv_system_50_fields( self->decoder ) ?
+                (25 * (int64_t) frame->full_min_sample / dv_get_frequency( self->decoder )) :
+                (30000 * (int64_t) frame->full_min_sample / (dv_get_frequency( self->decoder ) * 1001));
+
+            if( target_frame != 0 )
+                target_frame--;
+
+            timestamp_to_sample tts = { .timestamp = target_frame };
+
+            GSequenceIter *iter = g_sequence_lookup( self->timestamp_to_sample,
+                &tts, (GCompareDataFunc) compare_tts, NULL );
+
+            if( iter ) {
+                timestamp_to_sample *ttsptr = g_sequence_get( iter );
+
+                while( ttsptr->sample > frame->full_min_sample && !g_sequence_iter_is_begin( iter ) ) {
+                    iter = g_sequence_iter_prev( iter );
+                    ttsptr = g_sequence_get( iter );
+                }
+
+                iter = g_sequence_iter_next( iter );
+                timestamp_to_sample *nexttts = g_sequence_get( iter );
+
+                while( nexttts && nexttts->sample > frame->full_max_sample && !g_sequence_iter_is_end( iter ) ) {
+                    ttsptr = nexttts;
+                    iter = g_sequence_iter_next( iter );
+                    nexttts = g_sequence_get( iter );
+                }
+
+                target_frame = ttsptr->timestamp;
+            }
+            else {
+                g_warning( "Could not find timestamp lookup for correct seek to %d, seeking to %"PRId64" instead", frame->full_min_sample, target_frame );
+            }
+
+            g_debug( "Deciding to seek to frame %"PRId64", current sample %" PRId64 " vs. target sample %d", target_frame, self->current_pts, frame->full_min_sample );
+
+            if( !self->source.source.funcs->seek( self->source.source.obj, target_frame ) ) {
+                g_warning( "Failed to seek to frame %"PRId64, target_frame );
                 g_static_mutex_unlock( &self->mutex );
                 return;
             }
@@ -271,7 +309,26 @@ DVAudioDecoder_get_frame( py_obj_DVAudioDecoder *self, audio_frame *frame ) {
 
         if( !dv_decode_full_audio( self->decoder, (uint8_t *) packet->data, bufptrs ) ) {
             g_warning( "Could not decode the audio at frame %"PRId64, packet->pts );
-            break;
+            self->current_pts_valid = false;
+
+            int64_t target_sample = dv_system_50_fields( self->decoder ) ?
+                (packet->pts * dv_get_frequency( self->decoder ) / 25) :
+                (packet->pts * dv_get_frequency( self->decoder ) * 1001 / 30000);
+
+            timestamp_to_sample dead_packet = {
+                .timestamp = packet->pts,
+                .sample = target_sample };
+
+            GSequenceIter *dead_iter = g_sequence_lookup( self->timestamp_to_sample,
+                &dead_packet, (GCompareDataFunc) compare_tts, NULL );
+
+            if( !dead_iter ) {
+                timestamp_to_sample *ttsptr = g_slice_dup( timestamp_to_sample, &dead_packet );
+                g_sequence_insert_sorted( self->timestamp_to_sample,
+                    ttsptr, (GCompareDataFunc) compare_tts, NULL );
+            }
+
+            continue;
         }
 
         int block_failure = self->decoder->audio->block_failure;
@@ -319,7 +376,13 @@ DVAudioDecoder_get_frame( py_obj_DVAudioDecoder *self, audio_frame *frame ) {
             }
 
             tts.sample = packet_start;
-            g_debug( "Adding to timestamp table %"PRId64"->%"PRId64, tts.timestamp, tts.sample );
+            int64_t expected_sample = tts.timestamp * dv_get_frequency( self->decoder ) * 1001 / 30000;
+
+            g_debug( "Adding to timestamp table %"PRId64" (%"PRId64"->%"PRId64", %s %"PRId64")",
+                tts.timestamp, expected_sample, tts.sample,
+                (expected_sample == tts.sample) ? "even" :
+                    ((expected_sample > tts.sample) ? "ahead" : "behind"),
+                llabs(tts.sample - expected_sample) );
 
             timestamp_to_sample *ttsptr = g_slice_dup( timestamp_to_sample, &tts );
 
