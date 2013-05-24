@@ -28,7 +28,7 @@ typedef struct {
     video_source *source;
     int offset, start_frame, end_frame;
     bool start_frame_valid, end_frame_valid;
-    GStaticRWLock rwlock;
+    GRWLock rwlock;
 } py_obj_VideoPassThroughFilter;
 
 static int VideoPassThroughFilter_set_start_frame( py_obj_VideoPassThroughFilter *self, PyObject *value, void *closure );
@@ -62,14 +62,14 @@ VideoPassThroughFilter_init( py_obj_VideoPassThroughFilter *self, PyObject *args
     if( !py_video_take_source( source, &self->source ) )
         return -1;
 
-    g_static_rw_lock_init( &self->rwlock );
+    g_rw_lock_init( &self->rwlock );
 
     return 0;
 }
 
 static void
 VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_f16 *frame ) {
-    g_static_rw_lock_reader_lock( &self->rwlock );
+    g_rw_lock_reader_lock( &self->rwlock );
 
     if( self->start_frame_valid && frameIndex < self->start_frame ) {
         box2i_set_empty( &frame->current_window );
@@ -81,12 +81,12 @@ VideoPassThroughFilter_getFrame( py_obj_VideoPassThroughFilter *self, int frameI
         video_get_frame_f16( self->source, frameIndex + self->offset, frame );
     }
 
-    g_static_rw_lock_reader_unlock( &self->rwlock );
+    g_rw_lock_reader_unlock( &self->rwlock );
 }
 
 static void
 VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_f32 *frame ) {
-    g_static_rw_lock_reader_lock( &self->rwlock );
+    g_rw_lock_reader_lock( &self->rwlock );
 
     if( self->start_frame_valid && frameIndex < self->start_frame ) {
         box2i_set_empty( &frame->current_window );
@@ -98,12 +98,12 @@ VideoPassThroughFilter_getFrame32( py_obj_VideoPassThroughFilter *self, int fram
         video_get_frame_f32( self->source, frameIndex + self->offset, frame );
     }
 
-    g_static_rw_lock_reader_unlock( &self->rwlock );
+    g_rw_lock_reader_unlock( &self->rwlock );
 }
 
 static void
 VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int frameIndex, rgba_frame_gl *frame ) {
-    g_static_rw_lock_reader_lock( &self->rwlock );
+    g_rw_lock_reader_lock( &self->rwlock );
 
     if( self->start_frame_valid && frameIndex < self->start_frame ) {
         video_get_frame_gl( NULL, frameIndex + self->offset, frame );
@@ -115,7 +115,7 @@ VideoPassThroughFilter_getFrameGL( py_obj_VideoPassThroughFilter *self, int fram
         video_get_frame_gl( self->source, frameIndex + self->offset, frame );
     }
 
-    g_static_rw_lock_reader_unlock( &self->rwlock );
+    g_rw_lock_reader_unlock( &self->rwlock );
 }
 
 static void
@@ -142,7 +142,7 @@ VideoPassThroughFilter_dealloc( py_obj_VideoPassThroughFilter *self ) {
     // have to worry about syncing in dealloc.
 
     py_video_take_source( NULL, &self->source );
-    g_static_rw_lock_free( &self->rwlock );
+    g_rw_lock_clear( &self->rwlock );
 
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
@@ -163,14 +163,14 @@ VideoPassThroughFilter_setSource( py_obj_VideoPassThroughFilter *self, PyObject 
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return NULL;
 
-    g_static_rw_lock_writer_lock( &self->rwlock );
+    g_rw_lock_writer_lock( &self->rwlock );
 
     if( !py_video_take_source( source, &self->source ) ) {
-        g_static_rw_lock_writer_unlock( &self->rwlock );
+        g_rw_lock_writer_unlock( &self->rwlock );
         return NULL;
     }
 
-    g_static_rw_lock_writer_unlock( &self->rwlock );
+    g_rw_lock_writer_unlock( &self->rwlock );
 
     Py_RETURN_NONE;
 }

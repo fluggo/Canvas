@@ -27,7 +27,7 @@ typedef struct {
 
     video_source *source;
     FrameFunctionHolder gain_func, offset_func;
-    GStaticRWLock rwlock;
+    GRWLock rwlock;
 } py_obj_VideoGainOffsetFilter;
 
 static int
@@ -58,7 +58,7 @@ VideoGainOffsetFilter_init( py_obj_VideoGainOffsetFilter *self, PyObject *args, 
         return -1;
     }
 
-    g_static_rw_lock_init( &self->rwlock );
+    g_rw_lock_init( &self->rwlock );
 
     return 0;
 }
@@ -68,13 +68,13 @@ VideoGainOffsetFilter_get_frame_gl( py_obj_VideoGainOffsetFilter *self, int fram
     rgba_frame_gl temp = { .full_window = frame->full_window };
     float gain, offset;
 
-    g_static_rw_lock_reader_lock( &self->rwlock );
+    g_rw_lock_reader_lock( &self->rwlock );
 
     video_get_frame_gl( self->source, frame_index, &temp );
     gain = framefunc_get_f32( &self->gain_func, frame_index );
     offset = framefunc_get_f32( &self->offset_func, frame_index );
 
-    g_static_rw_lock_reader_unlock( &self->rwlock );
+    g_rw_lock_reader_unlock( &self->rwlock );
 
     video_filter_gain_offset_gl( frame, &temp, gain, offset );
 
@@ -84,7 +84,7 @@ VideoGainOffsetFilter_get_frame_gl( py_obj_VideoGainOffsetFilter *self, int fram
 static void
 VideoGainOffsetFilter_dealloc( py_obj_VideoGainOffsetFilter *self ) {
     py_video_take_source( NULL, &self->source );
-    g_static_rw_lock_free( &self->rwlock );
+    g_rw_lock_clear( &self->rwlock );
 
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
@@ -105,14 +105,14 @@ VideoGainOffsetFilter_set_source( py_obj_VideoGainOffsetFilter *self, PyObject *
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return NULL;
 
-    g_static_rw_lock_writer_lock( &self->rwlock );
+    g_rw_lock_writer_lock( &self->rwlock );
 
     if( !py_video_take_source( source, &self->source ) ) {
-        g_static_rw_lock_writer_unlock( &self->rwlock );
+        g_rw_lock_writer_unlock( &self->rwlock );
         return NULL;
     }
 
-    g_static_rw_lock_writer_unlock( &self->rwlock );
+    g_rw_lock_writer_unlock( &self->rwlock );
 
     Py_RETURN_NONE;
 }
@@ -129,9 +129,9 @@ VideoGainOffsetFilter_get_gain( py_obj_VideoGainOffsetFilter *self, void *closur
 
 static int
 VideoGainOffsetFilter_set_gain( py_obj_VideoGainOffsetFilter *self, PyObject *gain_obj, void *closure ) {
-    g_static_rw_lock_writer_lock( &self->rwlock );
+    g_rw_lock_writer_lock( &self->rwlock );
     bool success = py_framefunc_take_source( gain_obj, &self->gain_func );
-    g_static_rw_lock_writer_unlock( &self->rwlock );
+    g_rw_lock_writer_unlock( &self->rwlock );
 
     if( success )
         return 0;
@@ -151,9 +151,9 @@ VideoGainOffsetFilter_get_offset( py_obj_VideoGainOffsetFilter *self, void *clos
 
 static int
 VideoGainOffsetFilter_set_offset( py_obj_VideoGainOffsetFilter *self, PyObject *offset_obj, void *closure ) {
-    g_static_rw_lock_writer_lock( &self->rwlock );
+    g_rw_lock_writer_lock( &self->rwlock );
     bool success = py_framefunc_take_source( offset_obj, &self->offset_func );
-    g_static_rw_lock_writer_unlock( &self->rwlock );
+    g_rw_lock_writer_unlock( &self->rwlock );
 
     if( success )
         return 0;

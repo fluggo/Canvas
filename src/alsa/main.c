@@ -43,9 +43,6 @@ PyInit_alsa() {
 
     init_AlsaPlayer( m );
 
-    if( !g_thread_supported() )
-        g_thread_init( NULL );
-
     return m;
 }
 

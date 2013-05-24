@@ -406,9 +406,6 @@ PyInit_process() {
 
     PyModule_AddObject( m, "NS_PER_SEC", PyLong_FromLongLong( NS_PER_SEC ) );
 
-    if( !g_thread_supported() )
-        g_thread_init( NULL );
-
     // Connect GLib logging support to Python logging
     PyObject *logging_module = PyImport_ImportModule( "logging" );
     __getLoggerFunc = PyObject_GetAttrString( logging_module, "getLogger" );

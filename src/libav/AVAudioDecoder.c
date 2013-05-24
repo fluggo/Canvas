@@ -76,7 +76,7 @@ typedef struct {
     int64_t current_pts;
     bool current_pts_valid;
 
-    GStaticMutex mutex;
+    GMutex mutex;
 } py_obj_AVAudioDecoder;
 
 static int
@@ -147,7 +147,7 @@ AVAudioDecoder_init( py_obj_AVAudioDecoder *self, PyObject *args, PyObject *kw )
     }
 
     self->context_open = true;
-    g_static_mutex_init( &self->mutex );
+    g_mutex_init( &self->mutex );
 
     if( !self->trust_timestamps ) {
         self->timestamp_to_sample = g_sequence_new( (GDestroyNotify) destroy_tts );
@@ -184,7 +184,7 @@ AVAudioDecoder_dealloc( py_obj_AVAudioDecoder *self ) {
     }
 
     py_codec_packet_take_source( NULL, &self->source );
-    g_static_mutex_free( &self->mutex );
+    g_mutex_clear( &self->mutex );
 
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
@@ -238,7 +238,7 @@ static int get_sample_count( int bytes, enum AVSampleFormat sample_fmt, int chan
 
 static void
 AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     // BJC: What does trust_timestamps mean? Well, some containers have timestamps
     // that are less precise than their sample rate. DV, for example, has timestamps
@@ -292,7 +292,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
         if( do_seek ) {
             if( !self->source.source.funcs->seek( self->source.source.obj, frame->full_min_sample ) ) {
                 g_warning( "Failed to seek to sample %d", frame->full_min_sample );
-                g_static_mutex_unlock( &self->mutex );
+                g_mutex_unlock( &self->mutex );
                 return;
             }
 
@@ -325,7 +325,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
         // We could be done...
         if( frame->current_min_sample == frame->full_min_sample && frame->current_max_sample == frame->full_max_sample ) {
             g_debug( "Going home early: (%"PRId64", %d)", start_sample, duration );
-            g_static_mutex_unlock( &self->mutex );
+            g_mutex_unlock( &self->mutex );
             return;
         }
     }
@@ -340,7 +340,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
 
             if( !self->last_packet ) {
                 // End of stream!
-                g_static_mutex_unlock( &self->mutex );
+                g_mutex_unlock( &self->mutex );
                 return;
             }
 
@@ -379,7 +379,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
                 (int16_t*) self->input_frame.data[0], &buffer_size, &self->input_packet )) < 0 ) {
 #endif
             g_warning( "Could not decode the audio (%s).", g_strerror( -decoded ) );
-            g_static_mutex_unlock( &self->mutex );
+            g_mutex_unlock( &self->mutex );
             return;
         }
 
@@ -488,7 +488,7 @@ AVAudioDecoder_get_frame( py_obj_AVAudioDecoder *self, audio_frame *frame ) {
 
         if( packet_start + packet_duration >= frame->full_max_sample ) {
             g_debug( "Enough: (%d, %d) vs (%d, %d)", frame->current_min_sample, frame->current_max_sample, frame->full_min_sample, frame->full_max_sample );
-            g_static_mutex_unlock( &self->mutex );
+            g_mutex_unlock( &self->mutex );
             return;
         }
         else {

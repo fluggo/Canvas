@@ -27,7 +27,7 @@ typedef struct {
 
     FrameFunctionHolder source;
     double offset;
-    GStaticRWLock rwlock;
+    GRWLock rwlock;
 } py_obj_FrameFuncPassThroughFilter;
 
 static int
@@ -50,14 +50,14 @@ FrameFuncPassThroughFilter_init( py_obj_FrameFuncPassThroughFilter *self, PyObje
     if( !py_framefunc_take_source( source, &self->source ) )
         return -1;
 
-    g_static_rw_lock_init( &self->rwlock );
+    g_rw_lock_init( &self->rwlock );
 
     return 0;
 }
 
 static void
 FrameFuncPassThroughFilter_get_values( py_obj_FrameFuncPassThroughFilter *self, ssize_t count, double *frames, double (*out_values)[4] ) {
-    g_static_rw_lock_reader_lock( &self->rwlock );
+    g_rw_lock_reader_lock( &self->rwlock );
 
     if( self->source.funcs && self->source.funcs->get_values ) {
         // Add the offset
@@ -84,13 +84,13 @@ FrameFuncPassThroughFilter_get_values( py_obj_FrameFuncPassThroughFilter *self, 
         }
     }
 
-    g_static_rw_lock_reader_unlock( &self->rwlock );
+    g_rw_lock_reader_unlock( &self->rwlock );
 }
 
 static void
 FrameFuncPassThroughFilter_dealloc( py_obj_FrameFuncPassThroughFilter *self ) {
     py_framefunc_take_source( NULL, &self->source );
-    g_static_rw_lock_free( &self->rwlock );
+    g_rw_lock_clear( &self->rwlock );
 
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
@@ -111,14 +111,14 @@ FrameFuncPassThroughFilter_setSource( py_obj_FrameFuncPassThroughFilter *self, P
     if( !PyArg_ParseTuple( args, "O", &source ) )
         return NULL;
 
-    g_static_rw_lock_writer_lock( &self->rwlock );
+    g_rw_lock_writer_lock( &self->rwlock );
 
     if( !py_framefunc_take_source( source, &self->source ) ) {
-        g_static_rw_lock_writer_unlock( &self->rwlock );
+        g_rw_lock_writer_unlock( &self->rwlock );
         return NULL;
     }
 
-    g_static_rw_lock_writer_unlock( &self->rwlock );
+    g_rw_lock_writer_unlock( &self->rwlock );
 
     Py_RETURN_NONE;
 }

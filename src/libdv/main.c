@@ -57,9 +57,6 @@ PyInit_libdv() {
     if( !init_DVAudioDecoder( m ) )
         return NULL;
 
-    if( !g_thread_supported() )
-        g_thread_init( NULL );
-
     // Init libDV with no clamping
     // We do this once here because dv_init is not reentrant
     dv_init( FALSE, FALSE );

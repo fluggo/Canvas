@@ -66,9 +66,6 @@ PyInit_libav() {
     init_AVMuxer( m );
     init_AVContainer( m );
 
-    if( !g_thread_supported() )
-        g_thread_init( NULL );
-
     // Declare Libav pixel formats
     PyModule_AddIntMacro( m, PIX_FMT_NONE );
     PyModule_AddIntMacro( m, PIX_FMT_YUV420P );

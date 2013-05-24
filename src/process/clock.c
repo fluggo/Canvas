@@ -221,12 +221,12 @@ EXPORT bool py_presentation_clock_take_source( PyObject *source, PresentationClo
 typedef struct {
     PyObject_HEAD
 
-    GMutex *mutex;
+    GMutex mutex;
     int64_t seekTime, baseTime;
     ClockRegions regions;
     rational speed;
 
-    GStaticRWLock callback_lock;
+    GRWLock callback_lock;
     callback_info *callbacks;
 } py_obj_SystemPresentationClock;
 
@@ -236,7 +236,6 @@ SystemPresentationClock_init( py_obj_SystemPresentationClock *self, PyObject *ar
     self->seekTime = INT64_C(0);
     self->speed.n = 0;
     self->speed.d = 1;
-    self->mutex = g_mutex_new();
     self->baseTime = gettime();
     self->regions.playbackMin = 0;
     self->regions.playbackMax = 0;
@@ -244,7 +243,8 @@ SystemPresentationClock_init( py_obj_SystemPresentationClock *self, PyObject *ar
     self->regions.loopMax = -1;
     self->regions.flags = 0;
     self->callbacks = NULL;
-    g_static_rw_lock_init( &self->callback_lock );
+    g_mutex_init( &self->mutex );
+    g_rw_lock_init( &self->callback_lock );
 
     return 0;
 }
@@ -262,34 +262,34 @@ SystemPresentationClock_dealloc( py_obj_SystemPresentationClock *self ) {
         g_slice_free( callback_info, info );
     }
 
-    g_mutex_free( self->mutex );
-    g_static_rw_lock_free( &self->callback_lock );
+    g_mutex_clear( &self->mutex );
+    g_rw_lock_clear( &self->callback_lock );
 
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static void
 _set( py_obj_SystemPresentationClock *self, int64_t seek_time, rational *speed ) {
-    g_mutex_lock( self->mutex );
+    g_mutex_lock( &self->mutex );
     self->baseTime = gettime();
     self->seekTime = seek_time;
     self->speed = *speed;
-    g_mutex_unlock( self->mutex );
+    g_mutex_unlock( &self->mutex );
 
-    g_static_rw_lock_reader_lock( &self->callback_lock );
+    g_rw_lock_reader_lock( &self->callback_lock );
     for( callback_info *ptr = self->callbacks; ptr != NULL; ptr = ptr->next ) {
         ptr->callback( ptr->data, speed, seek_time );
     }
-    g_static_rw_lock_reader_unlock( &self->callback_lock );
+    g_rw_lock_reader_unlock( &self->callback_lock );
 }
 
 static int64_t
 _getPresentationTime( py_obj_SystemPresentationClock *self ) {
-    g_mutex_lock( self->mutex );
+    g_mutex_lock( &self->mutex );
     int64_t seekTime = self->seekTime;
 
     if( self->speed.n == 0 ) {
-        g_mutex_unlock( self->mutex );
+        g_mutex_unlock( &self->mutex );
         return seekTime;
     }
 
@@ -333,16 +333,16 @@ _getPresentationTime( py_obj_SystemPresentationClock *self ) {
         }
     }*/
 
-    g_mutex_unlock( self->mutex );
+    g_mutex_unlock( &self->mutex );
 
     return currentTime;
 }
 
 static void
 _getSpeed( py_obj_SystemPresentationClock *self, rational *result ) {
-    g_mutex_lock( self->mutex );
+    g_mutex_lock( &self->mutex );
     *result = self->speed;
-    g_mutex_unlock( self->mutex );
+    g_mutex_unlock( &self->mutex );
 }
 
 static PyObject *
@@ -408,10 +408,10 @@ _register_callback( py_obj_SystemPresentationClock *self, clock_callback_func ca
     info->callback = callback;
     info->notify = notify;
 
-    g_static_rw_lock_writer_lock( &self->callback_lock );
+    g_rw_lock_writer_lock( &self->callback_lock );
     info->next = self->callbacks;
     self->callbacks = info;
-    g_static_rw_lock_writer_unlock( &self->callback_lock );
+    g_rw_lock_writer_unlock( &self->callback_lock );
 
     return self->callbacks;
 }
@@ -419,7 +419,7 @@ _register_callback( py_obj_SystemPresentationClock *self, clock_callback_func ca
 static void
 _unregister_callback( py_obj_SystemPresentationClock *self, callback_info *info ) {
     // Unlink it
-    g_static_rw_lock_writer_lock( &self->callback_lock );
+    g_rw_lock_writer_lock( &self->callback_lock );
     if( self->callbacks == info ) {
         self->callbacks = info->next;
     }
@@ -431,7 +431,7 @@ _unregister_callback( py_obj_SystemPresentationClock *self, callback_info *info 
             }
         }
     }
-    g_static_rw_lock_writer_unlock( &self->callback_lock );
+    g_rw_lock_writer_unlock( &self->callback_lock );
 
     // Call the GDestroyNotify to let them know we don't hold this anymore
     if( info->notify )

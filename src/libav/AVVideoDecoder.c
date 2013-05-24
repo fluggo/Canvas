@@ -114,7 +114,7 @@ typedef struct {
     AVCodecContext context;
     int64_t next_frame;
 
-    GStaticMutex mutex;
+    GMutex mutex;
 } py_obj_AVVideoDecoder;
 
 static int
@@ -159,7 +159,7 @@ AVVideoDecoder_init( py_obj_AVVideoDecoder *self, PyObject *args, PyObject *kw )
         return -1;
     }
 
-    g_static_mutex_init( &self->mutex );
+    g_mutex_init( &self->mutex );
 
     self->next_frame = 0;
     self->context.get_buffer = counted_get_buffer;
@@ -173,18 +173,18 @@ AVVideoDecoder_dealloc( py_obj_AVVideoDecoder *self ) {
     avcodec_close( &self->context );
 
     py_codec_packet_take_source( NULL, &self->source );
-    g_static_mutex_free( &self->mutex );
+    g_mutex_clear( &self->mutex );
 
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
 static coded_image *
 AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) {
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     if( self->source.source.funcs->seek && frame != self->next_frame ) {
         if( !self->source.source.funcs->seek( self->source.source.obj, frame ) ) {
-            g_static_mutex_unlock( &self->mutex );
+            g_mutex_unlock( &self->mutex );
             return NULL;
         }
     }
@@ -211,7 +211,7 @@ AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) 
         packet = self->source.source.funcs->getNextPacket( self->source.source.obj );
 
         if( !packet ) {
-            g_static_mutex_unlock( &self->mutex );
+            g_mutex_unlock( &self->mutex );
             return NULL;
         }
 
@@ -246,7 +246,7 @@ AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) 
         my_coded_image *image = (my_coded_image*) av_frame.opaque;
         g_atomic_int_inc( &image->ref_count );
 
-        g_static_mutex_unlock( &self->mutex );
+        g_mutex_unlock( &self->mutex );
 
         return &image->image;
     }

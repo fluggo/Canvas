@@ -48,9 +48,6 @@ PyInit_x264() {
 
     init_X264VideoEncoder( m );
 
-    if( !g_thread_supported() )
-        g_thread_init( NULL );
-
     return m;
 }
 

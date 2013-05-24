@@ -52,7 +52,7 @@ struct workspace_t_tag {
     // This is quick and dirty and works.
 
     // mutex - protects leftiter, rightiter, start_frame, end_frame, and composite_list
-    GStaticMutex mutex;
+    GMutex mutex;
     GSequenceIter *leftiter, *rightiter;
     int start_frame, end_frame;
 
@@ -108,7 +108,7 @@ EXPORT workspace_t *
 workspace_create() {
     workspace_t *result = g_slice_new0( workspace_t );
 
-    g_static_mutex_init( &result->mutex );
+    g_mutex_init( &result->mutex );
     result->leftsort = g_sequence_new( NULL );
     result->rightsort = g_sequence_new( NULL );
     result->leftiter = g_sequence_get_begin_iter( result->leftsort );
@@ -318,7 +318,7 @@ workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t lengt
     item->source = source;
     item->tag = tag;
 
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     // Add to general lists
     item->leftiter = g_sequence_insert_sorted( self->leftsort, item, cmp_left, NULL );
@@ -333,7 +333,7 @@ workspace_add_item( workspace_t *self, gpointer source, int64_t x, int64_t lengt
     else
         item->compiter = NULL;
 
-    g_static_mutex_unlock( &self->mutex );
+    g_mutex_unlock( &self->mutex );
 
     return item;
 }
@@ -424,7 +424,7 @@ workspace_move_item_z( workspace_item_t *item, int64_t z ) {
 EXPORT void
 workspace_update_item( workspace_item_t *item, int64_t *x, int64_t *length, int64_t *z, int64_t *offset, gpointer *source, gpointer *tag ) {
     workspace_t *self = item->workspace;
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     if( x || length ) {
         int64_t old_x = item->x, old_length = item->length;
@@ -450,13 +450,13 @@ workspace_update_item( workspace_item_t *item, int64_t *x, int64_t *length, int6
     if( tag )
         item->tag = *tag;
 
-    g_static_mutex_unlock( &self->mutex );
+    g_mutex_unlock( &self->mutex );
 }
 
 EXPORT void
 workspace_remove_item( workspace_item_t *item ) {
     workspace_t *self = item->workspace;
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     // Remove from leftsort (delicately)
     bool match_left = (g_sequence_iter_compare( self->leftiter, item->leftiter ) == 0);
@@ -488,12 +488,12 @@ workspace_remove_item( workspace_item_t *item ) {
 
     item->workspace = NULL;
     g_slice_free( workspace_item_t, item );
-    g_static_mutex_unlock( &self->mutex );
+    g_mutex_unlock( &self->mutex );
 }
 
 static void
 workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *frame ) {
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     // Update the composite list
     workspace_move_it( self, frame_index, frame_index );
@@ -503,7 +503,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
 
     if( !item_count ) {
         box2i_set_empty( &frame->current_window );
-        g_static_mutex_unlock( &self->mutex );
+        g_mutex_unlock( &self->mutex );
         return;
     }
 
@@ -519,7 +519,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
         iter = g_sequence_iter_prev( iter );
     }
 
-    g_static_mutex_unlock( &self->mutex );
+    g_mutex_unlock( &self->mutex );
 
     // TODO: Start at the *top* and move our way to the *bottom*
     // When we get the opaque hint later, this will save us tons of time
@@ -551,7 +551,7 @@ workspace_get_frame_f32( workspace_t *self, int frame_index, rgba_frame_f32 *fra
 
 static void
 workspace_get_frame_gl( workspace_t *self, int frame_index, rgba_frame_gl *frame ) {
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     // Update the composite list
     workspace_move_it( self, frame_index, frame_index );
@@ -561,7 +561,7 @@ workspace_get_frame_gl( workspace_t *self, int frame_index, rgba_frame_gl *frame
 
     if( !item_count ) {
         box2i_set_empty( &frame->current_window );
-        g_static_mutex_unlock( &self->mutex );
+        g_mutex_unlock( &self->mutex );
         return;
     }
 
@@ -577,7 +577,7 @@ workspace_get_frame_gl( workspace_t *self, int frame_index, rgba_frame_gl *frame
         iter = g_sequence_iter_prev( iter );
     }
 
-    g_static_mutex_unlock( &self->mutex );
+    g_mutex_unlock( &self->mutex );
 
     // Start at the *top* and move our way to the *bottom*
     // When we get the opaque hint later, this will save us tons of time
@@ -614,7 +614,7 @@ workspace_as_video_source( workspace_t *workspace, video_source *source ) {
 
 static void
 workspace_audio_get_frame( workspace_t *self, audio_frame *frame ) {
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     // Update the composite list
     workspace_move_it( self, frame->full_min_sample, frame->full_max_sample );
@@ -624,7 +624,7 @@ workspace_audio_get_frame( workspace_t *self, audio_frame *frame ) {
     frame->current_max_sample = frame->full_min_sample;
 
     if( g_sequence_get_length( self->composite_list ) == 0 ) {
-        g_static_mutex_unlock( &self->mutex );
+        g_mutex_unlock( &self->mutex );
         return;
     }
 
@@ -672,7 +672,7 @@ workspace_audio_get_frame( workspace_t *self, audio_frame *frame ) {
         iter = g_sequence_iter_next( iter );
     }
 
-    g_static_mutex_unlock( &self->mutex );
+    g_mutex_unlock( &self->mutex );
 }
 
 static AudioFrameSourceFuncs workspace_audio_funcs = {
@@ -691,7 +691,7 @@ workspace_free( workspace_t *workspace ) {
     g_sequence_free( workspace->rightsort );
     g_sequence_free( workspace->composite_list );
 
-    g_static_mutex_free( &workspace->mutex );
+    g_mutex_clear( &workspace->mutex );
 
     g_slice_free( workspace_t, workspace );
 }

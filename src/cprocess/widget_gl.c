@@ -42,9 +42,9 @@ struct __tag_widget_gl_context {
 
     video_source *frameSource;
     presentation_clock clock;
-    GStaticRWLock frame_read_rwlock;
-    GMutex *frameReadMutex;
-    GCond *frameReadCond;
+    GRWLock frame_read_rwlock;
+    GMutex frameReadMutex;
+    GCond frameReadCond;
     int nextToRenderFrame;
     int readBuffer, writeBuffer, filled;
     rational frameRate;
@@ -84,7 +84,7 @@ playSingleFrame( widget_gl_context *self ) {
 
     if( self->softMode ) {
         if( self->filled > 0 || self->drawOneFrame ) {
-            g_mutex_lock( self->frameReadMutex );
+            g_mutex_lock( &self->frameReadMutex );
             // BJC: There's probably a better way of determining this, such as
             // whether or not we're playing
             bool was_draw_one_frame = self->drawOneFrame ? true : false;
@@ -97,7 +97,7 @@ playSingleFrame( widget_gl_context *self ) {
                 self->drawOneFrame--;
 
             int64_t nextPresentationTime = self->softTargets[self->readBuffer].nextTime;
-            g_mutex_unlock( self->frameReadMutex );
+            g_mutex_unlock( &self->frameReadMutex );
 
             if( filled != 0 || draw_one_frame ) {
                 if( self->invalidate_func )
@@ -111,12 +111,12 @@ playSingleFrame( widget_gl_context *self ) {
                 }
                 else {
                     //g_print( "Preparing next frame\n" );
-                    g_mutex_lock( self->frameReadMutex );
+                    g_mutex_lock( &self->frameReadMutex );
 
                     self->filled--;
 
-                    g_cond_signal( self->frameReadCond );
-                    g_mutex_unlock( self->frameReadMutex );
+                    g_cond_signal( &self->frameReadCond );
+                    g_mutex_unlock( &self->frameReadMutex );
 
                     rational speed;
                     self->clock.funcs->getSpeed( self->clock.obj, &speed );
@@ -210,12 +210,12 @@ playbackThread( widget_gl_context *self ) {
         if( self->clock.funcs )
             startTime = self->clock.funcs->getPresentationTime( self->clock.obj );
 
-        g_mutex_lock( self->frameReadMutex );
+        g_mutex_lock( &self->frameReadMutex );
         while( !self->clock.funcs || (!self->quit && ((!self->renderOneFrame && self->filled > 2) || !self->softMode)) )
-            g_cond_wait( self->frameReadCond, self->frameReadMutex );
+            g_cond_wait( &self->frameReadCond, &self->frameReadMutex );
 
         if( self->quit ) {
-            g_mutex_unlock( self->frameReadMutex );
+            g_mutex_unlock( &self->frameReadMutex );
             return NULL;
         }
 
@@ -270,12 +270,12 @@ playbackThread( widget_gl_context *self ) {
         bool wasRenderOneFrame = self->renderOneFrame;
         self->renderOneFrame = false;
 
-        g_mutex_unlock( self->frameReadMutex );
+        g_mutex_unlock( &self->frameReadMutex );
 
 //        printf( "Start rendering %d into %d...\n", nextFrame, writeBuffer );
 
         // Pull the frame data from the chain
-        g_static_rw_lock_reader_lock( &self->frame_read_rwlock );
+        g_rw_lock_reader_lock( &self->frame_read_rwlock );
         if( self->frameSource != NULL ) {
             video_get_frame_f16( self->frameSource, nextFrame, &frame );
         }
@@ -283,7 +283,7 @@ playbackThread( widget_gl_context *self ) {
             // No result
             box2i_set_empty( &frame.current_window );
         }
-        g_static_rw_lock_reader_unlock( &self->frame_read_rwlock );
+        g_rw_lock_reader_unlock( &self->frame_read_rwlock );
 
         target->currentDataWindow = frame.current_window;
 
@@ -317,7 +317,7 @@ playbackThread( widget_gl_context *self ) {
         //    ((double) endTime - (double) startTime) / 1000000000.0, endTime );
         //printf( "Presentation time %ld\n", info->_presentationTime[writeBuffer] );
 
-        g_mutex_lock( self->frameReadMutex );
+        g_mutex_lock( &self->frameReadMutex );
         if( self->filled < 0 ) {
             rational newSpeed;
             self->clock.funcs->getSpeed( self->clock.obj, &newSpeed );
@@ -367,7 +367,7 @@ playbackThread( widget_gl_context *self ) {
             target->nextTime = get_frame_time( &self->frameRate, self->nextToRenderFrame );
         }
 
-        g_mutex_unlock( self->frameReadMutex );
+        g_mutex_unlock( &self->frameReadMutex );
 
 /*            std::stringstream filename;
         filename << "rgba" << i++ << ".exr";
@@ -388,9 +388,6 @@ EXPORT widget_gl_context *
 widget_gl_new() {
     init_half();
 
-    if( !g_thread_supported() )
-        g_thread_init( NULL );
-
     widget_gl_context *self = g_malloc0( sizeof(widget_gl_context) );
 
     self->frameRate.n = 24000;
@@ -400,9 +397,9 @@ widget_gl_new() {
     self->hardModeDisable = false;
     self->bufferCount = SOFT_MODE_BUFFERS;
 
-    g_static_rw_lock_init( &self->frame_read_rwlock );
-    self->frameReadMutex = g_mutex_new();
-    self->frameReadCond = g_cond_new();
+    g_rw_lock_init( &self->frame_read_rwlock );
+    g_mutex_init( &self->frameReadMutex );
+    g_cond_init( &self->frameReadCond );
     self->nextToRenderFrame = 0;
     self->filled = self->bufferCount - 1;
     self->readBuffer = self->bufferCount - 1;
@@ -425,7 +422,7 @@ widget_gl_new() {
         box2i_set_empty( &self->softTargets[i].fullDataWindow );
     }
 
-    self->renderThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
+    self->renderThread = g_thread_new( "Widget playback thread", (GThreadFunc) playbackThread, self );
 
     self->gamma_ramp = (uint8_t *) g_malloc( HALF_COUNT );
     self->rendering_intent = 0.0f;
@@ -437,35 +434,25 @@ widget_gl_new() {
 EXPORT void
 widget_gl_free( widget_gl_context *self ) {
     // Stop the render thread
-    if( self->frameReadMutex != NULL ) {
-        g_mutex_lock( self->frameReadMutex );
-        self->quit = true;
-        g_cond_signal( self->frameReadCond );
-        g_mutex_unlock( self->frameReadMutex );
-    }
-    else
-        self->quit = true;
+    g_mutex_lock( &self->frameReadMutex );
+    self->quit = true;
+    g_cond_signal( &self->frameReadCond );
+    g_mutex_unlock( &self->frameReadMutex );
 
-    if( self->renderThread != NULL )
+    if( self->renderThread != NULL ) {
         g_thread_join( self->renderThread );
+        self->renderThread = NULL;
+    }
 
-    g_static_rw_lock_free( &self->frame_read_rwlock );
+    g_rw_lock_clear( &self->frame_read_rwlock );
+    g_mutex_clear( &self->frameReadMutex );
+    g_cond_clear( &self->frameReadCond );
 
     if( self->clock.funcs && self->clock_callback_handle )
         self->clock.funcs->unregister_callback( self->clock.obj, self->clock_callback_handle );
 
     self->clock.funcs = NULL;
     self->frameSource = NULL;
-
-    if( self->frameReadMutex != NULL ) {
-        g_mutex_free( self->frameReadMutex );
-        self->frameReadMutex = NULL;
-    }
-
-    if( self->frameReadCond != NULL ) {
-        g_cond_free( self->frameReadCond );
-        self->frameReadCond = NULL;
-    }
 
     g_free( self );
 }
@@ -835,9 +822,9 @@ widget_gl_get_display_window( widget_gl_context *self, box2i *display_window ) {
 
 EXPORT void
 widget_gl_set_display_window( widget_gl_context *self, box2i *display_window ) {
-    g_mutex_lock( self->frameReadMutex );
+    g_mutex_lock( &self->frameReadMutex );
     self->displayWindow = *display_window;
-    g_mutex_unlock( self->frameReadMutex );
+    g_mutex_unlock( &self->frameReadMutex );
 }
 
 EXPORT void
@@ -846,16 +833,16 @@ widget_gl_set_video_source( widget_gl_context *self, video_source *source ) {
     // seem almost superfluous, but it serves as a "write barrier" for anyone
     // setting the source: they shouldn't deallocate the old pointer until this
     // call returns.
-    g_static_rw_lock_writer_lock( &self->frame_read_rwlock );
+    g_rw_lock_writer_lock( &self->frame_read_rwlock );
     self->frameSource = source;
-    g_static_rw_lock_writer_unlock( &self->frame_read_rwlock );
+    g_rw_lock_writer_unlock( &self->frame_read_rwlock );
 }
 
 static void _clock_callback( widget_gl_context *self, rational *speed, int64_t time );
 
 EXPORT void
 widget_gl_set_presentation_clock( widget_gl_context *self, presentation_clock *clock ) {
-    g_mutex_lock( self->frameReadMutex );
+    g_mutex_lock( &self->frameReadMutex );
 
     if( self->clock.funcs && self->clock_callback_handle ) {
         self->clock.funcs->unregister_callback( self->clock.obj, self->clock_callback_handle );
@@ -869,7 +856,7 @@ widget_gl_set_presentation_clock( widget_gl_context *self, presentation_clock *c
             (clock_callback_func) _clock_callback, self, NULL );
     }
 
-    g_mutex_unlock( self->frameReadMutex );
+    g_mutex_unlock( &self->frameReadMutex );
 }
 
 static void
@@ -880,12 +867,12 @@ widget_gl_play( widget_gl_context *self ) {
     }
 
     // Fire up the production and playback threads from scratch
-    g_mutex_lock( self->frameReadMutex );
+    g_mutex_lock( &self->frameReadMutex );
     int64_t stopTime = self->clock.funcs->getPresentationTime( self->clock.obj );
     self->nextToRenderFrame = get_time_frame( &self->frameRate, stopTime );
     self->filled = -2;
-    g_cond_signal( self->frameReadCond );
-    g_mutex_unlock( self->frameReadMutex );
+    g_cond_signal( &self->frameReadCond );
+    g_mutex_unlock( &self->frameReadMutex );
 
     playSingleFrame( self );
 }
@@ -898,15 +885,15 @@ widget_gl_stop( widget_gl_context *self ) {
     }
 
     // Have the production thread play one more frame, then stop
-    g_mutex_lock( self->frameReadMutex );
+    g_mutex_lock( &self->frameReadMutex );
     self->filled = 3;
 
     int64_t stopTime = self->clock.funcs->getPresentationTime( self->clock.obj );
 
     self->renderOneFrame = true;
     self->nextToRenderFrame = get_time_frame( &self->frameRate, stopTime );
-    g_cond_signal( self->frameReadCond );
-    g_mutex_unlock( self->frameReadMutex );
+    g_cond_signal( &self->frameReadCond );
+    g_mutex_unlock( &self->frameReadMutex );
 
     if( !self->softMode ) {
         // We have to play the one frame ourselves

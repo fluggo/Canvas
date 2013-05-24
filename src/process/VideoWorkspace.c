@@ -25,7 +25,7 @@ static PyObject *pysource_funcs;
 typedef struct {
     workspace_t *workspace;
     video_source source;
-    GStaticRWLock rwlock;
+    GRWLock rwlock;
 } Workspace_private;
 
 #define PRIV(obj)        ((Workspace_private*)(((void *) obj) + py_type_VideoSource.tp_basicsize))
@@ -155,16 +155,16 @@ WorkspaceItem_set_source( py_obj_WorkspaceItem *self, PyObject *value, void *clo
         return -1;
     }
 
-    g_static_rw_lock_writer_lock( &PRIV(self->workspace)->rwlock );
+    g_rw_lock_writer_lock( &PRIV(self->workspace)->rwlock );
     video_source *source = workspace_get_item_source( self->item );
 
     if( !py_video_take_source( value, &source ) ) {
-        g_static_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
+        g_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
         return -1;
     }
 
     workspace_set_item_source( self->item, source );
-    g_static_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
+    g_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
 
     return 0;
 }
@@ -234,11 +234,11 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
             &x, &length, &z, &offset, &source_obj, &tag ) )
         return NULL;
 
-    g_static_rw_lock_writer_lock( &PRIV(self->workspace)->rwlock );
+    g_rw_lock_writer_lock( &PRIV(self->workspace)->rwlock );
 
     if( source_obj ) {
         if( !py_video_take_source( source_obj, &source ) ) {
-            g_static_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
+            g_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
             return NULL;
         }
     }
@@ -251,7 +251,7 @@ WorkspaceItem_update( py_obj_WorkspaceItem *self, PyObject *args, PyObject *kw )
     gpointer tagptr = tag;
     workspace_update_item( self->item, &x, &length, &z, &offset, (gpointer *) &source, &tagptr );
 
-    g_static_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
+    g_rw_lock_writer_unlock( &PRIV(self->workspace)->rwlock );
     Py_RETURN_NONE;
 }
 
@@ -317,23 +317,23 @@ Workspace_init( PyObject *self, PyObject *args, PyObject *kwds ) {
     PRIV(self)->workspace = workspace_create();
     workspace_as_video_source( PRIV(self)->workspace, &PRIV(self)->source );
 
-    g_static_rw_lock_init( &PRIV(self)->rwlock );
+    g_rw_lock_init( &PRIV(self)->rwlock );
 
     return 0;
 }
 
 static void
 Workspace_getFrame32( PyObject *self, int frame_index, rgba_frame_f32 *frame ) {
-    g_static_rw_lock_reader_lock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_lock( &PRIV(self)->rwlock );
     video_get_frame_f32( &PRIV(self)->source, frame_index, frame );
-    g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_unlock( &PRIV(self)->rwlock );
 }
 
 static void
 Workspace_get_frame_gl( PyObject *self, int frame_index, rgba_frame_gl *frame ) {
-    g_static_rw_lock_reader_lock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_lock( &PRIV(self)->rwlock );
     video_get_frame_gl( &PRIV(self)->source, frame_index, frame );
-    g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_unlock( &PRIV(self)->rwlock );
 }
 
 static void
@@ -355,7 +355,7 @@ Workspace_dealloc( PyObject *self ) {
     }
 
     workspace_free( PRIV(self)->workspace );
-    g_static_rw_lock_free( &PRIV(self)->rwlock );
+    g_rw_lock_clear( &PRIV(self)->rwlock );
 
     self->ob_type->tp_free( self );
 }
@@ -415,10 +415,10 @@ Workspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
             &source_obj, &offset, &x, &length, &z, &tag ) )
         return NULL;
 
-    g_static_rw_lock_writer_lock( &PRIV(self)->rwlock );
+    g_rw_lock_writer_lock( &PRIV(self)->rwlock );
 
     if( !py_video_take_source( source_obj, &source ) ) {
-        g_static_rw_lock_writer_unlock( &PRIV(self)->rwlock );
+        g_rw_lock_writer_unlock( &PRIV(self)->rwlock );
         return NULL;
     }
 
@@ -426,7 +426,7 @@ Workspace_add( PyObject *self, PyObject *args, PyObject *kw ) {
         Py_INCREF(tag);
 
     PyObject *ret = item_to_python( self, workspace_add_item( PRIV(self)->workspace, source, x, length, offset, z, tag ) );
-    g_static_rw_lock_writer_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_writer_unlock( &PRIV(self)->rwlock );
 
     return ret;
 }
@@ -438,7 +438,7 @@ Workspace_remove( PyObject *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "O!", &py_type_WorkspaceItem, &item ) )
         return NULL;
 
-    g_static_rw_lock_writer_lock( &PRIV(self)->rwlock );
+    g_rw_lock_writer_lock( &PRIV(self)->rwlock );
 
     video_source *source = (video_source *) workspace_get_item_source( item->item );
     py_video_take_source( NULL, &source );
@@ -454,7 +454,7 @@ Workspace_remove( PyObject *self, PyObject *args ) {
 
     item->item = NULL;
 
-    g_static_rw_lock_writer_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_writer_unlock( &PRIV(self)->rwlock );
     Py_RETURN_NONE;
 }
 

@@ -32,7 +32,7 @@ typedef struct {
 
 typedef struct {
     GArray *sequence;
-    GMutex *mutex;
+    GMutex mutex;
     int lastElement;
 } AudioSequence_private;
 
@@ -45,7 +45,7 @@ AudioSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
         return -1;
 
     PRIV(self)->sequence = g_array_new( false, true, sizeof(Element) );
-    PRIV(self)->mutex = g_mutex_new();
+    g_mutex_init( &PRIV(self)->mutex );
     PRIV(self)->lastElement = 0;
 
     return 0;
@@ -53,10 +53,10 @@ AudioSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
 
 static void
 AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
-    g_mutex_lock( PRIV(self)->mutex );
+    g_mutex_lock( &PRIV(self)->mutex );
     if( frame->full_max_sample < 0 || PRIV(self)->sequence->len == 0 ) {
         // No result
-        g_mutex_unlock( PRIV(self)->mutex );
+        g_mutex_unlock( &PRIV(self)->mutex );
         frame->current_max_sample = frame->current_min_sample - 1;
         return;
     }
@@ -107,7 +107,7 @@ AudioSequence_getFrame( PyObject *self, audio_frame *frame ) {
         i++;
     }
 
-    g_mutex_unlock( PRIV(self)->mutex );
+    g_mutex_unlock( &PRIV(self)->mutex );
 }
 
 static Py_ssize_t
@@ -192,9 +192,9 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
 
 static int
 AudioSequence_setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
-    g_mutex_lock( PRIV(self)->mutex );
+    g_mutex_lock( &PRIV(self)->mutex );
     int result = _setItem( self, i, v );
-    g_mutex_unlock( PRIV(self)->mutex );
+    g_mutex_unlock( &PRIV(self)->mutex );
 
     return result;
 }
@@ -221,16 +221,16 @@ AudioSequence_insert( PyObject *self, PyObject *args ) {
     // Open up a slot
     Element empty = { NULL };
 
-    g_mutex_lock( PRIV(self)->mutex );
+    g_mutex_lock( &PRIV(self)->mutex );
     g_array_insert_val( PRIV(self)->sequence, i, empty );
 
     // Set the slot
     if( _setItem( self, i, v ) < 0 ) {
-        g_mutex_unlock( PRIV(self)->mutex );
+        g_mutex_unlock( &PRIV(self)->mutex );
         return NULL;
     }
 
-    g_mutex_unlock( PRIV(self)->mutex );
+    g_mutex_unlock( &PRIV(self)->mutex );
     Py_RETURN_NONE;
 }
 
@@ -244,7 +244,7 @@ AudioSequence_dealloc( PyObject *self ) {
     }
 
     g_array_free( PRIV(self)->sequence, true );
-    g_mutex_free( PRIV(self)->mutex );
+    g_mutex_clear( &PRIV(self)->mutex );
 
     self->ob_type->tp_free( (PyObject*) self );
 }

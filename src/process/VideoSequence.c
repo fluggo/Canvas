@@ -34,11 +34,11 @@ typedef struct {
 
 typedef struct {
     // rwlock - Guards sequence 
-    GStaticRWLock rwlock;
+    GRWLock rwlock;
     GArray *sequence;
 
     // mutex - Guards lastElement
-    GMutex *mutex;
+    GMutex mutex;
     int lastElement;
 } VideoSequence_private;
 
@@ -48,8 +48,8 @@ typedef struct {
 static int
 VideoSequence_init( PyObject *self, PyObject *args, PyObject *kwds ) {
     PRIV(self)->sequence = g_array_new( false, true, sizeof(Element) );
-    PRIV(self)->mutex = g_mutex_new();
-    g_static_rw_lock_init( &PRIV(self)->rwlock );
+    g_mutex_init( &PRIV(self)->mutex );
+    g_rw_lock_init( &PRIV(self)->rwlock );
     PRIV(self)->lastElement = 0;
 
     return 0;
@@ -63,7 +63,7 @@ pickElement_nolock( PyObject *self, int frameIndex ) {
     // Find the source
     // BJC: I realize this is O(n) worst-case, but hopefully n is small
     // and the worst-case is rare
-    g_mutex_lock( PRIV(self)->mutex );
+    g_mutex_lock( &PRIV(self)->mutex );
         int i = min(PRIV(self)->lastElement, PRIV(self)->sequence->len);
 
         while( i < (PRIV(self)->sequence->len - 1) && frameIndex >= SEQINDEX(self, i).startFrame + SEQINDEX(self, i).length )
@@ -73,7 +73,7 @@ pickElement_nolock( PyObject *self, int frameIndex ) {
             i--;
 
         PRIV(self)->lastElement = i;
-    g_mutex_unlock( PRIV(self)->mutex );
+    g_mutex_unlock( &PRIV(self)->mutex );
 
     Element *elem = &SEQINDEX(self, i);
 
@@ -85,13 +85,13 @@ pickElement_nolock( PyObject *self, int frameIndex ) {
 
 static void
 VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) {
-    g_static_rw_lock_reader_lock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_lock( &PRIV(self)->rwlock );
 
     Element *elemPtr = pickElement_nolock( self, frameIndex );
 
     if( !elemPtr ) {
         // No result
-        g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+        g_rw_lock_reader_unlock( &PRIV(self)->rwlock );
         box2i_set_empty( &frame->current_window );
         return;
     }
@@ -99,18 +99,18 @@ VideoSequence_getFrame( PyObject *self, int frameIndex, rgba_frame_f16 *frame ) 
     Element elem = *elemPtr;
     video_get_frame_f16( elem.source, frameIndex - elem.startFrame + elem.offset, frame );
 
-    g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_unlock( &PRIV(self)->rwlock );
 }
 
 static void
 VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame ) {
-    g_static_rw_lock_reader_lock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_lock( &PRIV(self)->rwlock );
 
     Element *elemPtr = pickElement_nolock( self, frameIndex );
 
     if( !elemPtr ) {
         // No result
-        g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+        g_rw_lock_reader_unlock( &PRIV(self)->rwlock );
         box2i_set_empty( &frame->current_window );
         return;
     }
@@ -118,17 +118,17 @@ VideoSequence_getFrame32( PyObject *self, int frameIndex, rgba_frame_f32 *frame 
     Element elem = *elemPtr;
     video_get_frame_f32( elem.source, frameIndex - elem.startFrame + elem.offset, frame );
 
-    g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_unlock( &PRIV(self)->rwlock );
 }
 
 static void
 VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame ) {
-    g_static_rw_lock_reader_lock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_lock( &PRIV(self)->rwlock );
     Element *elemPtr = pickElement_nolock( self, frameIndex );
 
     if( !elemPtr ) {
         // No result
-        g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+        g_rw_lock_reader_unlock( &PRIV(self)->rwlock );
         box2i_set_empty( &frame->current_window );
         return;
     }
@@ -136,7 +136,7 @@ VideoSequence_getFrameGL( PyObject *self, int frameIndex, rgba_frame_gl *frame )
     Element elem = *elemPtr;
     video_get_frame_gl( elem.source, frameIndex - elem.startFrame + elem.offset, frame );
 
-    g_static_rw_lock_reader_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_reader_unlock( &PRIV(self)->rwlock );
 }
 
 static Py_ssize_t
@@ -236,9 +236,9 @@ _setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
 
 static int
 VideoSequence_setItem( PyObject *self, Py_ssize_t i, PyObject *v ) {
-    g_static_rw_lock_writer_lock( &PRIV(self)->rwlock );
+    g_rw_lock_writer_lock( &PRIV(self)->rwlock );
     int result = _setItem( self, i, v );
-    g_static_rw_lock_writer_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_writer_unlock( &PRIV(self)->rwlock );
 
     return result;
 }
@@ -259,16 +259,16 @@ VideoSequence_insert_impl( PyObject *self, Py_ssize_t i, PyObject *v ) {
     // Open up a slot
     Element empty = { NULL };
 
-    g_static_rw_lock_writer_lock( &PRIV(self)->rwlock );
+    g_rw_lock_writer_lock( &PRIV(self)->rwlock );
     g_array_insert_val( PRIV(self)->sequence, i, empty );
 
     // Set the slot
     if( _setItem( self, i, v ) < 0 ) {
-        g_static_rw_lock_writer_unlock( &PRIV(self)->rwlock );
+        g_rw_lock_writer_unlock( &PRIV(self)->rwlock );
         return NULL;
     }
 
-    g_static_rw_lock_writer_unlock( &PRIV(self)->rwlock );
+    g_rw_lock_writer_unlock( &PRIV(self)->rwlock );
     Py_RETURN_NONE;
 }
 
@@ -303,8 +303,8 @@ VideoSequence_dealloc( PyObject *self ) {
     }
 
     g_array_free( PRIV(self)->sequence, true );
-    g_mutex_free( PRIV(self)->mutex );
-    g_static_rw_lock_free( &PRIV(self)->rwlock );
+    g_mutex_clear( &PRIV(self)->mutex );
+    g_rw_lock_clear( &PRIV(self)->rwlock );
 
     self->ob_type->tp_free( (PyObject*) self );
 }

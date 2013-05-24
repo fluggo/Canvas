@@ -36,8 +36,8 @@ typedef struct {
     AudioSourceHolder audioSource;
     snd_pcm_t *pcmDevice;
     GThread *playbackThread;
-    GMutex *mutex, *configMutex;
-    GCond *cond;
+    GMutex mutex, configMutex;
+    GCond cond;
     bool quit, stop;
     rational rate, playSpeed;
     int bufferSize, channelCount;
@@ -46,7 +46,7 @@ typedef struct {
     snd_pcm_hw_params_t *hwParams;
     bool time_change;
 
-    GStaticRWLock callback_lock, frame_read_rwlock;
+    GRWLock callback_lock, frame_read_rwlock;
     callback_info *callbacks;
 } py_obj_AlsaPlayer;
 
@@ -55,7 +55,7 @@ static int64_t _getPresentationTime( py_obj_AlsaPlayer *self );
 static gpointer
 playbackThread( py_obj_AlsaPlayer *self ) {
     for( ;; ) {
-        g_mutex_lock( self->mutex );
+        g_mutex_lock( &self->mutex );
 
         // BJC: I'd much prefer to use snd_pcm_rewind in the case of a time_change,
         // but studies show that doesn't work in all cases
@@ -65,13 +65,13 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         }
 
         while( !self->quit && self->stop )
-            g_cond_wait( self->cond, self->mutex );
+            g_cond_wait( &self->cond, &self->mutex );
 
         if( snd_pcm_state( self->pcmDevice ) == SND_PCM_STATE_SETUP )
             snd_pcm_prepare( self->pcmDevice );
 
         if( G_UNLIKELY(self->quit) ) {
-            g_mutex_unlock( self->mutex );
+            g_mutex_unlock( &self->mutex );
             break;
         }
 
@@ -105,11 +105,11 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         frame.current_min_sample = frame.full_min_sample;
         frame.current_max_sample = frame.full_max_sample;
 
-        g_mutex_unlock( self->mutex );
+        g_mutex_unlock( &self->mutex );
 
-        g_static_rw_lock_reader_lock( &self->frame_read_rwlock );
+        g_rw_lock_reader_lock( &self->frame_read_rwlock );
         self->audioSource.source.funcs->getFrame( self->audioSource.source.obj, &frame );
-        g_static_rw_lock_reader_unlock( &self->frame_read_rwlock );
+        g_rw_lock_reader_unlock( &self->frame_read_rwlock );
 
 
         // Zero out anything that wasn't provided
@@ -176,10 +176,10 @@ playbackThread( py_obj_AlsaPlayer *self ) {
 
         // Do this next part under a lock, because the
         // Python thread may want to stop the device/change the config
-        g_mutex_lock( self->configMutex );
+        g_mutex_lock( &self->configMutex );
 
         if( G_UNLIKELY(self->stop) ) {
-            g_mutex_unlock( self->configMutex );
+            g_mutex_unlock( &self->configMutex );
             continue;
         }
 
@@ -219,7 +219,7 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         snd_pcm_sframes_t frame_delay;
         snd_pcm_delay( self->pcmDevice, &frame_delay );
 
-        g_mutex_lock( self->mutex );
+        g_mutex_lock( &self->mutex );
         if( !self->stop && !self->time_change ) {
             self->baseTime = gettime();
             self->seekTime = get_frame_time( &rate, self->nextSample ) -
@@ -229,9 +229,9 @@ playbackThread( py_obj_AlsaPlayer *self ) {
         }
 
         //printf( "nextSample: %d, hwBufferSize: %d, avail: %d\n", self->nextSample, hwBufferSize, avail );
-        g_mutex_unlock( self->mutex );
+        g_mutex_unlock( &self->mutex );
 
-        g_mutex_unlock( self->configMutex );
+        g_mutex_unlock( &self->configMutex );
     }
 
     snd_pcm_drop( self->pcmDevice );
@@ -343,9 +343,6 @@ static bool _setConfig( py_obj_AlsaPlayer *self, unsigned int *ratePtr, unsigned
 
 static int
 AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
-    if( !g_thread_supported() )
-        g_thread_init( NULL );
-
     PyObject *frameSource = NULL;
 
     unsigned int rate = 0, channels = 0;
@@ -369,9 +366,9 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
     if( !_setConfig( self, &rate, &channels ) )
         return -1;
 
-    self->mutex = g_mutex_new();
-    self->configMutex = g_mutex_new();
-    self->cond = g_cond_new();
+    g_mutex_init( &self->mutex );
+    g_mutex_init( &self->configMutex );
+    g_cond_init( &self->cond );
     self->stop = true;
     self->playSpeed = (rational) { 0, 1 };
     self->bufferSize = 1024;
@@ -390,30 +387,28 @@ AlsaPlayer_init( py_obj_AlsaPlayer *self, PyObject *args, PyObject *kw ) {
         return -1;
     }
 
-    self->playbackThread = g_thread_create( (GThreadFunc) playbackThread, self, TRUE, NULL );
+    self->playbackThread = g_thread_new( "AlsaPlayer playback thread", (GThreadFunc) playbackThread, self );
 
     self->callbacks = NULL;
-    g_static_rw_lock_init( &self->callback_lock );
-    g_static_rw_lock_init( &self->frame_read_rwlock );
+    g_rw_lock_init( &self->callback_lock );
+    g_rw_lock_init( &self->frame_read_rwlock );
 
     return 0;
 }
 
 static void
 AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
-    if( self->mutex != NULL && self->cond != NULL ) {
-        g_mutex_lock( self->mutex );
-        self->quit = true;
-        g_cond_signal( self->cond );
-        g_mutex_unlock( self->mutex );
-    }
-    else
-        self->quit = true;
+    g_mutex_lock( &self->mutex );
+    self->quit = true;
+    g_cond_signal( &self->cond );
+    g_mutex_unlock( &self->mutex );
 
     py_audio_take_source( NULL, &self->audioSource );
 
-    if( self->playbackThread != NULL )
+    if( self->playbackThread != NULL ) {
         g_thread_join( self->playbackThread );
+        self->playbackThread = NULL;
+    }
 
     if( self->inBuffer != NULL ) {
         PyMem_Free( self->inBuffer );
@@ -435,20 +430,9 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
         self->pcmDevice = NULL;
     }
 
-    if( self->configMutex ) {
-        g_mutex_free( self->configMutex );
-        self->configMutex = NULL;
-    }
-
-    if( self->mutex ) {
-        g_mutex_free( self->mutex );
-        self->mutex = NULL;
-    }
-
-    if( self->cond != NULL ) {
-        g_cond_free( self->cond );
-        self->cond = NULL;
-    }
+    g_mutex_clear( &self->configMutex );
+    g_mutex_clear( &self->mutex );
+    g_cond_clear( &self->cond );
 
     // Free the callback list
     while( self->callbacks ) {
@@ -461,8 +445,8 @@ AlsaPlayer_dealloc( py_obj_AlsaPlayer *self ) {
         g_slice_free( callback_info, info );
     }
 
-    g_static_rw_lock_free( &self->callback_lock );
-    g_static_rw_lock_free( &self->frame_read_rwlock );
+    g_rw_lock_clear( &self->callback_lock );
+    g_rw_lock_clear( &self->frame_read_rwlock );
 
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
@@ -476,12 +460,12 @@ static PyObject *AlsaPlayer_setConfig( py_obj_AlsaPlayer *self, PyObject *args, 
             &rate, &channels ) )
         return NULL;
 
-    g_mutex_lock( self->configMutex );
+    g_mutex_lock( &self->configMutex );
     if( !_setConfig( self, &rate, &channels ) ) {
-        g_mutex_unlock( self->configMutex );
+        g_mutex_unlock( &self->configMutex );
         return NULL;
     }
-    g_mutex_unlock( self->configMutex );
+    g_mutex_unlock( &self->configMutex );
 
     return Py_BuildValue( "II", rate, channels );
 }
@@ -503,23 +487,23 @@ _getPresentationTime_nolock( py_obj_AlsaPlayer *self ) {
 
 static int64_t
 _getPresentationTime( py_obj_AlsaPlayer *self ) {
-    g_mutex_lock( self->mutex );
+    g_mutex_lock( &self->mutex );
     int64_t result = _getPresentationTime_nolock( self );
-    g_mutex_unlock( self->mutex );
+    g_mutex_unlock( &self->mutex );
 
     return result;
 }
 
 static void
 _getSpeed( py_obj_AlsaPlayer *self, rational *result ) {
-    g_mutex_lock( self->mutex );
+    g_mutex_lock( &self->mutex );
     *result = self->playSpeed;
-    g_mutex_unlock( self->mutex );
+    g_mutex_unlock( &self->mutex );
 }
 
 static void
 _set( py_obj_AlsaPlayer *self, int64_t seek_time, rational *speed ) {
-    g_mutex_lock( self->mutex );
+    g_mutex_lock( &self->mutex );
     self->stop = (speed->n == 0);
 
     self->baseTime = gettime();
@@ -529,15 +513,15 @@ _set( py_obj_AlsaPlayer *self, int64_t seek_time, rational *speed ) {
     self->seekTime = get_frame_time( &self->rate, self->nextSample );
     seek_time = self->seekTime;
     self->time_change = true;
-    g_cond_signal( self->cond );
-    g_mutex_unlock( self->mutex );
+    g_cond_signal( &self->cond );
+    g_mutex_unlock( &self->mutex );
 
     // Call callbacks (taking the lock here *might* not be the best idea)
-    g_static_rw_lock_reader_lock( &self->callback_lock );
+    g_rw_lock_reader_lock( &self->callback_lock );
     for( callback_info *ptr = self->callbacks; ptr != NULL; ptr = ptr->next ) {
         ptr->callback( ptr->data, speed, seek_time );
     }
-    g_static_rw_lock_reader_unlock( &self->callback_lock );
+    g_rw_lock_reader_unlock( &self->callback_lock );
 }
 
 static PyObject *
@@ -564,14 +548,14 @@ AlsaPlayer_set_audio_source( py_obj_AlsaPlayer *self, PyObject *args ) {
     if( !PyArg_ParseTuple( args, "O", &frameSource ) )
         return NULL;
 
-    g_static_rw_lock_writer_lock( &self->frame_read_rwlock );
+    g_rw_lock_writer_lock( &self->frame_read_rwlock );
 
     if( !py_audio_take_source( frameSource, &self->audioSource ) ) {
-        g_static_rw_lock_writer_unlock( &self->frame_read_rwlock );
+        g_rw_lock_writer_unlock( &self->frame_read_rwlock );
         return NULL;
     }
 
-    g_static_rw_lock_writer_unlock( &self->frame_read_rwlock );
+    g_rw_lock_writer_unlock( &self->frame_read_rwlock );
 
     Py_RETURN_NONE;
 }
@@ -586,10 +570,10 @@ _register_callback( py_obj_AlsaPlayer *self, clock_callback_func callback, void 
     info->callback = callback;
     info->notify = notify;
 
-    g_static_rw_lock_writer_lock( &self->callback_lock );
+    g_rw_lock_writer_lock( &self->callback_lock );
     info->next = self->callbacks;
     self->callbacks = info;
-    g_static_rw_lock_writer_unlock( &self->callback_lock );
+    g_rw_lock_writer_unlock( &self->callback_lock );
 
     return self->callbacks;
 }
@@ -597,7 +581,7 @@ _register_callback( py_obj_AlsaPlayer *self, clock_callback_func callback, void 
 static void
 _unregister_callback( py_obj_AlsaPlayer *self, callback_info *info ) {
     // Unlink it
-    g_static_rw_lock_writer_lock( &self->callback_lock );
+    g_rw_lock_writer_lock( &self->callback_lock );
     if( self->callbacks == info ) {
         self->callbacks = info->next;
     }
@@ -609,7 +593,7 @@ _unregister_callback( py_obj_AlsaPlayer *self, callback_info *info ) {
             }
         }
     }
-    g_static_rw_lock_writer_unlock( &self->callback_lock );
+    g_rw_lock_writer_unlock( &self->callback_lock );
 
     // Call the GDestroyNotify to let them know we don't hold this anymore
     if( info->notify )

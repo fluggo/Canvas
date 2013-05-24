@@ -27,12 +27,12 @@ typedef struct {
 
     video_source *source;
     FrameFunctionHolder target_point, source_point, scale_factors, source_rect;
-    GStaticRWLock rwlock;
+    GRWLock rwlock;
 } py_obj_VideoScaler;
 
 static int
 VideoScaler_init( py_obj_VideoScaler *self, PyObject *args, PyObject *kw ) {
-    g_static_rw_lock_init( &self->rwlock );
+    g_rw_lock_init( &self->rwlock );
 
     PyObject *sourceObj, *target_point_obj, *source_point_obj, *scale_factor_obj, *source_rect_obj;
     static char *kwlist[] = { "source", "target_point", "source_point", "scale_factors", "source_rect", NULL };
@@ -61,7 +61,7 @@ VideoScaler_init( py_obj_VideoScaler *self, PyObject *args, PyObject *kw ) {
 
 static void
 VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame_f32 *frame ) {
-    g_static_rw_lock_reader_lock( &self->rwlock );
+    g_rw_lock_reader_lock( &self->rwlock );
     if( self->source == NULL ) {
         // No result
         box2i_set_empty( &frame->current_window );
@@ -76,7 +76,7 @@ VideoScaler_get_frame_f32( py_obj_VideoScaler *self, int frame_index, rgba_frame
     framefunc_get_box2i( &source_rect, &self->source_rect, frame_index );
 
     video_scale_bilinear_f32_pull( frame, target_point, self->source, frame_index, &source_rect, source_point, scale_factors );
-    g_static_rw_lock_reader_unlock( &self->rwlock );
+    g_rw_lock_reader_unlock( &self->rwlock );
 }
 
 static void
@@ -86,7 +86,7 @@ VideoScaler_dealloc( py_obj_VideoScaler *self ) {
     py_framefunc_take_source( NULL, &self->source_point );
     py_framefunc_take_source( NULL, &self->scale_factors );
 
-    g_static_rw_lock_free( &self->rwlock );
+    g_rw_lock_clear( &self->rwlock );
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
@@ -116,9 +116,9 @@ VideoScaler_source( py_obj_VideoScaler *self, PyObject *dummy ) {
 
 static PyObject *
 VideoScaler_set_source( py_obj_VideoScaler *self, PyObject *pysource ) {
-    g_static_rw_lock_writer_lock( &self->rwlock );
+    g_rw_lock_writer_lock( &self->rwlock );
     bool result = py_video_take_source( pysource, &self->source );
-    g_static_rw_lock_writer_unlock( &self->rwlock );
+    g_rw_lock_writer_unlock( &self->rwlock );
 
     if( result )
         Py_RETURN_NONE;
