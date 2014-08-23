@@ -243,6 +243,8 @@ void video_mix_over_gl( rgba_frame_gl *out, rgba_frame_gl *a, rgba_frame_gl *b, 
 
 void video_filter_gain_offset_gl( rgba_frame_gl *out, rgba_frame_gl *input, float gain, float offset );
 
+void video_deinterlace_bob_gl( rgba_frame_gl *out, rgba_frame_gl *in, bool upper_field );
+
 void video_scale_bilinear_f32( rgba_frame_f32 *target, v2f target_point, rgba_frame_f32 *source, v2f source_point, v2f factors );
 void video_scale_bilinear_f32_pull( rgba_frame_f32 *target, v2f target_point, video_source *source, int frame, box2i *source_rect, v2f source_point, v2f factors );
 
