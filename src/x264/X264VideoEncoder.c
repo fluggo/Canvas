@@ -33,18 +33,18 @@ typedef struct {
 static int
 X264EncoderParams_init( py_obj_X264EncoderParams *self, PyObject *args, PyObject *kw ) {
     PyObject *frame_rate_obj = NULL, *sar_obj = NULL, *timebase_obj = NULL,
-        *annexb_obj = NULL, *repeat_headers_obj = NULL, *interlaced_obj = NULL;
+        *annexb_obj = NULL, *repeat_headers_obj = NULL, *interlaced_obj = NULL, *cabac_obj = NULL;
     int width = -1, height = -1, qp = -1, bitrate = -1, max_bitrate = -1;
     float crf = -1.0f;
     const char *preset = NULL, *tune = NULL;
 
     static char *kwlist[] = { "preset", "tune", "frame_rate", "sample_aspect_ratio",
         "timebase", "width", "height", "constant_ratefactor", "constant_quantizer",
-        "bitrate", "vbv_max_bitrate", "annex_b", "repeat_headers", "interlaced", NULL };
+        "bitrate", "vbv_max_bitrate", "annex_b", "repeat_headers", "interlaced", "cabac", NULL };
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "|ssOOOiifiiiOOO", kwlist, &preset, &tune,
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "|ssOOOiifiiiOOOO", kwlist, &preset, &tune,
             &frame_rate_obj, &sar_obj, &timebase_obj, &width, &height, &crf, &qp,
-            &bitrate, &max_bitrate, &annexb_obj, &repeat_headers_obj, &interlaced_obj ) )
+            &bitrate, &max_bitrate, &annexb_obj, &repeat_headers_obj, &interlaced_obj, &cabac_obj ) )
         return -1;
 
     // Parse and validate the arguments
@@ -125,6 +125,11 @@ X264EncoderParams_init( py_obj_X264EncoderParams *self, PyObject *args, PyObject
 
     if( repeat_headers_obj )
         self->params.b_repeat_headers = PyObject_IsTrue( repeat_headers_obj );
+
+    self->params.b_cabac = 1;
+
+    if( cabac_obj )
+        self->params.b_cabac = PyObject_IsTrue( cabac_obj );
 
     // For the moment, these can't be changed
     self->params.i_csp = X264_CSP_I420;
