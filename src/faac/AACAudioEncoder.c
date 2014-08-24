@@ -84,7 +84,7 @@ AACAudioEncoder_init( py_obj_AACAudioEncoder *self, PyObject *args, PyObject *kw
 
     config->inputFormat = FAAC_INPUT_FLOAT;
     config->mpegVersion = MPEG4;
-    config->aacObjectType = MAIN;
+    config->aacObjectType = LOW;
     config->outputFormat = 0;       // WE do not do ADTS by default
 
     if( bitrate_per_channel != -1 )
