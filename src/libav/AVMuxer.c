@@ -198,6 +198,50 @@ AVMuxer_add_video_stream( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     Py_RETURN_NONE;
 }
 
+static PyObject *
+AVMuxer_add_audio_stream( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
+    PyObject *source_obj;
+    int codec_id;
+    int sample_rate, channels, bit_rate;
+
+    static char *kwlist[] = { "source", "codec", "sample_rate", "channels", "bit_rate", NULL };
+
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "Oiiii", kwlist, &source_obj, &codec_id,
+            &sample_rate, &channels, &bit_rate ) )
+        return NULL;
+
+    // Parse and validate the arguments
+    avcodec_register_all();
+
+    stream_t *stream = g_slice_new0( stream_t );
+    stream->stream = av_new_stream( self->context, self->context->nb_streams );
+
+    if( !stream->stream )
+        return PyErr_NoMemory();
+
+    if( !py_codec_packet_take_source( source_obj, &stream->source ) ) {
+        av_free( stream->stream );
+        g_slice_free( stream_t, stream );
+        return NULL;
+    }
+
+    // A lot of the stream's details come from the codec context, so
+    // even if it's not the context we're encoding with, it needs to be set.
+    // (Of course, if the format tries to read live encoding data out of the
+    // context, we're screwed.)
+    stream->stream->codec->codec_type = AVMEDIA_TYPE_AUDIO;
+    stream->stream->codec->codec_id = codec_id;
+    stream->stream->codec->time_base = (AVRational) { .num = 1, .den = sample_rate };
+    stream->stream->codec->sample_rate = sample_rate;
+    stream->stream->codec->channels = channels;
+    stream->stream->codec->bit_rate = bit_rate;
+    stream->rate = (rational) { .n = sample_rate, .d = 1 };
+
+    stream_append( &self->stream_list, stream );
+
+    Py_RETURN_NONE;
+}
+
 static int
 codec_getHeader( CodecPacketSourceHolder *holder, void *buffer ) {
     if( !holder->source.funcs->getHeader )
@@ -351,6 +395,7 @@ static PyMethodDef AVMuxer_methods[] = {
         "frame_rate - The video frame rate as a rational.\n"
         "frame_size - A v2i value with the size of the frame.\n"
         "sample_aspect_ratio - The sample aspect ratio as a rational." },
+    { "add_audio_stream", (PyCFunction) AVMuxer_add_audio_stream, METH_VARARGS | METH_KEYWORDS },
     { "run", (PyCFunction) AVMuxer_run, METH_NOARGS,
         "Run the muxer and write the complete file." },
     { "cancel", (PyCFunction) AVMuxer_cancel, METH_NOARGS,
