@@ -7,7 +7,7 @@ force_gl = True
 class test_SolidColorVideoSource(unittest.TestCase):
     def check_color(self, color1, color2):
         for x, y in zip(color1, color2):
-            self.assertAlmostEqual(x, y, 6)
+            self.assertAlmostEqual(x, y, 3)
 
     def test_const_color(self):
         color = (1.0, 0.5, 0.333333, 0.2)
