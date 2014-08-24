@@ -144,12 +144,14 @@ stream_append( stream_t **list, stream_t *next ) {
 static PyObject *
 AVMuxer_add_video_stream( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     PyObject *source_obj, *frame_rate_obj, *sample_aspect_ratio_obj, *frame_size_obj;
-    const char *codec_name;
+    int codec_id;
+    int bit_rate;
 
-    static char *kwlist[] = { "source", "codec", "frame_rate", "frame_size", "sample_aspect_ratio", NULL };
+    static char *kwlist[] = { "source", "codec", "frame_rate", "frame_size", "sample_aspect_ratio",
+        "bit_rate", NULL };
 
-    if( !PyArg_ParseTupleAndKeywords( args, kw, "OsOOO", kwlist, &source_obj, &codec_name,
-            &frame_rate_obj, &frame_size_obj, &sample_aspect_ratio_obj ) )
+    if( !PyArg_ParseTupleAndKeywords( args, kw, "OiOOOi", kwlist, &source_obj, &codec_id,
+            &frame_rate_obj, &frame_size_obj, &sample_aspect_ratio_obj, &bit_rate ) )
         return NULL;
 
     // Parse and validate the arguments
@@ -157,12 +159,6 @@ AVMuxer_add_video_stream( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     v2i frame_size;
 
     avcodec_register_all();
-    AVCodec *codec = avcodec_find_encoder_by_name( codec_name );
-
-    if( !codec ) {
-        PyErr_Format( PyExc_Exception, "Could not find the codec \"%s\".", codec_name );
-        return NULL;
-    }
 
     if( !py_parse_rational( frame_rate_obj, &frame_rate ) )
         return NULL;
@@ -190,10 +186,11 @@ AVMuxer_add_video_stream( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     // (Of course, if the format tries to read live encoding data out of the
     // context, we're screwed.)
     stream->stream->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-    stream->stream->codec->codec_id = codec->id;
+    stream->stream->codec->codec_id = codec_id;
     stream->stream->codec->time_base = (AVRational) { .num = frame_rate.d, .den = frame_rate.n };
     stream->stream->codec->width = frame_size.x;
     stream->stream->codec->height = frame_size.y;
+    stream->stream->codec->bit_rate = bit_rate;
     stream->rate = frame_rate;
 
     stream_append( &self->stream_list, stream );
