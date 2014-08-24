@@ -17,6 +17,34 @@ import math
 import argparse
 import os.path
 
+class FakeDVImageSource(process.CodedImageSource):
+    def get_frame(self, frame):
+        result = [process.CodedImage(bytearray(720*480), 720, 480), # Y
+            process.CodedImage(bytearray(b'\x80'*(180*480)), 180, 480),    # Cb
+            process.CodedImage(bytearray(b'\x80'*(180*480)), 180, 480)]    # Cr
+
+        yp = result[0].data
+        cb = result[2].data
+        cr = result[2].data
+
+        for y in range(480):
+            for x in range(180):
+                # A pattern in the Cr so we can see the linear mix
+                if y % 2 == 1:
+                    cr[y*180 + x] = 200 if y % 4 == 1 else 80
+                    cb[y*180 + x] = 80 if y % 4 == 1 else 200
+
+        for y in range(480):
+            for x in range(720):
+                value = 190
+
+                if y % 2 == 0:
+                    value = 0
+
+                yp[y*720 + x] = value
+
+        return result
+
 parser = argparse.ArgumentParser()
 parser.add_argument('in_path')
 parser.add_argument('out_path', default=None, nargs='?')
@@ -26,10 +54,15 @@ parser.add_argument('--crf', type=float, default=23.0)
 parser.add_argument('--preset', dest='preset', default='slow')
 parser.add_argument('--16x9', dest='wide', default=False, action='store_true')
 parser.add_argument('--max-bitrate', dest='max_bitrate', type=int, default=None)
+parser.add_argument('--frame-count', dest='frame_count', type=int, default=None)
+parser.add_argument('--deinterlace', dest='deinterlace', default=False, action='store_true')
+parser.add_argument('--decimate', dest='decimate', default=False, action='store_true')
+parser.add_argument('--test-deinterlace', dest='test_deinterlace', default=False, action='store_true')
+parser.add_argument('--no-cabac', dest='cabac', default=True, action='store_false')
 args = parser.parse_args()
 
 if not args.out_path:
-    args.out_path = args.in_path.replace('.dv', '-crf{0:g}-{1}.mkv'.format(args.crf, args.preset))
+    args.out_path = args.in_path.replace('.dv', '-crf{0:g}-{1}{2}.mkv'.format(args.crf, args.preset, '-deinterlaced' if args.deinterlace else ''))
 
 print(args.out_path)
 
@@ -61,21 +94,40 @@ if not process.check_context_supported():
     exit()
 
 container = libav.AVContainer(args.in_path)
-frame_count = container.streams[0].duration
-sample_count = (container.streams[1].frame_count or container.streams[1].sample_rate * container.streams[1].duration * container.streams[1].time_base.numerator// container.streams[1].time_base.denominator)
+frame_rate = fractions.Fraction(30000, 1001)
+sample_rate = container.streams[1].sample_rate
+
+frame_count = args.frame_count or container.streams[0].duration
+
+if args.frame_count:
+    sample_count = args.frame_count * sample_rate * frame_rate.denominator // frame_rate.numerator
+else:
+    sample_count = (container.streams[1].frame_count or sample_rate * container.streams[1].duration * container.streams[1].time_base.numerator// container.streams[1].time_base.denominator)
 
 print('Frames {0} Samples {1}'.format(frame_count, sample_count))
 
-packet_source = libav.AVDemuxer(args.in_path, 0)
-dv_decoder = libav.AVVideoDecoder(packet_source, 'dvvideo')
+if args.test_deinterlace:
+    dv_decoder = FakeDVImageSource()
+else:
+    packet_source = libav.AVDemuxer(args.in_path, 0)
+    dv_decoder = libav.AVVideoDecoder(packet_source, 'dvvideo')
+
 dv_reconstruct = process.DVReconstructionFilter(dv_decoder)
+
+if args.deinterlace:
+    dv_reconstruct = process.VideoBobDeinterlaceFilter(dv_reconstruct)
+
+    if args.decimate:
+        dv_reconstruct = process.VideoDecimateFilter(dv_reconstruct, 2)
+    else:
+        frame_rate *= 2
+        frame_count *= 2
+
 mpeg2_subsample = process.MPEG2SubsampleFilter(dv_reconstruct)
 
 audio_packet_source = libav.AVDemuxer(args.in_path, 0)
 audio_decoder = libdv.DVAudioDecoder(audio_packet_source)
 
-frame_rate = fractions.Fraction(30000, 1001)
-sample_rate = 48000
 writing_app = "Brian's test MKV writer"
 sar = fractions.Fraction(40, 33) if args.wide else fractions.Fraction(10, 11)
 
@@ -88,7 +140,8 @@ print('min_sample: {0}, max_sample: {1}'.format(min_sample, max_sample))
 
 params = x264.X264EncoderParams(preset=args.preset, width=720, height=480,
     frame_rate=frame_rate, constant_ratefactor=args.crf, sample_aspect_ratio=sar,
-    annex_b=False, repeat_headers=False, interlaced=True, vbv_max_bitrate=(args.max_bitrate or -1))
+    annex_b=False, repeat_headers=False, interlaced=not args.deinterlace, vbv_max_bitrate=(args.max_bitrate or -1),
+    cabac=args.cabac)
 video_encoder = x264.X264VideoEncoder(mpeg2_subsample, min_frame, max_frame, params)
 audio_encoder = faac.AACAudioEncoder(audio_decoder, min_sample, max_sample, 48000, 2)
 
