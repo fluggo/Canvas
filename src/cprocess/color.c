@@ -24,12 +24,14 @@ typedef struct __tag_xyz {
     float x, y, z, dummy;
 } xyz;
 
+/*
 static inline void
 mult_xyz_xyz( xyz *a, const xyz *b ) {
     a->x *= b->x;
     a->y *= b->y;
     a->z *= b->z;
 }
+*/
 
 static inline void
 mult_mat_xyz( const xyz *a, const xyz *b, const xyz *c, rgba_f32 *v ) {
