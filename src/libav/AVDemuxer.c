@@ -43,7 +43,7 @@ typedef struct {
     int stream;
     bool raw_timestamps;
     rational frame_duration;
-    GStaticMutex mutex;
+    GMutex mutex;
 } py_obj_AVDemuxer;
 
 static int
@@ -76,7 +76,11 @@ AVDemuxer_init( py_obj_AVDemuxer *self, PyObject *args, PyObject *kw ) {
         return -1;
     }
 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 3, 0)
     if( (error = av_find_stream_info( self->context )) < 0 ) {
+#else
+    if( (error = avformat_find_stream_info( self->context, NULL )) < 0 ) {
+#endif
         PyErr_Format( PyExc_Exception, "Could not find the stream info (%s).", g_strerror( -error ) );
         return -1;
     }
@@ -88,7 +92,7 @@ AVDemuxer_init( py_obj_AVDemuxer *self, PyObject *args, PyObject *kw ) {
 
     self->codecContext = self->context->streams[self->stream]->codec;
 
-    g_static_mutex_init( &self->mutex );
+    g_mutex_init( &self->mutex );
 
     // Calculate the frame (sample) duration
     if( self->codecContext->codec_type == AVMEDIA_TYPE_VIDEO ) {
@@ -113,11 +117,15 @@ AVDemuxer_init( py_obj_AVDemuxer *self, PyObject *args, PyObject *kw ) {
 static void
 AVDemuxer_dealloc( py_obj_AVDemuxer *self ) {
     if( self->context != NULL ) {
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 17, 0)
         av_close_input_file( self->context );
         self->context = NULL;
+#else
+        avformat_close_input( &self->context );
+#endif
     }
 
-    g_static_mutex_free( &self->mutex );
+    g_mutex_clear( &self->mutex );
 
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
@@ -167,12 +175,12 @@ AVDemuxer_get_next_packet( py_obj_AVDemuxer *self ) {
     my_packet *packet = g_slice_new0( my_packet );
     av_init_packet( &packet->av_packet );
 
-    g_static_mutex_lock( &self->mutex );
+    g_mutex_lock( &self->mutex );
 
     for( ;; ) {
         //printf( "Reading frame\n" );
         if( av_read_frame( self->context, &packet->av_packet ) < 0 ) {
-            g_static_mutex_unlock( &self->mutex );
+            g_mutex_unlock( &self->mutex );
             my_packet_free( packet );
 
             return NULL;
@@ -184,7 +192,7 @@ AVDemuxer_get_next_packet( py_obj_AVDemuxer *self ) {
         av_free_packet( &packet->av_packet );
     }
 
-    g_static_mutex_unlock( &self->mutex );
+    g_mutex_unlock( &self->mutex );
 
     packet->packet.data = packet->av_packet.data;
     packet->packet.length = packet->av_packet.size;

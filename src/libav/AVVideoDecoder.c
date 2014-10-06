@@ -41,6 +41,8 @@ counted_get_buffer( AVCodecContext *codec, AVFrame *frame ) {
     // choice. They want to allocate and release the frames when they
     // want to, not when we want to.
 
+    // TODO: Use avcodec_align_dimensions2()
+
     int size = avpicture_get_size( codec->pix_fmt, codec->width, codec->height );
     void *buffer = g_try_malloc( size );
 
@@ -162,6 +164,8 @@ AVVideoDecoder_init( py_obj_AVVideoDecoder *self, PyObject *args, PyObject *kw )
     g_mutex_init( &self->mutex );
 
     self->next_frame = 0;
+
+    // Supply our own get_buffer and release_buffer to let us deallocate when we're ready
     self->context.get_buffer = counted_get_buffer;
     self->context.release_buffer = counted_release_buffer;
 
@@ -191,8 +195,7 @@ AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) 
 
     self->next_frame = frame;
 
-    AVFrame av_frame;
-    avcodec_get_frame_defaults( &av_frame );
+    AVFrame* av_frame = avcodec_alloc_frame();
 
     // TODO: This won't work for any format in which the packets
     // are not in presentation order
@@ -205,6 +208,8 @@ AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) 
     codec_packet *packet = NULL;
 
     for( ;; ) {
+        avcodec_get_frame_defaults( av_frame );
+
         if( packet && packet->free_func )
             packet->free_func( packet );
 
@@ -219,7 +224,7 @@ AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) 
 
         //printf( "Decoding video\n" );
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(52, 23, 0)
-        avcodec_decode_video( &self->context, &av_frame, &got_picture, packet->data, packet->length );
+        avcodec_decode_video( &self->context, av_frame, &got_picture, packet->data, packet->length );
 #else
         AVPacket av_packet = {
             .pts = AV_NOPTS_VALUE,
@@ -227,7 +232,7 @@ AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) 
             .data = packet->data,
             .size = packet->length };
 
-        avcodec_decode_video2( &self->context, &av_frame, &got_picture, &av_packet );
+        avcodec_decode_video2( &self->context, av_frame, &got_picture, &av_packet );
 #endif
 
         if( !got_picture )
@@ -236,14 +241,14 @@ AVVideoDecoder_get_frame( py_obj_AVVideoDecoder *self, int frame, int quality ) 
         self->next_frame = packet->pts + 1;
 
         if( packet->pts < frame ) {
-            printf( "Too early (%" PRId64 " vs %d) (also %" PRId64 ")\n", packet->pts, frame, av_frame.pts );
+            printf( "Too early (%" PRId64 " vs %d) (also %" PRId64 ")\n", packet->pts, frame, av_frame->pts );
             continue;
         }
 
         if( packet && packet->free_func )
             packet->free_func( packet );
 
-        my_coded_image *image = (my_coded_image*) av_frame.opaque;
+        my_coded_image *image = (my_coded_image*) av_frame->opaque;
         g_atomic_int_inc( &image->ref_count );
 
         g_mutex_unlock( &self->mutex );

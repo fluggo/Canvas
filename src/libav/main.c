@@ -24,11 +24,11 @@
 #include <structmember.h>
 #include <libavformat/avformat.h>
 
-PyObject *py_writeVideo( PyObject *self, PyObject *args, PyObject *kw );
+//PyObject *py_writeVideo( PyObject *self, PyObject *args, PyObject *kw );
 
 static PyMethodDef module_methods[] = {
-    { "write_video", (PyCFunction) py_writeVideo, METH_VARARGS | METH_KEYWORDS,
-        "TBD" },
+//    { "write_video", (PyCFunction) py_writeVideo, METH_VARARGS | METH_KEYWORDS,
+//        "TBD" },
     { NULL }
 };
 
@@ -367,8 +367,8 @@ PyInit_libav() {
     PyModule_AddIntMacro( m, CODEC_ID_MACE3 );
     PyModule_AddIntMacro( m, CODEC_ID_MACE6 );
     PyModule_AddIntMacro( m, CODEC_ID_VMDAUDIO );
-    PyModule_AddIntMacro( m, CODEC_ID_SONIC );
-    PyModule_AddIntMacro( m, CODEC_ID_SONIC_LS );
+    //PyModule_AddIntMacro( m, CODEC_ID_SONIC );
+    //PyModule_AddIntMacro( m, CODEC_ID_SONIC_LS );
     PyModule_AddIntMacro( m, CODEC_ID_FLAC );
     PyModule_AddIntMacro( m, CODEC_ID_MP3ADU );
     PyModule_AddIntMacro( m, CODEC_ID_MP3ON4 );

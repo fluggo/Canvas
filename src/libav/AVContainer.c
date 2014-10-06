@@ -92,7 +92,11 @@ AVContainer_init( py_obj_AVContainer *self, PyObject *args, PyObject *kwds ) {
         return -1;
     }
 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 3, 0)
     if( (error = av_find_stream_info( self->format )) < 0 ) {
+#else
+    if( (error = avformat_find_stream_info( self->format, NULL )) < 0 ) {
+#endif
         PyErr_Format( PyExc_Exception, "Could not find the stream info (%s).", g_strerror( -error ) );
         return -1;
     }
@@ -124,8 +128,12 @@ AVContainer_dealloc( py_obj_AVContainer *self ) {
     Py_CLEAR( self->streamList );
 
     if( self->format != NULL ) {
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 17, 0)
         av_close_input_file( self->format );
         self->format = NULL;
+#else
+        avformat_close_input( &self->format );
+#endif
     }
 
     Py_TYPE(self)->tp_free( (PyObject*) self );

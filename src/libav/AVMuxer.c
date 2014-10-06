@@ -169,8 +169,19 @@ AVMuxer_add_video_stream( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     if( !py_parse_v2i( frame_size_obj, &frame_size ) )
         return NULL;
 
+    AVCodec *codec = avcodec_find_encoder( codec_id );
+
+    if( !codec ) {
+        PyErr_Format( PyExc_Exception, "Failed to find an encoder with the ID \"%d\".", codec_id );
+        return NULL;
+    }
+
     stream_t *stream = g_slice_new0( stream_t ); 
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 10, 0)
     stream->stream = av_new_stream( self->context, self->context->nb_streams );
+#else
+    stream->stream = avformat_new_stream( self->context, codec );
+#endif
 
     if( !stream->stream )
         return PyErr_NoMemory();
@@ -213,8 +224,19 @@ AVMuxer_add_audio_stream( py_obj_AVMuxer *self, PyObject *args, PyObject *kw ) {
     // Parse and validate the arguments
     avcodec_register_all();
 
+    AVCodec *codec = avcodec_find_encoder( codec_id );
+
+    if( !codec ) {
+        PyErr_Format( PyExc_Exception, "Failed to find an encoder with the ID \"%d\".", codec_id );
+        return NULL;
+    }
+
     stream_t *stream = g_slice_new0( stream_t );
+#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(53, 10, 0)
     stream->stream = av_new_stream( self->context, self->context->nb_streams );
+#else
+    stream->stream = avformat_new_stream( self->context, codec );
+#endif
 
     if( !stream->stream )
         return PyErr_NoMemory();
