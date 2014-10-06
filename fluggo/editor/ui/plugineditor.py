@@ -17,17 +17,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fractions, threading, os.path
-from PyQt4 import QtCore, QtGui
-import PyQt4.uic
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+import PyQt5.uic
 from fluggo.editor import plugins
 
-(_type, _base) = PyQt4.uic.loadUiType(os.path.join(os.path.dirname(__file__), 'plugineditor.ui'))
+(_type, _base) = PyQt5.uic.loadUiType(os.path.join(os.path.dirname(__file__), 'plugineditor.ui'))
 
-SUBTITLE = QtCore.Qt.UserRole
+SUBTITLE = Qt.UserRole
 
-class _PluginModel(QtCore.QAbstractListModel):
+class _PluginModel(QAbstractListModel):
     def __init__(self):
-        QtCore.QAbstractListModel.__init__(self)
+        super().__init__()
         self._plugins = plugins.PluginManager.find_plugins(enabled_only=False)
 
     def rowCount(self, parent):
@@ -36,56 +38,56 @@ class _PluginModel(QtCore.QAbstractListModel):
 
         return len(self._plugins)
 
-    def data(self, index, role=QtCore.Qt.DisplayRole):
+    def data(self, index, role=Qt.DisplayRole):
         if index.column() == 0:
-            if role == QtCore.Qt.DisplayRole:
+            if role == Qt.DisplayRole:
                 return self._plugins[index.row()].name
             elif role == SUBTITLE:
                 return self._plugins[index.row()].description
-            elif role == QtCore.Qt.CheckStateRole:
-                return QtCore.Qt.Checked if plugins.PluginManager.is_plugin_enabled(self._plugins[index.row()]) else QtCore.Qt.Unchecked
+            elif role == Qt.CheckStateRole:
+                return Qt.Checked if plugins.PluginManager.is_plugin_enabled(self._plugins[index.row()]) else Qt.Unchecked
 
     def flags(self, index):
         if index.column() == 0:
-            return QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsUserCheckable
+            return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsUserCheckable
 
-    def headerData(self, section, orientation, role = QtCore.Qt.DisplayRole):
-        if orientation == QtCore.Qt.Horizontal:
+    def headerData(self, section, orientation, role = Qt.DisplayRole):
+        if orientation == Qt.Horizontal:
             if section == 0:
-                if role == QtCore.Qt.DisplayRole:
+                if role == Qt.DisplayRole:
                     return 'Name'
 
     def setData(self, index, value, role):
         if index.column() == 0:
-            if role == QtCore.Qt.CheckStateRole:
-                plugins.PluginManager.set_plugin_enabled(self._plugins[index.row()], value == QtCore.Qt.Checked)
+            if role == Qt.CheckStateRole:
+                plugins.PluginManager.set_plugin_enabled(self._plugins[index.row()], value == Qt.Checked)
                 self.dataChanged.emit(index, index)
                 return True
 
         return False
 
-class _PluginDelegate(QtGui.QStyledItemDelegate):
+class _PluginDelegate(QStyledItemDelegate):
     def sizeHint(self, option, index):
         if index.column() != 0:
-            return QtGui.QStyledItemDelegate.sizeHint(self, option, index)
+            return QStyledItemDelegate.sizeHint(self, option, index)
 
-        style = QtGui.QApplication.style()
-        margin = style.pixelMetric(QtGui.QStyle.PM_FocusFrameHMargin, option, option.widget)
-        metrics = QtGui.QFontMetrics(option.font)
+        style = QApplication.style()
+        margin = style.pixelMetric(QStyle.PM_FocusFrameHMargin, option, option.widget)
+        metrics = QFontMetrics(option.font)
 
-        bold_font = QtGui.QFont(option.font)
+        bold_font = QFont(option.font)
         bold_font.setBold(True)
         bold_font.setPointSize(bold_font.pointSize() + 2)
-        bold_metrics = QtGui.QFontMetrics(bold_font)
+        bold_metrics = QFontMetrics(bold_font)
 
-        return QtCore.QSize(10, bold_metrics.height() + metrics.lineSpacing() + margin * 2)
+        return QSize(10, bold_metrics.height() + metrics.lineSpacing() + margin * 2)
 
     def paint(self, painter, option, index):
         if index.column() != 0:
-            return QtGui.QStyledItemDelegate.paint(self, painter, option, index)
+            return QStyledItemDelegate.paint(self, painter, option, index)
 
-        option.features |= QtGui.QStyleOptionViewItemV4.HasCheckIndicator
-        option.features |= QtGui.QStyleOptionViewItemV4.HasDisplay
+        option.features |= QStyleOptionViewItem.HasCheckIndicator
+        option.features |= QStyleOptionViewItem.HasDisplay
         option.text = 'blah'
 
         painter.save()
@@ -93,46 +95,46 @@ class _PluginDelegate(QtGui.QStyledItemDelegate):
 
         # A good chunk of this is copied from QCommonStyle to duplicate
         # the look of normal items
-        style = QtGui.QApplication.style()
-        style.drawPrimitive(QtGui.QStyle.PE_PanelItemViewItem, option, painter, option.widget)
+        style = QApplication.style()
+        style.drawPrimitive(QStyle.PE_PanelItemViewItem, option, painter, option.widget)
 
         # Draw checkbox
-        button_option = QtGui.QStyleOptionViewItemV4(option)
-        button_option.rect = style.subElementRect(QtGui.QStyle.SE_ItemViewItemCheckIndicator, option, option.widget)
-        button_option.state = option.state & ~QtGui.QStyle.State_HasFocus
+        button_option = QStyleOptionViewItem(option)
+        button_option.rect = style.subElementRect(QStyle.SE_ItemViewItemCheckIndicator, option, option.widget)
+        button_option.state = option.state & ~QStyle.State_HasFocus
 
-        if index.data(QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked:
-            button_option.state |= QtGui.QStyle.State_On
+        if index.data(Qt.CheckStateRole) == Qt.Checked:
+            button_option.state |= QStyle.State_On
         else:
-            button_option.state |= QtGui.QStyle.State_Off
+            button_option.state |= QStyle.State_Off
 
-        style.drawPrimitive(QtGui.QStyle.PE_IndicatorItemViewItemCheck, button_option, painter, option.widget)
+        style.drawPrimitive(QStyle.PE_IndicatorItemViewItemCheck, button_option, painter, option.widget)
 
         # Draw text
-        margin = style.pixelMetric(QtGui.QStyle.PM_FocusFrameHMargin, option, option.widget)
-        metrics = QtGui.QFontMetrics(option.font)
+        margin = style.pixelMetric(QStyle.PM_FocusFrameHMargin, option, option.widget)
+        metrics = QFontMetrics(option.font)
 
-        bold_font = QtGui.QFont(option.font)
+        bold_font = QFont(option.font)
         bold_font.setBold(True)
         bold_font.setPointSize(bold_font.pointSize() + 2)
-        bold_metrics = QtGui.QFontMetrics(bold_font)
+        bold_metrics = QFontMetrics(bold_font)
 
-        baserect = style.subElementRect(QtGui.QStyle.SE_ItemViewItemText, option, option.widget)
+        baserect = style.subElementRect(QStyle.SE_ItemViewItemText, option, option.widget)
         baserect.setHeight(bold_metrics.height())
 
-        cg = QtGui.QPalette.Normal if (option.state & QtGui.QStyle.State_Enabled) else QtGui.QPalette.Disabled
+        cg = QPalette.Normal if (option.state & QStyle.State_Enabled) else QPalette.Disabled
 
-        title_text = index.data(QtCore.Qt.DisplayRole) or ''
-        title_text = bold_metrics.elidedText(title_text, QtCore.Qt.ElideRight, baserect.width() - 2 * margin)
+        title_text = index.data(Qt.DisplayRole) or ''
+        title_text = bold_metrics.elidedText(title_text, Qt.ElideRight, baserect.width() - 2 * margin)
 
         subtitle_text = index.data(SUBTITLE) or ''
-        subtitle_text = metrics.elidedText(subtitle_text, QtCore.Qt.ElideRight, baserect.width() - 2 * margin)
+        subtitle_text = metrics.elidedText(subtitle_text, Qt.ElideRight, baserect.width() - 2 * margin)
 
         painter.save()
 
         try:
             painter.setPen(option.palette.color(cg,
-                QtGui.QPalette.HighlightedText if (option.state & QtGui.QStyle.State_Selected) else QtGui.QPalette.Text))
+                QPalette.HighlightedText if (option.state & QStyle.State_Selected) else QPalette.Text))
 
             painter.setFont(bold_font)
             painter.drawText(baserect.x() + margin, baserect.y() + margin + bold_metrics.ascent(),
@@ -145,24 +147,23 @@ class _PluginDelegate(QtGui.QStyledItemDelegate):
             painter.restore()
 
         # Draw focus
-        if option.state & QtGui.QStyle.State_HasFocus == QtGui.QStyle.State_HasFocus:
-            focus_option = QtGui.QStyleOptionFocusRect()
+        if option.state & QStyle.State_HasFocus == QStyle.State_HasFocus:
+            focus_option = QStyleOptionFocusRect()
             focus_option.state = option.state
 
-            focus_option.rect = style.subElementRect(QtGui.QStyle.SE_ItemViewItemFocusRect, option, option.widget)
-            focus_option.state |= QtGui.QStyle.State_Item | QtGui.QStyle.State_KeyboardFocusChange
+            focus_option.rect = style.subElementRect(QStyle.SE_ItemViewItemFocusRect, option, option.widget)
+            focus_option.state |= QStyle.State_Item | QStyle.State_KeyboardFocusChange
 
             focus_option.background_color = option.palette.color(cg,
-                QtGui.QPalette.Highlight if (option.state & QtGui.QStyle.State_Selected) else QtGui.QPalette.Window)
+                QPalette.Highlight if (option.state & QStyle.State_Selected) else QPalette.Window)
 
-            style.drawPrimitive(QtGui.QStyle.PE_FrameFocusRect, focus_option, painter, option.widget)
+            style.drawPrimitive(QStyle.PE_FrameFocusRect, focus_option, painter, option.widget)
 
         painter.restore()
 
 class PluginEditorDialog(_base, _type):
     def __init__(self):
-        _base.__init__(self)
-        _type.__init__(self)
+        super().__init__()
         self.setupUi(self)
 
         self._model = _PluginModel()

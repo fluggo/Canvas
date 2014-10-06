@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from fluggo.media import process
-from PyQt4 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 def _rectf_to_rect(rect):
     '''Finds the smallest QRect enclosing the given QRectF.'''
@@ -117,9 +117,9 @@ class Draggable(object):
 from .clip import *
 from .sequence import *
 
-class PlaceholderItem(QtGui.QGraphicsItem):
+class PlaceholderItem(QtWidgets.QGraphicsItem):
     def __init__(self, asset_path, stream, x, y, height):
-        QtGui.QGraphicsItem.__init__(self)
+        QtWidgets.QGraphicsItem.__init__(self)
 
         self.asset_path = asset_path
         self.stream = stream

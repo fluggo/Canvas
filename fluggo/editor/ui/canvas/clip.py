@@ -20,17 +20,18 @@ from ..canvas import *
 from .markers import *
 from fluggo import logging
 from fluggo.editor import model
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import Qt
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import Qt
 from .thumbnails import ThumbnailPainter
 
 _log = logging.getLogger(__name__)
 
-class Handle(QtGui.QGraphicsRectItem, Draggable):
+class Handle(QtWidgets.QGraphicsRectItem, Draggable):
     invisibrush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 0.0, 0.0, 0.0))
 
     def __init__(self, parent, ctrlcls, item=None):
-        QtGui.QGraphicsRectItem.__init__(self, QtCore.QRectF(), parent)
+        super().__init__()
+        QtWidgets.QGraphicsRectItem.__init__(self, QtCore.QRectF(), parent)
         Draggable.__init__(self)
         self.brush = QtGui.QBrush(QtGui.QColor.fromRgbF(0.0, 1.0, 0.0))
         self.setAcceptHoverEvents(True)
@@ -77,11 +78,11 @@ class VerticalHandle(Handle):
     def drag_move(self, view, abs_pos, rel_pos):
         self.controller.move(rel_pos.y())
 
-class SceneItem(QtGui.QGraphicsItem):
+class SceneItem(QtWidgets.QGraphicsItem):
     drop_opaque = True
 
     def __init__(self, model_item, painter, name, units_per_second):
-        QtGui.QGraphicsItem.__init__(self)
+        super().__init__()
 
         self.units_per_second = units_per_second
 
@@ -95,8 +96,8 @@ class SceneItem(QtGui.QGraphicsItem):
         self._stream = None
         self._format = None
 
-        self.setFlags(QtGui.QGraphicsItem.ItemIsSelectable |
-            QtGui.QGraphicsItem.ItemUsesExtendedStyleOption)
+        self.setFlags(QtWidgets.QGraphicsItem.ItemIsSelectable |
+            QtWidgets.QGraphicsItem.ItemUsesExtendedStyleOption)
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.ArrowCursor)
 
@@ -107,7 +108,7 @@ class SceneItem(QtGui.QGraphicsItem):
             self.update(rect)
 
     def itemChange(self, change, value):
-        if change == QtGui.QGraphicsItem.ItemSceneHasChanged:
+        if change == QtWidgets.QGraphicsItem.ItemSceneHasChanged:
             if self.scene():
                 self.added_to_scene()
             else:
@@ -353,7 +354,7 @@ class ClipItem(SceneItem):
         if item.type() == 'video':
             painter = ThumbnailPainter()
 
-        SceneItem.__init__(self, item, painter, name, units_per_second)
+        super().__init__(item, painter, name, units_per_second)
 
         self.item = item
         self.item.updated.connect(self._update)

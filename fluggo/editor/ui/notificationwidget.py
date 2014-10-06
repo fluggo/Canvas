@@ -17,8 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from fluggo.editor import plugins
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 import bisect
 
 def _make_key(alert):
@@ -26,7 +27,7 @@ def _make_key(alert):
 
 class NotificationModel(QAbstractTableModel):
     def __init__(self, manager):
-        QAbstractTableModel.__init__(self)
+        super().__init__()
         self._manager = manager
         self._list = list(self._manager.alerts)
         self._list.sort(key=lambda n: _make_key(n))
@@ -100,7 +101,7 @@ class NotificationModel(QAbstractTableModel):
 
 class NotificationWidget(QDockWidget):
     def __init__(self, manager):
-        QDockWidget.__init__(self, 'Notifications')
+        super().__init__('Notifications')
         self._manager = manager
         self._model = NotificationModel(manager)
 
@@ -110,8 +111,8 @@ class NotificationWidget(QDockWidget):
         self.view.setModel(self._model)
         self.view.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.view.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.view.horizontalHeader().setResizeMode(0, QHeaderView.Stretch)
-        self.view.horizontalHeader().setResizeMode(1, QHeaderView.ResizeToContents)
+        self.view.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.view.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.view.verticalHeader().hide()
 
         layout = QVBoxLayout(widget)

@@ -24,7 +24,7 @@ import yaml
 from fluggo import signal, logging
 from fluggo.media.formats import *
 from fluggo.editor import plugins
-from PyQt4 import QtGui
+from PyQt5 import QtGui, QtWidgets
 
 _log = logging.getLogger(__name__)
 
@@ -261,7 +261,7 @@ class PluginSource(plugins.Source):
                     source=self.name,
                     model_obj=self,
                     actions=[
-                        QtGui.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)])
+                        QtWidgets.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)])
 
                 self.show_alert(self._load_alert)
 
@@ -288,7 +288,7 @@ class PluginSource(plugins.Source):
                     source=self.name,
                     model_obj=self,
                     actions=[
-                        QtGui.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)],
+                        QtWidgets.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)],
                     exc_info=True)
 
                 self.show_alert(self._load_alert)
@@ -305,7 +305,7 @@ class PluginSource(plugins.Source):
                     source=self.name,
                     model_obj=self,
                     actions=[
-                        QtGui.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)],
+                        QtWidgets.QAction('Retry', None, statusTip='Try bringing the source online again', triggered=self._retry_load)],
                     exc_info=True)
 
                 self.show_alert(self._load_alert)

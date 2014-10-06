@@ -18,7 +18,7 @@
 
 import os, os.path, weakref, sys, traceback
 import configparser
-from PyQt4 import QtCore
+from PyQt5 import QtCore
 
 from fluggo import signal, logging
 

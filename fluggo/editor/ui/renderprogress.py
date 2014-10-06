@@ -42,8 +42,7 @@ class RenderProgressDialog(_base, _type):
             integer from zero to "progress_count".
         '''
 
-        _base.__init__(self)
-        _type.__init__(self)
+        super().__init__()
         self.setupUi(self)
 
         self._encoders = encoders

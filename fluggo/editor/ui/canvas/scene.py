@@ -17,8 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fractions, traceback
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import Qt
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import Qt
 from ..canvas import *
 from fluggo import sortlist, signal
 from fluggo.editor import model
@@ -29,7 +29,7 @@ from fluggo import logging
 
 _log = logging.getLogger(__name__)
 
-class Scene(QtGui.QGraphicsScene):
+class Scene(QtWidgets.QGraphicsScene):
     DEFAULT_HEIGHT = 40.0
     DEFAULT_LENGTH_SECONDS = 5.0
 
@@ -109,7 +109,7 @@ class Scene(QtGui.QGraphicsScene):
             return model.CompoundCommand('Drag asset to canvas', [self.add_op, self.item_manip.finish()], done=True)
 
     def __init__(self, space, source_list, undo_stack):
-        QtGui.QGraphicsScene.__init__(self)
+        QtWidgets.QGraphicsScene.__init__(self)
         self.source_list = source_list
         self.space = space
         self.space.item_added.connect(self._handle_item_added)
@@ -217,7 +217,7 @@ class Scene(QtGui.QGraphicsScene):
         drop_action = drag.exec_(Qt.CopyAction | Qt.MoveAction)
 
     def dragMoveEvent(self, event):
-        QtGui.QGraphicsScene.dragMoveEvent(self, event)
+        QtWidgets.QGraphicsScene.dragMoveEvent(self, event)
 
         if self.drag_exc or self.drag_is_offline:
             # An error has occurred, which we'll report if they drop here
@@ -299,7 +299,7 @@ class Scene(QtGui.QGraphicsScene):
 #                event.ignore()
 
     def dragLeaveEvent(self, event):
-        QtGui.QGraphicsScene.dragLeaveEvent(self, event)
+        QtWidgets.QGraphicsScene.dragLeaveEvent(self, event)
 
         if self.drag_op:
             try:

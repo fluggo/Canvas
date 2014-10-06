@@ -17,16 +17,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import fractions, threading, os.path
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-import PyQt4.uic
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+import PyQt5.uic
 from fluggo.editor import plugins
 
-(_type, _base) = PyQt4.uic.loadUiType(os.path.join(os.path.dirname(__file__), 'codeceditor.ui'))
+(_type, _base) = PyQt5.uic.loadUiType(os.path.join(os.path.dirname(__file__), 'codeceditor.ui'))
 
 class _CodecModel(QAbstractTableModel):
     def __init__(self):
-        QAbstractTableModel.__init__(self)
+        super().__init__()
         self._decoders = list(plugins.PluginManager.find_decoders(enabled_only=False))
 
     def rowCount(self, parent):
@@ -103,16 +104,15 @@ class _CodecModel(QAbstractTableModel):
 
 class DecoderEditorDialog(_base, _type):
     def __init__(self):
-        _base.__init__(self)
-        _type.__init__(self)
+        super().__init__()
         self.setupUi(self)
 
         self._model = _CodecModel()
 
         self.codecsTableView.setModel(self._model)
         self.codecsTableView.selectionModel().selectionChanged.connect(self._selection_changed)
-        self.codecsTableView.horizontalHeader().setResizeMode(0, QHeaderView.Stretch)
-        self.codecsTableView.horizontalHeader().setResizeMode(1, QHeaderView.ResizeToContents)
+        self.codecsTableView.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.codecsTableView.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
 
         self.buttonBox.rejected.connect(self._close_clicked)
 

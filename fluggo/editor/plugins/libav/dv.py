@@ -20,8 +20,9 @@ from fluggo import logging
 from fluggo.media import libav, process
 from fluggo.media.basetypes import *
 from fluggo.editor import plugins
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 import fractions
 
 _log = logging.getLogger(__name__)
@@ -187,10 +188,12 @@ class _LibavSource(plugins.Source):
 
                     if not video_length:
                         # We need to give our best guess
+                        frame_rate = stream_desc.real_frame_rate or fractions.Fraction(stream_desc.time_base.denominator, stream_desc.time_base.numerator)
+
                         if stream_desc.duration:
-                            video_length = int(round(fractions.Fraction(stream_desc.duration) * stream_desc.time_base * stream_desc.real_frame_rate))
+                            video_length = int(round(fractions.Fraction(stream_desc.duration) * stream_desc.time_base * frame_rate))
                         elif container.duration:
-                            video_length = int(round(fractions.Fraction(container.duration, 1000000) * stream_desc.real_frame_rate))
+                            video_length = int(round(fractions.Fraction(container.duration, 1000000) * frame_rate))
                     else:
                         video_length = int(video_length)
 

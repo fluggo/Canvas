@@ -65,9 +65,10 @@ if args.break_exc:
     sys.excepthook = excepthook
 
 # Identify ourselves to Qt
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from PyQt4.QtOpenGL import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtOpenGL import *
+from PyQt5.QtWidgets import *
 
 QCoreApplication.setOrganizationName('Fluggo Productions')
 QCoreApplication.setOrganizationDomain('fluggo.com')
@@ -76,7 +77,7 @@ QCoreApplication.setApplicationName('Canvas')
 from fluggo import signal, sortlist, logging
 from fluggo.media import timecode, qt, alsa
 from fluggo.media.basetypes import *
-import fractions, array, collections
+import fractions, array, collections, traceback
 import os.path
 from fluggo.editor import ui, model, graph, plugins
 from fluggo.editor.ui import notificationwidget
@@ -91,15 +92,17 @@ class AssetSearchModel(QAbstractTableModel):
     # TODO: Show if asset is offline
 
     def __init__(self, asset_list):
-        QAbstractTableModel.__init__(self)
+        super().__init__()
         self.asset_list = asset_list
         self.current_list = []
         self.asset_list.added.connect(self._item_added)
         self.asset_list.removed.connect(self._item_removed)
-        self.setSupportedDragActions(Qt.LinkAction)
 
         self.search_string = None
         self.search('')
+
+    def supportedDragActions(self):
+        return Qt.LinkAction
 
     def _item_added(self, name):
         print('Added ' + name)
@@ -882,17 +885,37 @@ class MainWindow(QMainWindow):
 
     @_log.warnonerror('Error executing plugin editor dialog')
     def edit_plugins(self, event):
-        from fluggo.editor.ui.plugineditor import PluginEditorDialog
+        try:
+            from fluggo.editor.ui.plugineditor import PluginEditorDialog
 
-        dialog = PluginEditorDialog()
-        dialog.exec_()
+            dialog = PluginEditorDialog()
+            dialog.exec_()
+        except Exception as ex:
+            tb_list = traceback.format_exception(*sys.exc_info())
+
+            messageBox = QMessageBox(text='An unexpected error occurred.',
+                informativeText=tb_list[-1],
+                icon=QMessageBox.Warning,
+                standardButtons=QMessageBox.Ignore,
+                detailedText=''.join(tb_list))
+            messageBox.exec_()
 
     @_log.warnonerror('Error executing codec editor dialog')
     def edit_decoders(self, event):
-        from fluggo.editor.ui.codeceditor import DecoderEditorDialog
+        try:
+            from fluggo.editor.ui.codeceditor import DecoderEditorDialog
 
-        dialog = DecoderEditorDialog()
-        dialog.exec_()
+            dialog = DecoderEditorDialog()
+            dialog.exec_()
+        except Exception as ex:
+            tb_list = traceback.format_exception(*sys.exc_info())
+
+            messageBox = QMessageBox(text='An unexpected error occurred.',
+                informativeText=tb_list[-1],
+                icon=QMessageBox.Warning,
+                standardButtons=QMessageBox.Ignore,
+                detailedText=''.join(tb_list))
+            messageBox.exec_()
 
 
 app = QApplication(sys.argv)

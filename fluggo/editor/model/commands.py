@@ -19,8 +19,8 @@
 import collections, itertools
 from .items import *
 from fluggo import logging
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
 
 logger = logging.getLogger(__name__)
 

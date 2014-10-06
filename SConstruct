@@ -205,25 +205,28 @@ else:
     print 'Skipping ALSA build'
 
 try:
-    (sip_bin, pyqt_sip_dir, pyqt_sip_flags) = python3_script('''
-import PyQt4.pyqtconfig
-config = PyQt4.pyqtconfig.Configuration()
+    sip_bin = python_env.WhereIs('sip')
 
-print(config.sip_bin)
-print(config.pyqt_sip_dir)
-print(config.pyqt_sip_flags)
+    if not sip_bin:
+        raise SCons.Errors.StopError('Could not find sip binary')
+
+    (pyqt_sip_flags) = python3_script('''
+from PyQt5 import QtCore
+config = QtCore.PYQT_CONFIGURATION
+
+print(config['sip_flags'])
 ''').splitlines()
 
     # TODO: Separate this out as a tool
 
-    qt_env = python_env.Clone(tools=['default', 'qt4'], toolpath=['tools'])
+    qt_env = python_env.Clone(tools=['default', 'qt5'], toolpath=['tools'])
 
     # We need to publish initqt, let sip handle it
     qt_env['CCFLAGS'].remove('-fvisibility=hidden')
 
     qt_env['SIP'] = sip_bin
-    qt_env['SIPINCLUDE'] = pyqt_sip_dir
-    qt_env['SIPFLAGS'] = pyqt_sip_flags
+    qt_env['SIPINCLUDE'] = '/usr/share/sip/PyQt5'   # Honestly have no idea how to get this in PyQt5
+    qt_env['SIPFLAGS'] = pyqt_sip_flags[0].split()
     qt_env['SIPCOM'] = '$SIP -I $SIPINCLUDE -c $SIPSRCDIR $SIPFLAGS $SOURCES'
     qt_env['SIPSRCDIR'] = 'build/qt/sip'
     sip_action = Action('$SIPCOM', '$SIPCOMSTR')
@@ -251,7 +254,7 @@ print(config.pyqt_sip_flags)
     sip_builder = Builder(action=sip_action, emitter=emitter, source_scanner=SCons.Defaults.CScan)
 
     qt_env.Append(BUILDERS={'SipModule': sip_builder}, CPPPATH=['src/qt'], LIBS=[process])
-    qt_env.ParseConfig('pkg-config --libs --cflags QtGui QtOpenGL gl glib-2.0 glewmx')
+    qt_env.ParseConfig('pkg-config --libs --cflags Qt5Gui Qt5OpenGL gl glib-2.0 glewmx')
 
     qt_sip = qt_env.SipModule('qt', env.Glob('src/qt/*.sip'))
     qt = qt_env.SharedLibrary('fluggo/media/qt.so', qt_sip + env.Glob('src/qt/*.cpp'))
@@ -262,7 +265,7 @@ print(config.pyqt_sip_flags)
     Alias('all', 'qt')
     Default(qt)
 except Exception as ex:
-    print 'Skipping Qt4 build: ' + str(ex)
+    print 'Skipping Qt5 build: ' + str(ex)
 
 # Tests
 testenv = process_env.Clone()

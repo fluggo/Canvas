@@ -21,8 +21,8 @@ from .markers import *
 from fluggo.editor import model, graph
 from fluggo.media import process
 from fluggo.media.basetypes import *
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import Qt
+from PyQt5 import QtCore, QtGui
+from PyQt5.QtCore import Qt
 from .thumbnails import ThumbnailPainter
 
 (LEVEL_ITEMS, LEVEL_MOVE_HANDLES, LEVEL_TRANSITION_HANDLES, LEVEL_TIME_HANDLES, LEVEL_HEIGHT_HANDLES) = list(range(5))
