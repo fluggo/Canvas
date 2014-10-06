@@ -171,15 +171,21 @@ class View(QGraphicsView):
         self.ruler.resize(self.width() - self.frameWidth(), 30)
 
     def wheelEvent(self, event):
-        if event.delta() > 0:
-            factor = 2 ** (event.delta() / 120)
+        # TODO: Support pixelDelta()
+        if event.angleDelta().isNull():
+            return
+
+        distance = event.angleDelta().y()
+
+        if distance > 0:
+            factor = 2 ** (distance / 120)
 
             if self.scale_x * factor > self.max_zoom_x:
                 return
 
             self.scale(self.scale_x * factor, self.scale_y)
         else:
-            factor = 2 ** (-event.delta() / 120)
+            factor = 2 ** (-distance / 120)
 
             if self.scale_x / factor < self.min_zoom_x:
                 return
