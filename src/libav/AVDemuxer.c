@@ -100,8 +100,15 @@ AVDemuxer_init( py_obj_AVDemuxer *self, PyObject *args, PyObject *kw ) {
         AVRational *timeBase = &self->context->streams[self->stream]->time_base;
         AVRational *frameRate = &self->context->streams[self->stream]->r_frame_rate;
 
-        self->frame_duration.n = timeBase->den * frameRate->den;
-        self->frame_duration.d = timeBase->num * frameRate->num;
+        if( !frameRate->num ) {
+            // Frame rate wasn't specified, guess that it's the inverse of the time base
+            self->frame_duration.n = 1;
+            self->frame_duration.d = 1;
+        }
+        else {
+            self->frame_duration.n = timeBase->den * frameRate->den;
+            self->frame_duration.d = timeBase->num * frameRate->num;
+        }
     }
     else if( self->codecContext->codec_type == AVMEDIA_TYPE_AUDIO ) {
         AVRational *timeBase = &self->context->streams[self->stream]->time_base;
