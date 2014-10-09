@@ -42,7 +42,11 @@ for stream in c.streams:
 
         if stream.sample_aspect_ratio:
             print('Sample aspect ratio:', stream.sample_aspect_ratio)
+        if stream.average_frame_rate:
+            print('Average frame rate:', stream.average_frame_rate)
     elif stream.type == 'audio':
         print('Sample rate:', stream.sample_rate, 'Hz')
         print('Channels:', stream.channels)
 
+    if stream.metadata:
+        print('Metadata:', stream.metadata)

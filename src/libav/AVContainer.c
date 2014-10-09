@@ -44,12 +44,14 @@ typedef struct {
 
     py_obj_AVContainer *container;
     AVStream *stream;
+    PyObject *metadata_obj;
 } py_obj_AVStream;
 
 static int
 AVStream_init( py_obj_AVStream *self, PyObject *args, PyObject *kwds ) {
     self->container = NULL;
     self->stream = NULL;
+    self->metadata_obj = NULL;
 
     return 0;
 }
@@ -57,6 +59,7 @@ AVStream_init( py_obj_AVStream *self, PyObject *args, PyObject *kwds ) {
 static void
 AVStream_dealloc( py_obj_AVStream *self ) {
     Py_CLEAR( self->container );
+    Py_CLEAR( self->metadata_obj );
     Py_TYPE(self)->tp_free( (PyObject*) self );
 }
 
@@ -340,6 +343,60 @@ AVStream_duration( py_obj_AVStream *self, void *closure ) {
     return PyLong_FromLongLong( self->stream->duration );
 }
 
+static PyObject *
+AVStream_metadata( py_obj_AVStream *self, void *closure ) {
+    if( self->metadata_obj ) {
+        Py_INCREF( self->metadata_obj );
+        return self->metadata_obj;
+    }
+
+    if( !self->stream->metadata )
+        Py_RETURN_NONE;
+
+    // Construct a Python dictionary out of the metadata
+    if( !(self->metadata_obj = PyDict_New()) )
+        return NULL;
+
+    AVDictionaryEntry *entry = NULL;
+
+    while( (entry = av_dict_get( self->stream->metadata, "", entry, AV_DICT_IGNORE_SUFFIX )) ) {
+        if( !entry->key )
+            continue;
+
+        PyObject *value_obj;
+
+        if( entry->value ) {
+            value_obj = PyUnicode_FromString( entry->value );
+        }
+        else {
+            value_obj = Py_None;
+            Py_INCREF(value_obj);
+        }
+
+        if( PyDict_SetItemString( self->metadata_obj, entry->key, value_obj ) < 0 ) {
+            Py_CLEAR(value_obj);
+            Py_CLEAR(self->metadata_obj);
+            return NULL;
+        }
+
+        Py_CLEAR(value_obj);
+    }
+
+    Py_INCREF(self->metadata_obj);
+    return self->metadata_obj;
+}
+
+static PyObject *
+AVStream_avg_frame_rate( py_obj_AVStream *self, void *closure ) {
+    AVRational sar = self->stream->avg_frame_rate;
+
+    if( sar.num == 0 )
+        Py_RETURN_NONE;
+
+    rational result = { .n = sar.num, .d = sar.den };
+    return py_make_rational( &result );
+}
+
 static PyGetSetDef AVStream_getsetters[] = {
     { "time_base", (getter) AVStream_timeBase, NULL, "The time base of the stream." },
     { "sample_aspect_ratio", (getter) AVStream_sampleAspectRatio, NULL, "For picture streams, the aspect ratio of each sample, or None if it's unknown." },
@@ -358,6 +415,8 @@ static PyGetSetDef AVStream_getsetters[] = {
     { "frame_count", (getter) AVStream_frameCount, NULL, "If available, the number of frames in this stream." },
     { "start_time", (getter) AVStream_startTime, NULL, "If available, the presentation start time of this stream in time_base units." },
     { "duration", (getter) AVStream_duration, NULL, "If available, the duration of the stream in time_base units." },
+    { "metadata", (getter) AVStream_metadata, NULL, "If available, a dictionary with metadata information from the stream." },
+    { "average_frame_rate", (getter) AVStream_avg_frame_rate, NULL, "The average frame rate of the stream, or None if it's unknown." },
     { NULL }
 };
 
