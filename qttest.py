@@ -500,6 +500,60 @@ class SpaceEditor(CompositionEditor):
         self._create_widget()
         return self.view.get_toolbars()
 
+def msgboxonerror(msg='An unexpected error occurred.', logger=None):
+    '''Shows a basic message box when an exception occurs, then eats the exception.
+
+    If *logger* is specified, the error is first logged as an error.'''
+    import functools, traceback
+
+    if callable(msg):
+        # We were called with the @msgboxonerror syntax; that's fine
+        func = msg
+        msg = 'An unexpected error occurred.'
+
+        @functools.wraps(func)
+        def wrapper_func(*args, **kw):
+            try:
+                return func(*args, **kw)
+            except Exception as ex:
+                if logger:
+                    logger.error(msg, exc_info=True)
+
+                tb_list = traceback.format_exception(*sys.exc_info())
+
+                messageBox = QMessageBox(text=msg,
+                    informativeText=tb_list[-1],
+                    icon=QMessageBox.Warning,
+                    standardButtons=QMessageBox.Ignore,
+                    detailedText=''.join(tb_list))
+                messageBox.exec_()
+
+        return wrapper_func
+    else:
+        # We were called with the @msgboxonerror(msg) syntax
+        def wrapper(func):
+            @functools.wraps(func)
+            def wrapper_func(*args, **kw):
+                try:
+                    print(args)
+                    return func(*args, **kw)
+                except Exception as ex:
+                    if logger:
+                        logger.error(msg, exc_info=True)
+
+                    tb_list = traceback.format_exception(*sys.exc_info())
+
+                    messageBox = QMessageBox(text=msg,
+                        informativeText=tb_list[-1],
+                        icon=QMessageBox.Warning,
+                        standardButtons=QMessageBox.Ignore,
+                        detailedText=''.join(tb_list))
+                    messageBox.exec_()
+
+            return wrapper_func
+
+        return wrapper
+
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
@@ -829,6 +883,7 @@ class MainWindow(QMainWindow):
         with open(path, 'w') as stream:
             yaml.dump_all(self.uimgr.asset_list.get_asset_list(), stream)
 
+    @msgboxonerror(logger=_log)
     def render_dv(self):
         # FIXME: This code path has LONG since been outdated
         if not len(self.space_asset.space):
